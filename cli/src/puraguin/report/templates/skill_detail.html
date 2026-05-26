@@ -1,0 +1,53 @@
+{# cli/src/puraguin/report/templates/skill_detail.html #}
+{% extends "base.html" %}
+{% block content %}
+
+<p><a href="overview.html">← overview</a></p>
+
+<h2>Summary</h2>
+<table>
+<tr><td>Window</td><td>{{ window }}</td></tr>
+<tr><td>Invocations</td><td>{{ stats.invocations }}</td></tr>
+<tr><td>Positive</td><td class="pos">{{ stats.positive }}</td></tr>
+<tr><td>Negative</td><td class="neg">{{ stats.negative }}</td></tr>
+<tr><td>Neutral</td><td>{{ stats.neutral }}</td></tr>
+<tr><td>No reaction</td><td>{{ stats.none_reaction }}</td></tr>
+<tr><td>Load failures</td><td>{{ stats.load_failures }}</td></tr>
+<tr><td>User-typed</td><td>{{ stats.user_typed }}</td></tr>
+<tr><td>Model-triggered</td><td>{{ stats.model_triggered }}</td></tr>
+</table>
+
+<h2>Positive exemplars</h2>
+<table>
+<tr><th>Session</th><th>Turn</th><th>Reaction quote</th><th>Notes</th></tr>
+{% for r in positive_examples %}
+<tr><td><code>{{ r.session_id[:8] }}</code></td><td>{{ r.turn_index }}</td>
+    <td class="quote">{{ r.user_reaction_quote }}</td><td>{{ r.notes }}</td></tr>
+{% endfor %}
+</table>
+
+<h2>Negative exemplars</h2>
+<table>
+<tr><th>Session</th><th>Turn</th><th>Reaction quote</th><th>Notes</th></tr>
+{% for r in negative_examples %}
+<tr><td><code>{{ r.session_id[:8] }}</code></td><td>{{ r.turn_index }}</td>
+    <td class="quote">{{ r.user_reaction_quote }}</td><td>{{ r.notes }}</td></tr>
+{% endfor %}
+</table>
+
+<h2>Gap findings for this skill</h2>
+<table>
+<tr><th>Session</th><th>Turn</th><th>Prompt excerpt</th><th>Reasoning</th></tr>
+{% for g in gaps %}
+<tr><td><code>{{ g.session_id[:8] }}</code></td><td>{{ g.turn_index }}</td>
+    <td class="quote">{{ g.prompt_excerpt[:200] }}…</td><td>{{ g.reasoning }}</td></tr>
+{% endfor %}
+</table>
+
+{% if latest_improvement %}
+<h2>Latest evidence pack</h2>
+<p>Status: <strong>{{ latest_improvement.status }}</strong></p>
+<p>Path: <code>{{ latest_improvement.evidence_path }}</code></p>
+{% endif %}
+
+{% endblock %}

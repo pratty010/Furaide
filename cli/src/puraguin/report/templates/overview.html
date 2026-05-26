@@ -1,0 +1,37 @@
+{# cli/src/puraguin/report/templates/overview.html #}
+{% extends "base.html" %}
+{% block content %}
+
+<h2>Top skills by invocation count</h2>
+<table>
+<tr><th>Skill</th><th>Invocations</th><th>Positive</th><th>Negative</th><th>Neutral</th><th>None</th><th>Load failures</th><th>User-typed</th><th>Model-triggered</th></tr>
+{% for r in by_count %}
+<tr>
+  <td><a href="skill-{{ r.skill }}.html">{{ r.skill }}</a></td>
+  <td>{{ r.invocations }}</td>
+  <td class="pos">{{ r.positive }}</td>
+  <td class="neg">{{ r.negative }}</td>
+  <td class="neu">{{ r.neutral }}</td>
+  <td>{{ r.none_reaction }}</td>
+  <td>{{ r.load_failures }}</td>
+  <td>{{ r.user_typed }}</td>
+  <td>{{ r.model_triggered }}</td>
+</tr>
+{% endfor %}
+</table>
+
+<h2>Recent gap findings (skills that should have fired)</h2>
+<table>
+<tr><th>Suggested skill</th><th>Session</th><th>Turn</th><th>Prompt excerpt</th><th>Reasoning</th></tr>
+{% for g in gaps %}
+<tr>
+  <td><a href="skill-{{ g.suggested_skill }}.html">{{ g.suggested_skill }}</a></td>
+  <td><code>{{ g.session_id[:8] }}</code></td>
+  <td>{{ g.turn_index }}</td>
+  <td><span class="quote">{{ g.prompt_excerpt[:200] }}…</span></td>
+  <td>{{ g.reasoning }}</td>
+</tr>
+{% endfor %}
+</table>
+
+{% endblock %}
