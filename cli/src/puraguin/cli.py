@@ -35,6 +35,23 @@ def _cmd_run(args):
     c = aggregate.run()
     print(json.dumps({"ingest": a, "invocations_judged": n_inv, "gaps_found": n_gap, "aggregate": c}, indent=2))
 
+def _cmd_report(args):
+    from puraguin.report import generate, server
+    if not args.overview and not args.skill:
+        raise SystemExit("specify --overview or --skill X")
+    paths = []
+    if args.overview:
+        paths.append(generate.overview())
+    if args.skill:
+        paths.append(generate.skill_detail(args.skill))
+    base = "(http server disabled)"
+    if not args.no_serve:
+        base = server.ensure_running()
+    print(json.dumps({
+        "urls": [base.rstrip("/") + "/" + p.name for p in paths],
+        "files": [str(p) for p in paths],
+    }, indent=2))
+
 def _cmd_improve(args):
     from puraguin import improve
     if args.mark:
@@ -72,6 +89,12 @@ def build_parser() -> argparse.ArgumentParser:
     rn.add_argument("--judge", default=None)
     rn.add_argument("--skip-gaps", action="store_true")
     rn.set_defaults(func=_cmd_run)
+
+    rpt = sub.add_parser("report", help="Phase E: render HTML reports")
+    rpt.add_argument("--overview", action="store_true")
+    rpt.add_argument("--skill", default=None)
+    rpt.add_argument("--no-serve", action="store_true", help="skip starting http.server")
+    rpt.set_defaults(func=_cmd_report)
 
     imp = sub.add_parser("improve", help="Phase D: build evidence pack for a skill")
     imp.add_argument("--skill", required=False)
