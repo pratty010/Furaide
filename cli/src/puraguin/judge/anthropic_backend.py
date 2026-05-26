@@ -23,10 +23,21 @@ class AnthropicBackend:
                 parts.append(block.text)
         return "".join(parts).strip()
 
+    def _parse_json(self, raw: str) -> dict:
+        try:
+            return json.loads(raw.strip())
+        except json.JSONDecodeError:
+            pass
+        start = raw.find("{")
+        end = raw.rfind("}")
+        if start >= 0 and end >= 0:
+            return json.loads(raw[start : end + 1])
+        raise ValueError(f"Could not parse JSON from response: {raw[:200]}")
+
     def classify_invocation(self, ctx: InvocationContext) -> Judgment:
         model = self.cfg.anthropic_model_classify
         raw = self._call(model, prompts.CLASSIFY_SYSTEM, prompts.classify_user_prompt(ctx))
-        data = json.loads(raw)
+        data = self._parse_json(raw)
         return Judgment(
             used_downstream=data.get("used_downstream"),
             user_reaction=data.get("user_reaction", "none"),
@@ -39,7 +50,7 @@ class AnthropicBackend:
     def detect_gap(self, prompt: str, available_skills: list[AvailableSkillCtx]) -> Gap | None:
         model = self.cfg.anthropic_model_gap
         raw = self._call(model, prompts.GAP_SYSTEM, prompts.gap_user_prompt(prompt, available_skills))
-        data = json.loads(raw)
+        data = self._parse_json(raw)
         sk = data.get("suggested_skill")
         if not sk:
             return None

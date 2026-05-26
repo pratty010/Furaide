@@ -35,7 +35,6 @@ def build(invocation_id: int, before: int = 10, after: int = 10) -> InvocationCo
             turn_index=turn_index,
             context_before=before_texts,
             context_after=after_texts,
-            session_ended_cleanly=None,
         )
     finally:
         conn.close()

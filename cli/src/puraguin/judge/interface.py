@@ -16,7 +16,6 @@ class InvocationContext:
     turn_index: int
     context_before: list[str]         # flattened role-prefixed text
     context_after: list[str]
-    session_ended_cleanly: Optional[bool]
 
 @dataclass
 class Judgment:

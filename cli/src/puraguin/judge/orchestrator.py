@@ -1,3 +1,4 @@
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from puraguin import db, transcript
@@ -30,23 +31,27 @@ def judge_invocations(backend: JudgeBackend, reanalyze_skill: str | None = None)
         conn.commit()
         ids = _unjudged_invocations(conn)
         for inv_id in ids:
-            ctx = context.build(inv_id, before=cfg.context_window_messages, after=cfg.context_window_messages)
-            j = backend.classify_invocation(ctx)
-            now = datetime.now(timezone.utc).isoformat()
-            conn.execute(
-                "INSERT INTO invocation_judgments(invocation_id, used_downstream, user_reaction, "
-                "user_reaction_quote, session_ended_cleanly, judgment_model, judged_at, notes) "
-                "VALUES(?, ?, ?, ?, ?, ?, ?, ?)",
-                (
-                    inv_id,
-                    None if j.used_downstream is None else (1 if j.used_downstream else 0),
-                    j.user_reaction, j.user_reaction_quote,
-                    None if j.session_ended_cleanly is None else (1 if j.session_ended_cleanly else 0),
-                    j.judgment_model, now, j.notes,
-                ),
-            )
-            conn.commit()
-            judged += 1
+            try:
+                ctx = context.build(inv_id, before=cfg.context_window_messages, after=cfg.context_window_messages)
+                j = backend.classify_invocation(ctx)
+                now = datetime.now(timezone.utc).isoformat()
+                conn.execute(
+                    "INSERT INTO invocation_judgments(invocation_id, used_downstream, user_reaction, "
+                    "user_reaction_quote, session_ended_cleanly, judgment_model, judged_at, notes) "
+                    "VALUES(?, ?, ?, ?, ?, ?, ?, ?)",
+                    (
+                        inv_id,
+                        None if j.used_downstream is None else (1 if j.used_downstream else 0),
+                        j.user_reaction, j.user_reaction_quote,
+                        None if j.session_ended_cleanly is None else (1 if j.session_ended_cleanly else 0),
+                        j.judgment_model, now, j.notes,
+                    ),
+                )
+                conn.commit()
+                judged += 1
+            except Exception as e:
+                print(f"[puraguin] judge skipped {inv_id}: {e}", file=sys.stderr)
+                continue
     finally:
         conn.close()
     return judged
