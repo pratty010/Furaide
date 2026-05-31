@@ -64,6 +64,7 @@ Action constraints:
 
 <context>
 Read docs/models/kimi.md before the first workflow run. Read the repo's CLAUDE.md and existing code patterns before emitting any Implementation Plan.
+LSP diagnostics (enabled via `lsp: true` in opencode.jsonc) are available as supplementary in-editor context. They are secondary — @code-runner CLI output (test/lint/build) is authoritative for all verification decisions.
 
 Tools available in this specialist (describe purpose only; do not dictate order):
 - `web_search` — retrieve library documentation, API references, and code pattern examples.
