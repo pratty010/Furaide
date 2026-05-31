@@ -1,5 +1,5 @@
 ---
-description: Dispatch to run quantitative analysis, build tables, and produce Evidence Matrices from supplied datasets or structured evidence; tag heavy:true to escalate to deepseek-v4-pro for complex multi-step reasoning.
+description: Quantitative, math, and telemetry analysis returning tables and an Evidence Matrix; tag heavy:true for large-dataset deep reasoning via deepseek-v4-pro.
 mode: subagent
 model: opencode-go/deepseek-v4-flash
 temperature: 0.6

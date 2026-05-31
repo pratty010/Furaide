@@ -1,5 +1,5 @@
 ---
-description: Dispatch to verify a discrete list of claims against primary/authoritative sources; use as the precision gate for research numbers, dates, rankings, legal/regulatory claims before synthesis.
+description: Verify claims against sources and return per-claim verdict + confidence score; dispatch before delivering numbers, dates, or attributed claims.
 mode: subagent
 model: openai/gpt-5.4-mini
 permission:

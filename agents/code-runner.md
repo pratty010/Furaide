@@ -1,5 +1,5 @@
 ---
-description: Dispatch to execute code, run scripts, and return stdout/stderr/exit_code/artifacts; the only subagent with bash access; use when a specialist needs validated execution output rather than code authoring.
+description: Execute commands, test suites, scripts, and code execution packets; returns stdout/stderr/exit_code; the only agent with bash access — all shell execution routes here.
 mode: subagent
 model: opencode-go/mimo-v2.5
 permission:

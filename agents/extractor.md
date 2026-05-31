@@ -1,5 +1,5 @@
 ---
-description: T2 leaf — dispatch to pull structured fields from a batch of raw inputs (URLs, text blocks, file lists) at scale; returns a JSON array of structured items with no judgment or synthesis.
+description: Bulk structured data extraction from documents, web pages, code, or filings; returns a JSON array; no judgment — pure extraction at scale for specialist dispatch only.
 mode: subagent
 model: opencode-go/minimax-m2.7
 permission:

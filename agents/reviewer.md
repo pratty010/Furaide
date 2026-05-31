@@ -1,5 +1,5 @@
 ---
-description: Dispatch for adversarial review of code, architecture decisions, plans, or arguments; use when a specialist needs high-confidence findings with severity ratings before merge or delivery.
+description: Adversarial review of code, architecture, plans, or arguments returning a findings table with severity ratings (critical/high/medium/low); premium gpt-5.5.
 mode: subagent
 model: openai/gpt-5.5
 permission:

@@ -1,5 +1,5 @@
 ---
-description: Dispatch to fetch, score, and return a structured Source Manifest from the web for any research brief; use when a specialist needs raw sourced evidence before synthesis.
+description: Fetch, score, and return a structured Source Manifest from the web; dispatch when a specialist needs raw sourced evidence before synthesis.
 mode: subagent
 model: opencode-go/minimax-m2.7
 permission:

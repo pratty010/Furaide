@@ -1,5 +1,5 @@
 ---
-description: T2 leaf — dispatch to render structured data into a target format (Markdown tables, JSON, SARIF, HTML sections); returns formatted output with no judgment or content changes.
+description: Bulk format and transform output between representations (Markdown, tables, JSON, SARIF, HTML); returns formatted text; no judgment — pure transformation, specialist dispatch only.
 mode: subagent
 model: opencode-go/mimo-v2.5
 permission:

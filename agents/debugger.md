@@ -1,5 +1,5 @@
 ---
-description: Dispatch to produce a structured ExecutionPacket for diagnosing hard bugs — hypothesis, files, commands, expected observations, and stop criteria; use after easy fixes have failed, not for feature authoring.
+description: Root-cause analysis of test failures or runtime errors; returns an ExecutionPacket (hypothesis/commands/expected_observations) for code-runner to execute — no direct bash.
 mode: subagent
 model: opencode-go/deepseek-v4-pro
 permission:

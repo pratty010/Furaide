@@ -1,5 +1,5 @@
 ---
-description: Dispatch to produce diagrams, SVG, and HTML visual artifacts from structured data or design briefs; tag heavy:true to escalate to gemini-3.1-pro for complex multimodal work.
+description: Diagrams, SVG, HTML mockups, and visual identity direction; tag heavy:true for brand visuals (routes to gemini-3.1-pro); standard path uses gemini-3.5-flash.
 mode: subagent
 model: google-vertex/gemini-3.5-flash
 temperature: 1.0

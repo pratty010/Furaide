@@ -1,5 +1,5 @@
 ---
-description: Dispatch to produce sectioned Markdown documentation from technical briefs, API specs, or code artifacts; use when a specialist needs durable docs rather than a one-off explanation.
+description: Mechanical reliable documentation — API docs, changelogs, inline comments, README sections; returns sectioned Markdown; for structured docs, not editorial prose.
 mode: subagent
 model: opencode-go/glm-5
 temperature: 0.6

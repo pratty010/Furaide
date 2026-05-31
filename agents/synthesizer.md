@@ -1,5 +1,5 @@
 ---
-description: Dispatch to combine source manifests, evidence matrices, and factcheck results into a coherent narrative deliverable; used by all 9 specialists as the final assembly step before artifact delivery.
+description: Transform a normalized evidence corpus into a structured narrative deliverable; dispatch after all research is gathered and verified, when an artifact is the goal.
 mode: subagent
 model: opencode-go/glm-5
 temperature: 0.6

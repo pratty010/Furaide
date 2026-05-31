@@ -1,5 +1,5 @@
 ---
-description: Dispatch for read-only codebase exploration — file maps, symbol searches, grep patterns, and dependency graphs; use before code-runner or coder when a specialist needs to understand existing structure.
+description: Read-only codebase, library, and file-tree exploration returning file/symbol maps and dependency graphs; no synthesis, no execution — use for recon before planning.
 mode: subagent
 model: opencode-go/qwen3.6-plus
 temperature: 0.6
