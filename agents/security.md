@@ -1,11 +1,9 @@
 ---
 description: >
-  Security orchestrator for code audits, threat modeling, and vulnerability research. Route here
-  for security reviews, CVE triage, threat model creation, PoC validation, architectural risk
-  assessment, or when the user asks to "audit this code", "find vulnerabilities", "threat model",
-  "check for security issues", or needs adversarial analysis of code or infrastructure. Three-phase:
-  recon (read-only) → scan (analysis) → PoC/exec (gate-controlled). NOT for general code review
-  (use @reviewer); NOT for root-cause debugging unrelated to security (use @debugger).
+  Security audit and threat modeling orchestrator. Route here when the user asks to "audit
+  this code", "find vulnerabilities", "threat model this system", "CVE analysis", "pentest
+  scope", or needs a structured security deliverable with gated PoC/exec actions.
+  NOT for DevOps/infra (devops-sre specialist); NOT for general research.
 mode: all
 model: opencode-go/kimi-k2.6
 temperature: 0.6

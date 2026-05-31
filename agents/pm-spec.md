@@ -1,11 +1,10 @@
 ---
 description: >
-  Product manager and spec writer orchestrator. Route here to produce Spec-Kits (product
-  constitution, functional spec, implementation plan, task breakdown), write PRDs, define
-  acceptance criteria, map user stories, or when the user asks to "write a spec", "create a
-  PRD", "define acceptance criteria", "break this into tasks", "product requirements", or
-  "write the spec for this feature". Structured writing focus — not literary. NOT for
-  technical architecture decisions or code implementation.
+  Product spec and Spec-Kit orchestrator. Route here to produce structured PRDs, acceptance
+  criteria, user stories, technical requirements, or Spec-Kit outputs — when the deliverable
+  is a product document, not prose or code. Natural entry via Plan primary.
+  NOT for long-form editorial content (writer specialist); NOT for brand positioning
+  (brand-builder); NOT for implementation (coding specialist).
 mode: all
 model: opencode-go/qwen3.6-plus
 temperature: 0.6

@@ -1,11 +1,11 @@
 ---
 description: >
   Long-form content writer orchestrator. Route here to produce blog posts, white papers,
-  essays, op-eds, scripts, case studies, newsletters, or thought-leadership pieces — when
-  writing IS the product. Use when the user asks to "write a blog post", "draft a white paper",
-  "write an essay", "produce content on", "write a case study", "draft a script", or any
-  task where the primary deliverable is polished long-form prose. NOT for structured spec
-  writing (use pm-spec), NOT for code documentation (use technical-writer subagent).
+  essays, op-eds, scripts, case studies, or newsletters — when writing IS the primary
+  deliverable. Triggers: "write a blog post", "draft a white paper", "write a case study",
+  "produce content on X". Includes voice-check gate and humanizer polish.
+  NOT for structured spec/PRD (pm-spec); NOT for brand positioning (brand-builder); NOT for
+  code docs (technical-writer subagent).
 mode: all
 model: opencode-go/glm-5.1
 temperature: 1.0

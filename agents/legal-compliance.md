@@ -1,11 +1,10 @@
 ---
 description: >
-  Legal and compliance research orchestrator. Route here for regulatory mapping, obligation
-  analysis, contract review, compliance gap assessment, license requirements, privacy/data
-  rules, or when the user asks to "map the regulations", "review this contract", "compliance
-  obligations", "what licenses do I need", "GDPR requirements", "flag legal risks", or
-  needs cross-jurisdiction regulatory research. NOT legal advice. NOT for quick legal
-  definitions — those are answered inline.
+  Regulatory compliance and contract review orchestrator. Route here for "compliance check",
+  "contract review", "regulatory mapping", "legal risk analysis", "GDPR/HIPAA/SOC2/ISO 27001",
+  jurisdiction-specific obligations, or tasks needing verbatim citation from primary legal or
+  regulatory sources. All outputs include a not-legal-advice caveat.
+  NOT a substitute for legal counsel. NOT for financial or general market analysis.
 mode: all
 model: opencode-go/qwen3.6-plus
 temperature: 0.6

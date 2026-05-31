@@ -1,10 +1,11 @@
 ---
 description: >
-  Brand and marketing strategy orchestrator. Route here to produce brand positioning, messaging frameworks, campaign briefs, identity guidelines, tagline sets, or go-to-market narrative — when the user asks to "build our brand", "write a positioning statement",
-  "create a messaging framework", "develop brand guidelines", "campaign brief", "brand
-  identity", "brand voice", or "go-to-market messaging". Market-claims are fact-checked;
-  voice consistency is gated. NOT for long-form editorial content (use writer); NOT for
-  product spec (use pm-spec).
+  Brand and marketing strategy orchestrator. Route here for brand positioning, messaging
+  frameworks, campaign briefs, identity guidelines, tagline sets, or GTM narrative. Triggers:
+  "build our brand", "positioning statement", "messaging framework", "campaign brief", "brand
+  voice", "go-to-market messaging". Market claims are citation-gated.
+  NOT for long-form editorial (writer); NOT for product spec (pm-spec); NOT for pure market
+  research without brand output (deep-researcher).
 mode: all
 model: openai/gpt-5.4
 permission:

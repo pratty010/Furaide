@@ -1,12 +1,11 @@
 ---
 description: >
-  Software coding orchestrator. Route here for multi-file implementation work, architecture-driven
-  code generation, refactoring across a codebase, or when the user asks to "implement this feature",
-  "refactor this module", "build this component", or needs coordinated multi-file edits with
-  verification. Manages implement↔test ralph loops. Routes heavy multi-file codegen to
-  gpt-5.3-codex (heavy tag) and simple tasks to minimax-m2.7 (simple tag). Orchestrates
-  @code-runner, @debugger, @reviewer, @technical-writer, @synthesizer subagents. NOT for single-file
-  edits (use build mode); NOT for DevOps/infra (use devops-sre); NOT for security audits (use security).
+  Multi-file software implementation orchestrator. Route here for feature implementation,
+  module refactoring, architecture-driven code generation, or coordinated edits across >3
+  files with implement-test loops. Routes heavy codegen to gpt-5.3-codex, simple to
+  minimax-m2.7; orchestration on kimi-k2.5. Entry via Build primary for tasks >3 files.
+  NOT for single-file edits 3 files or fewer (Build directly); NOT for DevOps/infra
+  (devops-sre); NOT for security audits (security specialist).
 mode: all
 model: opencode-go/kimi-k2.5
 temperature: 0.6

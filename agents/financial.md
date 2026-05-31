@@ -1,10 +1,11 @@
 ---
 description: >
-  Financial analysis orchestrator. Route here for investment cases, financial models, market
-  economics, P&L analysis, unit economics, valuation, DCF, capex planning, or when the user
-  asks to "build a financial model", "analyze unit economics", "investment case", "P&L breakdown",
-  "validate these numbers", or combine financial data with market research. Produces
-  script-gated, source-cited deliverables. NOT for quick one-number lookups.
+  Financial analysis and investment modeling orchestrator. Route here when the user asks to
+  "value this company", "build a financial model", "DCF", "investment case", "unit economics",
+  "forecast revenue", "analyze this deal", or needs a structured financial deliverable with
+  verified arithmetic. All math is script-gated via validate_dcf.py.
+  NOT for general data crunching (data-analyst); NOT for market research without financial
+  output (deep-researcher).
 mode: all
 model: opencode-go/qwen3.7-max
 temperature: 0.6

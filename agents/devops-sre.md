@@ -1,11 +1,10 @@
 ---
 description: >
-  DevOps and SRE incident response and operations orchestrator. Route here for infrastructure-as-code
-  planning, CI/CD pipeline architecture, deployment coordination, SRE runbook production, incident
-  diagnosis, production readiness reviews, or when the user asks to "design the deployment pipeline",
-  "set up the infra", "SRE runbook", "incident response", "reliability architecture", or needs
-  cross-service DevOps work. ALL execution is gated (action-allowlist critical before every action).
-  NOT for single-pipeline edits (use build mode); NOT for application feature code (use coding).
+  DevOps and SRE orchestrator. Route here for incident response, deployments, runbook
+  execution, CI/CD pipeline changes, or infrastructure tasks. All commands require an
+  allowlist entry and a rollback plan (critical gate enforced). Entry via Build primary.
+  NOT for software feature implementation (coding specialist); NOT for security code audits
+  (security specialist).
 mode: all
 model: opencode-go/kimi-k2.6
 temperature: 0.6

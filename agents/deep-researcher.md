@@ -1,9 +1,10 @@
 ---
 description: >
-  Deep multi-domain research orchestrator. Route here for detailed reports, market/technical/
-  security/finance/legal research, competitor scans, evidence synthesis, or when the user asks
-  to "dig deep", "deep research", "detailed report", "investigate the market", or combine many
-  sources. Routes to specialist subagents. NOT for quick one-source lookups.
+  Deep multi-domain research orchestrator. Route here when the user says "dig deep", "detailed
+  report", "market research", "investigate X", "competitor scan", or needs evidence synthesis
+  from 3+ independent sources with citations and durable artifacts.
+  NOT for quick single-source lookups (primary handles inline); NOT for codebase recon
+  (explore); NOT for pure data math without research (data-analyst direct).
 mode: all
 model: opencode-go/kimi-k2.5
 temperature: 0.6
