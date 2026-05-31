@@ -2,7 +2,8 @@
   "$schema": "https://opencode.ai/config.json",
   "autoupdate": false,
   "plugin": [
-    "superpowers@git+https://github.com/obra/superpowers.git"
+    "superpowers@git+https://github.com/obra/superpowers.git",
+    "./plugins/gate-enforcer.js"
   ],
   "instructions": [
     "/home/ace/.config/opencode/rules/*.md"
