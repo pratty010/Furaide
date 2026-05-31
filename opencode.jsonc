@@ -6,6 +6,7 @@
     "superpowers@git+https://github.com/obra/superpowers.git",
     "./plugins/gate-enforcer.js",
     "./plugins/delivery-gate.js",
+    "./plugins/security-patterns.js",
     "./plugins/model-failover.js"
   ],
   "instructions": [
