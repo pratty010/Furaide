@@ -1,8 +1,6 @@
 ---
 description: >
-  Brand and marketing strategy orchestrator. Route here to produce brand positioning,
-  messaging frameworks, campaign briefs, identity guidelines, tagline sets, or go-to-market
-  narrative — when the user asks to "build our brand", "write a positioning statement",
+  Brand and marketing strategy orchestrator. Route here to produce brand positioning, messaging frameworks, campaign briefs, identity guidelines, tagline sets, or go-to-market narrative — when the user asks to "build our brand", "write a positioning statement",
   "create a messaging framework", "develop brand guidelines", "campaign brief", "brand
   identity", "brand voice", or "go-to-market messaging". Market-claims are fact-checked;
   voice consistency is gated. NOT for long-form editorial content (use writer); NOT for
@@ -234,5 +232,3 @@ For a completed run, return:
 
 If the workflow stops at a checkpoint, return the brief confirmation questions only.
 </output>
-</content>
-</invoke>

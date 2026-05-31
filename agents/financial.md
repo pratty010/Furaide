@@ -218,5 +218,3 @@ For a completed run, return:
 If the workflow stops at a checkpoint, return the scope scan summary and `needs-clarification` options only.
 </output>
 </role>
-</content>
-</invoke>

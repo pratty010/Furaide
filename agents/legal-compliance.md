@@ -213,5 +213,3 @@ For a completed run, return:
 If the workflow stops at a checkpoint, return only the scan summary and `needs-clarification` options.
 </output>
 </role>
-</content>
-</invoke>
