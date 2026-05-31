@@ -1,0 +1,102 @@
+{
+  "version": "v9.1",
+  "specialists": {
+    "deep-researcher": {
+      "primary": "opencode-go/kimi-k2.5",
+      "fallback": ["openai/gpt-5.4-mini", "opencode-go/qwen3.6-plus", "opencode/nemotron-3-super-free"]
+    },
+    "financial": {
+      "primary": "opencode-go/qwen3.7-max",
+      "fallback": ["openai/gpt-5.4", "opencode-go/minimax-m2.7", "google-vertex/gemini-3.5-flash"]
+    },
+    "legal-compliance": {
+      "primary": "opencode-go/qwen3.6-plus",
+      "fallback": ["openai/gpt-5.4-mini", "opencode-go/glm-5", "opencode/nemotron-3-super-free"]
+    },
+    "security": {
+      "primary": "opencode-go/kimi-k2.6",
+      "fallback": ["openai/gpt-5.3-codex", "opencode-go/glm-5", "opencode-go/deepseek-v4-pro"]
+    },
+    "coding": {
+      "primary": "opencode-go/kimi-k2.5",
+      "heavy": "openai/gpt-5.3-codex",
+      "simple": "opencode-go/minimax-m2.7",
+      "fallback": ["openai/gpt-5.3-codex", "opencode-go/glm-5", "opencode-go/minimax-m2.7"]
+    },
+    "devops-sre": {
+      "primary": "opencode-go/kimi-k2.6",
+      "fallback": ["openai/gpt-5.4-mini", "opencode-go/glm-5", "google-vertex/gemini-3-flash-preview"]
+    },
+    "pm-spec": {
+      "primary": "opencode-go/qwen3.6-plus",
+      "fallback": ["openai/gpt-5.4-mini", "opencode-go/glm-5", "google-vertex/gemini-3-flash-preview"]
+    },
+    "writer": {
+      "primary": "opencode-go/glm-5.1",
+      "fallback": ["openai/gpt-5.4", "opencode-go/qwen3.6-plus", "google-vertex/gemini-3.5-flash"]
+    },
+    "brand-builder": {
+      "primary": "openai/gpt-5.4",
+      "fallback": ["opencode-go/glm-5.1", "opencode-go/qwen3.6-plus", "google-vertex/gemini-3.5-flash"]
+    }
+  },
+  "subagents": {
+    "source-retriever": {
+      "primary": "opencode-go/minimax-m2.7",
+      "fallback": ["openai/gpt-5.4-mini", "google-vertex/gemini-3-flash-preview", "opencode/big-pickle"]
+    },
+    "fact-checker": {
+      "primary": "openai/gpt-5.4-mini",
+      "fallback": ["opencode-go/glm-5", "google-vertex/gemini-3.5-flash", "opencode-go/deepseek-v4-flash"]
+    },
+    "data-analyst": {
+      "primary": "opencode-go/deepseek-v4-flash",
+      "heavy": "opencode-go/deepseek-v4-pro",
+      "fallback": ["openai/gpt-5.4-mini", "opencode-go/minimax-m2.7", "google-vertex/gemini-3.1-flash-lite"]
+    },
+    "code-runner": {
+      "primary": "opencode-go/mimo-v2.5",
+      "canary": "A2",
+      "fallback": ["openai/gpt-5.3-codex", "openai/gpt-5.4-mini", "google-vertex/gemini-3.1-flash-lite"]
+    },
+    "explorer": {
+      "primary": "opencode-go/qwen3.6-plus",
+      "fallback": ["google-vertex/gemini-3-flash-preview", "opencode-go/glm-5", "opencode/big-pickle"]
+    },
+    "reviewer": {
+      "primary": "openai/gpt-5.5",
+      "fallback": ["opencode-go/deepseek-v4-pro", "opencode-go/glm-5", "google-vertex/gemini-3.5-flash"]
+    },
+    "prose-wordsmith": {
+      "primary": "google-vertex/gemini-3.1-pro-preview",
+      "fallback": ["openai/gpt-5.4", "opencode-go/qwen3.6-plus", "opencode-go/glm-5"]
+    },
+    "synthesizer": {
+      "primary": "opencode-go/glm-5",
+      "fallback": ["openai/gpt-5.4-mini", "opencode-go/minimax-m2.7", "google-vertex/gemini-3-flash-preview"]
+    },
+    "designer": {
+      "primary": "google-vertex/gemini-3.5-flash",
+      "heavy": "openai/gpt-5.4",
+      "fallback": ["opencode-go/glm-5", "openai/gpt-5.4-mini", "opencode-go/minimax-m2.7"]
+    },
+    "debugger": {
+      "primary": "opencode-go/deepseek-v4-pro",
+      "fallback": ["openai/gpt-5.4-mini", "opencode-go/glm-5", "opencode-go/mimo-v2.5-pro"]
+    },
+    "technical-writer": {
+      "primary": "opencode-go/glm-5",
+      "fallback": ["openai/gpt-5.4-mini", "google-vertex/gemini-3-flash-preview", "opencode-go/minimax-m2.7"]
+    },
+    "extractor": {
+      "primary": "opencode-go/minimax-m2.7",
+      "tier": "T2",
+      "fallback": ["google-vertex/gemini-3.1-flash-lite", "opencode-go/mimo-v2.5", "opencode-go/deepseek-v4-flash"]
+    },
+    "formatter": {
+      "primary": "opencode-go/mimo-v2.5",
+      "tier": "T2",
+      "fallback": ["google-vertex/gemini-3.1-flash-lite", "opencode-go/minimax-m2.7", "opencode/big-pickle"]
+    }
+  }
+}
