@@ -31,10 +31,10 @@ Few-shot examples are essential for Gemini 3.x on structured output and style-se
 ## Thinking level
 
 `thinkingLevel` parameter: `minimal` | `low` | `medium` | `high`
-- `minimal` — fast, scan-level tasks (`@scanner`)
+- `minimal` — fast, scan-level tasks (extractor, formatter, source-retriever)
 - `low` — routine codegen fallbacks
 - `medium` — research, synthesis, multi-step reasoning
-- `high` — architectural decisions, paper analysis (`@academic`), reserve-tier tasks
+- `high` — architectural decisions, complex analysis (prose-wordsmith, deep-researcher), reserve-tier tasks
 
 ## Temperature — critical for Gemini 3.x
 
