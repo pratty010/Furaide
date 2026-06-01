@@ -1,8 +1,4 @@
-# Agent Fleet (v9.1)
-
-> Auto-loaded every session. Model routing canonical source: `docs/routing-manifest.json`.
-> Full state/gate contract: `docs/workflows.md`. Budget operations: `docs/OPERATOR.md`.
-
+# AGENTS.md
 ---
 
 ## Mission
