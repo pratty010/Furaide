@@ -1,5 +1,6 @@
 ---
-description: "Azukiarai (Extractor) — The bean-washing spirit that sieves bulk data — Bulk structured data extraction from documents, web pages, code, or filings"; returns a JSON array; no judgment — pure extraction at scale for specialist dispatch only.
+name: azukiarai
+description: "Azukiarai(Extractor): The bean-washing spirit that sieves bulk data, Bulk structured data extraction from documents, web pages, code, or filings"; returns a JSON array; no judgment, pure extraction at scale for specialist dispatch only.
 mode: subagent
 model: opencode-go/minimax-m2.7
 permission:

@@ -1,6 +1,7 @@
 ---
+name: daikoku
 description: >
-  Daikoku (Financial) — The wealth-god who governs numbers and fortune — Financial analysis and investment modeling orchestrator. Route here when the user asks to
+  Daikoku(Financial): The wealth-god who governs numbers and fortune, Financial analysis and investment modeling orchestrator. Route here when the user asks to
   "value this company", "build a financial model", "DCF", "investment case", "unit economics",
   "forecast revenue", "analyze this deal", or needs a structured financial deliverable with
   verified arithmetic. All math is script-gated via validate_dcf.py.

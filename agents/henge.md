@@ -1,5 +1,6 @@
 ---
-description: "Henge (Formatter) — The transformation spirit that shifts data between forms — Bulk format and transform output between representations (Markdown, tables, JSON, SARIF, HTML)"; returns formatted text; no judgment — pure transformation, specialist dispatch only.
+name: henge
+description: "Henge(Formatter): The transformation spirit that shifts data between forms, Bulk format and transform output between representations(Markdown, tables, JSON, SARIF, HTML)"; returns formatted text; no judgment, pure transformation, specialist dispatch only.
 mode: subagent
 model: opencode-go/mimo-v2.5
 permission:

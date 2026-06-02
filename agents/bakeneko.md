@@ -1,5 +1,6 @@
 ---
-description: "Bakeneko (Debugger) — The shapeshifting cat that hunts what hides — Root-cause analysis of test failures or runtime errors; returns an ExecutionPacket (hypothesis/commands/expected_observations) for code-runner to execute — no direct bash."
+name: bakeneko
+description: "Bakeneko(Debugger): The shapeshifting cat that hunts what hides, Root-cause analysis of test failures or runtime errors; returns an ExecutionPacket(hypothesis/commands/expected_observations) for code-runner to execute, no direct bash."
 mode: subagent
 model: opencode-go/deepseek-v4-pro
 permission:

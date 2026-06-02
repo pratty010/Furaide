@@ -1,5 +1,6 @@
 ---
-description: "Tengu (Designer) — The mountain-artisan spirit of form — Diagrams, SVG, HTML mockups, and visual identity direction"; tag heavy:true for brand visuals (routes to gemini-3.1-pro); standard path uses gemini-3.5-flash.
+name: tengu
+description: "Tengu(Designer): The mountain-artisan spirit of form, Diagrams, SVG, HTML mockups, and visual identity direction"; tag heavy:true for brand visuals (routes to gemini-3.1-pro); standard path uses gemini-3.5-flash.
 mode: subagent
 model: google-vertex/gemini-3.5-flash
 temperature: 1.0

@@ -1,5 +1,6 @@
 ---
-description: "Soroban (Data Analyst) — The abacus spirit that counts and reveals — Quantitative, math, and telemetry analysis returning tables and an Evidence Matrix"; tag heavy:true for large-dataset deep reasoning via deepseek-v4-pro.
+name: soroban
+description: "Soroban(Data Analyst): The abacus spirit that counts and reveals, Quantitative, math, and telemetry analysis returning tables and an Evidence Matrix"; tag heavy:true for large-dataset deep reasoning via deepseek-v4-pro.
 mode: subagent
 model: opencode-go/deepseek-v4-flash
 temperature: 0.6

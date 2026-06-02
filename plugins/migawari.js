@@ -7,16 +7,24 @@
  * and logs each transition to ~/.local/share/opencode/state/<slug>/failover.ndjson.
  */
 
-import { readFileSync, appendFileSync, mkdirSync } from 'node:fs';
-import { join, dirname } from 'node:path';
+import { existsSync, readFileSync, appendFileSync, mkdirSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { dirname, join, resolve } from 'node:path';
 import { homedir } from 'node:os';
 import process from 'node:process';
+
+// __FLEET_ROOT__ is populated by install-fleet.sh with this scope's install root.
+// Fallback: plugin's own parent dir (../ from plugins/), then cwd (legacy).
+const _TEMPLATE = '__FLEET_ROOT__';
+const _SELF_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const FLEET_ROOT = _TEMPLATE.startsWith('__FLEET') ? _SELF_ROOT : _TEMPLATE;
 
 // Load manifest once at plugin init
 let manifest = null;
 function getManifest() {
   if (!manifest) {
-    const p = join(process.cwd(), 'docs', 'routing-manifest.json');
+    let p = join(FLEET_ROOT, 'docs', 'routing-manifest.json');
+    if (!existsSync(p)) p = join(process.cwd(), 'docs', 'routing-manifest.json');
     manifest = JSON.parse(readFileSync(p, 'utf8'));
   }
   return manifest;

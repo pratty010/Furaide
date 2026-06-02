@@ -1,5 +1,6 @@
 ---
-description: "Karasu-tengu (Scout) — The crow-tengu that ranges far and reports back — External documentation, dependency lookup, and library/API reference retrieval." Use for "how do I use library X", "API for Y", "what version of Z", "what does this package do". ctx7 protocol baked in for supported libraries. Prefer over websearch for library docs.
+name: karasutengu
+description: "Karasu-tengu(Scout): The crow-tengu that ranges far and reports back, External documentation, dependency lookup, and library/API reference retrieval." Use for "how do I use library X", "API for Y", "what version of Z", "what does this package do". ctx7 protocol baked in for supported libraries. Prefer over websearch for library docs.
 mode: subagent
 model: opencode/big-pickle
 permission:

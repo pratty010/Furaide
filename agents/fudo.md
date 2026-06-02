@@ -1,6 +1,7 @@
 ---
+name: fudo
 description: >
-  Fudō (Security) — The immovable guardian who wards against intrusion — Security audit and threat modeling orchestrator. Route here when the user asks to "audit
+  Fudō(Security): The immovable guardian who wards against intrusion, Security audit and threat modeling orchestrator. Route here when the user asks to "audit
   this code", "find vulnerabilities", "threat model this system", "CVE analysis", "pentest
   scope", or needs a structured security deliverable with gated PoC/exec actions.
   NOT for DevOps/infra (devops-sre specialist); NOT for general research.

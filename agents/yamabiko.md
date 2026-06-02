@@ -1,5 +1,6 @@
 ---
-description: "Yamabiko (Source Retriever) — The mountain-echo spirit that fetches what is called for — Fetch, score, and return a structured Source Manifest from the web"; dispatch when a specialist needs raw sourced evidence before synthesis.
+name: yamabiko
+description: "Yamabiko(Source Retriever): The mountain-echo spirit that fetches what is called for, Fetch, score, and return a structured Source Manifest from the web"; dispatch when a specialist needs raw sourced evidence before synthesis.
 mode: subagent
 model: opencode-go/minimax-m2.7
 permission:

@@ -9,8 +9,15 @@
 
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { dirname, join, resolve } from 'node:path';
 import process from 'node:process';
+
+// __FLEET_ROOT__ is populated by install-fleet.sh with this scope's install root.
+// Fallback: plugin's own parent dir (../ from plugins/), then cwd (legacy).
+const _TEMPLATE = '__FLEET_ROOT__';
+const _SELF_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const FLEET_ROOT = _TEMPLATE.startsWith('__FLEET') ? _SELF_ROOT : _TEMPLATE;
 
 const BLOCKED_TOOLS = new Set([
   'workflow-advance',
@@ -72,7 +79,8 @@ function getActiveWorkflowVerdict() {
   if (!workflowId) return 'ok';
 
   try {
-    const scriptPath = join(process.cwd(), 'scripts/workflow-state.mjs');
+    let scriptPath = join(FLEET_ROOT, 'scripts/workflow-state.mjs');
+    if (!existsSync(scriptPath)) scriptPath = join(process.cwd(), 'scripts/workflow-state.mjs');
     const raw = execFileSync('bun', [
       scriptPath,
       'read', '--cwd', process.cwd(), '--workflow', workflowId,

@@ -1,6 +1,7 @@
 ---
+name: tsukumo
 description: >
-  Tsukumo (Coder) — Tsukumogami awakened in code — Multi-file software implementation orchestrator. Route here for feature implementation,
+  Tsukumo(Coder): Tsukumogami awakened in code, Multi-file software implementation orchestrator. Route here for feature implementation,
   module refactoring, architecture-driven code generation, or coordinated edits across >3
   files with implement-test loops. Routes heavy codegen to gpt-5.3-codex, simple to
   minimax-m2.7; orchestration on kimi-k2.5. Entry via Build primary for tasks >3 files.

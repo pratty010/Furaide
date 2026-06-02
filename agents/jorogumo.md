@@ -1,5 +1,6 @@
 ---
-description: "Jorōgumo (Synthesizer) — The weaver-spider that spins disparate threads into one — Transform a normalized evidence corpus into a structured narrative deliverable"; dispatch after all research is gathered and verified, when an artifact is the goal.
+name: jorogumo
+description: "Jorōgumo(Synthesizer): The weaver-spider that spins disparate threads into one, Transform a normalized evidence corpus into a structured narrative deliverable"; dispatch after all research is gathered and verified, when an artifact is the goal.
 mode: subagent
 model: opencode-go/glm-5
 temperature: 0.6

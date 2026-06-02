@@ -1,5 +1,6 @@
 ---
-description: "Oni (Reviewer) — The iron-club demon that strikes flawed work — Adversarial review of code, architecture, plans, or arguments returning a findings table with severity ratings (critical/high/medium/low); premium gpt-5.5."
+name: oni
+description: "Oni(Reviewer): The iron-club demon that strikes flawed work, Adversarial review of code, architecture, plans, or arguments returning a findings table with severity ratings(critical/high/medium/low); premium gpt-5.5."
 mode: subagent
 model: openai/gpt-5.5
 permission:

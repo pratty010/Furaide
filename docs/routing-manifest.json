@@ -37,7 +37,12 @@
     },
     "kitsune": {
       "primary": "openai/gpt-5.4",
-      "fallback": ["opencode-go/glm-5.1", "opencode-go/qwen3.6-plus", "google-vertex/gemini-3.5-flash"]
+      "fallback": ["opencode-go/glm-5.1", "opencode-go/qwen3.6-plus", "google-vertex/gemini-3.5-flash"],
+      "_note": "in-development / opt-in brand-builder bundle; entry retained for failover coverage"
+    },
+    "mujina": {
+      "primary": "openai/gpt-5.4",
+      "fallback": ["opencode-go/glm-5", "opencode-go/qwen3.6-plus", "google-vertex/gemini-3.5-flash"]
     }
   },
   "subagents": {
@@ -97,6 +102,17 @@
       "primary": "opencode-go/mimo-v2.5",
       "tier": "T2",
       "fallback": ["google-vertex/gemini-3.1-flash-lite", "opencode-go/minimax-m2.7", "opencode/big-pickle"]
+    },
+    "tanuki": {
+      "primary": "opencode/big-pickle",
+      "fallback": ["opencode-go/qwen3.6-plus", "opencode/nemotron-3-super-free", "google-vertex/gemini-3-flash-preview"]
+    },
+    "karasutengu": {
+      "primary": "opencode/big-pickle",
+      "fallback": ["opencode-go/qwen3.6-plus", "opencode/nemotron-3-super-free"]
     }
+  },
+  "_notes": {
+    "brand_subagents_deferred": "akashi, amanojaku, hyakume, kataribe, kodama, kudagitsune, kurabokko, migaki: intentionally omitted from subagents until the brand-builder bundle stabilizes"
   }
 }

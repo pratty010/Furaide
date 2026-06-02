@@ -1,5 +1,6 @@
 ---
-description: "Karakuri (Code Runner) — Clockwork automaton that executes commands — Execute commands, test suites, scripts, and code execution packets"; returns stdout/stderr/exit_code; the only agent with bash access — all shell execution routes here.
+name: karakuri
+description: "Karakuri(Code Runner): Clockwork automaton that executes commands, Execute commands, test suites, scripts, and code execution packets"; returns stdout/stderr/exit_code; the only agent with bash access, all shell execution routes here.
 mode: subagent
 model: opencode-go/mimo-v2.5
 permission:

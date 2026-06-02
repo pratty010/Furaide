@@ -1,5 +1,6 @@
 ---
-description: "Kagami (Fact-Checker) — The sacred mirror that reflects only truth — Verify claims against sources and return per-claim verdict + confidence score"; dispatch before delivering numbers, dates, or attributed claims.
+name: kagami
+description: "Kagami(Fact-Checker): The sacred mirror that reflects only truth, Verify claims against sources and return per-claim verdict + confidence score"; dispatch before delivering numbers, dates, or attributed claims.
 mode: subagent
 model: openai/gpt-5.4-mini
 permission:

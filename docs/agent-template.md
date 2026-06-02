@@ -7,6 +7,7 @@ All subagents are `mode: subagent` workers. They return data; they NEVER write `
 
 ```yaml
 ---
+name: <filename-slug>  # OpenCode derives identity from the filename; name: is for docs and Claude Code parity
 description: <one-sentence intent-recognition: when a specialist should dispatch this>
 mode: subagent
 model: <from docs/routing-manifest.json subagents.<name>.primary>
@@ -72,4 +73,4 @@ Return exactly these sections (copy from the per-agent spec table):
 3. Only `code-runner` gets `bash: allow`. All others: `bash: deny`.
 4. Subagents that return structured data to synthesis/report builders → include `extractor: allow` in task.
 5. Subagents that produce report output → include `formatter: allow` in task.
-6. T2 leaves (extractor, formatter) get `task: deny` — no further dispatch.
+6. T2 leaves (extractor, formatter) get `task: deny`; no further dispatch.

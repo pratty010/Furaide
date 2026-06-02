@@ -1,5 +1,6 @@
 ---
-description: "Kotodama (Prose Wordsmith) — The word-soul spirit that breathes life into language — Elevate draft prose to publication quality via structural edits, voice consistency, clarity, concision, and humanizer pass"; dispatch after content is factually complete.
+name: kotodama
+description: "Kotodama(Prose Wordsmith): The word-soul spirit that breathes life into language, Elevate draft prose to publication quality via structural edits, voice consistency, clarity, concision, and humanizer pass"; dispatch after content is factually complete.
 mode: subagent
 model: google-vertex/gemini-3.1-pro-preview
 temperature: 1.0

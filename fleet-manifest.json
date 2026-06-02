@@ -1,0 +1,174 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "_comment": "Single source of truth for install-fleet.sh. Edit here, not in the installer.",
+  "components": [
+    {
+      "id": "workflow-gates",
+      "label": "Workflow Gates",
+      "description": "Fail-closed gate plugins (Nio, Nurikabe) and the workflow state engine they exec. Cannot be split.",
+      "atomic": true,
+      "coupling": "nio.js and nurikabe.js exec scripts/workflow-state.mjs at runtime",
+      "requires_bun": false,
+      "default_on": true,
+      "target_subdirs": ["plugins", "scripts", "docs"],
+      "files": [
+        "plugins/nio.js",
+        "plugins/nurikabe.js",
+        "scripts/workflow-state.mjs",
+        "scripts/state-path.mjs",
+        "docs/workflows.md"
+      ],
+      "globs": [
+        "scripts/lib/**"
+      ]
+    },
+    {
+      "id": "failover",
+      "label": "Model Failover",
+      "description": "Migawari plugin and the routing manifest it reads. Cannot be split.",
+      "atomic": true,
+      "coupling": "migawari.js reads docs/routing-manifest.json at runtime",
+      "requires_bun": false,
+      "default_on": true,
+      "target_subdirs": ["plugins", "docs"],
+      "files": [
+        "plugins/migawari.js",
+        "docs/routing-manifest.json"
+      ],
+      "globs": []
+    },
+    {
+      "id": "security-gate",
+      "label": "Security Gate",
+      "description": "Komainu plugin: screens Edit/Write calls for 35+ dangerous code patterns. Standalone.",
+      "atomic": false,
+      "coupling": "none",
+      "requires_bun": false,
+      "default_on": true,
+      "target_subdirs": ["plugins"],
+      "files": [
+        "plugins/komainu.js"
+      ],
+      "globs": []
+    },
+    {
+      "id": "agents-core",
+      "label": "Specialist Agents (24 core)",
+      "description": "24 specialist and subagent shikigami. Soft dependency on failover routing-manifest.json and docs/models/** for model selection.",
+      "atomic": false,
+      "coupling": "soft dep on failover routing-manifest.json; auto-included at same scope if failover not selected there",
+      "requires_bun": false,
+      "default_on": true,
+      "target_subdirs": ["agents"],
+      "files": [
+        "agents/azukiarai.md",
+        "agents/bakeneko.md",
+        "agents/daidarabotchi.md",
+        "agents/daikoku.md",
+        "agents/enma.md",
+        "agents/fudo.md",
+        "agents/henge.md",
+        "agents/jorogumo.md",
+        "agents/kagami.md",
+        "agents/karakuri.md",
+        "agents/karasutengu.md",
+        "agents/kotodama.md",
+        "agents/makimono.md",
+        "agents/mikoshi.md",
+        "agents/mujina.md",
+        "agents/oni.md",
+        "agents/soroban.md",
+        "agents/tanuki.md",
+        "agents/tengu.md",
+        "agents/tsuchigumo.md",
+        "agents/tsukumo.md",
+        "agents/tsukuyomi.md",
+        "agents/yamabiko.md",
+        "agents/yumemi.md"
+      ],
+      "globs": []
+    },
+    {
+      "id": "agent-scripts",
+      "label": "Agent Support Scripts",
+      "description": "Verification and safety scripts called by agents via karakuri (code runner). No hard coupling.",
+      "atomic": false,
+      "coupling": "none (agents call via karakuri subagent)",
+      "requires_bun": false,
+      "default_on": true,
+      "target_subdirs": ["scripts"],
+      "files": [
+        "scripts/action-allowlist.mjs",
+        "scripts/citation-verify.mjs",
+        "scripts/ctx7-docs.mjs",
+        "scripts/humanize-check.mjs",
+        "scripts/memory-path.mjs",
+        "scripts/playbook-check.mjs",
+        "scripts/security-severity.mjs",
+        "scripts/sql-safety-check.mjs",
+        "scripts/verify-run.mjs",
+        "scripts/voice-check.mjs"
+      ],
+      "globs": []
+    },
+    {
+      "id": "rules",
+      "label": "Rules",
+      "description": "Memory contract and other rules loaded via instructions glob in opencode.json.",
+      "atomic": false,
+      "coupling": "wired via instructions glob in opencode.json",
+      "requires_bun": false,
+      "default_on": true,
+      "target_subdirs": ["rules"],
+      "files": [],
+      "globs": [
+        "rules/*.md"
+      ]
+    },
+    {
+      "id": "docs-reference",
+      "label": "Reference Docs",
+      "description": "OPERATOR guide, architecture overview, manifest schema, agent template, model family guides. Reference only, not required at runtime.",
+      "atomic": false,
+      "coupling": "reference only",
+      "requires_bun": false,
+      "default_on": false,
+      "target_subdirs": ["docs"],
+      "files": [
+        "docs/OPERATOR.md",
+        "docs/architecture.md",
+        "docs/manifest-schema.md",
+        "docs/agent-template.md"
+      ],
+      "globs": [
+        "docs/models/**"
+      ]
+    },
+    {
+      "id": "brand-builder",
+      "label": "Brand Builder / Kitsune (opt-in)",
+      "description": "Kitsune's full domain: 9 brand agents, brand plugin, commands, and skills. Requires bun install. Opens a per-project SQLite DB on init.",
+      "atomic": true,
+      "coupling": "brand-builder-plugin depends on its own node_modules; brand agents depend on brand commands and skills",
+      "requires_bun": true,
+      "default_on": false,
+      "target_subdirs": ["agents", "command", "skills", "brand-builder-plugin"],
+      "files": [
+        "agents/akashi.md",
+        "agents/amanojaku.md",
+        "agents/hyakume.md",
+        "agents/kataribe.md",
+        "agents/kitsune.md",
+        "agents/kodama.md",
+        "agents/kudagitsune.md",
+        "agents/kurabokko.md",
+        "agents/migaki.md"
+      ],
+      "globs": [
+        "command/*.md",
+        "skills/**",
+        "brand-builder-plugin/**"
+      ]
+    }
+  ]
+}

@@ -1,5 +1,6 @@
 ---
-description: "Tanuki (General) — The shape-shifting raccoon-dog, master of all trades — Cost-aware broad research and Q&A for tasks that don't fit any v9.1 specialist" — open-ended questions, multi-file codebase context, cross-domain lookups. Uses free models. Use when no specialist matches; if a specialist fits, surface that routing instead.
+name: tanuki
+description: "Tanuki(General): The shape-shifting raccoon-dog, master of all trades, Cost-aware broad research and Q&A for tasks that don't fit any v9.1 specialist", open-ended questions, multi-file codebase context, cross-domain lookups. Uses free models. Use when no specialist matches; if a specialist fits, surface that routing instead.
 mode: all
 model: opencode/big-pickle
 permission:

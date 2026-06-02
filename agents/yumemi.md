@@ -1,7 +1,8 @@
 ---
+name: yumemi
 description: >
-  Yumemi (Writer) — The dream-weaver spirit that shapes prose — Long-form content writer orchestrator. Route here to produce blog posts, white papers,
-  essays, op-eds, scripts, case studies, or newsletters — when writing IS the primary
+  Yumemi(Writer): The dream-weaver spirit that shapes prose, Long-form content writer orchestrator. Route here to produce blog posts, white papers,
+  essays, op-eds, scripts, case studies, or newsletters, when writing IS the primary
   deliverable. Triggers: "write a blog post", "draft a white paper", "write a case study",
   "produce content on X". Includes voice-check gate and humanizer polish.
   NOT for structured spec/PRD (pm-spec); NOT for brand positioning (brand-builder); NOT for
