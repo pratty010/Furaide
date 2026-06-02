@@ -47,9 +47,20 @@ checks[gh_signing_key]=$(
   if [[ -z "$local_key" || ! -f "$local_key" ]]; then
     echo "✗"
   else
+    # xargs trims trailing whitespace/newline — pubkey files often carry a trailing
+    # space that breaks an exact substring match against the GitHub API response.
     local_pubkey=$(cat "$local_key" | xargs)
-    github_keys=$(gh api user/ssh_signing_keys --jq '.[].key' 2>/dev/null || echo "")
-    [[ "$github_keys" == *"$local_pubkey"* ]] && echo "✓" || echo "✗"
+    # Capture stderr too: a token missing the admin:ssh_signing_key scope returns a
+    # 404, NOT an empty list. Without this branch the check silently reports "not
+    # registered" even when the key IS registered — the most common false negative.
+    api_out=$(gh api user/ssh_signing_keys --jq '.[].key' 2>&1)
+    if echo "$api_out" | grep -q "admin:ssh_signing_key"; then
+      echo "scope"
+    elif [[ "$api_out" == *"$local_pubkey"* ]]; then
+      echo "✓"
+    else
+      echo "✗"
+    fi
   fi
 )
 checks[master_ruleset]=$(gh api repos/pratty010/F.R.I.D.A.Y/rulesets --jq '.[].name' 2>/dev/null | grep -qE "master|master-protection" && echo "✓" || echo "✗")
@@ -99,10 +110,15 @@ else
 
   # [2] GitHub Signing Key
   output+=$'\n'"${GREEN}[2/7] GitHub Signing Key (required for Verified commits)${NC}"$'\n'
-  if [[ "${checks[gh_signing_key]}" != "✓" ]]; then
+  if [[ "${checks[gh_signing_key]}" == "scope" ]]; then
+    output+="${YELLOW}  ⚠ Cannot verify — gh token lacks the admin:ssh_signing_key scope${NC}"$'\n'
+    output+="      Your key may already be registered; the CLI just can't read it."$'\n'
+    output+="      → gh auth refresh -h github.com -s admin:ssh_signing_key"$'\n'
+    output+="      Then re-run this check with --force."$'\n'
+  elif [[ "${checks[gh_signing_key]}" != "✓" ]]; then
     output+="${RED}  ✗ Not registered as Signing Key on GitHub${NC}"$'\n'
     local_key=$(git config --global user.signingkey 2>/dev/null || echo "~/.ssh/id_ed25519.pub")
-    local_pubkey=$(cat "$local_key" 2>/dev/null || echo "ssh-ed25519 AAAA...")
+    local_pubkey=$(cat "$local_key" 2>/dev/null | xargs || echo "ssh-ed25519 AAAA...")
     output+="      → github.com → Settings → SSH and GPG keys → New SSH key"$'\n'
     output+="      → Key type: Signing Key  ← critical, NOT Authentication Key"$'\n'
     output+="      → Title: WSL2 signing (or your machine name)"$'\n'

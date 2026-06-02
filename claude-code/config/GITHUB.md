@@ -148,7 +148,6 @@ gh pr create --title "feat: describe the change" --body "Summary of what changed
 The PR template auto-fills with sections: What / Why / Type / Checklist / Screenshots.
 
 GitHub Actions runs:
-- `test-opencode` (if opencode/ changed)
 - `test-claude-code` (if claude-code/ changed)
 - Labeling workflow (auto-applies labels based on changed files)
 
@@ -307,6 +306,59 @@ gh pr list
 # → Click "Squash and merge"
 # → Confirm
 ```
+
+---
+
+## Troubleshooting
+
+Real issues hit during setup, with the fix that actually worked.
+
+### "Merging is blocked — Commits must have verified signatures"
+
+The merge button is disabled even though `git log --show-signature` shows "Good signature" locally.
+
+Two independent causes — check both:
+
+1. **Signing key not registered on GitHub.** Local signing produces the `gpgsig` header, but GitHub only shows the "Verified" badge once your public key is registered as a **Signing Key** (Settings → SSH and GPG keys → New SSH key → Key type: **Signing Key**). This is separate from the Authentication Key. See [Security Setup](#security-setup).
+
+2. **The setup script wrongly reports "not registered".** If `bash claude-code/scripts/github-setup-check.sh` says the key is missing but you know it is registered, your `gh` token is missing the `admin:ssh_signing_key` scope. `gh api user/ssh_signing_keys` returns a 404 the script can no longer read. Fix:
+   ```bash
+   gh auth refresh -h github.com -s admin:ssh_signing_key
+   bash claude-code/scripts/github-setup-check.sh --force
+   ```
+   A fresh `gh auth login` does NOT grant this scope by default, so most new users hit this.
+
+### Setup check fails on a key that has trailing whitespace
+
+`~/.ssh/id_ed25519.pub` files frequently carry a trailing space or newline. An exact string comparison against the GitHub API response then fails. The script trims with `xargs` before comparing — if you fork the script, keep that `| xargs`.
+
+### "Cannot force-push to this branch" on dev
+
+The `dev` ruleset blocks force pushes by design. Never `--force` to dev. To get a rewritten local history onto dev, rebase onto the remote first:
+```bash
+git fetch origin dev
+git rebase origin/dev
+git push origin dev
+```
+
+### "This branch must not contain merge commits" when targeting master
+
+Master requires linear history. Do not run `git merge master` into your branch — it creates a merge commit master rejects. Rebase instead:
+```bash
+git checkout dev
+git rebase origin/master
+```
+
+### gitleaks pre-commit blocks a legitimate file (false positive)
+
+```bash
+LEFTHOOK_EXCLUDE=gitleaks git commit -m "chore: add test fixtures"
+```
+Scopes the skip to gitleaks for this one commit. Never use `--no-verify`, which disables every hook.
+
+### bun tests fail in pre-commit but `opencode/` has no test runner
+
+`opencode/` is agent definitions, not a deployable bun project. There is no `bun-tests` job in `lefthook.yml` — only `pytest` runs (for `claude-code/`). If you see a bun-test job, it was added in error; remove it.
 
 ---
 

@@ -176,6 +176,47 @@ If anything is missing, the script outputs fix commands.
 
 ---
 
+## Troubleshooting
+
+Real issues hit during setup, with the fix that actually worked.
+
+### "Merging is blocked — Commits must have verified signatures"
+
+The merge button is disabled even though `git log --show-signature` shows "Good signature" locally. Two independent causes — check both:
+
+1. **Signing key not registered on GitHub.** Local signing produces the `gpgsig` header, but GitHub only shows "Verified" once your public key is registered as a **Signing Key** (Settings → SSH and GPG keys → Key type: **Signing Key**, not Authentication Key). See [Security Setup](#security-setup).
+
+2. **The setup script wrongly reports "not registered".** If the key IS registered but the check says otherwise, your `gh` token lacks the `admin:ssh_signing_key` scope, so `gh api user/ssh_signing_keys` returns a 404 the script can't read. Fix:
+   ```bash
+   gh auth refresh -h github.com -s admin:ssh_signing_key
+   bash opencode/scripts/github-setup-check.sh --force
+   ```
+   A fresh `gh auth login` does NOT grant this scope by default — most new users hit this.
+
+### "Cannot force-push to this branch" on dev
+
+The `dev` ruleset blocks force pushes by design. Never `--force` to dev. To land a rewritten local history, rebase onto the remote first:
+```bash
+git fetch origin dev && git rebase origin/dev && git push origin dev
+```
+
+### "This branch must not contain merge commits" when targeting master
+
+Master requires linear history. Don't `git merge master` into your branch — it creates a merge commit master rejects. Rebase instead: `git rebase origin/master`.
+
+### gitleaks blocks a legitimate file (false positive)
+
+```bash
+LEFTHOOK_EXCLUDE=gitleaks git commit -m "chore: add test fixtures"
+```
+Scopes the skip to gitleaks for one commit. Never use `--no-verify`.
+
+### bun tests fail in pre-commit but `opencode/` has no test runner
+
+`opencode/` is agent definitions, not a deployable bun project. `lefthook.yml` runs only `pytest` (for `claude-code/`). If a `bun-tests` job appears, it was added in error — remove it.
+
+---
+
 ## Quick Git Reference (for agents)
 
 ```bash
