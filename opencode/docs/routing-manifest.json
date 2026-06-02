@@ -1,0 +1,118 @@
+{
+  "version": "v9.1",
+  "specialists": {
+    "tsuchigumo": {
+      "primary": "opencode-go/kimi-k2.5",
+      "fallback": ["openai/gpt-5.4-mini", "opencode-go/qwen3.6-plus", "opencode/nemotron-3-super-free"]
+    },
+    "daikoku": {
+      "primary": "opencode-go/qwen3.7-max",
+      "fallback": ["openai/gpt-5.4", "opencode-go/minimax-m2.7", "google-vertex/gemini-3.5-flash"]
+    },
+    "enma": {
+      "primary": "opencode-go/qwen3.6-plus",
+      "fallback": ["openai/gpt-5.4-mini", "opencode-go/glm-5", "opencode/nemotron-3-super-free"]
+    },
+    "fudo": {
+      "primary": "opencode-go/kimi-k2.6",
+      "fallback": ["openai/gpt-5.3-codex", "opencode-go/glm-5", "opencode-go/deepseek-v4-pro"]
+    },
+    "tsukumo": {
+      "primary": "opencode-go/kimi-k2.5",
+      "heavy": "openai/gpt-5.3-codex",
+      "simple": "opencode-go/minimax-m2.7",
+      "fallback": ["openai/gpt-5.3-codex", "opencode-go/glm-5", "opencode-go/minimax-m2.7"]
+    },
+    "daidarabotchi": {
+      "primary": "opencode-go/kimi-k2.6",
+      "fallback": ["openai/gpt-5.4-mini", "opencode-go/glm-5", "google-vertex/gemini-3-flash-preview"]
+    },
+    "tsukuyomi": {
+      "primary": "opencode-go/qwen3.6-plus",
+      "fallback": ["openai/gpt-5.4-mini", "opencode-go/glm-5", "google-vertex/gemini-3-flash-preview"]
+    },
+    "yumemi": {
+      "primary": "opencode-go/glm-5.1",
+      "fallback": ["openai/gpt-5.4", "opencode-go/qwen3.6-plus", "google-vertex/gemini-3.5-flash"]
+    },
+    "kitsune": {
+      "primary": "openai/gpt-5.4",
+      "fallback": ["opencode-go/glm-5.1", "opencode-go/qwen3.6-plus", "google-vertex/gemini-3.5-flash"],
+      "_note": "in-development / opt-in brand-builder bundle; entry retained for failover coverage"
+    },
+    "mujina": {
+      "primary": "openai/gpt-5.4",
+      "fallback": ["opencode-go/glm-5", "opencode-go/qwen3.6-plus", "google-vertex/gemini-3.5-flash"]
+    }
+  },
+  "subagents": {
+    "yamabiko": {
+      "primary": "opencode-go/minimax-m2.7",
+      "fallback": ["openai/gpt-5.4-mini", "google-vertex/gemini-3-flash-preview", "opencode/big-pickle"]
+    },
+    "kagami": {
+      "primary": "openai/gpt-5.4-mini",
+      "fallback": ["opencode-go/glm-5", "google-vertex/gemini-3.5-flash", "opencode-go/deepseek-v4-flash"]
+    },
+    "soroban": {
+      "primary": "opencode-go/deepseek-v4-flash",
+      "heavy": "opencode-go/deepseek-v4-pro",
+      "fallback": ["openai/gpt-5.4-mini", "opencode-go/minimax-m2.7", "google-vertex/gemini-3.1-flash-lite"]
+    },
+    "karakuri": {
+      "primary": "opencode-go/mimo-v2.5",
+      "canary": "A2",
+      "fallback": ["openai/gpt-5.3-codex", "openai/gpt-5.4-mini", "google-vertex/gemini-3.1-flash-lite"]
+    },
+    "mikoshi": {
+      "primary": "opencode-go/qwen3.6-plus",
+      "fallback": ["google-vertex/gemini-3-flash-preview", "opencode-go/glm-5", "opencode/big-pickle"]
+    },
+    "oni": {
+      "primary": "openai/gpt-5.5",
+      "fallback": ["opencode-go/deepseek-v4-pro", "opencode-go/glm-5", "google-vertex/gemini-3.5-flash"]
+    },
+    "kotodama": {
+      "primary": "google-vertex/gemini-3.1-pro-preview",
+      "fallback": ["openai/gpt-5.4", "opencode-go/qwen3.6-plus", "opencode-go/glm-5"]
+    },
+    "jorogumo": {
+      "primary": "opencode-go/glm-5",
+      "fallback": ["openai/gpt-5.4-mini", "opencode-go/minimax-m2.7", "google-vertex/gemini-3-flash-preview"]
+    },
+    "tengu": {
+      "primary": "google-vertex/gemini-3.5-flash",
+      "heavy": "openai/gpt-5.4",
+      "fallback": ["opencode-go/glm-5", "openai/gpt-5.4-mini", "opencode-go/minimax-m2.7"]
+    },
+    "bakeneko": {
+      "primary": "opencode-go/deepseek-v4-pro",
+      "fallback": ["openai/gpt-5.4-mini", "opencode-go/glm-5", "opencode-go/mimo-v2.5-pro"]
+    },
+    "makimono": {
+      "primary": "opencode-go/glm-5",
+      "fallback": ["openai/gpt-5.4-mini", "google-vertex/gemini-3-flash-preview", "opencode-go/minimax-m2.7"]
+    },
+    "azukiarai": {
+      "primary": "opencode-go/minimax-m2.7",
+      "tier": "T2",
+      "fallback": ["google-vertex/gemini-3.1-flash-lite", "opencode-go/mimo-v2.5", "opencode-go/deepseek-v4-flash"]
+    },
+    "henge": {
+      "primary": "opencode-go/mimo-v2.5",
+      "tier": "T2",
+      "fallback": ["google-vertex/gemini-3.1-flash-lite", "opencode-go/minimax-m2.7", "opencode/big-pickle"]
+    },
+    "tanuki": {
+      "primary": "opencode/big-pickle",
+      "fallback": ["opencode-go/qwen3.6-plus", "opencode/nemotron-3-super-free", "google-vertex/gemini-3-flash-preview"]
+    },
+    "karasutengu": {
+      "primary": "opencode/big-pickle",
+      "fallback": ["opencode-go/qwen3.6-plus", "opencode/nemotron-3-super-free"]
+    }
+  },
+  "_notes": {
+    "brand_subagents_deferred": "akashi, amanojaku, hyakume, kataribe, kodama, kudagitsune, kurabokko, migaki: intentionally omitted from subagents until the brand-builder bundle stabilizes"
+  }
+}

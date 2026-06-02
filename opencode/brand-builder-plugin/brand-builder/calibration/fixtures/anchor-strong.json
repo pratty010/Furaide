@@ -1,0 +1,91 @@
+{
+  "name": "anchor-strong",
+  "description": "A strong profile: four artifact types, rich evidence, quantified achievements, clear narrative, multi-surface presence",
+  "target_bands": {
+    "signal":     { "min": 30, "max": 70 },
+    "evidence":   { "min": 30, "max": 70 },
+    "visibility": { "min": 30, "max": 70 },
+    "narrative":  { "min": 30, "max": 70 }
+  },
+  "_notes": "4 artifacts with 2 summaries each. Expected scores ~50 per dim after sufficiency penalty (2/6 artifact types missing).",
+  "artifacts": [
+    {
+      "artifact_type": "resume",
+      "canonical_path": "anchor-strong-resume.md",
+      "content": "# Alex Chen\nPrincipal Engineer at HyperScale (2019-2024)\nArchitected distributed caching layer serving 50M requests/day, cutting P99 latency from 2s to 180ms.\nLed 8-engineer team through 3 major feature launches.\nOpen source contributor: 400+ GitHub stars on distributed-cache-lib.\nEducation: MS Computer Science, Stanford."
+    },
+    {
+      "artifact_type": "linkedin",
+      "canonical_path": "anchor-strong-linkedin.md",
+      "content": "# Alex Chen — LinkedIn\nPrincipal Engineer | HyperScale | Distributed Systems\nAbout: I build systems that scale. 10+ years in distributed systems, Kubernetes, Go, Python.\nFeatured: Blog post on distributed caching (2,000 views), Open Source project.\nExperience: 3 leadership roles, quantified outcomes in each.\nSkills: Go, Python, Kubernetes, Distributed Systems, System Design."
+    },
+    {
+      "artifact_type": "github_profile",
+      "canonical_path": "anchor-strong-github.md",
+      "content": "# Alex Chen — GitHub\ndistributed-cache-lib: 400 stars, actively maintained. go-perf-toolkit: 120 stars.\nPinned repos show system design focus. README files with architecture diagrams.\n15 public repositories, regular commit cadence."
+    },
+    {
+      "artifact_type": "website",
+      "canonical_path": "anchor-strong-website.md",
+      "content": "# alexchen.dev\nPersonal site: case studies for HyperScale caching project and distributed-cache-lib.\nBlog: 6 posts on distributed systems, Kubernetes, and Go performance.\nSpeaking: 2 conference talks listed with slides.\nClear positioning as distributed systems expert."
+    }
+  ],
+  "evidence_summaries": [
+    {
+      "artifact_type": "resume",
+      "summary_type": "field_extraction",
+      "content": "Name: Alex Chen, Role: Principal Engineer, Years: 10+, Skills: Go, Python, Kubernetes, Distributed Systems",
+      "quality_signal": "high",
+      "confidence": "high"
+    },
+    {
+      "artifact_type": "resume",
+      "summary_type": "signal_assessment",
+      "content": "Architected caching layer 50M req/day, P99 2s→180ms. Led 8-engineer team. Quantified outcomes on all major accomplishments.",
+      "quality_signal": "high",
+      "confidence": "high"
+    },
+    {
+      "artifact_type": "linkedin",
+      "summary_type": "field_extraction",
+      "content": "LinkedIn complete: headline, about, featured, experience with metrics, skills, recommendations present.",
+      "quality_signal": "high",
+      "confidence": "high"
+    },
+    {
+      "artifact_type": "linkedin",
+      "summary_type": "surface_snapshot",
+      "content": "Strong narrative: distributed systems expert framing consistent across headline, about, and featured. Cross-surface alignment with resume.",
+      "quality_signal": "high",
+      "confidence": "high"
+    },
+    {
+      "artifact_type": "github_profile",
+      "summary_type": "field_extraction",
+      "content": "15 public repos, 400+ stars on flagship project. Active commit cadence. Architecture-focused READMEs.",
+      "quality_signal": "high",
+      "confidence": "high"
+    },
+    {
+      "artifact_type": "github_profile",
+      "summary_type": "signal_assessment",
+      "content": "Proof of systems work: caching library with production-grade code quality, go-perf-toolkit for observability.",
+      "quality_signal": "high",
+      "confidence": "high"
+    },
+    {
+      "artifact_type": "website",
+      "summary_type": "surface_snapshot",
+      "content": "Personal site with case studies, blog, and speaking history. Consistent distributed systems positioning.",
+      "quality_signal": "high",
+      "confidence": "high"
+    },
+    {
+      "artifact_type": "website",
+      "summary_type": "field_extraction",
+      "content": "Case studies include architecture diagrams, metrics. Blog has 6 technical posts. Conference talks with slides.",
+      "quality_signal": "high",
+      "confidence": "high"
+    }
+  ]
+}

@@ -1,0 +1,6 @@
+node_modules/
+package-lock.json
+bun.lockb
+brand-builder-plugin/brand-builder/data/*.db
+brand-builder-plugin/brand-builder/data/*.db-shm
+brand-builder-plugin/brand-builder/data/*.db-wal

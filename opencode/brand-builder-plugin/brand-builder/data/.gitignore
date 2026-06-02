@@ -1,0 +1,11 @@
+# SQLite database files
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# Temporary test directories
+test-*/
+
+# Keep canonical artifact files tracked
+!artifacts/

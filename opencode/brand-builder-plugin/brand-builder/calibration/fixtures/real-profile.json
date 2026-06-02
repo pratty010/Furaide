@@ -1,0 +1,14 @@
+{
+  "name": "real-profile",
+  "description": "Current real profile — scores should match current state. Harness skips this fixture if the real artifact file does not exist.",
+  "skip_if_missing": true,
+  "real_artifact_check": "data/artifacts/resume",
+  "target_bands": {
+    "signal":     { "min": 0, "max": 100 },
+    "evidence":   { "min": 0, "max": 100 },
+    "visibility": { "min": 0, "max": 100 },
+    "narrative":  { "min": 0, "max": 100 }
+  },
+  "artifacts": [],
+  "evidence_summaries": []
+}
