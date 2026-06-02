@@ -5,6 +5,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PAYLOAD="$(cat)"
 TS="$(date -u +%Y-%m-%dT%H:%M:%S.%3NZ)"
 
+"$SCRIPT_DIR/_capture_payload.sh" "Stop" "$PAYLOAD"
+
 EVENT_NAME="$(printf '%s' "$PAYLOAD" | jq -r '.hook_event_name // "Stop"')"
 case "$EVENT_NAME" in
   Stop)        OUT_EVENT="turn.stop" ;;

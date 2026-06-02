@@ -31,7 +31,7 @@ _TEMPLATE = """# Evidence pack — `{skill}` ({date})
 {gap_block}
 
 ## Hand-off instructions
-Pass this evidence pack to `Skill(skill-creator)` (relevant parts) or `Skill(writing-skill)` to revise the SKILL.md description. After applying or rejecting the rewrite, run:
+Pass this evidence pack to `Skill(skill-creator)` (relevant parts) or `Skill(writing-skills)` to revise the SKILL.md description. After applying or rejecting the rewrite, run:
 
 ```
 puraguin improve --mark {skill} applied

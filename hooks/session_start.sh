@@ -5,6 +5,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PAYLOAD="$(cat)"
 TS="$(date -u +%Y-%m-%dT%H:%M:%S.%3NZ)"
 
+"$SCRIPT_DIR/_capture_payload.sh" "SessionStart" "$PAYLOAD"
+
 LINE="$(printf '%s' "$PAYLOAD" | jq -c --arg ts "$TS" '{
   ts: $ts,
   platform: "claude-code",

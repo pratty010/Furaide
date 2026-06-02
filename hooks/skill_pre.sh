@@ -5,6 +5,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PAYLOAD="$(cat)"
 TS="$(date -u +%Y-%m-%dT%H:%M:%S.%3NZ)"
 
+"$SCRIPT_DIR/_capture_payload.sh" "PreToolUse-Skill" "$PAYLOAD"
+
 TOOL="$(printf '%s' "$PAYLOAD" | jq -r '.tool_name // ""')"
 if [ "$TOOL" != "Skill" ]; then
   exit 0

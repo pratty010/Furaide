@@ -3,7 +3,7 @@
 # Output path: $PURAGUIN_HOME/events/claude-code/YYYY-MM-DD.jsonl
 set -euo pipefail
 
-PURAGUIN_HOME="${PURAGUIN_HOME:-$HOME/puraguin}"
+PURAGUIN_HOME="${PURAGUIN_HOME:-$HOME/.puraguin}"
 OUT_DIR="$PURAGUIN_HOME/events/claude-code"
 mkdir -p "$OUT_DIR"
 

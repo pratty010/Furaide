@@ -5,7 +5,9 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PAYLOAD="$(cat)"
 TS="$(date -u +%Y-%m-%dT%H:%M:%S.%3NZ)"
 
-COMMAND="$(printf '%s' "$PAYLOAD" | jq -r '.command_name // ""')"
+"$SCRIPT_DIR/_capture_payload.sh" "UserPromptExpansion" "$PAYLOAD"
+
+COMMAND="$(printf '%s' "$PAYLOAD" | jq -r '.command_name // .slash_command_name // .skill_name // ""')"
 if [ -z "$COMMAND" ]; then
   exit 0
 fi
