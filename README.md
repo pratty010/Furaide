@@ -2,213 +2,184 @@
 
 > *"All systems online. Shikigami assembled. What are we working on today?"*
 
-**F.R.I.D.A.Y.** is Furaidē's collection, an AI assistant setup for [Claude Code](https://claude.ai/code) and [OpenCode](https://opencode.ai). Each component is a named shikigami (式神), a spirit-familiar named for its function.
+**F.R.I.D.A.Y.** is Furaidē's collection: an AI assistant setup for [Claude Code](https://claude.ai/code) and [OpenCode](https://opencode.ai). Each component is a named shikigami (式神), a spirit-familiar named for its function.
 
-Two independent plugins. Install one, the other, or both.
+Two components. Install one, the other, or both.
 
----
-
-## What's included
-
-| Domain | Plugin | What it is |
-|--------|--------|------------|
-| `claude-code/` | [**Satori** (Skill Overseer)](https://github.com/pratty010/claude-code) | Claude Code plugin that watches every skill invocation and judges its effectiveness offline. Includes Furaidē's global `~/.claude` config bundle. |
-| `opencode/` | [**Furaidē's Fleet**](https://github.com/pratty010/opencode) | OpenCode multi-agent setup: 24 specialist shikigami, 4 gate guardians, and Kitsune's brand-builder domain (opt-in). |
+| Directory | Component | What it is |
+|-----------|-----------|------------|
+| `claude-code/` | **Satori** (Skill Overseer) | Claude Code plugin that watches every skill invocation and judges effectiveness offline. Includes Furaidē's global `~/.claude` config bundle. |
+| `opencode/` | **Furaidē's Fleet** | OpenCode multi-agent setup: 9 specialists, 13 subagents, 4 gate guardians, and Kitsune's brand-builder domain (opt-in, in development). |
 
 ---
 
 ## Install
 
-### Default: install everything
+### Full install: both components
 
 ```bash
-git clone --recurse-submodules https://github.com/pratty010/F.R.I.D.A.Y.git ~/F.R.I.D.A.Y
+git clone https://github.com/pratty010/F.R.I.D.A.Y.git ~/F.R.I.D.A.Y
 cd ~/F.R.I.D.A.Y
 ```
 
-Then follow the setup sections in each submodule README:
-- [`claude-code/README.md`](claude-code/README.md): Satori plugin, CLI, config bundle
-- [`opencode/README.md`](opencode/README.md): Fleet agents, gate plugins, Kitsune
+Then set up each component:
+
+```bash
+# Furaidē's Fleet (OpenCode)
+bash opencode/scripts/install-fleet.sh
+
+# Satori (Claude Code)
+bash claude-code/scripts/dev-link-plugin.sh
+cd claude-code/cli && uv sync
+```
 
 ---
 
-### Selective install: pick what you need
+### Selective install
 
 <details>
-<summary><strong>Satori only</strong>: Claude Code skill observability plugin</summary>
-
-**Option A: Claude Code marketplace** (once listed):
+<summary><strong>Furaidē's Fleet only</strong> — OpenCode agents and gate plugins</summary>
 
 ```bash
-claude plugin install satori@pratty010
+git clone https://github.com/pratty010/F.R.I.D.A.Y.git ~/F.R.I.D.A.Y
+bash ~/F.R.I.D.A.Y/opencode/scripts/install-fleet.sh
 ```
 
-**Option B: direct from git:**
+The installer walks through each component (gate plugins, agents, rules, scripts) and lets you choose scope per component: global (`~/.config/opencode/`), project (`./.opencode/`), or a custom path.
 
 ```bash
-claude plugin install https://github.com/pratty010/claude-code.git
+# Preview components without installing
+bash ~/F.R.I.D.A.Y/opencode/scripts/install-fleet.sh --list
+
+# Non-interactive: install all defaults to project scope
+bash ~/F.R.I.D.A.Y/opencode/scripts/install-fleet.sh --all --project
 ```
 
-**Option C: local dev-link** (for contributors):
-
-```bash
-git clone https://github.com/pratty010/claude-code.git ~/satori
-ln -sfn ~/satori ~/.claude/plugins/satori
-```
-
-Then install the analytics CLI:
-
-```bash
-cd ~/satori/cli && uv sync
-```
-
-See [`claude-code/README.md`](claude-code/README.md) for full usage and the `/satori` skill.
+See [`opencode/README.md`](opencode/README.md) for full flag reference and component details.
 
 </details>
 
 <details>
-<summary><strong>Config bundle only</strong>: Furaidē's global Claude Code config</summary>
-
-Installs CLAUDE.md, keybindings, settings, and statusline (no plugin required).
+<summary><strong>Satori only</strong> — Claude Code skill observability</summary>
 
 ```bash
-git clone https://github.com/pratty010/claude-code.git ~/satori
-cp ~/satori/config/CLAUDE.md ~/.claude/CLAUDE.md
-cp ~/satori/config/keybindings.json ~/.claude/keybindings.json
-cp ~/satori/config/statusline-command.sh ~/.claude/statusline-command.sh
-# Merge relevant keys from ~/satori/config/settings.json into ~/.claude/settings.json
+git clone https://github.com/pratty010/F.R.I.D.A.Y.git ~/F.R.I.D.A.Y
+bash ~/F.R.I.D.A.Y/claude-code/scripts/dev-link-plugin.sh
+cd ~/F.R.I.D.A.Y/claude-code/cli && uv sync
 ```
 
-See [`claude-code/config/README.md`](claude-code/config/README.md) for component-by-component instructions.
+See [`claude-code/README.md`](claude-code/README.md) for usage and the `/satori` skill.
 
 </details>
 
 <details>
-<summary><strong>Furaidē's Fleet only</strong>: OpenCode multi-agent setup</summary>
+<summary><strong>Config bundle only</strong> — Furaidē's global Claude Code config</summary>
+
+No plugin required. Copy the files you want into `~/.claude/`:
 
 ```bash
-git clone https://github.com/pratty010/opencode.git ~/.config/opencode
-cd ~/.config/opencode
-bun install
+git clone https://github.com/pratty010/F.R.I.D.A.Y.git ~/F.R.I.D.A.Y
+cp ~/F.R.I.D.A.Y/claude-code/config/CLAUDE.md ~/.claude/CLAUDE.md
+cp ~/F.R.I.D.A.Y/claude-code/config/statusline-command.sh ~/.claude/statusline-command.sh
+# Merge relevant keys from claude-code/config/settings.json manually
 ```
 
-The 4 gate plugins wire in automatically via `opencode.jsonc`. If you have an existing OpenCode config, merge the `"plugin"` array manually. See [`opencode/README.md`](opencode/README.md).
+See [`claude-code/config/README.md`](claude-code/config/README.md) for per-file notes.
 
 </details>
 
 <details>
-<summary><strong>Kitsune (Brand Builder) only</strong>: opt-in per project</summary>
+<summary><strong>Kitsune (Brand Builder) only</strong> — opt-in per project, in development</summary>
 
 > [!NOTE]
-> Kitsune requires the Fleet to be installed first. It opens a per-project SQLite DB and is intentionally not registered globally.
+> Requires Furaidē's Fleet to be installed first. Kitsune opens a per-project SQLite DB and is not loaded globally by default.
+
+Run the Fleet installer and select the **Brand Builder / Kitsune** component, then:
+
+```bash
+cd <your-install-root>/brand-builder-plugin && bun install
+```
 
 Add to your project's `.opencode/opencode.json`:
 
 ```json
 {
-  "plugin": ["~/.config/opencode/brand-builder-plugin/plugin/brand-builder.mjs"]
+  "plugin": ["<your-install-root>/brand-builder-plugin/plugin/brand-builder.mjs"]
 }
-```
-
-Then install its dependencies:
-
-```bash
-cd ~/.config/opencode/brand-builder-plugin && bun install
 ```
 
 </details>
 
 ---
 
-## The Shikigami
-
-### Satori: Claude Code
-
-| Shikigami | Role |
-|-----------|------|
-| **Satori** | Watches every skill invocation; judges effectiveness offline via LLM-as-judge; reports via HTML + evidence packs |
-
-### Furaidē's Fleet: OpenCode
-
-| Shikigami | Role |
-|-----------|------|
-| Tanuki | General-purpose (handles tasks outside any specialist's scope) |
-| Tsukumo | Multi-file coding and implementation |
-| Bakeneko | Debugging and root-cause analysis |
-| Oni | Adversarial code review |
-| Tsuchigumo | Deep multi-source research |
-| Mujina | Brand strategy and positioning |
-| Soroban | Quantitative analysis and telemetry |
-| Tengu | Visual and UX design |
-| Daidarabotchi | DevOps and infrastructure reliability |
-| Enma | Legal judgment and compliance |
-| Tsukuyomi | Product requirements and spec writing |
-| Daikoku | Financial domain |
-| Yamabiko | External documentation and source retrieval |
-| Kagami | Fact-checking and claim verification |
-| Azukiarai | Bulk structured data extraction |
-| Kotodama | Publication-quality prose |
-| Yumemi | Creative and expository writing |
-| Makimono | API docs, changelogs, technical documentation |
-| Henge | Format transformation |
-| Karakuri | Command and script execution |
-| Mikoshi | Read-only codebase navigation |
-| Karasu-tengu | Library and dependency lookup |
-| Jorōgumo | Evidence corpus → structured deliverable |
-| Fudō | Security analysis and threat modeling |
-
-### Gate Guardians (always active)
-
-| Shikigami | Role |
-|-----------|------|
-| Niō | Blocks tools when workflow verdict turns critical |
-| Nurikabe | Holds replies at checkpoint until verdict clears |
-| Komainu | Screens edits for dangerous patterns |
-| Migawari | Cross-vendor model failover |
-
-### Kitsune's Domain: Brand Builder (opt-in per project)
-
-Kitsune commands 8 sub-familiars for professional profile review and improvement:
-
-| Shikigami | Role |
-|-----------|------|
-| Kuda-gitsune | Current-state scoring and role-fit judgment |
-| Akashi | GitHub portfolio proof evaluation |
-| Hyakume | ATS keyword coverage audit |
-| Kodama | Growth roadmap and gap analysis |
-| Kurabokko | Artifact intake and memory hygiene |
-| Migaki | LinkedIn section diagnosis and rewrite |
-| Kataribe | Brand strategy and website brief |
-| Amanojaku | Adversarial claim-grounding reviewer |
-
----
-
-## Keep submodules up to date
+## Update
 
 ```bash
-git submodule update --remote
-git add claude-code opencode
-git commit -m "chore: bump submodule pointers"
+cd ~/F.R.I.D.A.Y
+git pull origin master
+```
+
+Both components update together. Re-run the component installer if new files were added:
+
+```bash
+bash opencode/scripts/install-fleet.sh --dry-run   # preview changes
 ```
 
 ---
 
 ## Development
 
-Each submodule is an independent git repo. Commit and push inside `claude-code/` or `opencode/`, then bump the pointer here.
+Work on the `dev` branch. Master receives changes only via pull request.
 
 ```bash
-cd claude-code
-git checkout -b my-feature
-# ... make changes ...
+git checkout dev
+# make changes in opencode/ or claude-code/
+git add .
 git commit -m "feat: ..."
-git push origin my-feature
-
-# Back in the umbrella repo:
-cd ..
-git add claude-code
-git commit -m "chore: bump claude-code to my-feature tip"
+git push origin dev
+# open a PR into master when ready
 ```
+
+---
+
+## The Shikigami
+
+### Furaidē's Fleet: OpenCode
+
+**9 Specialists**
+
+| Shikigami | Role |
+|-----------|------|
+| Tanuki(General) | Cost-aware generalist |
+| Tsukumo(Coder) | Multi-file implementation |
+| Tsuchigumo(Deep Researcher) | Multi-source research with citations |
+| Mujina(Brand Strategist) | Brand positioning and GTM narrative |
+| Daidarabotchi(DevOps/SRE) | Infrastructure and reliability |
+| Enma(Legal/Compliance) | Regulatory compliance and contracts |
+| Tsukuyomi(PM/Spec) | Product requirements and specifications |
+| Daikoku(Financial) | Financial modeling and analysis |
+| Yumemi(Writer) | Long-form content and editorial writing |
+
+**13 Shared Subagents** (dispatched by specialists)
+
+Karakuri(Code Runner), Bakeneko(Debugger), Oni(Reviewer), Yamabiko(Source Retriever), Kagami(Fact-Checker), Azukiarai(Extractor), Kotodama(Prose Wordsmith), Jorogumo(Synthesizer), Tengu(Designer), Makimono(Technical Writer), Henge(Formatter), Mikoshi(Explorer), Karasu-tengu(Scout)
+
+**4 Gate Guardians** (always active)
+
+| Shikigami | Role |
+|-----------|------|
+| Nio(Gate Enforcer) | Blocks tools when workflow verdict is critical |
+| Nurikabe(Delivery Gate) | Holds replies at checkpoint until verdict clears |
+| Komainu(Security Patterns) | Screens edits for dangerous patterns |
+| Migawari(Model Failover) | Cross-vendor model failover |
+
+**Brand Builder Domain** (Kitsune + 8 sub-familiars — opt-in, in development)
+
+### Satori: Claude Code
+
+| Shikigami | Role |
+|-----------|------|
+| Satori(Skill Overseer) | Watches every skill invocation; judges effectiveness offline; reports via HTML |
 
 ---
 

@@ -1,15 +1,5 @@
-.worktrees/
-__pycache__/
-*.pyc
-.pytest_cache/
-.venv/
-*.egg-info/
-dist/
-build/
-.coverage
-htmlcov/
-.DS_Store
-# Satori runtime data — lives in ~/.satori/, not the repo
+# Satori runtime data — lives in ~/.satori/ but dev-linked repos may write here
 cli/.satori/
+
 # Statusline sidecar written by hooks at runtime
 config/statusline-sidecar.json

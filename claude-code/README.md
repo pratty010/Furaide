@@ -29,16 +29,16 @@ cd ~/.claude/plugins/satori/cli && uv sync
 **Option B: direct from git:**
 
 ```bash
-claude plugin install https://github.com/pratty010/claude-code.git
+# See install instructions below — plugin lives inside the F.R.I.D.A.Y. monorepo
 cd ~/.claude/plugins/satori/cli && uv sync
 ```
 
 **Option C: local dev-link** (for contributors):
 
 ```bash
-git clone https://github.com/pratty010/claude-code.git ~/satori
-bash ~/satori/scripts/dev-link-plugin.sh   # prompts to install workflow skills
-cd ~/satori/cli && uv sync
+git clone https://github.com/pratty010/F.R.I.D.A.Y.git ~/F.R.I.D.A.Y
+bash ~/F.R.I.D.A.Y/claude-code/scripts/dev-link-plugin.sh   # prompts to install workflow skills
+cd ~/F.R.I.D.A.Y/claude-code/cli && uv sync
 ```
 
 ---
@@ -48,10 +48,10 @@ cd ~/satori/cli && uv sync
 Satori observes skills — but you need skills installed for it to observe. `dev-link-plugin.sh` offers to run the skill installer automatically. You can also run it separately at any time:
 
 ```bash
-bash ~/satori/scripts/install-skills.sh          # interactive, category-by-category
-bash ~/satori/scripts/install-skills.sh --all    # install everything, no prompts
-bash ~/satori/scripts/install-skills.sh --list   # preview what would be installed
-bash ~/satori/scripts/install-skills.sh --project  # project-local install only
+bash ~/F.R.I.D.A.Y/claude-code/scripts/install-skills.sh          # interactive, category-by-category
+bash ~/F.R.I.D.A.Y/claude-code/scripts/install-skills.sh --all    # install everything, no prompts
+bash ~/F.R.I.D.A.Y/claude-code/scripts/install-skills.sh --list   # preview what would be installed
+bash ~/F.R.I.D.A.Y/claude-code/scripts/install-skills.sh --project  # project-local install only
 ```
 
 The installer reads `skills-manifest.json`, clones source repos into `~/.agents/skill-repos/`, and creates a two-level symlink chain:
@@ -78,7 +78,7 @@ git -C ~/.agents/skill-repos/superpowers pull
 The plugin registers hooks automatically on install. The `/satori` skill will shell out to the CLI; you can add the CLI later without reinstalling the plugin.
 
 ```bash
-claude plugin install https://github.com/pratty010/claude-code.git
+# See install instructions below — plugin lives inside the F.R.I.D.A.Y. monorepo
 ```
 
 </details>
@@ -89,8 +89,8 @@ claude plugin install https://github.com/pratty010/claude-code.git
 The CLI can ingest existing event logs even if the plugin hooks weren't running when they were captured (useful if you have data from the old Puraguin setup).
 
 ```bash
-git clone https://github.com/pratty010/claude-code.git ~/satori
-cd ~/satori/cli && uv sync
+git clone https://github.com/pratty010/F.R.I.D.A.Y.git ~/F.R.I.D.A.Y
+cd ~/F.R.I.D.A.Y/claude-code/cli && uv sync
 satori --help
 
 # If migrating from ~/.puraguin/:
@@ -105,13 +105,13 @@ mv ~/.puraguin ~/.satori
 No plugin required. Copy the files you want into `~/.claude/`:
 
 ```bash
-git clone https://github.com/pratty010/claude-code.git ~/satori
+git clone https://github.com/pratty010/F.R.I.D.A.Y.git ~/F.R.I.D.A.Y
 
 # All at once:
-cp ~/satori/config/CLAUDE.md ~/.claude/CLAUDE.md
-cp ~/satori/config/keybindings.json ~/.claude/keybindings.json
-cp ~/satori/config/statusline-command.sh ~/.claude/statusline-command.sh
-# Then merge relevant keys from ~/satori/config/settings.json manually
+cp ~/F.R.I.D.A.Y/claude-code/config/CLAUDE.md ~/.claude/CLAUDE.md
+cp ~/F.R.I.D.A.Y/claude-code/config/keybindings.json ~/.claude/keybindings.json
+cp ~/F.R.I.D.A.Y/claude-code/config/statusline-command.sh ~/.claude/statusline-command.sh
+# Then merge relevant keys from ~/F.R.I.D.A.Y/claude-code/config/settings.json manually
 ```
 
 See [`config/README.md`](config/README.md) for per-file notes.
