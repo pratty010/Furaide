@@ -214,6 +214,11 @@
           "name": "executing-plans",
           "source": "superpowers",
           "description": "Executes a written implementation plan in a separate session with review checkpoints."
+        },
+        {
+          "name": "github",
+          "source": "friday",
+          "description": "GitHub Workflow Executor — spawns Haiku subagent for git commits, pushes, PR creation, and CI monitoring with human-in-the-loop approval."
         }
       ]
     },

@@ -54,3 +54,4 @@ bun.lockb
 tmp/
 .tmp/
 .worktrees/
+.github/.setup-state

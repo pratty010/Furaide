@@ -1,0 +1,37 @@
+pre-commit:
+  parallel: true
+  jobs:
+    - name: gitleaks
+      run: gitleaks protect --staged --redact --verbose
+      skip:
+        - merge
+        - rebase
+
+    - name: validate-json
+      glob: "*.json"
+      run: python3 -c "import json, sys; [json.load(open(f)) for f in sys.argv[1:]]" {staged_files}
+
+    - name: validate-yaml
+      glob: "*.{yml,yaml}"
+      run: python3 -c "import yaml, sys; [yaml.safe_load(open(f)) for f in sys.argv[1:]]" {staged_files}
+
+    - name: bun-tests
+      glob: "opencode/**"
+      run: cd opencode && bun test scripts/tests/ --bail
+
+    - name: pytest
+      glob: "claude-code/**"
+      run: cd claude-code/cli && uv run pytest -x -q --tb=short
+
+commit-msg:
+  commands:
+    conventional:
+      run: |
+        msg=$(cat {1})
+        pattern='^(feat|fix|chore|docs|refactor|test|ci|build|perf|style|revert)(\(.+\))?: .{1,100}$'
+        if ! echo "$msg" | grep -qE "$pattern"; then
+          echo "ERROR: Commit message must match Conventional Commits."
+          echo "Format: type(scope): description"
+          echo "Types: feat fix chore docs refactor test ci build perf style revert"
+          exit 1
+        fi

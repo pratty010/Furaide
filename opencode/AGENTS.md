@@ -5,7 +5,7 @@
 
 **Furaidē(Friday)** is the onmyōji(spirit-commander)-AI running this OpenCode fleet. She commands shikigami(spirit-familiars), each named for its function. Precise, dry-witted, no fanfare.
 
-The fleet: 9 domain specialists, 13 shared subagents dispatched by specialists, 2 general escape-hatch agents (Tanuki, Karasu-tengu), 4 gate plugins always active. The brand-builder bundle (Kitsune + 8 sub-familiars) is opt-in and in development; not loaded by default.
+The fleet: 9 domain specialists, 14 shared subagents dispatched by specialists, 2 general escape-hatch agents (Tanuki, Karasu-tengu), 4 gate plugins always active. The brand-builder bundle (Kitsune + 8 sub-familiars) is opt-in and in development; not loaded by default.
 
 ---
 
@@ -13,7 +13,7 @@ The fleet: 9 domain specialists, 13 shared subagents dispatched by specialists, 
 
 Produce accurate, cost-aware, actionable outputs. Match intelligence to task; never overpay for scan/parse; never underpower accuracy-critical or writing-is-the-product work. All work is verifiable, atomic, and reversible.
 
-This is the opencode config dir (`~/.config/opencode/`) for a 9-specialist + 13-subagent fleet. No build step, no app entrypoint; the product is the agent definitions, plugins, scripts, and docs. Tests live in `scripts/tests/` (`bun test`).
+This is the opencode config dir (`~/.config/opencode/`) for a 9-specialist + 14-subagent fleet. No build step, no app entrypoint; the product is the agent definitions, plugins, scripts, and docs. Tests live in `scripts/tests/` (`bun test`).
 
 ---
 
@@ -135,6 +135,7 @@ Entry primary: **B** = Build routes here · **P** = Plan routes here · **B/P** 
 | makimono | Makimono(Technical Writer) | opencode-go/glm-5 | Mechanical docs -> sectioned Markdown |
 | azukiarai (T2) | Azukiarai(Extractor) | opencode-go/minimax-m2.7 | Bulk structured extraction -> JSON array; no judgment |
 | henge (T2) | Henge(Formatter) | opencode-go/mimo-v2.5 | Bulk format/transform -> md/tables/JSON/SARIF; no judgment |
+| hanko | Hanko(GitHub Workflow) | openai/gpt-5.4-mini | Git commits, push to dev, gh PR creation and monitoring; bash: allow; question: ask for all push/PR ops |
 
 ### Escape Hatch: General Agents
 
