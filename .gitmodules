@@ -1,6 +1,0 @@
-[submodule "claude-code"]
-	path = claude-code
-	url = https://github.com/pratty010/claude-code.git
-[submodule "opencode"]
-	path = opencode
-	url = https://github.com/pratty010/opencode.git
