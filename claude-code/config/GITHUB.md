@@ -19,6 +19,65 @@
 
 ---
 
+## Security Setup
+
+### SSH Signing Key (Required)
+
+Your commits are cryptographically signed locally using SSH to prove you created them. GitHub enforces this via the `required_signatures` ruleset on master — no merge is allowed unless commits carry valid signatures.
+
+**Local signing** (already configured):
+- `git config --global gpg.format ssh` — use SSH keys instead of GPG
+- `git config --global commit.gpgsign true` — sign every commit automatically
+- `git config --global user.signingkey ~/.ssh/id_ed25519.pub` — your public key
+- `~/.ssh/allowed_signers` file — tells git which keys to trust
+
+**GitHub registration** (one-time manual step):
+1. Go to `github.com → Settings → SSH and GPG keys`
+2. Click **New SSH key**
+3. Set **Key type: Signing Key** (NOT Authentication Key — they are different)
+4. Title: "WSL2 signing" (or your machine name)
+5. Paste your public key (displayed by the setup check script)
+6. Save
+
+After this, your commits will show a "Verified" badge and satisfy the merge gate.
+
+**Why signing key is separate from auth key:** The same physical SSH key (`~/.ssh/id_ed25519`) can serve both roles, but GitHub registers them separately:
+- **Auth key** authenticates pushes over SSH (`git@github.com` remote)
+- **Signing key** cryptographically signs commits (works with any remote, SSH or HTTPS)
+
+This repo uses an HTTPS remote, so the auth key is unused. Only the signing key registration matters.
+
+### Fine-Grained PAT (Optional but Recommended)
+
+The `gh` CLI authenticates using an OAuth token obtained via `gh auth login`. By default, this is a broad token with access to all your repositories and organizations.
+
+**Fine-grained PATs** are an industry-standard improvement:
+- Scoped to a single repository (`pratty010/F.R.I.D.A.Y` only)
+- Only the exact permissions needed: Contents, Pull requests, Workflows
+- Time-limited (90 days) and revokable
+- Blast radius if leaked: only this repo, not your whole account
+
+**Setup** (optional but recommended):
+1. Go to `github.com → Settings → Developer settings → Personal access tokens → Fine-grained tokens`
+2. Click **Generate new token**
+3. Token name: `friday-monorepo`
+4. Expiration: 90 days
+5. Repository access: Only select `F.R.I.D.A.Y`
+6. Permissions:
+   - Repository → Contents: Read and write
+   - Repository → Pull requests: Read and write
+   - Repository → Workflows: Read and write
+   - Metadata: Read (mandatory)
+7. Generate → copy the token
+8. Authenticate `gh`:
+   ```bash
+   echo "<YOUR_TOKEN>" | gh auth login --with-token
+   ```
+
+The setup check script will remind you if you're using a broad token. The choice is yours — existing auth works fine, but fine-grained tokens follow industry best practices.
+
+---
+
 ## Commit Message Format
 
 All commits must follow Conventional Commits format:
@@ -162,21 +221,12 @@ If you see "no hooks installed", re-run `bunx lefthook install`.
 
 When you create a PR targeting master, GitHub Actions runs:
 
-1. **`test-opencode`** — if opencode/ or `.github/` changed
-   - Runs `bun install --frozen-lockfile`
-   - Runs `bun test scripts/tests/`
-   - Caches `~/.bun/install/cache` for speed
-
-2. **`test-claude-code`** — if claude-code/ or `.github/` changed
+1. **`test-claude-code`** — if claude-code/ or `.github/` changed
    - Runs `uv sync --frozen`
    - Runs `uv run pytest -x -q --tb=short`
    - Uses astral-sh/setup-uv with built-in caching
 
-3. **`security-scan`** — always on PRs to master
-   - `gitleaks/gitleaks-action`: full history scan for leaked secrets
-   - `actions/dependency-review-action`: checks for vulnerable dependencies (fails if severity >= moderate)
-
-4. **Auto-labeling** — applies labels based on changed files
+2. **Auto-labeling** — applies labels based on changed files
    - `opencode` label if opencode/ changed
    - `claude-code` label if claude-code/ changed
    - `ci` label if .github/ or lefthook.yml changed
@@ -187,19 +237,10 @@ If any check fails, the PR shows red ✗. Click "Details" to see the failure out
 
 ### Debugging CI failures
 
-**`test-opencode` fails:**
-```bash
-cd opencode && bun install --frozen-lockfile && bun test scripts/tests/
-```
-
 **`test-claude-code` fails:**
 ```bash
 cd claude-code/cli && uv sync --frozen && uv run pytest -x -q --tb=short
 ```
-
-**`security-scan` fails:**
-- If gitleaks: check the failure message; if it's a false positive, add to `.gitleaksignore` (not yet created; skip for now)
-- If dependency review: run `pip list` or `bun pm list` to check for known vulnerable versions
 
 ---
 

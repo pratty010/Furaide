@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Satori (Claude Code) — GitHub setup verification
-# Checks if the developer environment is ready for GitHub workflows
+# Numbered first-time guide format for onboarding new developers
 # Single shared cache at ~/.github-setup-state-friday for the whole F.R.I.D.A.Y. setup
 
 CACHE_FILE="${HOME}/.github-setup-state-friday"
@@ -12,6 +12,7 @@ FORCE="${1:-}"
 # Color codes
 RED='\033[0;31m'
 GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
 NC='\033[0m'
 
 # Check if cache is fresh
@@ -20,7 +21,6 @@ if [[ -f "$CACHE_FILE" && "$FORCE" != "--force" ]]; then
   now=$(date +%s)
   age=$((now - local_ts))
   if [[ $age -lt $CACHE_TTL ]]; then
-    # Cache is fresh, output it
     cat "$CACHE_FILE"
     exit 0
   fi
@@ -32,7 +32,7 @@ fi
 
 declare -A checks
 
-# Local checks
+# Local checks (always run, not cached)
 checks[git_format]=$(git config --global gpg.format 2>/dev/null | grep -q "ssh" && echo "✓" || echo "✗")
 checks[signing_key]=$([[ -n "$(git config --global user.signingkey 2>/dev/null)" ]] && echo "✓" || echo "✗")
 checks[commit_gpgsign]=$(git config --global commit.gpgsign 2>/dev/null | grep -q "true" && echo "✓" || echo "✗")
@@ -41,7 +41,7 @@ checks[lefthook]=$([[ -f "$(git rev-parse --git-dir)"/hooks/pre-commit ]] 2>/dev
 checks[gitleaks]=$(command -v gitleaks &>/dev/null && echo "✓" || echo "✗")
 checks[ssh_agent]=$(ssh-add -l &>/dev/null && echo "✓" || echo "✗")
 
-# API checks (GitHub)
+# API checks (cached)
 checks[gh_signing_key]=$(
   local_key=$(git config --global user.signingkey 2>/dev/null || echo "")
   if [[ -z "$local_key" || ! -f "$local_key" ]]; then
@@ -55,72 +55,116 @@ checks[gh_signing_key]=$(
 checks[master_ruleset]=$(gh api repos/pratty010/F.R.I.D.A.Y/rulesets --jq '.[].name' 2>/dev/null | grep -qE "master|master-protection" && echo "✓" || echo "✗")
 checks[secret_scanning]=$(gh api repos/pratty010/F.R.I.D.A.Y --jq '.security_and_analysis.secret_scanning.status // "disabled"' 2>/dev/null | grep -q "enabled" && echo "✓" || echo "✗")
 checks[push_protection]=$(gh api repos/pratty010/F.R.I.D.A.Y --jq '.security_and_analysis.secret_scanning_push_protection.status // "disabled"' 2>/dev/null | grep -q "enabled" && echo "✓" || echo "✗")
+checks[api_access]=$(gh api repos/pratty010/F.R.I.D.A.Y --jq '.name' 2>/dev/null | grep -q "F.R.I.D.A.Y" && echo "✓" || echo "✗")
 
-# Check if all passed
+# Fine-grained PAT check
+checks[fine_grained_pat]=$(
+  current_token=$(gh auth token 2>/dev/null || echo "")
+  [[ "$current_token" == github_pat_* ]] && echo "✓" || echo "⚠"
+)
+
+# Check if all critical items passed
 all_passed=true
-for status in "${checks[@]}"; do
-  if [[ "$status" != "✓" ]]; then
-    all_passed=false
-    break
-  fi
-done
+if [[ "${checks[git_format]}" != "✓" || "${checks[signing_key]}" != "✓" || "${checks[commit_gpgsign]}" != "✓" || "${checks[allowed_signers]}" != "✓" || "${checks[gh_signing_key]}" != "✓" ]]; then
+  all_passed=false
+fi
 
 # Build output
 if [[ "$all_passed" == "true" ]]; then
-  output="All GitHub setup checks passed."
+  output="F.R.I.D.A.Y. GitHub setup — all critical checks passed"$'\n'
+  if [[ "${checks[fine_grained_pat]}" != "✓" ]]; then
+    output+=$'\n'"${YELLOW}[6/7] Fine-grained PAT (recommended — optional)${NC}"$'\n'"  ⚠ gh CLI is using a broad OAuth token"$'\n'"      Industry standard: use a repo-scoped fine-grained token instead"$'\n'"      → github.com → Settings → Developer settings → Personal access tokens → Fine-grained tokens"$'\n'"      → Repository: pratty010/F.R.I.D.A.Y only"$'\n'"      → Permissions: Contents(RW), Pull requests(RW), Workflows(RW), Metadata(R)"$'\n'"      → echo \"<TOKEN>\" | gh auth login --with-token"
+  fi
 else
-  output="F.R.I.D.A.Y. GitHub setup status:
-  ${checks[git_format]} git gpg.format=ssh
-  ${checks[signing_key]} user.signingkey configured
-  ${checks[commit_gpgsign]} commit.gpgsign=true
-  ${checks[allowed_signers]} allowed_signers file exists"
+  output="F.R.I.D.A.Y. GitHub setup — first-time guide"$'\n'
 
+  # [1] Git signing config
+  output+=$'\n'"${GREEN}[1/7] Git signing config (local)${NC}"$'\n'
+  output+="  ${checks[git_format]} git gpg.format=ssh"$'\n'
+  if [[ "${checks[git_format]}" != "✓" ]]; then
+    output+="      → git config --global gpg.format ssh"$'\n'
+  fi
+  output+="  ${checks[signing_key]} user.signingkey configured"$'\n'
+  if [[ "${checks[signing_key]}" != "✓" ]]; then
+    output+="      → git config --global user.signingkey ~/.ssh/id_ed25519.pub"$'\n'
+  fi
+  output+="  ${checks[commit_gpgsign]} commit.gpgsign=true"$'\n'
+  if [[ "${checks[commit_gpgsign]}" != "✓" ]]; then
+    output+="      → git config --global commit.gpgsign true"$'\n'
+  fi
+  output+="  ${checks[allowed_signers]} allowed_signers file exists"$'\n'
+  if [[ "${checks[allowed_signers]}" != "✓" ]]; then
+    output+="      → echo \"~/.ssh/id_ed25519.pub\" | xargs -I{} git config --global gpg.ssh.allowedSignersFile {}"$'\n'
+  fi
+
+  # [2] GitHub Signing Key
+  output+=$'\n'"${GREEN}[2/7] GitHub Signing Key (required for Verified commits)${NC}"$'\n'
   if [[ "${checks[gh_signing_key]}" != "✓" ]]; then
+    output+="${RED}  ✗ Not registered as Signing Key on GitHub${NC}"$'\n'
     local_key=$(git config --global user.signingkey 2>/dev/null || echo "~/.ssh/id_ed25519.pub")
     local_pubkey=$(cat "$local_key" 2>/dev/null || echo "ssh-ed25519 AAAA...")
-    output+=$'\n'"  ${RED}✗${NC} GitHub Signing Key registered
-      → github.com → Settings → SSH and GPG keys → New SSH key
-      → Key type: Signing Key (NOT Authentication Key)
-      → Key: $local_pubkey"
+    output+="      → github.com → Settings → SSH and GPG keys → New SSH key"$'\n'
+    output+="      → Key type: Signing Key  ← critical, NOT Authentication Key"$'\n'
+    output+="      → Title: WSL2 signing (or your machine name)"$'\n'
+    output+="      → Key: $local_pubkey"$'\n'
   else
-    output+=$'\n'"  ${checks[gh_signing_key]} GitHub Signing Key registered"
+    output+="  ${checks[gh_signing_key]} Registered as Signing Key on GitHub"$'\n'
   fi
 
+  # [3] GitHub repo security
+  output+=$'\n'"${GREEN}[3/7] GitHub repo security${NC}"$'\n'
+  output+="  ${checks[master_ruleset]} Master ruleset active"$'\n'
+  if [[ "${checks[master_ruleset]}" != "✓" ]]; then
+    output+="      → github.com/pratty010/F.R.I.D.A.Y → Settings → Rules → Master should have ruleset"$'\n'
+  fi
+  output+="  ${checks[secret_scanning]} Secret scanning enabled"$'\n'
   if [[ "${checks[secret_scanning]}" != "✓" ]]; then
-    output+=$'\n'"  ${RED}✗${NC} Secret scanning enabled
-      → Settings → Security → Secret scanning → Enable"
-  else
-    output+=$'\n'"  ${checks[secret_scanning]} Secret scanning enabled"
+    output+="      → Settings → Security → Code security and analysis → Enable secret scanning"$'\n'
   fi
-
+  output+="  ${checks[push_protection]} Push protection enabled"$'\n'
   if [[ "${checks[push_protection]}" != "✓" ]]; then
-    output+=$'\n'"  ${RED}✗${NC} Push protection enabled
-      → Settings → Security → Push protection → Enable"
-  else
-    output+=$'\n'"  ${checks[push_protection]} Push protection enabled"
+    output+="      → Settings → Security → Code security and analysis → Enable push protection"$'\n'
   fi
 
-  output+=$'\n'"  ${checks[master_ruleset]} Master ruleset active"
-
-  if [[ "${checks[lefthook]}" != "✓" ]]; then
-    output+=$'\n'"  ${RED}✗${NC} Lefthook hooks installed
-      → bunx lefthook install"
-  else
-    output+=$'\n'"  ${checks[lefthook]} Lefthook hooks installed"
-  fi
-
+  # [4] Local tools
+  output+=$'\n'"${GREEN}[4/7] Local tools${NC}"$'\n'
+  output+="  ${checks[gitleaks]} gitleaks installed"$'\n'
   if [[ "${checks[gitleaks]}" != "✓" ]]; then
-    output+=$'\n'"  ${RED}✗${NC} gitleaks installed
-      → brew install gitleaks"
-  else
-    output+=$'\n'"  ${checks[gitleaks]} gitleaks installed"
+    output+="      → brew install gitleaks (macOS) or download from https://github.com/gitleaks/gitleaks/releases"$'\n'
+  fi
+  output+="  ${checks[lefthook]} Lefthook hooks installed"$'\n'
+  if [[ "${checks[lefthook]}" != "✓" ]]; then
+    output+="      → bunx lefthook install (run from repo root)"$'\n'
   fi
 
+  # [5] SSH agent
+  output+=$'\n'"${GREEN}[5/7] SSH agent${NC}"$'\n'
+  output+="  ${checks[ssh_agent]} SSH agent running with key loaded"$'\n'
   if [[ "${checks[ssh_agent]}" != "✓" ]]; then
-    output+=$'\n'"  ${RED}✗${NC} SSH agent running
-      → eval \"\$(ssh-agent -s)\" && ssh-add ~/.ssh/id_ed25519"
+    output+="      → eval \"\$(ssh-agent -s)\" && ssh-add ~/.ssh/id_ed25519"$'\n'
+  fi
+
+  # [6] Fine-grained PAT (optional)
+  output+=$'\n'"${YELLOW}[6/7] Fine-grained PAT (recommended — optional)${NC}"$'\n'
+  if [[ "${checks[fine_grained_pat]}" != "✓" ]]; then
+    output+="  ⚠ gh CLI is using a broad OAuth token"$'\n'
+    output+="      Industry standard: use a repo-scoped fine-grained token instead"$'\n'
+    output+="      → github.com → Settings → Developer settings → Personal access tokens → Fine-grained tokens"$'\n'
+    output+="      → Token name: friday-monorepo"$'\n'
+    output+="      → Expiration: 90 days"$'\n'
+    output+="      → Repository: Only pratty010/F.R.I.D.A.Y"$'\n'
+    output+="      → Permissions: Contents(RW), Pull requests(RW), Workflows(RW), Metadata(R)"$'\n'
+    output+="      → Generate → copy token → echo \"<TOKEN>\" | gh auth login --with-token"$'\n'
+    output+="      (Optional — existing auth works; this reduces blast radius if token leaks)"$'\n'
   else
-    output+=$'\n'"  ${checks[ssh_agent]} SSH agent running"
+    output+="  ✓ Using fine-grained PAT (good practice!)"$'\n'
+  fi
+
+  # [7] API connectivity
+  output+=$'\n'"${GREEN}[7/7] API connectivity${NC}"$'\n'
+  output+="  ${checks[api_access]} GitHub API accessible"$'\n'
+  if [[ "${checks[api_access]}" != "✓" ]]; then
+    output+="      → Verify gh CLI is authenticated: gh auth status"$'\n'
   fi
 fi
 

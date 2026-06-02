@@ -30,6 +30,55 @@ Types: `feat`, `fix`, `chore`, `docs`, `refactor`, `test`, `ci`, `build`, `perf`
 
 ---
 
+## Security Setup
+
+### SSH Signing Key (Required)
+
+Commits are cryptographically signed using SSH. GitHub enforces this via the `required_signatures` ruleset on master — merges are blocked unless commits carry valid signatures.
+
+**Local signing** (one-time setup):
+- `git config --global gpg.format ssh` — use SSH keys
+- `git config --global commit.gpgsign true` — sign every commit
+- `git config --global user.signingkey ~/.ssh/id_ed25519.pub` — your public key
+- `~/.ssh/allowed_signers` file — trusted keys
+
+**GitHub registration** (one-time manual step):
+1. `github.com → Settings → SSH and GPG keys`
+2. Click **New SSH key**
+3. **Key type: Signing Key** (NOT Authentication Key)
+4. Title: "WSL2 signing" (or your machine)
+5. Paste your public key
+6. Save
+
+After registration, commits show "Verified" and satisfy the merge gate.
+
+**Auth key vs signing key:** The same SSH key can serve both:
+- **Auth key** — authenticates pushes over SSH (not used in this repo; remote is HTTPS)
+- **Signing key** — cryptographically signs commits (needed for merge approval)
+
+Only signing key registration matters for this setup.
+
+### Fine-Grained PAT (Optional but Recommended)
+
+The `gh` CLI uses broad OAuth tokens by default. Fine-grained PATs are industry-standard:
+- Scoped to this repo only
+- Only exact permissions needed: Contents, Pull requests, Workflows
+- Time-limited (90 days)
+- Safe if leaked: only this repo access, not the whole account
+
+**Setup** (optional):
+1. `github.com → Settings → Developer settings → Personal access tokens → Fine-grained tokens`
+2. Token name: `friday-monorepo`
+3. Expiration: 90 days
+4. Repository: Only `F.R.I.D.A.Y`
+5. Permissions: Contents (RW), Pull requests (RW), Workflows (RW), Metadata (R)
+6. Generate → copy token
+7. `echo "<TOKEN>" | gh auth login --with-token`
+
+The setup check script warns if you're using a broad token. The choice is yours — existing auth works; fine-grained tokens follow best practices.
+
+---
+
 ## Agent Delegation: When to Use @hanko
 
 `@hanko` is the OpenCode GitHub Workflow executor subagent. Dispatch to hanko when you need:

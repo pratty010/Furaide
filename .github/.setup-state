@@ -1,0 +1,19 @@
+F.R.I.D.A.Y. GitHub setup status:
+  ✓ git gpg.format=ssh
+  ✓ user.signingkey configured
+  ✓ commit.gpgsign=true
+  ✓ allowed_signers file exists
+  [0;31m✗[0m GitHub Signing Key registered
+      → github.com → Settings → SSH and GPG keys → New SSH key
+      → Key type: Signing Key (NOT Authentication Key)
+      → Key: ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIDcKGLvTE5/K8vWXkt89TTjQEYoe5KQDcN21IuiZfd8G 
+  ✓ Secret scanning enabled
+  ✓ Push protection enabled
+  ✓ Master ruleset active
+  [0;31m✗[0m Lefthook hooks installed
+      → bunx lefthook install
+  [0;31m✗[0m gitleaks installed
+      → brew install gitleaks
+      → or: https://github.com/gitleaks/gitleaks/releases
+  ✓ SSH agent running
+
