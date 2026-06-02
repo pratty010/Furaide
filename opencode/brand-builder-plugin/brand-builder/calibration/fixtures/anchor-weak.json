@@ -1,0 +1,26 @@
+{
+  "name": "anchor-weak",
+  "description": "A deliberately weak profile: one artifact, minimal evidence, no quantification",
+  "target_bands": {
+    "signal":     { "min": 0,  "max": 30 },
+    "evidence":   { "min": 0,  "max": 30 },
+    "visibility": { "min": 0,  "max": 30 },
+    "narrative":  { "min": 0,  "max": 30 }
+  },
+  "artifacts": [
+    {
+      "artifact_type": "resume",
+      "canonical_path": "anchor-weak-resume.md",
+      "content": "# John Doe\nSoftware Engineer\nWorked at Company A. Wrote code. Fixed bugs."
+    }
+  ],
+  "evidence_summaries": [
+    {
+      "artifact_type": "resume",
+      "summary_type": "field_extraction",
+      "content": "Worked at Company A. Wrote code. Fixed bugs.",
+      "quality_signal": "low",
+      "confidence": "low"
+    }
+  ]
+}

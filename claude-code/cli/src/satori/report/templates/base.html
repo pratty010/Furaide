@@ -1,0 +1,28 @@
+{# cli/src/puraguin/report/templates/base.html #}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>{{ title }} — Puraguin</title>
+<style>
+  body { font-family: -apple-system, system-ui, sans-serif; max-width: 1100px; margin: 2em auto; color: #222; padding: 0 1em; }
+  h1 { border-bottom: 2px solid #444; padding-bottom: .3em; }
+  h2 { margin-top: 2em; border-bottom: 1px solid #ccc; padding-bottom: .2em; }
+  table { border-collapse: collapse; width: 100%; margin: 1em 0; }
+  th, td { border: 1px solid #ddd; padding: .4em .6em; text-align: left; vertical-align: top; }
+  th { background: #f3f3f3; }
+  tr:nth-child(even) td { background: #fafafa; }
+  .pos { color: #137333; font-weight: 600; }
+  .neg { color: #b3261e; font-weight: 600; }
+  .neu { color: #5f6368; }
+  .quote { font-style: italic; color: #555; }
+  code, pre { background: #f6f6f6; padding: .1em .3em; border-radius: 3px; font-size: 0.95em; }
+  .meta { color: #888; font-size: 0.9em; }
+</style>
+</head>
+<body>
+<h1>{{ title }}</h1>
+<p class="meta">Generated {{ generated_at }}</p>
+{% block content %}{% endblock %}
+</body>
+</html>

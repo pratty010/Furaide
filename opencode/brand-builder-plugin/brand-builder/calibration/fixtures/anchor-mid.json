@@ -1,0 +1,46 @@
+{
+  "name": "anchor-mid",
+  "description": "A mixed profile: two artifacts (resume + linkedin), partial evidence, some quantification but incomplete narrative",
+  "target_bands": {
+    "signal":     { "min": 10, "max": 40 },
+    "evidence":   { "min": 10, "max": 40 },
+    "visibility": { "min": 10, "max": 40 },
+    "narrative":  { "min": 10, "max": 40 }
+  },
+  "_notes": "2 artifacts (resume+linkedin), 3 summaries. Expected scores ~20 per dim after sufficiency penalty (4/6 artifact types missing).",
+  "artifacts": [
+    {
+      "artifact_type": "resume",
+      "canonical_path": "anchor-mid-resume.md",
+      "content": "# Jane Smith\nSenior Software Engineer at TechCorp (2020-2024)\nLed migration of legacy Java services to microservices, reducing latency by 30%.\nBachelor of Science in Computer Science."
+    },
+    {
+      "artifact_type": "linkedin",
+      "canonical_path": "anchor-mid-linkedin.md",
+      "content": "# Jane Smith — LinkedIn\nSenior Software Engineer | TechCorp\nExperience: 6 years in backend engineering, Java, Spring Boot.\nEducation: BSc Computer Science."
+    }
+  ],
+  "evidence_summaries": [
+    {
+      "artifact_type": "resume",
+      "summary_type": "field_extraction",
+      "content": "Name: Jane Smith, Role: Senior SWE, Years: 6, Skills: Java, Spring Boot, microservices",
+      "quality_signal": "medium",
+      "confidence": "medium"
+    },
+    {
+      "artifact_type": "resume",
+      "summary_type": "signal_assessment",
+      "content": "Led migration, 30% latency reduction. Some quantification present.",
+      "quality_signal": "medium",
+      "confidence": "medium"
+    },
+    {
+      "artifact_type": "linkedin",
+      "summary_type": "surface_snapshot",
+      "content": "LinkedIn headline and about present. No featured section. Skills section sparse.",
+      "quality_signal": "medium",
+      "confidence": "medium"
+    }
+  ]
+}

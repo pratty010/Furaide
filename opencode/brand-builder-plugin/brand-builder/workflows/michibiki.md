@@ -1,0 +1,19 @@
+# Workflow Command Routing (Michibiki)
+
+This map defines how each helper command routes through Kitsune (Brand Builder orchestrator).
+
+| helper_command | intent_id | required_inputs | primary_specialist | supporting_specialists | expected_final_output_shape |
+|---|---|---|---|---|---|
+| kudagitsune | current_state_assessment | resume and/or LinkedIn and/or GitHub artifacts; optional target role and timeline | kudagitsune | kurabokko, amanojaku | `single_final_response` with four dimension scores (Signal, Evidence, Visibility, Narrative), dominant failure mode, top-3 ranked improvements, confidence level with reason, uncertainties, and next best action |
+| awase | role_fit_assessment | target role, job description (URL or pasted text), resume, relevant profile artifacts | kudagitsune | kurabokko, amanojaku | `single_final_response` with parsed requirement buckets (must-have, preferred, responsibilities, qualifications), bracket (excellent/strong/moderate/weak/poor), hard blockers, easy wins, strengths, fit score (0-100), per-bucket scores, confidence level with source-quality reason, evidence map to JD, role-family slug for longitudinal tracking, and next action |
+| migaki | linkedin_optimization | requested_sections (headline/about/experience/featured/skills), role target, LinkedIn profile content, Phase 3+4 context | migaki | hyakume, amanojaku | `single_final_response` with per-section diagnoses, rewrite variants (headline=3, about=2, experience=2/bullet, featured=2, skills=1/optimized list), voice risks, anti-voice assessment, stale-evidence warning (if >30d), confidence level, uncertainties, and next action |
+| akashi | github_proof_building | selected_repos (explicit repo names), proof objective, Phase 3+4 context | akashi | kurabokko | `single_final_response` with per-repo dispositions (Highlight/Improve soon/Keep but de-emphasize/Do not surface) with portfolio/proof/engineering scores, evaluation order statement, proof gaps, proof improvements, next-project ideas, stale-evidence warning (if >30d), confidence level, uncertainties, and next action |
+| kataribe | brand_strategy | resume, LinkedIn, GitHub, website context; website_goal and brand_direction required for active website workflow mode | kataribe | amanojaku, hyakume | `single_final_response` with brand direction, website-needed recommendation, site structure, proof shelf (on-site vs off-site), cross-surface alignment checklist, website/content brief (build-ready in active mode, sketch in advisory), builder handoff boundary note, confidence, uncertainties, and next action |
+| kodama | growth_planning | role_target (title + seniority), time_horizon (3-9 months), role-fit history; optional constraints and brand context | kodama | kurabokko, amanojaku | `single_final_response` with recurring gaps, project/proof recommendations (primary path), certificate recommendations (GROW-02 gate only), what-not-to-pursue, timeline plan across horizon, confidence, uncertainties, and next action |
+| omokage | progress_feedback | existing snapshots plus current artifact context (default baseline: latest vs previous snapshot) | deterministic worker engine (`runProgressComparison`) | None | `single_final_response` with detailed snapshot comparison: per-dimension arrows, meaningful changes, trend direction, surface events, narrative summary, confidence, and one recommended next workflow inherited from latest snapshot |
+| kurabokko | artifact_intake_update | artifact type, source content, update scope, ownership/approval context | kurabokko | amanojaku | `single_final_response` with intake status, canonicalized evidence used, unresolved questions, and next action |
+
+## Notes
+
+- Routing source of truth remains `references/intent-routing.md`; this file binds command entrypoints to dispatch/synthesis expectations.
+- All command flows terminate in one Kitsune-owned user response, not specialist fan-out replies.

@@ -1,0 +1,12 @@
+{
+  "name": "kitsune",
+  "type": "commonjs",
+  "private": true,
+  "description": "Kitsune (Brand Builder) — Furaidē's nine-tailed fox, master of professional brand and presentation.",
+  "dependencies": {
+    "@opencode-ai/plugin": "1.15.10",
+    "@huggingface/transformers": ">=2.6.0",
+    "sqlite-vec": "^0.1.9",
+    "zod": "^4.1.8"
+  }
+}

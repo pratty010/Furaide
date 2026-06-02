@@ -1,0 +1,4 @@
+{"type":"user","uuid":"u1","parentUuid":null,"timestamp":"2026-05-27T10:00:00.000Z","message":{"role":"user","content":"hello"}}
+{"type":"assistant","uuid":"a1","parentUuid":"u1","timestamp":"2026-05-27T10:00:01.000Z","message":{"role":"assistant","content":[{"type":"text","text":"hi"}]}}
+{"type":"user","uuid":"u2","parentUuid":"a1","timestamp":"2026-05-27T10:00:02.000Z","message":{"role":"user","content":"use brainstorming"}}
+{"type":"assistant","uuid":"a2","parentUuid":"u2","timestamp":"2026-05-27T10:00:03.000Z","message":{"role":"assistant","content":[{"type":"tool_use","id":"toolu_x","name":"Skill","input":{"skill":"brainstorming"}}]}}
