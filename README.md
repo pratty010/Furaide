@@ -129,6 +129,12 @@ bash opencode/scripts/install-fleet.sh --dry-run   # preview changes
 
 ## Development
 
+First-time setup: run the GitHub environment check to verify SSH signing, Lefthook, and gitleaks are configured.
+
+```bash
+bash claude-code/scripts/github-setup-check.sh
+```
+
 Work on the `dev` branch. Master receives changes only via pull request.
 
 ```bash
@@ -136,9 +142,13 @@ git checkout dev
 # make changes in opencode/ or claude-code/
 git add .
 git commit -m "feat: ..."
+# Lefthook hooks validate automatically (gitleaks, tests, conventional commits)
 git push origin dev
-# open a PR into master when ready
+gh pr create --title "feat: ..." --body "Summary"
+# CI runs tests + labeling; merge via GitHub web UI
 ```
+
+See [`claude-code/config/GITHUB.md`](claude-code/config/GITHUB.md) for the full workflow reference.
 
 ---
 
