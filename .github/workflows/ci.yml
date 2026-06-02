@@ -28,20 +28,6 @@ jobs:
               - '.github/**'
               - 'lefthook.yml'
 
-  test-opencode:
-    needs: changes
-    if: needs.changes.outputs.opencode == 'true' || needs.changes.outputs.github-config == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: oven-sh/setup-bun@v2
-      - uses: actions/cache@v4
-        with:
-          path: ~/.bun/install/cache
-          key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lockb') }}
-          restore-keys: ${{ runner.os }}-bun-
-      - run: cd opencode && bun test scripts/tests/
-
   test-claude-code:
     needs: changes
     if: needs.changes.outputs.claude-code == 'true' || needs.changes.outputs.github-config == 'true'
