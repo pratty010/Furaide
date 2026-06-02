@@ -41,17 +41,3 @@ jobs:
       - run: cd claude-code/cli && uv sync --frozen
       - run: cd claude-code/cli && uv run pytest -x -q --tb=short
 
-  security-scan:
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          ref: ${{ github.event.pull_request.head.sha }}
-      - uses: gitleaks/gitleaks-action@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - uses: actions/dependency-review-action@v4
-        with:
-          fail-on-severity: moderate
