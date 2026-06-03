@@ -17,7 +17,7 @@ pre-commit:
 
     - name: pytest
       glob: "claude-code/**"
-      run: cd claude-code/cli && uv run pytest -x -q --tb=short
+      run: cd claude-code/cli && uv run python -m pytest -x -q --tb=short
 
 commit-msg:
   commands:
