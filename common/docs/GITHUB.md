@@ -17,6 +17,17 @@
 
 **Golden rule: master receives changes only via PR. No agent can merge to master directly. Web UI only.**
 
+### Keeping dev in sync with master (automated)
+
+master requires linear history, so dev→master PRs are **squashed**. A squash creates a commit on master with no parent link back to dev, so the two branches drift apart on identical content and the next dev→master PR conflicts across every file the squash touched. That is the recurring "this branch has conflicts" problem.
+
+`.github/workflows/back-merge.yml` heals it automatically. On every push to master it merges master back into dev:
+
+- **Clean merge:** it pushes the back-merge to dev directly, so the next dev→master PR diffs only genuinely new work.
+- **Conflicts:** it opens a `sync: back-merge master into dev` PR for manual resolution. Resolve toward dev (the newer side) and merge it with a **merge commit**. dev allows merge commits; only master forbids them.
+
+You normally don't touch this. To reconcile a divergence by hand: `git checkout dev && git merge origin/master`, resolve toward dev, then push.
+
 ---
 
 ## Commit Message Format

@@ -22,6 +22,9 @@ pre-commit:
 commit-msg:
   commands:
     conventional:
+      skip:
+        - merge
+        - rebase
       run: |
         msg=$(cat {1})
         pattern='^(feat|fix|chore|docs|refactor|test|ci|build|perf|style|revert)(\(.+\))?: .{1,100}$'

@@ -1,0 +1,65 @@
+name: back-merge master to dev
+
+# After anything lands on master (a dev->master PR merge, or a direct hotfix),
+# keep dev in sync so the next dev->master PR never phantom-conflicts.
+#
+# Squash-merging a dev->master PR creates a commit on master with no parent link
+# back to dev. dev and master then diverge on identical content, and every later
+# dev->master PR conflicts across the same files. This workflow heals that: it
+# merges master back into dev automatically when clean, and opens a sync PR for
+# manual resolution when it can't.
+
+on:
+  push:
+    branches: [master]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: back-merge-master-to-dev
+  cancel-in-progress: false
+
+jobs:
+  back-merge:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Back-merge master into dev
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          git fetch origin dev master
+          git checkout -B dev origin/dev
+
+          # Skip if dev already contains master (e.g. a merge-commit PR).
+          if git merge-base --is-ancestor origin/master dev; then
+            echo "dev already contains master. Nothing to sync."
+            exit 0
+          fi
+
+          if git merge --no-edit origin/master; then
+            git push origin dev
+            echo "Cleanly back-merged master into dev."
+          else
+            git merge --abort
+            echo "Conflicts detected; opening a sync PR for manual resolution."
+            existing=$(gh pr list --base dev --head master --state open --json number --jq 'length')
+            if [ "$existing" -eq 0 ]; then
+              gh pr create --base dev --head master \
+                --title "sync: back-merge master into dev (manual resolution needed)" \
+                --body "An automated back-merge of \`master\` into \`dev\` hit conflicts. Resolve them and merge this PR with a **merge commit** (not squash) so \`dev\` stays in sync with \`master\` and future \`dev -> master\` PRs don't conflict."
+            else
+              echo "A master->dev sync PR is already open."
+            fi
+          fi
