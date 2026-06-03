@@ -2,194 +2,205 @@
 
 > *"All systems online. Shikigami assembled. What are we working on today?"*
 
-**F.R.I.D.A.Y.** is Furaidē's collection: an AI assistant setup for [Claude Code](https://claude.ai/code) and [OpenCode](https://opencode.ai). Each component is a named shikigami (式神), a spirit-familiar named for its function.
+**F.R.I.D.A.Y.** is Furaidē's AI assistant collection — multi-agent setups for [Claude Code](https://claude.ai/code), [OpenCode](https://opencode.ai), [pi.dev](https://pi.dev), and [OpenCLAW](https://docs.openclaw.ai).
 
-Two components. Install one, the other, or both.
+---
 
-| Directory | Component | What it is |
-|-----------|-----------|------------|
-| `claude-code/` | **Satori** (Skill Overseer) | Claude Code plugin that watches every skill invocation and judges effectiveness offline. Includes Furaidē's global `~/.claude` config bundle. |
-| `opencode/` | **Furaidē's Fleet** | OpenCode multi-agent setup: 9 specialists, 13 subagents, 4 gate guardians, and Kitsune's brand-builder domain (opt-in, in development). |
+## Repository Structure
+
+```
+F.R.I.D.A.Y./
+├── opencode/          # 29-agent OpenCode fleet (12 specialists + 15 subagents + 4 gate guardians)
+├── claude-code/       # Two Claude Code plugins: Mekiki (analytics) + Hanko (git workflow)
+├── pi-agent/          # Pi extension: web-RAG tools, /usage analytics, TUI widgets, themes, GSD skills
+├── openclaw/          # OpenCLAW persona workspaces (kinyo, koda, kagakusha, tengan)
+├── common/            # Shared layer: vendored skills, agent cores, docs, installers
+└── graphify-out/      # Knowledge graph of this repo — see "For Agents" below
+```
+
+### Component map
+
+| Directory | What it is | Install command |
+|-----------|------------|----------------|
+| `opencode/` | Multi-agent fleet for OpenCode | `bash <(curl -fsSL .../install-fleet-bootstrap.sh)` |
+| `claude-code/` | Mekiki + Hanko plugins for Claude Code | `bash claude-code/scripts/bootstrap.sh` |
+| `pi-agent/` | Pi extension package (`friday-furaidee`) | `bash pi-agent/scripts/install-pi-agent.sh` |
+| `openclaw/` | Persona configs for OpenCLAW runtime | Point `agentDir` at `openclaw/agents/workspace-*/` |
+| `common/` | Shared skills + docs (all components use this) | `bash common/install-common.sh --global` |
 
 ---
 
 ## Install
 
-### Full install: both components
+### Prerequisites
+
+| Tool | Install |
+|------|---------|
+| [bun](https://bun.sh) | `curl -fsSL https://bun.sh/install \| bash` |
+| [uv](https://docs.astral.sh/uv/) | `curl -LsSf https://astral.sh/uv/install.sh \| sh` |
+
+### OpenCode — Furaidē's Fleet
+
+One-command (clone + install):
 
 ```bash
-git clone https://github.com/pratty010/F.R.I.D.A.Y.git ~/F.R.I.D.A.Y
-cd ~/F.R.I.D.A.Y
+bash <(curl -fsSL https://raw.githubusercontent.com/pratty010/F.R.I.D.A.Y/main/opencode/scripts/install-fleet-bootstrap.sh)
 ```
 
-Then set up each component:
-
-```bash
-# Furaidē's Fleet (OpenCode)
-bash opencode/scripts/install-fleet.sh
-
-# Satori (Claude Code)
-bash claude-code/scripts/dev-link-plugin.sh
-cd claude-code/cli && uv sync
-```
-
----
-
-### Selective install
-
-<details>
-<summary><strong>Furaidē's Fleet only</strong> — OpenCode agents and gate plugins</summary>
+Or from a local clone:
 
 ```bash
 git clone https://github.com/pratty010/F.R.I.D.A.Y.git ~/F.R.I.D.A.Y
 bash ~/F.R.I.D.A.Y/opencode/scripts/install-fleet.sh
 ```
 
-The installer walks through each component (gate plugins, agents, rules, scripts) and lets you choose scope per component: global (`~/.config/opencode/`), project (`./.opencode/`), or a custom path.
+Flags: `--list` · `--all` · `--global` / `--project` / `--custom <dir>` · `--link` (symlink dev mode) · `-h`
 
-```bash
-# Preview components without installing
-bash ~/F.R.I.D.A.Y/opencode/scripts/install-fleet.sh --list
+→ [`opencode/README.md`](opencode/README.md)
 
-# Non-interactive: install all defaults to project scope
-bash ~/F.R.I.D.A.Y/opencode/scripts/install-fleet.sh --all --project
-```
-
-See [`opencode/README.md`](opencode/README.md) for full flag reference and component details.
-
-</details>
-
-<details>
-<summary><strong>Satori only</strong> — Claude Code skill observability</summary>
+### Claude Code — Mekiki + Hanko
 
 ```bash
 git clone https://github.com/pratty010/F.R.I.D.A.Y.git ~/F.R.I.D.A.Y
-bash ~/F.R.I.D.A.Y/claude-code/scripts/dev-link-plugin.sh
-cd ~/F.R.I.D.A.Y/claude-code/cli && uv sync
+bash ~/F.R.I.D.A.Y/claude-code/scripts/bootstrap.sh
 ```
 
-See [`claude-code/README.md`](claude-code/README.md) for usage and the `/satori` skill.
+Then in Claude Code:
 
-</details>
+```
+/plugin marketplace add pratty010/F.R.I.D.A.Y
+/plugin install mekiki@5h1nch4n
+/plugin install hanko@5h1nch4n
+/reload-plugins
+```
 
-<details>
-<summary><strong>Config bundle only</strong> — Furaidē's global Claude Code config</summary>
+→ [`claude-code/README.md`](claude-code/README.md)
 
-No plugin required. Copy the files you want into `~/.claude/`:
+### Pi — friday-furaidee
 
 ```bash
-git clone https://github.com/pratty010/F.R.I.D.A.Y.git ~/F.R.I.D.A.Y
-cp ~/F.R.I.D.A.Y/claude-code/config/CLAUDE.md ~/.claude/CLAUDE.md
-cp ~/F.R.I.D.A.Y/claude-code/config/statusline-command.sh ~/.claude/statusline-command.sh
-# Merge relevant keys from claude-code/config/settings.json manually
+bash ~/F.R.I.D.A.Y/pi-agent/scripts/install-pi-agent.sh
 ```
 
-See [`claude-code/config/README.md`](claude-code/config/README.md) for per-file notes.
+Prerequisites: bun + Pi CLI v0.72.1+
 
-</details>
+→ [`pi-agent/README.md`](pi-agent/README.md)
 
-<details>
-<summary><strong>Kitsune (Brand Builder) only</strong> — opt-in per project, in development</summary>
+### OpenCLAW — Persona workspaces
 
-> [!NOTE]
-> Requires Furaidē's Fleet to be installed first. Kitsune opens a per-project SQLite DB and is not loaded globally by default.
+Install [OpenCLAW](https://docs.openclaw.ai), then set `agentDir` in your `openclaw.json`:
 
-Run the Fleet installer and select the **Brand Builder / Kitsune** component, then:
+```
+openclaw/agents/workspace-kinyo/      # general assistant + GOSHIN v2 security
+openclaw/agents/workspace-koda/       # code-focused
+openclaw/agents/workspace-kagakusha/  # deep research specialist
+openclaw/agents/workspace-tengan/     # lightweight general
+```
+
+→ [`openclaw/README.md`](openclaw/README.md)
+
+### Common shared skills only
 
 ```bash
-cd <your-install-root>/brand-builder-plugin && bun install
+bash common/install-common.sh --global   # → ~/.agents/skills/
+# or --project <dir>  --custom <path>
 ```
 
-Add to your project's `.opencode/opencode.json`:
+Installs: `bx`, `html-preview`, `brave-search`, `plan` skills across all ecosystems.
 
-```json
-{
-  "plugin": ["<your-install-root>/brand-builder-plugin/plugin/brand-builder.mjs"]
-}
+### Kitsune (Brand Builder) — opt-in, in development
+
+Requires Furaidē's Fleet first. Select the **Brand Builder / Kitsune** component in the Fleet installer, then:
+
+```bash
+cd <install-root>/brand-builder-plugin && bun install
 ```
 
-</details>
+→ [`opencode/brand-builder-plugin/brand-builder/README.md`](opencode/brand-builder-plugin/brand-builder/README.md)
 
 ---
 
 ## Update
 
 ```bash
-cd ~/F.R.I.D.A.Y
-git pull origin master
-```
-
-Both components update together. Re-run the component installer if new files were added:
-
-```bash
-bash opencode/scripts/install-fleet.sh --dry-run   # preview changes
+cd ~/F.R.I.D.A.Y && git pull origin master
+bash opencode/scripts/install-fleet.sh --dry-run   # preview fleet changes
 ```
 
 ---
 
 ## Development
 
-First-time setup: run the GitHub environment check to verify SSH signing, Lefthook, and gitleaks are configured.
+Verify GitHub signing, Lefthook, and gitleaks before first commit:
 
 ```bash
-bash claude-code/scripts/github-setup-check.sh
+bash common/scripts/github-setup-check.sh
 ```
 
-Work on the `dev` branch. Master receives changes only via pull request.
+Branch strategy: work on `dev`, merge to `master` via PR only.
 
 ```bash
 git checkout dev
-# make changes in opencode/ or claude-code/
-git add .
 git commit -m "feat: ..."
-# Lefthook hooks validate automatically (gitleaks, tests, conventional commits)
 git push origin dev
-gh pr create --title "feat: ..." --body "Summary"
-# CI runs tests + labeling; merge via GitHub web UI
+gh pr create
 ```
 
-See [`claude-code/config/GITHUB.md`](claude-code/config/GITHUB.md) for the full workflow reference.
+→ [`common/docs/GITHUB.md`](common/docs/GITHUB.md)
 
 ---
 
-## The Shikigami
+## For Agents: Knowledge Graph
 
-### Furaidē's Fleet: OpenCode
+`graphify-out/` contains a pre-built knowledge graph of this entire repo (2,459 nodes · 3,791 edges · 226 communities). Use it to answer questions about code structure, cross-component relationships, and dispatch patterns **before** reading files.
 
-**9 Specialists**
+```
+graphify-out/
+  graph.json       # full graph data (nodes, edges, community assignments)
+  graph.html       # interactive visual — open in browser
+  GRAPH_REPORT.md  # audit report: god nodes, surprising connections, community cohesion
+```
 
-| Shikigami | Role |
-|-----------|------|
-| Tanuki(General) | Cost-aware generalist |
-| Tsukumo(Coder) | Multi-file implementation |
-| Tsuchigumo(Deep Researcher) | Multi-source research with citations |
-| Mujina(Brand Strategist) | Brand positioning and GTM narrative |
-| Daidarabotchi(DevOps/SRE) | Infrastructure and reliability |
-| Enma(Legal/Compliance) | Regulatory compliance and contracts |
-| Tsukuyomi(PM/Spec) | Product requirements and specifications |
-| Daikoku(Financial) | Financial modeling and analysis |
-| Yumemi(Writer) | Long-form content and editorial writing |
+### How to use (requires [graphify](https://github.com/safishamsi/graphify))
 
-**13 Shared Subagents** (dispatched by specialists)
+```bash
+# Install graphify once
+uv tool install graphifyy
 
-Karakuri(Code Runner), Bakeneko(Debugger), Oni(Reviewer), Yamabiko(Source Retriever), Kagami(Fact-Checker), Azukiarai(Extractor), Kotodama(Prose Wordsmith), Jorogumo(Synthesizer), Tengu(Designer), Makimono(Technical Writer), Henge(Formatter), Mikoshi(Explorer), Karasu-tengu(Scout)
+# Query the graph (no rebuild — graph already exists)
+graphify query "how does the mekiki skill analytics pipeline work?"
+graphify query "which opencode agents dispatch tsukumo?"
+graphify query "what connects pi-agent to the common layer?"
+graphify path "TemplateRender" "KnowledgeDB"
+graphify explain "workflow-state"
 
-**4 Gate Guardians** (always active)
+# Rebuild if the codebase has changed significantly
+graphify . --update
+```
 
-| Shikigami | Role |
-|-----------|------|
-| Nio(Gate Enforcer) | Blocks tools when workflow verdict is critical |
-| Nurikabe(Delivery Gate) | Holds replies at checkpoint until verdict clears |
-| Komainu(Security Patterns) | Screens edits for dangerous patterns |
-| Migawari(Model Failover) | Cross-vendor model failover |
+### Key findings from the current graph
 
-**Brand Builder Domain** (Kitsune + 8 sub-familiars — opt-in, in development)
+| God node | Degree | What it means |
+|----------|--------|---------------|
+| `colors` (Chimu theme) | 86 | Theme color tokens fan out to every TUI widget |
+| `KnowledgeDB` | 40 | Central SQLite store for the pi-agent semantic cache |
+| `TemplateRender` | 28 | Single interface coupling the art/template layer to session metrics via `widgets.ts` |
+| `AvailableSkillCtx` | 23 | Mekiki judge context shared across all skill analysis paths |
+| `pi-agent README` | 21 | Cross-component bridge document (referenced by many nodes) |
 
-### Satori: Claude Code
+### Community map (top clusters)
 
-| Shikigami | Role |
-|-----------|------|
-| Satori(Skill Overseer) | Watches every skill invocation; judges effectiveness offline; reports via HTML |
+| Community | Size | What it covers |
+|-----------|------|----------------|
+| Pi Web Provider Probes | 89 | Quota probes for every API provider |
+| Chimu Theme Color System | 86 | Chimu TUI color tokens |
+| Mekiki CLI & Judge Engine | 71 | Python CLI entry points + judge interface |
+| Pi TUI Art & Templates | 65 | 26 decorative ASCII templates + art field renderers |
+| Mekiki Data Ingestion Pipeline | 62 | Event capture, ingest, improve loop |
+| Brand Builder Strategy Engine | 59 | Kitsune brand-builder SQLite engine |
+| OpenCode Agent Routing Manifest | 46 | Model fallback chains for all 29 agents |
+| OpenCode Specialist Agents | 30 | All specialist + subagent .md definitions |
+| Pi Subagent Teams | 32 | pi-subagents-cc team groupings |
 
 ---
 

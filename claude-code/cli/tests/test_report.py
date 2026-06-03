@@ -1,6 +1,6 @@
 # cli/tests/test_report.py
-from satori import db
-from satori.report import generate
+from mekiki import db
+from mekiki.report import generate
 
 def _seed(conn):
     conn.execute("INSERT INTO sessions(session_id,platform,started_at,last_seen_at) "
@@ -16,7 +16,7 @@ def _seed(conn):
                  "VALUES('brainstorming','all',1,1,0,0,0,0,0,1,'2026-05-27T11:00:00Z')")
     conn.commit()
 
-def test_overview_renders(satori_home):
+def test_overview_renders(mekiki_home):
     db.init()
     conn = db.connect(); _seed(conn); conn.close()
     out = generate.overview()
@@ -25,7 +25,7 @@ def test_overview_renders(satori_home):
     assert "Invocations" in text or "invocations" in text
     assert out.suffix == ".html"
 
-def test_skill_detail_renders(satori_home):
+def test_skill_detail_renders(mekiki_home):
     db.init()
     conn = db.connect(); _seed(conn); conn.close()
     out = generate.skill_detail("brainstorming")

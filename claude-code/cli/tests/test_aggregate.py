@@ -1,5 +1,5 @@
 # cli/tests/test_aggregate.py
-from satori import db, aggregate
+from mekiki import db, aggregate
 
 def _seed(conn):
     conn.execute("INSERT INTO sessions(session_id,platform,started_at,last_seen_at) VALUES('s1','claude-code','2026-05-27T10:00:00Z','2026-05-27T11:00:00Z')")
@@ -23,7 +23,7 @@ def _seed(conn):
         )
     conn.commit()
 
-def test_aggregate_writes_per_skill_rollups(satori_home):
+def test_aggregate_writes_per_skill_rollups(mekiki_home):
     db.init()
     conn = db.connect()
     _seed(conn)
@@ -42,7 +42,7 @@ def test_aggregate_writes_per_skill_rollups(satori_home):
     conn.close()
 
 
-def test_aggregate_unjudged_counts_as_none_reaction(satori_home):
+def test_aggregate_unjudged_counts_as_none_reaction(mekiki_home):
     db.init()
     conn = db.connect()
     conn.execute("INSERT INTO sessions(session_id,platform,started_at,last_seen_at) VALUES('s2','claude-code','2026-05-27T10:00:00Z','2026-05-27T11:00:00Z')")

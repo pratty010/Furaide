@@ -1,5 +1,5 @@
 # cli/tests/test_improve.py
-from satori import db, improve
+from mekiki import db, improve
 
 def _seed(conn):
     conn.execute("INSERT INTO sessions(session_id,platform,started_at,last_seen_at,transcript_path) "
@@ -23,7 +23,7 @@ def _seed(conn):
                      "VALUES(?,0,'negative','wrong skill','fake','2026-05-27T11:00:00Z')", (inv_id,))
     conn.commit()
 
-def test_evidence_pack_generated(satori_home):
+def test_evidence_pack_generated(mekiki_home):
     db.init()
     conn = db.connect()
     _seed(conn)
@@ -44,7 +44,7 @@ def test_evidence_pack_generated(satori_home):
     assert row["evidence_path"] == str(pack_path)
     conn.close()
 
-def test_mark_status(satori_home):
+def test_mark_status(mekiki_home):
     db.init()
     conn = db.connect()
     _seed(conn)
@@ -58,7 +58,7 @@ def test_mark_status(satori_home):
     assert row["status"] == "applied"
     conn.close()
 
-def test_insufficient_sample_raises(satori_home):
+def test_insufficient_sample_raises(mekiki_home):
     db.init()
     try:
         improve.build_evidence_pack("nonexistent-skill")

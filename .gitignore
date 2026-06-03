@@ -54,3 +54,27 @@ bun.lockb
 tmp/
 .tmp/
 .worktrees/
+
+# ── openclaw — future-work reference data (contains live secrets, never commit) ──
+openclaw/_reference/
+
+# ── pi-agent — runtime artifacts + personal config ────────────────────────────
+pi-agent/node_modules/
+pi-agent/src/state/
+pi-agent/config/system.yml
+pi-agent/*.db*
+pi-agent/.pi/
+pi-agent/bun.lock
+pi-agent/knowledge/
+
+# ── graphify-out — keep graph artifacts, exclude runtime/personal data ────────
+graphify-out/cache/
+graphify-out/cost.json
+graphify-out/.graphify_python
+graphify-out/.graphify_root
+graphify-out/.graphify_ast.json
+
+# ── openclaw — binary/archive files generated at runtime ─────────────────────
+openclaw/agents/workspace-kagakusha/docs/*.pdf
+openclaw/agents/workspace-kagakusha/docs/*.zip
+openclaw/agents/workspace-kagakusha/reports/

@@ -1,10 +1,10 @@
 from pathlib import Path
-from satori.judge import context as ctxmod
-from satori import db
+from mekiki.judge import context as ctxmod
+from mekiki import db
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
-def test_build_context_around_invocation(satori_home):
+def test_build_context_around_invocation(mekiki_home):
     db.init()
     transcript_path = str(FIXTURES / "transcript_simple.jsonl")
     conn = db.connect()

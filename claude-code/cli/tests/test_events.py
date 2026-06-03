@@ -1,7 +1,7 @@
-from satori import events, paths
-from satori.paths import events_dir
+from mekiki import events, paths
+from mekiki.paths import events_dir
 
-def test_iter_events_reads_all_jsonl_lines(satori_home):
+def test_iter_events_reads_all_jsonl_lines(mekiki_home):
     d = events_dir()
     f1 = d / "2026-05-26.jsonl"
     f1.write_text(
@@ -17,8 +17,8 @@ def test_iter_events_reads_all_jsonl_lines(satori_home):
     assert out[0]["event"] == "session.start"
     assert out[2]["event"] == "turn.stop"
 
-def test_iter_events_respects_checkpoints(satori_home):
-    from satori import db
+def test_iter_events_respects_checkpoints(mekiki_home):
+    from mekiki import db
     db.init()
     d = events_dir()
     f = d / "2026-05-26.jsonl"

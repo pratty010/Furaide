@@ -3,7 +3,6 @@
   "autoupdate": false,
   "lsp": true,
   "plugin": [
-    "superpowers@git+https://github.com/obra/superpowers.git",
     "./plugins/nio.js",
     "./plugins/nurikabe.js",
     "./plugins/komainu.js",

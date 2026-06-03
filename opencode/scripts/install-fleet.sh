@@ -9,7 +9,7 @@
 #   --global            Pre-select global scope (~/.config/opencode/) for all components
 #   --project           Pre-select project scope (./.opencode/) for all components
 #   --custom <dir>      Pre-select a custom absolute directory for all components
-#   --link              [stub] Symlink mode (not yet implemented)
+#   --link              Symlink mode: ln -sfn instead of cp (keep repo as source; no substitution)
 #   -h, --help          Show this help
 
 set -euo pipefail
@@ -37,6 +37,7 @@ PROJECT_SCOPE="$(pwd)/.opencode"
 DRY_RUN=0
 LIST_ONLY=0
 INSTALL_ALL=0
+LINK_MODE=0
 FORCE_SCOPE=""   # 'global' | 'project' | 'custom'
 CUSTOM_DIR=""
 
@@ -58,8 +59,7 @@ while [[ $# -gt 0 ]]; do
       fi
       ;;
     --link)
-      _err "--link (symlink mode) is not yet implemented. Use copy mode (default)."
-      exit 1
+      LINK_MODE=1
       ;;
     -h|--help)
       sed -n '2,20p' "${BASH_SOURCE[0]}" | sed 's/^# \?//'
@@ -140,11 +140,16 @@ detect_conflict() {
 do_copy() {
   local src="$1" dst="$2"
   if [[ "$DRY_RUN" -eq 1 ]]; then
-    printf '  %b[dry-run]%b cp %s -> %s\n' "$DIM" "$RST" "$src" "$dst"
+    local verb="cp"; [[ "$LINK_MODE" -eq 1 ]] && verb="ln -sfn"
+    printf '  %b[dry-run]%b %s %s -> %s\n' "$DIM" "$RST" "$verb" "$src" "$dst"
     return
   fi
   mkdir -p "$(dirname "$dst")"
-  cp "$src" "$dst"
+  if [[ "$LINK_MODE" -eq 1 ]]; then
+    ln -sfn "$src" "$dst"
+  else
+    cp "$src" "$dst"
+  fi
 }
 
 do_copy_glob() {
@@ -174,6 +179,8 @@ do_copy_glob() {
 
 substitute_fleet_root() {
   local file="$1" root="$2"
+  # Skip substitution in link mode — plugins self-locate via _SELF_ROOT = resolve(dirname, '..')
+  [[ "$LINK_MODE" -eq 1 ]] && return 0
   if [[ "$DRY_RUN" -eq 1 ]]; then
     printf '  %b[dry-run]%b substitute __FLEET_ROOT__ -> %s in %s\n' "$DIM" "$RST" "$root" "$file"
     return
@@ -198,8 +205,21 @@ merge_config() {
     cfg="$cfg_json"
   elif [[ -f "$cfg_jsonc" ]]; then
     cfg="$cfg_jsonc"
-    _warn ".jsonc detected at $cfg_jsonc. Comment-preserving merge not supported."
-    _warn "Append the following to 'plugin' and 'instructions' arrays manually:"
+    # Use merge-config.mjs for .jsonc (strips line comments, modifies, writes back)
+    if command -v bun &>/dev/null; then
+      local mjs_args=()
+      for p in "${plugins_to_add[@]}"; do mjs_args+=("$(basename "$p")"); done
+      [[ "$has_rules" -eq 1 ]] && mjs_args+=("--rules")
+      if [[ "$DRY_RUN" -eq 0 ]]; then
+        bun "$FLEET_ROOT/scripts/merge-config.mjs" "$cfg" "${mjs_args[@]}" && _ok "Config merged (jsonc): $cfg" && return
+        _warn "merge-config.mjs failed; falling back to manual instructions."
+      else
+        printf '  %b[dry-run]%b bun merge-config.mjs %s %s\n' "$DIM" "$RST" "$cfg" "${mjs_args[*]}"
+        return
+      fi
+    fi
+    # bun not available — print manual instructions
+    _warn ".jsonc detected — bun not found. Append manually to $cfg_jsonc:"
     for p in "${plugins_to_add[@]}"; do
       printf '    %b"./plugins/%s",%b\n' "$YLW" "$(basename "$p")" "$RST"
     done
@@ -465,4 +485,27 @@ fi
 _ok "\nInstall complete."
 if [[ "$DRY_RUN" -eq 1 ]]; then
   _warn "Dry-run: no files were written."
+fi
+
+# ── Common skills (B6) ────────────────────────────────────────────────────────
+COMMON_DIR="$(cd "$FLEET_ROOT/../common" 2>/dev/null && pwd)" || COMMON_DIR=""
+if [[ -n "$COMMON_DIR" && -f "$COMMON_DIR/install-common.sh" ]]; then
+  printf '\n'
+  _bold "Shared skills (bx, html-preview, brave-search, plan)"
+  printf 'Install to [g]lobal ~/.agents/skills, [p]roject, or [s]kip? [g/p/s] '
+  read -r _skill_scope </dev/tty || _skill_scope=s
+  case "$_skill_scope" in
+    g|G)
+      if [[ "$DRY_RUN" -eq 0 ]]; then bash "$COMMON_DIR/install-common.sh" --global
+      else printf '  [dry-run] bash common/install-common.sh --global\n'; fi ;;
+    p|P)
+      if [[ "$DRY_RUN" -eq 0 ]]; then bash "$COMMON_DIR/install-common.sh" --project "$PWD"
+      else printf '  [dry-run] bash common/install-common.sh --project %s\n' "$PWD"; fi ;;
+    *) _info "Common skills skipped." ;;
+  esac
+  printf 'Install other opencode skills from manifest (superpowers, tavily-*, …)? [y/N] '
+  read -r _extra_skills </dev/tty || _extra_skills=n
+  if [[ "$_extra_skills" =~ ^[Yy] && "$DRY_RUN" -eq 0 ]]; then
+    bash "$COMMON_DIR/install-skills.sh" --ecosystem opencode
+  fi
 fi

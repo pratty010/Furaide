@@ -1,0 +1,209 @@
+# Friday web subsystem tools configuration.
+# User-specific tool and provider settings live here.
+# Edit values below to customize behavior.
+
+providers:
+  gemini:
+    # Master enable switch for Gemini-backed features.
+    enabled: true
+
+    # Environment variable used for Gemini authentication.
+    apiKeyEnv: GEMINI_API_KEY
+
+    # Model used by web_search with Google Search grounding.
+    searchModel: gemini-2.5-flash
+
+    # Model used by fetch_content when URL Context is needed.
+    urlContextModel: gemini-2.5-flash
+
+    # Model used by video_search when yt-dlp cannot produce subtitles.
+    videoModel: gemini-3-flash-preview
+
+  brave:
+    # Enable Brave as a primary web_search provider and the main video_search provider.
+    enabled: true
+
+    # Environment variable used for Brave authentication.
+    apiKeyEnv: BRAVE_SEARCH_API_KEY
+
+    # Per-request timeout passed to Brave search CLI wrappers.
+    timeoutSec: 30
+
+    # Default Brave result filter for web search.
+    # Allowed values are a comma-separated list of Brave vertical filters.
+    resultFilter: discussions,news,query,videos,web
+
+  tavily:
+    # Enable Tavily as a primary fallback provider.
+    enabled: true
+
+    # Environment variable used for Tavily authentication.
+    apiKeyEnv: TAVILY_API_KEY
+
+    # Default Tavily search depth.
+    # Allowed values: basic, advanced.
+    depth: basic
+
+  exa:
+    # Enable Exa as a reserve provider for web_search and the final fallback for fetch_content.
+    enabled: true
+
+    # Environment variable used for Exa authentication.
+    apiKeyEnv: EXA_API_KEY
+
+  serper:
+    # Enable Serper as a reserve provider only.
+    enabled: false
+
+    # Environment variable used for Serper authentication.
+    apiKeyEnv: SERPER_API_KEY
+
+  ctx7:
+    # Enable Context7 for code_search.
+    enabled: true
+
+    # Optional Context7 API key environment variable.
+    apiKeyEnv: CONTEXT7_API_KEY
+
+  github:
+    # Enable GitHub CLI backed code search when gh is installed and authenticated.
+    enabled: true
+
+  ytDlp:
+    # Enable yt-dlp subtitle extraction for video_search enrichment.
+    enabled: true
+
+    # Dedicated timeout for yt-dlp subtitle extraction.
+    timeoutSec: 30
+
+    # Optional browser cookie source for sites that need authenticated playback metadata.
+    # Example values: chrome, firefox, edge.
+    cookiesFromBrowser: null
+
+webSearch:
+  # Default provider used for the first attempt.
+  # Allowed values: gemini, brave, tavily, exa, serper.
+  defaultProvider: gemini
+
+  # Ordered list of primary providers used when the default provider fails.
+  primaryFallbackOrder:
+    - gemini
+    - brave
+    - tavily
+
+  # Ordered list of reserve providers.
+  reserveFallbackOrder:
+    - exa
+    - serper
+
+  # If true, reserve providers are used after the primary tier fails.
+  useReserveProviders: true
+
+  # Default maximum result count.
+  count: 20
+
+  # Default freshness filter.
+  # Allowed values: null, pd, pw, pm, py.
+  freshness: null
+
+  # Restrict results to these domains when non-empty.
+  includeDomains: []
+
+  # Exclude results from these domains when non-empty.
+  excludeDomains: []
+
+fetchContent:
+  # Maximum output characters returned to the tool caller.
+  maxChars: 50000
+
+  tavily:
+    # Default extract output format.
+    # Allowed values: markdown, text.
+    format: markdown
+
+    # Default Tavily extract depth.
+    # Allowed values: basic, advanced.
+    depth: basic
+
+codeSearch:
+  # Default maximum merged result count for code/doc matches.
+  limit: 30
+
+videoSearch:
+  # Default maximum video result count.
+  count: 20
+
+  # Default freshness filter.
+  # Allowed values: null, pd, pw, pm, py.
+  freshness: null
+
+  # If true, try to enrich video results with transcript or Gemini fallback.
+  transcript: false
+
+  # Subtitle language preference passed to yt-dlp.
+  transcriptLangs:
+    - en
+
+  # Subtitle format requested from yt-dlp.
+  # Allowed values: vtt, srt, best.
+  subtitleFormat: vtt
+
+  # If true, prefer auto-generated subtitles when manual subtitles are unavailable.
+  preferAutoSubs: true
+
+  # Maximum number of characters retained from extracted transcript text.
+  maxTranscriptChars: 5000
+
+  # Gemini fallback mode used when transcript extraction fails.
+  # Allowed values: timestamped_summary.
+  geminiFallback: timestamped_summary
+
+semanticCache:
+  # Master enable switch for the semantic cache.
+  enabled: true
+
+  # Which embedding provider to use.
+  # Allowed values: google, ollama, openai-compat, local.
+  provider: google
+
+  # Similarity threshold at which cached results are returned as fully authoritative.
+  hardThreshold: 0.88
+
+  # Similarity threshold at which cached results are returned with a soft-hit marker
+  # so the calling LLM can decide whether to request a refresh.
+  softThreshold: 0.75
+
+  # Per-tool cache lifetime in milliseconds. Tools not listed here bypass the cache.
+  ttl:
+    web_search: 3600000
+    video_search: 21600000
+    fetch_content: 86400000
+
+  google:
+    # Google Gemini embedding model.
+    model: gemini-embedding-2-preview
+    # Environment variable used for Gemini authentication.
+    apiKeyEnv: GEMINI_API_KEY
+
+  ollama:
+    # Base URL of the Ollama host.
+    baseUrl: http://localhost:11434
+    # Ollama embedding model.
+    model: nomic-embed-text-v2-moe
+
+  openaiCompat:
+    # Base URL of any OpenAI-compatible embedding endpoint
+    # (DeepSeek, Qwen, vLLM, LM Studio, etc.).
+    baseUrl: http://localhost:11434/v1
+    # Embedding model name understood by the endpoint.
+    model: text-embedding-3-small
+    # Environment variable used for bearer token auth, if any.
+    apiKeyEnv: OPENAI_API_KEY
+
+  local:
+    # Pure-JS/WASM embedding model (zero API keys, runs in-process).
+    model: Xenova/all-MiniLM-L6-v2
+
+runner:
+  # Default timeout for general subprocesses.
+  timeoutMs: 15000

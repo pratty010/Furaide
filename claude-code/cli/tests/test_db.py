@@ -1,7 +1,7 @@
 import sqlite3
-from satori import db
+from mekiki import db
 
-def test_init_creates_all_tables(satori_home):
+def test_init_creates_all_tables(mekiki_home):
     db.init()
     conn = db.connect()
     tables = {row[0] for row in conn.execute(
@@ -15,11 +15,11 @@ def test_init_creates_all_tables(satori_home):
     assert expected.issubset(tables)
     conn.close()
 
-def test_init_is_idempotent(satori_home):
+def test_init_is_idempotent(mekiki_home):
     db.init()
     db.init()
 
-def test_wal_mode_enabled(satori_home):
+def test_wal_mode_enabled(mekiki_home):
     db.init()
     conn = db.connect()
     mode = conn.execute("PRAGMA journal_mode").fetchone()[0]

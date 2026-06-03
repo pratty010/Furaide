@@ -8,7 +8,8 @@ Not auto-loaded. Pull this when selecting a chain or pattern for a task.
 
 | Workflow | When to use | When NOT | Common pitfall | Next step needs |
 |---|---|---|---|---|
-| **Feature** `brainstorming→writing-plans→pm-spec→coding→reviewer→verification-before-completion` | New behavior, multi-file, no repro | Single-file, ≤30 LOC | Skipping brainstorm → coding builds wrong thing | Verified test output + diff |
+| **Feature / Complex Chain** `brainstorming→writing-plans→pm-spec→coding→reviewer→verification-before-completion` | New behavior, multi-file, no repro | Single-file, ≤30 LOC | Skipping brainstorm → coding builds wrong thing | Verified test output + diff |
+| **Complex Chain** `recon (mikoshi) → plan (sojobō PLAN mode) → execute (tsukumo) → review (oni)` | Complex tasks not fitting Feature shape: ambiguous scope, unknown-depth refactors, novel system design. Use when the problem space isn't clear enough to write-plans directly. | Simple known-scope features (use Feature chain); single-file edits | Jumping to tsukumo before sojobō plan is approved → re-work | Approved plan with exact file paths + review pass |
 | **Bug-hard** `systematic-debugging→debugger→code-runner(tdd)→reviewer` | Regression, unclear root cause, 3+ theories | Obvious typo/config | Fixing before reproducing | Confirmed repro + root cause hypothesis |
 | **Refactor/arch** `improve-codebase-architecture→pm-spec→coding` | Coupling, seam work, testability | Style-only changes | Plan without checking existing patterns | Approved plan with exact file paths |
 | **Security audit** `security→reviewer` | Pre-release, blast-radius change, auth/crypto | Low-stakes CRUD | Skipping threat model → partial audit | Threat model + findings list |
@@ -38,6 +39,53 @@ Not auto-loaded. Pull this when selecting a chain or pattern for a task.
 **(3) Evaluator-optimizer** — generate → score → refine loop with a measurable quality signal. Use when the acceptance criterion is quantifiable (test pass rate, factcheck score, lint count). The evaluator must return a structured score the optimizer can act on, not prose feedback.
 
 **(4) Routing** — classify the input first, then dispatch to the appropriate specialist. Use for cheap-vs-expensive model selection (workhorse default, reserved on capability-gap) and for ambiguous requests that could hit multiple chains. The router decision should be one inference call, not a chain; keep the classifier cheap (free/workhorse tier).
+
+---
+
+## Complex Chain — recon → plan → execute → review
+
+Use for complex tasks where the problem space isn't clear enough to write a plan directly. Maps to `workflow-state.mjs` phases.
+
+### Phase sequence
+
+| Phase | Specialist | workflow-state.mjs phase | Gate |
+|---|---|---|---|
+| Recon | mikoshi | `recon` | Scope checkpoint: if ambiguous, needs-clarification before proceeding |
+| Plan | sojobō (PLAN mode) | `plan` | Plan approved by user; exact file paths + verification commands required |
+| Execute | tsukumo | `execute` | All verification commands pass |
+| Review | oni | `review` | No blocking findings; only proceed to `artifact` when oni returns clean |
+
+### workflow-state.mjs phase mapping
+
+```bash
+# Recon phase
+bun scripts/workflow-state.mjs advance --to recon ...
+
+# Plan approved — advance to execute
+bun scripts/workflow-state.mjs advance --to execute ...
+
+# Execute complete — advance to review
+bun scripts/workflow-state.mjs advance --to review ...
+
+# Review clean — advance to artifact
+bun scripts/workflow-state.mjs advance --to artifact ...
+```
+
+### progress.md artifact contract
+
+At each phase boundary, the active specialist writes/updates `progress.md` in the working directory:
+
+```markdown
+# progress.md
+## Phase: <current>
+**Status**: completed | blocked | in-progress
+**Artifacts**: list of files written/modified
+**Next phase**: <phase-name>
+**Blockers**: (if any)
+**Residuals**: open questions or follow-ups for the next specialist
+```
+
+Agents MUST update progress.md at phase boundaries. The review phase reads progress.md to understand what was built. Never delete progress.md mid-chain.
 
 ---
 

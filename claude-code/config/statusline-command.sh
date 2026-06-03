@@ -81,7 +81,7 @@ RATE5=$(_jq '.rate_limits.five_hour.used_percentage  // empty' | cut -d. -f1)
 RATE7=$(_jq '.rate_limits.seven_day.used_percentage  // empty' | cut -d. -f1)
 
 # ── Sidecar (written by hooks) ────────────────────────────────────────────
-SIDECAR="${SATORI_HOME:-$HOME/.satori}/statusline-sidecar.json"
+SIDECAR="${MEKIKI_HOME:-$HOME/.mekiki}/statusline-sidecar.json"
 PMODE=""; LAST_SKILL=""
 if [ -f "$SIDECAR" ]; then
   PMODE=$(jq -r      '.permission_mode // empty' "$SIDECAR" 2>/dev/null || true)

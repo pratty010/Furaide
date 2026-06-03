@@ -1,0 +1,15 @@
+chimu:
+  - coding-agent
+  - finance-research-agent
+  - deep-research-agent
+
+research:
+  - researcher
+  - scout
+  - context-builder
+
+dev:
+  - scout
+  - planner
+  - worker
+  - reviewer

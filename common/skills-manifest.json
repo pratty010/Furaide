@@ -1,0 +1,308 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "version": "2.0",
+  "description": "F.R.I.D.A.Y. workflow skills — sources, categories, ecosystem tags, and install targets.",
+
+  "sources": {
+    "superpowers": {
+      "type": "git",
+      "url": "https://github.com/obra/superpowers.git",
+      "clone_to": "~/.agents/skill-repos/superpowers",
+      "skills_dir": "skills",
+      "notes": "Primary Claude Code skill collection by @obra. Most F.R.I.D.A.Y. workflow skills live here.",
+      "ecosystem": ["claude-code", "opencode"]
+    },
+    "friday": {
+      "type": "git",
+      "url": "https://github.com/pratty010/F.R.I.D.A.Y.git",
+      "clone_to": "~/.agents/skill-repos/friday",
+      "skills_dir": "common/skills",
+      "notes": "F.R.I.D.A.Y. native skills vendored in common/skills/. install-common.sh handles these directly — no clone needed.",
+      "ecosystem": ["claude-code", "opencode", "pi-agent"]
+    },
+    "builtin": {
+      "type": "builtin",
+      "notes": "Provided by Claude Code itself or an installed plugin. No clone needed — present when Claude Code or the relevant plugin is installed.",
+      "ecosystem": ["claude-code"]
+    }
+  },
+
+  "skill_sets": {
+    "core-workflow": {
+      "label": "Core workflow",
+      "description": "The skills wired into the CLAUDE.md Workflow Decision Table. Install these first.",
+      "install_target": "global",
+      "ecosystem": ["claude-code"],
+      "skills": [
+        {
+          "name": "brainstorming",
+          "source": "superpowers",
+          "description": "Required before any creative or feature work — explores intent and design before implementation."
+        },
+        {
+          "name": "writing-plans",
+          "source": "superpowers",
+          "description": "Multi-step implementation planning — exact file paths, changes, and verification commands."
+        },
+        {
+          "name": "subagent-driven-development",
+          "source": "superpowers",
+          "description": "Executes implementation plans with sequential agent tasks and review checkpoints."
+        },
+        {
+          "name": "verification-before-completion",
+          "source": "superpowers",
+          "description": "Runs verification commands and confirms output before any success claim."
+        },
+        {
+          "name": "requesting-code-review",
+          "source": "superpowers",
+          "description": "Triggers a structured code review before merging or declaring work done."
+        },
+        {
+          "name": "finishing-a-development-branch",
+          "source": "superpowers",
+          "description": "Guides branch completion — merge, PR, or cleanup decision."
+        },
+        {
+          "name": "using-git-worktrees",
+          "source": "superpowers",
+          "description": "Creates isolated git worktrees before feature work or plan execution."
+        },
+        {
+          "name": "caveman",
+          "source": "superpowers",
+          "description": "Ultra-compressed output mode — reduces token usage ~75% for scan/parse/boilerplate tasks."
+        }
+      ]
+    },
+
+    "debugging": {
+      "label": "Debugging and testing",
+      "description": "Bug diagnosis, test-driven development, and systematic fix loops.",
+      "install_target": "global",
+      "ecosystem": ["claude-code"],
+      "skills": [
+        {
+          "name": "diagnose",
+          "source": "superpowers",
+          "description": "Disciplined diagnosis loop: reproduce → minimise → hypothesise → instrument → fix → regression-test."
+        },
+        {
+          "name": "systematic-debugging",
+          "source": "superpowers",
+          "description": "Use before proposing any fix for bugs, failures, or unexpected behavior."
+        },
+        {
+          "name": "tdd",
+          "source": "superpowers",
+          "description": "Red-green-refactor loop for test-driven feature work and bug fixes."
+        }
+      ]
+    },
+
+    "quality": {
+      "label": "Code and content quality",
+      "description": "Review, skill authoring, humanisation, and README writing.",
+      "install_target": "global",
+      "ecosystem": ["claude-code"],
+      "skills": [
+        {
+          "name": "skill-creator",
+          "source": "superpowers",
+          "description": "Creates, modifies, and evals Claude Code skills. Required for Mekiki improve workflow."
+        },
+        {
+          "name": "writing-skills",
+          "source": "superpowers",
+          "description": "Writes and verifies skills before deployment."
+        },
+        {
+          "name": "humanizer",
+          "source": "superpowers",
+          "description": "Removes AI-writing patterns (em dashes, rule-of-three, filler) from prose."
+        },
+        {
+          "name": "receiving-code-review",
+          "source": "superpowers",
+          "description": "Handles incoming review feedback with technical rigour, not blind agreement."
+        },
+        {
+          "name": "create-readme",
+          "source": "superpowers",
+          "description": "Creates comprehensive, well-structured README.md files for projects."
+        }
+      ]
+    },
+
+    "architecture": {
+      "label": "Architecture and design",
+      "description": "Codebase improvement, design review, and adversarial planning.",
+      "install_target": "global",
+      "ecosystem": ["claude-code"],
+      "skills": [
+        {
+          "name": "improve-codebase-architecture",
+          "source": "superpowers",
+          "description": "Finds refactoring opportunities informed by domain language and ADRs."
+        },
+        {
+          "name": "grill-me",
+          "source": "superpowers",
+          "description": "Relentless interviewing to stress-test plans and designs."
+        },
+        {
+          "name": "grill-with-docs",
+          "source": "superpowers",
+          "description": "Challenges plans against the project's existing domain model and ADRs."
+        },
+        {
+          "name": "impeccable",
+          "source": "superpowers",
+          "description": "Frontend interface design, polish, UX review, and visual iteration."
+        },
+        {
+          "name": "prototype",
+          "source": "superpowers",
+          "description": "Throwaway prototype to validate data models or UI options before committing."
+        }
+      ]
+    },
+
+    "planning": {
+      "label": "Planning and issues",
+      "description": "PRD creation, issue breakdown, and triage.",
+      "install_target": "global",
+      "ecosystem": ["claude-code"],
+      "skills": [
+        {
+          "name": "to-prd",
+          "source": "superpowers",
+          "description": "Converts current conversation context into a PRD on the issue tracker."
+        },
+        {
+          "name": "to-issues",
+          "source": "superpowers",
+          "description": "Breaks a plan or spec into independently-grabbable issues using tracer-bullet slices."
+        },
+        {
+          "name": "triage",
+          "source": "superpowers",
+          "description": "Triages issues through a state machine: incoming → reviewed → ready → in-progress."
+        }
+      ]
+    },
+
+    "utility": {
+      "label": "Utility",
+      "description": "Output discipline, research, parallel dispatch, and context management.",
+      "install_target": "global",
+      "ecosystem": ["claude-code"],
+      "skills": [
+        {
+          "name": "html-preview",
+          "source": "superpowers",
+          "description": "Decides HTML vs markdown output; generates HTML specs and design reports."
+        },
+        {
+          "name": "find-docs",
+          "source": "superpowers",
+          "description": "Retrieves up-to-date documentation for libraries, APIs, and frameworks."
+        },
+        {
+          "name": "dispatching-parallel-agents",
+          "source": "superpowers",
+          "description": "Runs 2+ independent tasks in parallel with zero shared state."
+        },
+        {
+          "name": "handoff",
+          "source": "superpowers",
+          "description": "Compacts the current conversation into a handoff document for another agent."
+        },
+        {
+          "name": "executing-plans",
+          "source": "superpowers",
+          "description": "Executes a written implementation plan in a separate session with review checkpoints."
+        }
+      ]
+    },
+
+    "superpowers-opencode": {
+      "label": "Superpowers (OpenCode, opt-in)",
+      "description": "The @obra superpowers collection for OpenCode. Removed from opencode.jsonc auto-load — opt in here.",
+      "install_target": "global",
+      "ecosystem": ["opencode"],
+      "skills": [
+        {
+          "name": "superpowers",
+          "source": "superpowers",
+          "description": "Full @obra superpowers collection — install directly into opencode skills dir. See opencode/README.md for opt-in instructions."
+        }
+      ]
+    },
+
+    "notebooklm": {
+      "label": "NotebookLM (custom)",
+      "description": "User's own customized NotebookLM skill. NOT a bare clone — contains custom auth flow, references/ and data/ layout, local patches. Install by hand using the source below.",
+      "install_target": "manual",
+      "ecosystem": ["claude-code"],
+      "customizations": [
+        "Custom auth flow integrated (see skill header for details)",
+        "references/ directory for source PDFs and notes",
+        "data/ directory for extracted structured data",
+        "Local patches to upstream for F.R.I.D.A.Y. terminology"
+      ],
+      "skills": [
+        {
+          "name": "notebooklm",
+          "source": "friday",
+          "description": "Customized NotebookLM skill. Copy from source manually to preserve local patches."
+        }
+      ]
+    },
+
+    "mekiki": {
+      "label": "Mekiki (plugin-native)",
+      "description": "Installed automatically when the Mekiki plugin is active (via /mekiki command). No manual install needed.",
+      "install_target": "plugin",
+      "ecosystem": ["claude-code"],
+      "skills": [
+        {
+          "name": "mekiki",
+          "source": "friday",
+          "description": "Inspect skill-usage analytics — overview, per-skill deep-dive, evidence packs. Ships with the Mekiki plugin."
+        }
+      ]
+    },
+
+    "hanko": {
+      "label": "Hanko (plugin-native)",
+      "description": "Installed automatically when the Hanko plugin is active. No manual install needed.",
+      "install_target": "plugin",
+      "ecosystem": ["claude-code"],
+      "skills": [
+        {
+          "name": "github",
+          "source": "friday",
+          "description": "GitHub Workflow Executor — spawns Haiku subagent for git commits, pushes, PR creation, and CI monitoring with human-in-the-loop approval. Ships with the Hanko plugin."
+        }
+      ]
+    },
+
+    "builtin": {
+      "label": "Built-in (Claude Code / plugins)",
+      "description": "Present when Claude Code or the relevant plugin is installed. Listed here for reference only.",
+      "install_target": "none",
+      "ecosystem": ["claude-code"],
+      "skills": [
+        { "name": "code-review",      "source": "builtin", "description": "Review current diff at configured effort level." },
+        { "name": "security-review",  "source": "builtin", "description": "Branch security audit." },
+        { "name": "run",              "source": "builtin", "description": "Launch and observe the project app." },
+        { "name": "verify",           "source": "builtin", "description": "Confirm a change works in the real app." },
+        { "name": "init",             "source": "builtin", "description": "Initialise a CLAUDE.md for the current codebase." },
+        { "name": "update-config",    "source": "builtin", "description": "Configure Claude Code settings and hooks." },
+        { "name": "fewer-permission-prompts", "source": "builtin", "description": "Scan transcripts and add allowlist to reduce prompts." }
+      ]
+    }
+  }
+}

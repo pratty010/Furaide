@@ -1,174 +1,129 @@
-# Satori (Skill Overseer)
+# claude-code/
 
-> *A shikigami in Furaidē's service, the eye on your Claude Code skills.*
+> *Two plugins, one engine — Furaidē's shikigami for Claude Code.*
 
-Satori is a [Claude Code plugin](https://docs.anthropic.com/en/docs/claude-code/plugins) that captures every skill invocation and judges its effectiveness offline. Part of the [F.R.I.D.A.Y.](https://github.com/pratty010/F.R.I.D.A.Y) collection.
+Part of the [F.R.I.D.A.Y.](https://github.com/pratty010/F.R.I.D.A.Y) monorepo.
 
 ---
 
-## What it does
+## Plugins
 
-- **Captures**: lightweight JSONL event log in `~/.satori/events/` (hooks fire on every skill invoke, session start, and turn stop; the plugin stores no conversation content)
-- **Judges**: an LLM-as-judge pipeline reads Claude Code transcripts and classifies each invocation as triggered correctly, triggered unnecessarily, or a gap where no skill fired but one should have
-- **Reports**: Jinja2 HTML reports served locally: a fleet overview and per-skill deep-dives
-- **Improves**: builds evidence packs for individual skills so you (or `skill-creator`) can rewrite a skill's description with data
+| Plugin | Japanese | Role |
+|--------|----------|------|
+| **Mekiki** | 目利き ("appraiser") | Skill-usage analytics — captures every skill invocation and judges its effectiveness offline |
+| **Hanko** | 判子 ("signing seal") | Git workflow — Haiku subagent for commits, pushes, PR creation, and CI monitoring with human-in-the-loop approval |
+
+Both plugins share a single engine (`cli/`) installed by `scripts/bootstrap.sh`.
 
 ---
 
 ## Install
 
-### Default: full install (plugin + CLI)
-
-**Option A: Claude Code marketplace** (once listed):
-
-```bash
-claude plugin install satori@pratty010
-cd ~/.claude/plugins/satori/cli && uv sync
-```
-
-**Option B: direct from git:**
-
-```bash
-# See install instructions below — plugin lives inside the F.R.I.D.A.Y. monorepo
-cd ~/.claude/plugins/satori/cli && uv sync
-```
-
-**Option C: local dev-link** (for contributors):
+### 1. Clone and bootstrap
 
 ```bash
 git clone https://github.com/pratty010/F.R.I.D.A.Y.git ~/F.R.I.D.A.Y
-bash ~/F.R.I.D.A.Y/claude-code/scripts/dev-link-plugin.sh   # prompts to install workflow skills
-cd ~/F.R.I.D.A.Y/claude-code/cli && uv sync
+bash ~/F.R.I.D.A.Y/claude-code/scripts/bootstrap.sh
 ```
 
----
+The bootstrap script:
+- Installs the `mekiki` CLI engine via `uv sync` (creates `.venv` in `cli/`)
+- Offers to install shared skills (bx, html-preview, brave-search, plan) from `common/skills/`
+- Offers to install other skills from the manifest (superpowers, notebooklm, …)
+- Offers to copy the global config bundle into `~/.claude/`
 
-### Workflow skills
-
-Satori observes skills — but you need skills installed for it to observe. `dev-link-plugin.sh` offers to run the skill installer automatically. You can also run it separately at any time:
-
-```bash
-bash ~/F.R.I.D.A.Y/claude-code/scripts/install-skills.sh          # interactive, category-by-category
-bash ~/F.R.I.D.A.Y/claude-code/scripts/install-skills.sh --all    # install everything, no prompts
-bash ~/F.R.I.D.A.Y/claude-code/scripts/install-skills.sh --list   # preview what would be installed
-bash ~/F.R.I.D.A.Y/claude-code/scripts/install-skills.sh --project  # project-local install only
-```
-
-The installer reads `skills-manifest.json`, clones source repos into `~/.agents/skill-repos/`, and creates a two-level symlink chain:
+### 2. Register and install plugins in Claude Code
 
 ```
-~/.agents/skill-repos/superpowers/skills/brainstorming/   ← cloned once
-~/.agents/skills/brainstorming                            ← aggregated view
-~/.claude/skills/brainstorming                            ← Claude Code
+/plugin marketplace add pratty010/F.R.I.D.A.Y
+/plugin install mekiki@5h1nch4n
+/plugin install hanko@5h1nch4n
+/reload-plugins
 ```
-
-To update all skills later:
-
-```bash
-git -C ~/.agents/skill-repos/superpowers pull
-```
-
----
-
-### Selective install: pick what you need
-
-<details>
-<summary><strong>Plugin only</strong>: capture hooks, no analytics CLI</summary>
-
-The plugin registers hooks automatically on install. The `/satori` skill will shell out to the CLI; you can add the CLI later without reinstalling the plugin.
-
-```bash
-# See install instructions below — plugin lives inside the F.R.I.D.A.Y. monorepo
-```
-
-</details>
-
-<details>
-<summary><strong>CLI only</strong>: analytics without the plugin</summary>
-
-The CLI can ingest existing event logs even if the plugin hooks weren't running when they were captured (useful if you have data from the old Puraguin setup).
-
-```bash
-git clone https://github.com/pratty010/F.R.I.D.A.Y.git ~/F.R.I.D.A.Y
-cd ~/F.R.I.D.A.Y/claude-code/cli && uv sync
-satori --help
-
-# If migrating from ~/.puraguin/:
-mv ~/.puraguin ~/.satori
-```
-
-</details>
-
-<details>
-<summary><strong>Config bundle only</strong>: Furaidē's global Claude Code config</summary>
-
-No plugin required. Copy the files you want into `~/.claude/`:
-
-```bash
-git clone https://github.com/pratty010/F.R.I.D.A.Y.git ~/F.R.I.D.A.Y
-
-# All at once:
-cp ~/F.R.I.D.A.Y/claude-code/config/CLAUDE.md ~/.claude/CLAUDE.md
-cp ~/F.R.I.D.A.Y/claude-code/config/keybindings.json ~/.claude/keybindings.json
-cp ~/F.R.I.D.A.Y/claude-code/config/statusline-command.sh ~/.claude/statusline-command.sh
-# Then merge relevant keys from ~/F.R.I.D.A.Y/claude-code/config/settings.json manually
-```
-
-See [`config/README.md`](config/README.md) for per-file notes.
-
-</details>
 
 ---
 
 ## Usage
 
-Once the plugin and CLI are installed, the `/satori` skill is available in every Claude Code session:
+### Mekiki — skill analytics
 
 ```
-/satori                          # overview: which skills fired this week
-/satori deep-dive /<skill>       # per-skill analysis
-/satori improve /<skill>         # build evidence pack → hand off to skill-creator
+/mekiki                          # overview: which skills fired this week
+/mekiki skill <name>             # per-skill deep-dive
+/mekiki improve <name>           # build evidence pack → hand off to skill-creator
+/mekiki mark <name> applied      # record that you applied the rewrite
+/mekiki run                      # ingest + judge + aggregate only (no report)
 ```
 
 Or call the CLI directly:
 
 ```bash
-satori run                        # ingest + judge + aggregate
-satori report --overview          # build + serve overview.html
-satori report --skill <name>      # build + serve skill detail
-satori improve --skill <name>     # build evidence pack
-satori improve --skill <name> --mark applied
+mekiki run                        # ingest + judge + aggregate
+mekiki report --overview          # build + serve overview.html
+mekiki report --skill <name>      # build + serve skill detail
+mekiki improve --skill <name>     # build evidence pack
+mekiki improve --skill <name> --mark applied
 ```
+
+### Hanko — git workflow
+
+```
+/github commit with "feat(opencode): add hanko subagent"
+/github create a PR to dev
+/github check CI status for my current branch
+/github push to dev and create a PR
+```
+
+The Haiku subagent reads `GITHUB.md` (bundled in the plugin), validates conventional commit format, uses `gh` CLI, and **asks you before every commit, push, or PR creation**.
 
 ---
 
 ## Data directory
 
-Runtime data lives in `~/.satori/` (or `$SATORI_HOME`):
+Runtime data lives in `~/.mekiki/` (or `$MEKIKI_HOME`):
 
 ```
-~/.satori/
+~/.mekiki/
   events/claude-code/YYYY-MM-DD.jsonl   # captured events
   state.db                               # SQLite analyzer state
   reports/                               # generated HTML
   evidence/                              # evidence packs for skill improvement
-  debug/                                 # raw hook payloads (opt-in)
+  cli-path                               # path to the installed mekiki binary
 ```
 
 To capture raw hook payloads during smoke testing:
 
 ```bash
-SATORI_CAPTURE_HOOK_PAYLOADS=1 claude
+MEKIKI_CAPTURE_HOOK_PAYLOADS=1 claude
+```
+
+---
+
+## Workflow skills
+
+Mekiki observes skills — you need skills installed for it to observe. Bootstrap offers to run the common installer. You can also run it separately:
+
+```bash
+bash ~/F.R.I.D.A.Y/common/install-common.sh --global      # bx, html-preview, brave-search, plan
+bash ~/F.R.I.D.A.Y/common/install-skills.sh --ecosystem claude-code  # superpowers, notebooklm, …
 ```
 
 ---
 
 ## Config bundle
 
-`config/` contains Furaidē's sanitized global Claude Code configuration. See [`config/README.md`](config/README.md) for install instructions.
+`config/` contains Furaidē's sanitized global Claude Code configuration. `bootstrap.sh` offers to copy it for you.
 
-> [!NOTE]
-> The `hooks` block is intentionally absent from `config/settings.json`. Satori's plugin ships its own `hooks/hooks.json` using `${CLAUDE_PLUGIN_ROOT}`, no hook wiring required.
+```bash
+# Manually:
+cp ~/F.R.I.D.A.Y/claude-code/config/CLAUDE.md ~/.claude/CLAUDE.md
+cp ~/F.R.I.D.A.Y/claude-code/config/statusline-command.sh ~/.claude/statusline-command.sh
+# Then merge relevant keys from config/settings.json manually
+```
+
+See [`config/README.md`](config/README.md) for per-file notes.
+
+> The `hooks` block is intentionally absent from `config/settings.json`. Mekiki's plugin ships its own `hooks/hooks.json` using `${CLAUDE_PLUGIN_ROOT}`, so no manual hook wiring is required.
 
 ---
 
@@ -180,10 +135,25 @@ uv run pytest          # run test suite
 uv run pytest -x -q    # fail fast
 ```
 
-The plugin follows the [Claude Code plugin spec](https://docs.anthropic.com/en/docs/claude-code/plugins): `.claude-plugin/plugin.json` declares the plugin, `hooks/hooks.json` wires events using `${CLAUDE_PLUGIN_ROOT}`, and `skills/satori/SKILL.md` defines the `/satori` slash command.
+**Plugin structure:**
+```
+plugins/
+  mekiki/
+    .claude-plugin/plugin.json   # plugin manifest
+    commands/mekiki.md           # /mekiki slash command
+    hooks/hooks.json             # event capture hooks (CLAUDE_PLUGIN_ROOT-relative)
+    bin/mekiki                   # PATH shim → cli/.venv/bin/mekiki
+  hanko/
+    .claude-plugin/plugin.json   # plugin manifest
+    skills/github/SKILL.md       # /github skill
+    GITHUB.md                    # git/GitHub workflow reference
+    bin/github-setup-check       # SSH + gh CLI setup verification
+```
+
+**Adding a new plugin:** create `plugins/<name>/.claude-plugin/plugin.json`, then register it in `/.claude-plugin/marketplace.json` at the repo root.
 
 ---
 
 ## Part of F.R.I.D.A.Y.
 
-This plugin is one of Furaidē's shikigami. The full collection lives at [pratty010/F.R.I.D.A.Y](https://github.com/pratty010/F.R.I.D.A.Y).
+The full collection lives at [pratty010/F.R.I.D.A.Y](https://github.com/pratty010/F.R.I.D.A.Y). Other components: `opencode/` (34-agent fleet), `common/` (shared skills + docs), `pi-agent/`, `openclaw/`.

@@ -122,7 +122,8 @@ Classify the request before dispatch. Select only domains that materially affect
 | Legal | contracts, liability, IP, enforceability, legal risk | @source-retriever + @reviewer | jurisdiction, document/topic, risk posture; include not-legal-advice constraint |
 | Security | threat landscape, vulnerabilities, controls, security market, external threat intel | @source-retriever + @fact-checker | assets/scope, threat model, timeframe, source priority |
 | Technical / IT | architecture landscape, vendor/tool comparison, APIs, implementation feasibility | @explorer for ecosystem + @source-retriever for external | technology names, versions, constraints, evaluation criteria |
-| Academic / scientific | papers, methods, evidence quality, literature review | @source-retriever + @extractor | research question, date range, inclusion/exclusion criteria |
+| Academic / scientific | papers, methods, evidence quality, literature review, peer-reviewed research, arxiv preprints, citation quality judgment | @source-retriever + @extractor + @fact-checker for claims | research question, date range, inclusion/exclusion criteria, citation quality standard (peer-reviewed only vs. preprints allowed) |
+| Competitive intel | named player tracking, market positioning shifts, M&A signals, partnership announcements, pricing changes, talent movement — real-time or recent | @source-retriever + @fact-checker | company/player list, geography, time window (last N months), signal types, source priority (news/filings/job boards/patents) |
 | Data / BI | chart-ready data, tables, dashboards, datasets | @data-analyst + @formatter for output | dataset/source, metrics, dimensions, visualization target |
 | General background | broad explainer with sources | @source-retriever + @synthesizer | audience, depth, geography/timeframe if relevant |
 </domain_router>

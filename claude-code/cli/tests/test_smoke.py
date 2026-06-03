@@ -1,3 +1,3 @@
 def test_package_importable():
-    import satori
-    assert satori.__version__ == "0.1.0"
+    import mekiki
+    assert mekiki.__version__ == "0.1.0"

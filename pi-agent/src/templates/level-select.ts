@@ -1,0 +1,13 @@
+import type { TemplateRender } from "./index.ts";
+import { centerInWidth } from "./index.ts";
+
+const sep = (w: number) => "─".repeat(Math.min(w, 14));
+
+const render: TemplateRender = (theme, w) => {
+  const l1 = theme.fg("warning", "STAGE  01");
+  const l2 = theme.fg("accent", "▸ ") + theme.fg("text", "F.R.I.D.A.Y.");
+  const l3 = theme.fg("warning", "★★★★") + theme.fg("dim", "☆");
+  const l4 = theme.fg("dim", sep(w));
+  return [centerInWidth(l1, w), centerInWidth(l2, w), centerInWidth(l3, w), centerInWidth(l4, w)];
+};
+export default render;

@@ -1,7 +1,7 @@
 from pathlib import Path
-from satori import db
-from satori.judge import orchestrator
-from satori.judge.interface import Judgment, Gap, AvailableSkillCtx
+from mekiki import db
+from mekiki.judge import orchestrator
+from mekiki.judge.interface import Judgment, Gap, AvailableSkillCtx
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
@@ -15,7 +15,7 @@ class FakeBackend:
     def detect_gap(self, prompt, available_skills):
         return None
 
-def test_orchestrator_judges_only_new_invocations(satori_home):
+def test_orchestrator_judges_only_new_invocations(mekiki_home):
     db.init()
     transcript_path = str(FIXTURES / "transcript_simple.jsonl")
     conn = db.connect()

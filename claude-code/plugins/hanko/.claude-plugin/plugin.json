@@ -1,0 +1,10 @@
+{
+  "name": "hanko",
+  "displayName": "Hanko (判子 · Git Seal)",
+  "version": "0.1.0",
+  "description": "Furaidē's signing seal — a Haiku subagent for git commits, pushes, PR creation, and CI monitoring with human-in-the-loop approval.",
+  "author": {
+    "name": "pratty010",
+    "url": "https://github.com/pratty010/F.R.I.D.A.Y"
+  }
+}

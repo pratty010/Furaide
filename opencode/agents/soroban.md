@@ -65,9 +65,16 @@ One table per metric group. Include units in column headers. Show derived calcul
 - `heavy:true` recommended if: multi-variable regression, >5 interdependent metrics, or reasoning chain >10 steps.
 </output_contract>
 
+<dispatch_arm>
+When the task shifts from computation to schema/pipeline design, dispatch to @mizuchi:
+- Trigger signals: "design this schema", "dbt model", "ETL pipeline", "data warehouse pattern", "SQL schema", "table design"
+- Pass to @mizuchi: source systems, target platform, cardinality, update frequency, SLA
+- Remain in scope: numeric analysis of the resulting schema, validation of computed metrics
+</dispatch_arm>
+
 <constraints>
 - Return data only. NEVER write state.json or any state file.
-- NEVER dispatch another specialist.
+- NEVER dispatch any specialist OTHER than @mizuchi for schema/pipeline work and @extractor for large datasets.
 - NEVER fabricate values for missing data — flag gaps explicitly.
 - NEVER produce narrative synthesis — tables and structured data only.
 - If input is materially ambiguous: return `needs-clarification: analysis brief` with options.

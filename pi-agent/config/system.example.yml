@@ -1,0 +1,88 @@
+models:
+  providers:
+    opencode:
+      emoji: 🟢
+      thinkingTiers:
+        - pro
+        - team
+    opencode-go:
+      emoji: 🟢
+      thinkingTiers:
+        - pro
+    github-copilot:
+      emoji: 🐙
+      thinkingTiers:
+        - all
+    kimi-coding:
+      emoji: 🌙
+      thinkingTiers:
+        - all
+    zai:
+      emoji: ⚡
+      thinkingTiers: []
+    vercel-ai-gateway:
+      emoji: ▲
+      thinkingTiers:
+        - all
+paths:
+  stateRoot: ~/.pi/agent/extensions/friday/state/web
+  dbFile: ~/.pi/agent/extensions/friday/state/web/web.db
+timezone: UTC
+quotas:
+  toolProviders:
+    brave:
+      source: provider
+      unit: credits
+      monthLimit: 2000
+      used: 0
+    tavily:
+      source: provider
+      unit: credits
+      monthLimit: 1000
+      used: 0
+    exa:
+      source: local
+      unit: usd
+      totalBudget: 20
+      used: 0
+    serper:
+      source: local
+      unit: credits
+      totalBudget: 2500
+      used: 0
+  modelProviders:
+    openai-codex:
+      source: local
+      unit: messages
+      rolling5hLimit: null
+      rolling1wLimit: null
+      rolling1moLimit: null
+      used5h: 0
+      used1w: 0
+      used1mo: 0
+    opencode-go:
+      source: local
+      unit: usd
+      rolling5hLimit: 12
+      rolling1wLimit: 30
+      rolling1moLimit: 60
+      used5h: 0
+      used1w: 0
+      used1mo: 0
+  apiProviders:
+    google:
+      apiCostTotal: 0
+      apiCostLimit: null
+    google-vertex:
+      apiCostTotal: 0
+      apiCostLimit: null
+    opencode:
+      apiCostTotal: 0
+      apiCostLimit: null
+  apiGroups:
+    google-all:
+      providers:
+        - google
+        - google-vertex
+      combinedBudget: 300
+      note: Vertex + Gemini combined

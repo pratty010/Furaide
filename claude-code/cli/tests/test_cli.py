@@ -3,8 +3,8 @@ import subprocess
 import sys
 import os
 
-def test_cli_ingest_runs(satori_home, tmp_path):
-    f = satori_home / "events" / "claude-code" / "2026-05-27.jsonl"
+def test_cli_ingest_runs(mekiki_home, tmp_path):
+    f = mekiki_home / "events" / "claude-code" / "2026-05-27.jsonl"
     f.parent.mkdir(parents=True, exist_ok=True)
     f.write_text(json.dumps({
         "ts":"2026-05-27T10:00:00.000Z","platform":"claude-code","event":"session.start",
@@ -12,9 +12,9 @@ def test_cli_ingest_runs(satori_home, tmp_path):
         "transcript_path":"/nonexistent"
     }) + "\n")
     env = os.environ.copy()
-    env["SATORI_HOME"] = str(satori_home)
+    env["MEKIKI_HOME"] = str(mekiki_home)
     r = subprocess.run(
-        [sys.executable, "-m", "satori", "ingest"],
+        [sys.executable, "-m", "mekiki", "ingest"],
         env=env,
         capture_output=True, text=True,
         cwd=str(tmp_path),

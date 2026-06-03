@@ -53,8 +53,8 @@
     },
     {
       "id": "agents-core",
-      "label": "Specialist Agents (24 core)",
-      "description": "24 specialist and subagent shikigami. Soft dependency on failover routing-manifest.json and docs/models/** for model selection.",
+      "label": "Specialist Agents (29 core)",
+      "description": "29 specialist and subagent shikigami (12 specialists + 15 subagents + 2 escape-hatch). Soft dependency on failover routing-manifest.json and docs/models/** for model selection.",
       "atomic": false,
       "coupling": "soft dep on failover routing-manifest.json; auto-included at same scope if failover not selected there",
       "requires_bun": false,
@@ -84,7 +84,12 @@
         "agents/tsukumo.md",
         "agents/tsukuyomi.md",
         "agents/yamabiko.md",
-        "agents/yumemi.md"
+        "agents/yumemi.md",
+        "agents/hanko.md",
+        "agents/sojobō.md",
+        "agents/shiranui.md",
+        "agents/planner.md",
+        "agents/mizuchi.md"
       ],
       "globs": []
     },
@@ -128,17 +133,21 @@
     {
       "id": "docs-reference",
       "label": "Reference Docs",
-      "description": "OPERATOR guide, architecture overview, manifest schema, agent template, model family guides. Reference only, not required at runtime.",
+      "description": "OPERATOR guide, architecture overview, manifest schema, agent template, model family guides, and shared GitHub workflow guide. Reference only, not required at runtime.",
       "atomic": false,
-      "coupling": "reference only",
+      "coupling": "reference only; GITHUB.md and github-setup-check.sh sourced from common/ at install time",
       "requires_bun": false,
       "default_on": false,
-      "target_subdirs": ["docs"],
+      "target_subdirs": ["docs", "scripts"],
       "files": [
         "docs/OPERATOR.md",
         "docs/architecture.md",
         "docs/manifest-schema.md",
         "docs/agent-template.md"
+      ],
+      "common_files": [
+        { "src": "../common/docs/GITHUB.md", "dst": "docs/GITHUB.md" },
+        { "src": "../common/scripts/github-setup-check.sh", "dst": "scripts/github-setup-check.sh" }
       ],
       "globs": [
         "docs/models/**"
