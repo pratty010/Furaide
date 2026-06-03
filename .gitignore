@@ -58,10 +58,10 @@ tmp/
 # ── openclaw — future-work reference data (contains live secrets, never commit) ──
 openclaw/_reference/
 
-# ── pi-agent — runtime artifacts ─────────────────────────────────────────────
+# ── pi-agent — runtime artifacts + personal config ────────────────────────────
 pi-agent/node_modules/
 pi-agent/src/state/
-pi-agent/src/config/*.yml
+pi-agent/config/system.yml
 pi-agent/*.db*
 pi-agent/.pi/
 pi-agent/knowledge/
