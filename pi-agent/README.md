@@ -1,8 +1,8 @@
-# pi-agent/ — friday-furaidee
+# pi-agent/ (friday-furaidee)
 
 Furaidē's [pi.dev](https://pi.dev) extension package. Web-RAG tools, `/usage` analytics, TUI widgets, themes, and GSD skills.
 
-Part of the [F.R.I.D.A.Y.](https://github.com/pratty010/F.R.I.D.A.Y) monorepo.
+Part of the [F.R.I.D.A.Y.](https://github.com/pratty010/Furaide) monorepo.
 
 ---
 
@@ -14,9 +14,9 @@ Part of the [F.R.I.D.A.Y.](https://github.com/pratty010/F.R.I.D.A.Y) monorepo.
 | **Semantic cache** | Embedding-backed dedup across searches; `@xenova/transformers` local embedder (zero-config) or Google/OpenAI |
 | **`/usage` command** | Session cost, tool quota tracking, model pricing. Subcommands: `/usage refresh`, `/usage update <tool> <n>`, `/usage setup <provider>` |
 | **TUI** | Animated ASCII header (8 animated field renderers, 26 decorative templates), session-metrics footer, status bar |
-| **Themes** | `friday` (neon pink/violet — `#ff0080` accent) and `chimu` (neon cyan/magenta cyberpunk) |
+| **Themes** | `friday` (neon pink/violet, `#ff0080` accent) and `chimu` (neon cyan/magenta cyberpunk) |
 | **GSD Skills** | `commit`, `plan`, `research`, `review` |
-| **pi-subagents-cc agents** | 13 agents + `teams.yaml`: coding-agent, researcher, reviewer, planner, deep-research-agent, synthesizer, context-builder, finance-research-agent, gsd-agent, worker, delegate, scout |
+| **pi-subagents-cc agents** | 12 agents + `teams.yaml`: coding-agent, researcher, reviewer, planner, deep-research-agent, synthesizer, context-builder, finance-research-agent, gsd-agent, worker, delegate, scout |
 
 ---
 
@@ -24,8 +24,8 @@ Part of the [F.R.I.D.A.Y.](https://github.com/pratty010/F.R.I.D.A.Y) monorepo.
 
 | Feature | Needs |
 |---------|-------|
-| `fetch_content` (extract mode) | Nothing — builtin Readability+fetch |
-| Semantic cache (local embedder) | Nothing — `@xenova/transformers` downloads model on first use |
+| `fetch_content` (extract mode) | Nothing; uses builtin Readability+fetch |
+| Semantic cache (local embedder) | Nothing; `@xenova/transformers` downloads the model on first use |
 | `/usage` tracking | Nothing |
 | TUI, themes, GSD skills | Nothing |
 | `web_search` | `GEMINI_API_KEY` **or** `bx`/`tvly` binaries **or** `EXA_API_KEY`/`SERPER_API_KEY` |
@@ -42,22 +42,22 @@ All missing keys/binaries degrade gracefully with a clear error rather than cras
 ### One-command (recommended)
 
 ```bash
-git clone https://github.com/pratty010/F.R.I.D.A.Y.git ~/F.R.I.D.A.Y
-bash ~/F.R.I.D.A.Y/pi-agent/scripts/install-pi-agent.sh
+git clone https://github.com/pratty010/Furaide.git ~/Furaidē
+bash ~/Furaidē/pi-agent/scripts/install-pi-agent.sh
 ```
 
-Prerequisities: [bun](https://bun.sh) + [Pi CLI](https://pi.dev) v0.72.1+.
+Prerequisites: [bun](https://bun.sh) + [Pi CLI](https://pi.dev) v0.72.1+.
 
 ### Or from git (once published to npm)
 
 ```bash
-pi install git:github.com/pratty010/F.R.I.D.A.Y
+pi install git:github.com/pratty010/Furaide
 ```
 
 ### Manual
 
 ```bash
-cd ~/F.R.I.D.A.Y/pi-agent
+cd ~/Furaidē/pi-agent
 bun install
 pi install .
 ```
@@ -120,7 +120,7 @@ pi-agent/
     friday.json                 # Neon pink/violet dark theme
     chimu.json                  # Neon cyan/magenta cyberpunk theme
   skills/                       # GSD skills: commit, plan, research, review
-  agents/                       # pi-subagents-cc agents + teams.yaml
+  agents/                       # pi-subagents-cc: 12 agents + teams.yaml
   scripts/install-pi-agent.sh
 ```
 
@@ -137,4 +137,4 @@ pi-agent/
 
 ## Part of F.R.I.D.A.Y.
 
-Other components: `opencode/` (29-agent fleet), `claude-code/` (Mekiki + Hanko plugins), `common/` (shared skills + docs), `openclaw/` (stateful assistant personas).
+Other components: `opencode/` (29-agent core fleet), `claude-code/` (Mekiki + Hanko plugins), `common/` (shared skills + docs), `openclaw/` (stateful assistant personas).

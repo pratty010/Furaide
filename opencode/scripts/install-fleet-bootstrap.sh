@@ -2,14 +2,14 @@
 # install-fleet-bootstrap.sh — one-command curl-pipe installer for Furaidē's Fleet
 #
 # Usage (no clone needed):
-#   bash <(curl -fsSL https://raw.githubusercontent.com/pratty010/F.R.I.D.A.Y/main/opencode/scripts/install-fleet-bootstrap.sh)
+#   bash <(curl -fsSL https://raw.githubusercontent.com/pratty010/Furaide/main/opencode/scripts/install-fleet-bootstrap.sh)
 #
 # Or with flags passed through to install-fleet.sh:
 #   bash <(curl -fsSL ...) -- --all --global
 
 set -euo pipefail
 
-REPO_URL="https://github.com/pratty010/F.R.I.D.A.Y.git"
+REPO_URL="https://github.com/pratty010/Furaide.git"
 FLEET_DEST="${FLEET_DEST:-$HOME/furaidee-fleet}"
 
 GREEN='\033[0;32m'; YELLOW='\033[1;33m'; NC='\033[0m'

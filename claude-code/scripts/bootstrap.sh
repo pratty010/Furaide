@@ -12,7 +12,7 @@
 #   bash ~/F.R.I.D.A.Y/claude-code/scripts/bootstrap.sh
 #
 # Then in Claude Code:
-#   /plugin marketplace add pratty010/F.R.I.D.A.Y
+#   /plugin marketplace add pratty010/Furaide
 #   /plugin install mekiki@5h1nch4n
 #   /plugin install hanko@5h1nch4n
 #   /reload-plugins
@@ -72,7 +72,7 @@ fi
 # ── Done ─────────────────────────────────────────────────────────────────
 printf '\n%s\n' "$(printf "${GREEN}[done]${NC} Next steps in Claude Code:")"
 cat <<'EOF'
-  /plugin marketplace add pratty010/F.R.I.D.A.Y
+  /plugin marketplace add pratty010/Furaide
   /plugin install mekiki@5h1nch4n
   /plugin install hanko@5h1nch4n
   /reload-plugins

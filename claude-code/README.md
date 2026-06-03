@@ -1,8 +1,8 @@
 # claude-code/
 
-> *Two plugins, one engine — Furaidē's shikigami for Claude Code.*
+> *Two plugins, one engine. Furaidē's shikigami for Claude Code.*
 
-Part of the [F.R.I.D.A.Y.](https://github.com/pratty010/F.R.I.D.A.Y) monorepo.
+Part of the [F.R.I.D.A.Y.](https://github.com/pratty010/Furaide) monorepo.
 
 ---
 
@@ -10,8 +10,8 @@ Part of the [F.R.I.D.A.Y.](https://github.com/pratty010/F.R.I.D.A.Y) monorepo.
 
 | Plugin | Japanese | Role |
 |--------|----------|------|
-| **Mekiki** | 目利き ("appraiser") | Skill-usage analytics — captures every skill invocation and judges its effectiveness offline |
-| **Hanko** | 判子 ("signing seal") | Git workflow — Haiku subagent for commits, pushes, PR creation, and CI monitoring with human-in-the-loop approval |
+| **Mekiki** | 目利き ("appraiser") | Skill-usage analytics: captures every skill invocation and judges its effectiveness offline |
+| **Hanko** | 判子 ("signing seal") | Git workflow: Haiku subagent for commits, pushes, PR creation, and CI monitoring with human-in-the-loop approval |
 
 Both plugins share a single engine (`cli/`) installed by `scripts/bootstrap.sh`.
 
@@ -22,8 +22,8 @@ Both plugins share a single engine (`cli/`) installed by `scripts/bootstrap.sh`.
 ### 1. Clone and bootstrap
 
 ```bash
-git clone https://github.com/pratty010/F.R.I.D.A.Y.git ~/F.R.I.D.A.Y
-bash ~/F.R.I.D.A.Y/claude-code/scripts/bootstrap.sh
+git clone https://github.com/pratty010/Furaide.git ~/Furaidē
+bash ~/Furaidē/claude-code/scripts/bootstrap.sh
 ```
 
 The bootstrap script:
@@ -35,7 +35,7 @@ The bootstrap script:
 ### 2. Register and install plugins in Claude Code
 
 ```
-/plugin marketplace add pratty010/F.R.I.D.A.Y
+/plugin marketplace add pratty010/Furaide
 /plugin install mekiki@5h1nch4n
 /plugin install hanko@5h1nch4n
 /reload-plugins
@@ -45,7 +45,7 @@ The bootstrap script:
 
 ## Usage
 
-### Mekiki — skill analytics
+### Mekiki: skill analytics
 
 ```
 /mekiki                          # overview: which skills fired this week
@@ -65,7 +65,7 @@ mekiki improve --skill <name>     # build evidence pack
 mekiki improve --skill <name> --mark applied
 ```
 
-### Hanko — git workflow
+### Hanko: git workflow
 
 ```
 /github commit with "feat(opencode): add hanko subagent"
@@ -101,11 +101,11 @@ MEKIKI_CAPTURE_HOOK_PAYLOADS=1 claude
 
 ## Workflow skills
 
-Mekiki observes skills — you need skills installed for it to observe. Bootstrap offers to run the common installer. You can also run it separately:
+Mekiki observes skills, so you need skills installed for it to observe anything. Bootstrap offers to run the common installer. You can also run it separately:
 
 ```bash
-bash ~/F.R.I.D.A.Y/common/install-common.sh --global      # bx, html-preview, brave-search, plan
-bash ~/F.R.I.D.A.Y/common/install-skills.sh --ecosystem claude-code  # superpowers, notebooklm, …
+bash ~/Furaidē/common/install-common.sh --global      # bx, html-preview, brave-search, plan
+bash ~/Furaidē/common/install-skills.sh --ecosystem claude-code  # superpowers, notebooklm, …
 ```
 
 ---
@@ -116,8 +116,8 @@ bash ~/F.R.I.D.A.Y/common/install-skills.sh --ecosystem claude-code  # superpowe
 
 ```bash
 # Manually:
-cp ~/F.R.I.D.A.Y/claude-code/config/CLAUDE.md ~/.claude/CLAUDE.md
-cp ~/F.R.I.D.A.Y/claude-code/config/statusline-command.sh ~/.claude/statusline-command.sh
+cp ~/Furaidē/claude-code/config/CLAUDE.md ~/.claude/CLAUDE.md
+cp ~/Furaidē/claude-code/config/statusline-command.sh ~/.claude/statusline-command.sh
 # Then merge relevant keys from config/settings.json manually
 ```
 
@@ -152,8 +152,14 @@ plugins/
 
 **Adding a new plugin:** create `plugins/<name>/.claude-plugin/plugin.json`, then register it in `/.claude-plugin/marketplace.json` at the repo root.
 
+### Why `.claude-plugin/` is at the repo root
+
+Claude Code's marketplace command fetches `.claude-plugin/marketplace.json` from the repository root. That path is part of the discovery protocol: `/plugin marketplace add pratty010/Furaide` reads the repo-root copy, and `marketplace.json` already points `pluginRoot` at `./claude-code/plugins`. The file is a small JSON index; the actual plugin code lives in `plugins/` here.
+
+It stays at the root by design. Moving it under `claude-code/` would break the `owner/repo` install shorthand, which only resolves a marketplace at the repository root.
+
 ---
 
 ## Part of F.R.I.D.A.Y.
 
-The full collection lives at [pratty010/F.R.I.D.A.Y](https://github.com/pratty010/F.R.I.D.A.Y). Other components: `opencode/` (34-agent fleet), `common/` (shared skills + docs), `pi-agent/`, `openclaw/`.
+The full collection lives at [pratty010/Furaide](https://github.com/pratty010/Furaide). Other components: `opencode/` (29-agent core fleet), `common/` (shared skills + docs), `pi-agent/`, `openclaw/`.

@@ -73,7 +73,7 @@ This repo uses an HTTPS remote, so the auth key is unused here. Only the signing
 ### Fine-Grained PAT (Optional but Recommended)
 
 The `gh` CLI authenticates using a broad OAuth token by default. **Fine-grained PATs** are industry-standard:
-- Scoped to a single repository (`pratty010/F.R.I.D.A.Y` only)
+- Scoped to a single repository (`pratty010/Furaide` only)
 - Only the exact permissions needed: Contents, Pull requests, Workflows
 - Time-limited (90 days) and revokable
 - Blast radius if leaked: only this repo, not your whole account

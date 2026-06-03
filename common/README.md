@@ -11,19 +11,19 @@ common/
   scripts/                   # Shared scripts (github-setup-check)
   skills/                    # Vendored lightweight skills
   install-common.sh          # Copy common/skills → chosen scope
-  install-skills.sh          # Clone-install heavier/3rd-party skills from manifest
+  install-skills.sh          # Clone-install heavier/third-party skills from manifest
   skills-manifest.json       # Catalog of all skills, ecosystem-tagged
 ```
 
 ---
 
-## agents/ — A+B architecture
+## agents/ (A+B architecture)
 
-`common/agents/<name>/core.md` holds the **runtime-agnostic body** for each agent that is used across ecosystems. The body contains XML sections only — no frontmatter, no runtime-specific tool names.
+`common/agents/<name>/core.md` holds the **runtime-agnostic body** for each agent shared across ecosystems. The body contains XML sections only, no frontmatter, no runtime-specific tool names.
 
 Each ecosystem's agent file wraps the core:
-- **opencode** → `opencode/agents/<name>.md` = YAML frontmatter (mode/model/permissions) + `prompt: "{file:../common/agents/<name>/core.md}"` (native `{file:}` injection — no build step)
-- **claude-code** → body is copied in via `common/sync-agents.sh` (only if/when claude-code grows agents; not needed in the current plan)
+- **opencode** → `opencode/agents/<name>.md` = YAML frontmatter (mode/model/permissions) + `prompt: "{file:../common/agents/<name>/core.md}"` (native `{file:}` injection, no build step)
+- **claude-code** → body is copied in via `common/sync-agents.sh` (only if/when claude-code grows agents)
 - **pi-agent** → same copy pattern as claude-code if needed
 
 Current cores:
@@ -33,13 +33,13 @@ Current cores:
 | `researcher/` | Multi-source research with citation quality tagging |
 | `planner/` | Executor-ready implementation plans |
 | `strategist/` | Architecture decisions (ADRs + options tables) + implementation plans |
-| `shiranui/` | Migration orchestrator — dependency upgrades, codemods, rollback plans |
+| `shiranui/` | Migration orchestrator: dependency upgrades, codemods, rollback plans |
 
 See `docs/agent-template.md` for the XML body authoring standard and per-runtime injection rules.
 
 ---
 
-## docs/ — Shared reference
+## docs/ (shared reference)
 
 | File | Purpose |
 |------|---------|
@@ -50,7 +50,7 @@ See `docs/agent-template.md` for the XML body authoring standard and per-runtime
 
 ---
 
-## scripts/ — Shared scripts
+## scripts/ (shared scripts)
 
 | Script | Purpose |
 |--------|---------|
@@ -58,7 +58,7 @@ See `docs/agent-template.md` for the XML body authoring standard and per-runtime
 
 ---
 
-## skills/ — Vendored lightweight skills
+## skills/ (vendored lightweight skills)
 
 Installed by `install-common.sh`. These are self-contained (no external deps beyond what's documented in the SKILL.md):
 
@@ -81,7 +81,7 @@ bash common/install-common.sh --project <dir>       # → <dir>/skills/
 bash common/install-common.sh --custom <path>       # → <path>/skills/
 ```
 
-Copy mode (not symlink) — users own the installed copy. Re-run to update.
+Copy mode, not symlink. Users own the installed copy. Re-run to update.
 
 Called by both `claude-code/scripts/bootstrap.sh` and `opencode/scripts/install-fleet.sh`.
 
@@ -89,7 +89,7 @@ Called by both `claude-code/scripts/bootstrap.sh` and `opencode/scripts/install-
 
 ## install-skills.sh + skills-manifest.json
 
-For heavier / third-party skills that are clone-installed rather than vendored:
+For heavier or third-party skills that are clone-installed rather than vendored:
 
 ```bash
 bash common/install-skills.sh                       # interactive

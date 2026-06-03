@@ -2,7 +2,7 @@
 
 OpenCLAW persona configurations for Furaidē's stateful assistant runtime.
 
-OpenCLAW is a separate runtime from opencode and claude-code — a persistent, Discord/gateway-connected agent that holds memory across sessions via markdown files. See the [OpenCLAW documentation](https://docs.openclaw.ai) for the full reference.
+OpenCLAW is a separate runtime from opencode and claude-code. It's a persistent, Discord/gateway-connected agent that holds memory across sessions via markdown files. See the [OpenCLAW documentation](https://docs.openclaw.ai) for the full reference.
 
 ---
 
@@ -12,13 +12,13 @@ OpenCLAW is a separate runtime from opencode and claude-code — a persistent, D
 openclaw/
   agents/
     workspace-kinyo/      # Kinyo persona — general assistant with GOSHIN v2 security
-    workspace-koda/       # Koda persona
+    workspace-koda/       # Koda persona — code-focused
     workspace-kagakusha/  # Kagakusha persona — research specialist
-    workspace-tengan/     # Tengan persona
+    workspace-tengan/     # Tengan persona — lightweight general
   _reference/             # GITIGNORED — full experimental config with live secrets (local only)
 ```
 
-The workspace directories are safe to commit — they contain only personality/behavior markdown files. The `_reference/` directory is gitignored; it holds the actual `openclaw.json` and `openclaw_default.json` config files which contain live API keys. **Never commit `_reference/`.**
+The workspace directories are safe to commit; they contain only personality/behavior markdown files. The `_reference/` directory is gitignored; it holds the actual `openclaw.json` and `openclaw_default.json` config files which contain live API keys. **Never commit `_reference/`.**
 
 ---
 
@@ -39,7 +39,7 @@ brew install openclaw/tap/openclaw
 
 ## Config schema (`openclaw.json`)
 
-Create your own `openclaw.json` in `~/.config/openclaw/` or a path of your choice. The structure (all values are placeholders — never commit real keys):
+Create your own `openclaw.json` in `~/.config/openclaw/` or a path of your choice. The structure below uses placeholders; never commit real keys:
 
 ```json
 {
@@ -92,16 +92,16 @@ Create your own `openclaw.json` in `~/.config/openclaw/` or a path of your choic
 
 ## Persona workspace structure (SOUL/IDENTITY/MEMORY pattern)
 
-Each workspace directory (`agents/workspace-*/`) holds a set of markdown files that define the persona's behavior and memory:
+Each workspace directory (`agents/workspace-*/`) holds markdown files that define the persona's behavior and memory:
 
 | File | Purpose |
 |------|---------|
-| `SOUL.md` | Core identity — who the agent is, values, voice, boundaries |
-| `IDENTITY.md` | Public persona — how it presents, catchphrases, interaction style |
-| `MEMORY.md` | Persistent memory — what the agent remembers across sessions |
+| `SOUL.md` | Core identity: who the agent is, values, voice, boundaries |
+| `IDENTITY.md` | Public persona: how it presents, catchphrases, interaction style |
+| `MEMORY.md` | Persistent memory: what the agent remembers across sessions |
 | `AGENTS.md` | Agent roster and dispatch rules |
 | `TOOLS.md` | Available tools and their use |
-| `HEARTBEAT.md` | Session startup ritual — what to load, check, and surface |
+| `HEARTBEAT.md` | Session startup ritual: what to load, check, and surface |
 | `USER.md` (optional) | Per-user context and preferences |
 | `RESEARCH.md` (optional) | Research notes and findings |
 
@@ -115,9 +115,9 @@ The agent reads all files in its `agentDir` at session start. `MEMORY.md` and `U
    ```bash
    cp -r openclaw/agents/workspace-kinyo openclaw/agents/workspace-myagent
    ```
-2. Edit `SOUL.md` — define the core identity, values, and voice.
-3. Edit `IDENTITY.md` — define the public persona and interaction style.
-4. Clear `MEMORY.md` — start with an empty or minimal state.
+2. Edit `SOUL.md` to define the core identity, values, and voice.
+3. Edit `IDENTITY.md` to define the public persona and interaction style.
+4. Clear `MEMORY.md` to start with an empty or minimal state.
 5. Update `AGENTS.md` and `TOOLS.md` to match the new persona's capabilities.
 6. Add the workspace to `openclaw.json` under `agents.list`:
    ```json
@@ -131,11 +131,11 @@ The agent reads all files in its `agentDir` at session start. `MEMORY.md` and `U
 
 GOSHIN v2 is a behavioral security protocol embedded in the `workspace-kinyo` persona. Key principles:
 
-1. **Privacy by default** — private information stays private; never echo credentials or tokens
-2. **Confirm before external actions** — any action that affects external systems (send message, post, delete) requires explicit user confirmation
-3. **Minimal footprint** — only request permissions needed for the current task
-4. **Audit trail** — log significant actions to MEMORY.md
-5. **Graceful refusal** — decline requests that violate boundaries without being preachy about it
+1. Private information stays private; never echo credentials or tokens.
+2. Any action affecting external systems (send, post, delete) requires explicit user confirmation first.
+3. Only request permissions needed for the current task.
+4. Log significant actions to MEMORY.md.
+5. Decline requests that violate boundaries without being preachy about it.
 
 To adapt GOSHIN v2 for a new persona: copy the relevant sections from `workspace-kinyo/SOUL.md` and `workspace-kinyo/HEARTBEAT.md` into your new workspace, then adjust the persona-specific language.
 

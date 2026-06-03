@@ -1,0 +1,12 @@
+{
+  "name": "furaide",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Furaidē monorepo root. Holds repo-wide git-hook tooling (lefthook); component packages live in pi-agent/ and opencode/.",
+  "scripts": {
+    "prepare": "lefthook install"
+  },
+  "devDependencies": {
+    "lefthook": "2.1.9"
+  }
+}

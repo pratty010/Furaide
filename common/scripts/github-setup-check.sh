@@ -63,10 +63,10 @@ checks[gh_signing_key]=$(
     fi
   fi
 )
-checks[master_ruleset]=$(gh api repos/pratty010/F.R.I.D.A.Y/rulesets --jq '.[].name' 2>/dev/null | grep -qE "master|master-protection" && echo "✓" || echo "✗")
-checks[secret_scanning]=$(gh api repos/pratty010/F.R.I.D.A.Y --jq '.security_and_analysis.secret_scanning.status // "disabled"' 2>/dev/null | grep -q "enabled" && echo "✓" || echo "✗")
-checks[push_protection]=$(gh api repos/pratty010/F.R.I.D.A.Y --jq '.security_and_analysis.secret_scanning_push_protection.status // "disabled"' 2>/dev/null | grep -q "enabled" && echo "✓" || echo "✗")
-checks[api_access]=$(gh api repos/pratty010/F.R.I.D.A.Y --jq '.name' 2>/dev/null | grep -q "F.R.I.D.A.Y" && echo "✓" || echo "✗")
+checks[master_ruleset]=$(gh api repos/pratty010/Furaide/rulesets --jq '.[].name' 2>/dev/null | grep -qE "master|master-protection" && echo "✓" || echo "✗")
+checks[secret_scanning]=$(gh api repos/pratty010/Furaide --jq '.security_and_analysis.secret_scanning.status // "disabled"' 2>/dev/null | grep -q "enabled" && echo "✓" || echo "✗")
+checks[push_protection]=$(gh api repos/pratty010/Furaide --jq '.security_and_analysis.secret_scanning_push_protection.status // "disabled"' 2>/dev/null | grep -q "enabled" && echo "✓" || echo "✗")
+checks[api_access]=$(gh api repos/pratty010/Furaide --jq '.name' 2>/dev/null | grep -q "F.R.I.D.A.Y" && echo "✓" || echo "✗")
 
 # Fine-grained PAT check
 checks[fine_grained_pat]=$(
@@ -84,7 +84,7 @@ fi
 if [[ "$all_passed" == "true" ]]; then
   output="F.R.I.D.A.Y. GitHub setup — all critical checks passed"$'\n'
   if [[ "${checks[fine_grained_pat]}" != "✓" ]]; then
-    output+=$'\n'"${YELLOW}[6/7] Fine-grained PAT (recommended — optional)${NC}"$'\n'"  ⚠ gh CLI is using a broad OAuth token"$'\n'"      Industry standard: use a repo-scoped fine-grained token instead"$'\n'"      → github.com → Settings → Developer settings → Personal access tokens → Fine-grained tokens"$'\n'"      → Repository: pratty010/F.R.I.D.A.Y only"$'\n'"      → Permissions: Contents(RW), Pull requests(RW), Workflows(RW), Metadata(R)"$'\n'"      → echo \"<TOKEN>\" | gh auth login --with-token"
+    output+=$'\n'"${YELLOW}[6/7] Fine-grained PAT (recommended — optional)${NC}"$'\n'"  ⚠ gh CLI is using a broad OAuth token"$'\n'"      Industry standard: use a repo-scoped fine-grained token instead"$'\n'"      → github.com → Settings → Developer settings → Personal access tokens → Fine-grained tokens"$'\n'"      → Repository: pratty010/Furaide only"$'\n'"      → Permissions: Contents(RW), Pull requests(RW), Workflows(RW), Metadata(R)"$'\n'"      → echo \"<TOKEN>\" | gh auth login --with-token"
   fi
 else
   output="F.R.I.D.A.Y. GitHub setup — first-time guide"$'\n'
@@ -131,7 +131,7 @@ else
   output+=$'\n'"${GREEN}[3/7] GitHub repo security${NC}"$'\n'
   output+="  ${checks[master_ruleset]} Master ruleset active"$'\n'
   if [[ "${checks[master_ruleset]}" != "✓" ]]; then
-    output+="      → github.com/pratty010/F.R.I.D.A.Y → Settings → Rules → Master should have ruleset"$'\n'
+    output+="      → github.com/pratty010/Furaide → Settings → Rules → Master should have ruleset"$'\n'
   fi
   output+="  ${checks[secret_scanning]} Secret scanning enabled"$'\n'
   if [[ "${checks[secret_scanning]}" != "✓" ]]; then
@@ -168,7 +168,7 @@ else
     output+="      → github.com → Settings → Developer settings → Personal access tokens → Fine-grained tokens"$'\n'
     output+="      → Token name: friday-monorepo"$'\n'
     output+="      → Expiration: 90 days"$'\n'
-    output+="      → Repository: Only pratty010/F.R.I.D.A.Y"$'\n'
+    output+="      → Repository: Only pratty010/Furaide"$'\n'
     output+="      → Permissions: Contents(RW), Pull requests(RW), Workflows(RW), Metadata(R)"$'\n'
     output+="      → Generate → copy token → echo \"<TOKEN>\" | gh auth login --with-token"$'\n'
     output+="      (Optional — existing auth works; this reduces blast radius if token leaks)"$'\n'

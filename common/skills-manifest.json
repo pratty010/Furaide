@@ -14,7 +14,7 @@
     },
     "friday": {
       "type": "git",
-      "url": "https://github.com/pratty010/F.R.I.D.A.Y.git",
+      "url": "https://github.com/pratty010/Furaide.git",
       "clone_to": "~/.agents/skill-repos/friday",
       "skills_dir": "common/skills",
       "notes": "F.R.I.D.A.Y. native skills vendored in common/skills/. install-common.sh handles these directly — no clone needed.",
