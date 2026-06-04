@@ -119,8 +119,8 @@ Then in Claude Code:
 
 ```
 /plugin marketplace add pratty010/Furaide
-/plugin install mekiki@5h1nch4n
-/plugin install hanko@5h1nch4n
+/plugin install mekiki@fr1d4y
+/plugin install hanko@fr1d4y
 /reload-plugins
 ```
 
