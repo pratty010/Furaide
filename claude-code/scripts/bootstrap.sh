@@ -31,6 +31,34 @@ GREEN='\033[0;32m'; YELLOW='\033[1;33m'; NC='\033[0m'
 ok()   { printf "${GREEN}[ok]${NC}   %s\n" "$*"; }
 warn() { printf "${YELLOW}[warn]${NC} %s\n" "$*" >&2; }
 
+# Merge all top-level keys from src JSON into dst JSON (src overrides dst).
+_merge_settings() {
+  local src="$1" dst="$2"
+  [[ -f "$src" ]] || return 0
+  if [[ ! -f "$dst" ]]; then
+    cp "$src" "$dst"
+    ok "installed settings.json → ~/.claude/"
+    return
+  fi
+  if python3 -c "
+import json,sys
+src=json.load(open(sys.argv[1]))
+try: dst=json.load(open(sys.argv[2]))
+except: dst={}
+dst.update(src)
+open(sys.argv[2],'w').write(json.dumps(dst,indent=2)+'\n')
+" "$src" "$dst" 2>/dev/null; then
+    ok "merged settings.json keys into ~/.claude/settings.json"
+  elif command -v jq >/dev/null 2>&1; then
+    local tmp; tmp=$(mktemp)
+    jq -s '.[0] * .[1]' "$dst" "$src" > "$tmp" 2>/dev/null && mv "$tmp" "$dst" \
+      && ok "merged settings.json keys into ~/.claude/settings.json" \
+      || { rm -f "$tmp"; warn "could not merge settings.json — add keys from $src into $dst manually"; }
+  else
+    warn "could not merge settings.json — add keys from $src into $dst manually"
+  fi
+}
+
 ASSUME_YES=0
 
 confirm() {  # confirm "message" — returns 0 (yes) / 1 (no); default yes
@@ -128,17 +156,29 @@ fi
 # ── 4) Config bundle ──────────────────────────────────────────────────────────
 if confirm "Back up & install CLAUDE.md + statusline-command.sh → ~/.claude?"; then
   mkdir -p "$HOME/.claude"
-  for f in CLAUDE.md statusline-command.sh; do
-    dest="$HOME/.claude/$f"
-    if [[ -e "$dest" ]]; then
-      bak="$dest.bak.$(date +%Y%m%d%H%M%S)"
-      cp "$dest" "$bak"
-      ok "backed up ~/.claude/$f → $(basename "$bak")"
-    fi
-    cp "$REPO/config/$f" "$dest"
-    ok "copied $f → ~/.claude/"
-  done
-  printf '\n[note] Merge keys from %s/config/settings.json into ~/.claude/settings.json by hand.\n' "$REPO"
+
+  # CLAUDE.md: back up + copy (user may customize)
+  dest="$HOME/.claude/CLAUDE.md"
+  if [[ -e "$dest" && ! -L "$dest" ]]; then
+    bak="$dest.bak.$(date +%Y%m%d%H%M%S)"
+    cp "$dest" "$bak"
+    ok "backed up ~/.claude/CLAUDE.md → $(basename "$bak")"
+  fi
+  cp "$REPO/config/CLAUDE.md" "$dest"
+  ok "copied CLAUDE.md → ~/.claude/"
+
+  # statusline-command.sh: symlink so source edits auto-deploy
+  dest="$HOME/.claude/statusline-command.sh"
+  if [[ -e "$dest" && ! -L "$dest" ]]; then
+    bak="$dest.bak.$(date +%Y%m%d%H%M%S)"
+    cp "$dest" "$bak"
+    ok "backed up ~/.claude/statusline-command.sh → $(basename "$bak")"
+  fi
+  ln -sf "$REPO/config/statusline-command.sh" "$dest"
+  ok "symlinked statusline-command.sh → $REPO/config/"
+
+  # settings.json: merge source keys into ~/.claude/settings.json
+  _merge_settings "$REPO/config/settings.json" "$HOME/.claude/settings.json"
 fi
 
 # ── Done ──────────────────────────────────────────────────────────────────────

@@ -10,9 +10,7 @@ Furaidē's global Claude Code configuration, safe to copy into `~/.claude/`. Eac
 
 ```bash
 cp config/CLAUDE.md ~/.claude/CLAUDE.md
-cp config/keybindings.json ~/.claude/keybindings.json
 cp config/statusline-command.sh ~/.claude/statusline-command.sh
-# Then manually merge config/settings.json into ~/.claude/settings.json
 ```
 
 ---

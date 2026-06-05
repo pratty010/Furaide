@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
 # Furaidē statusline — 2-line, outer-pinned, width-adaptive (reads $COLUMNS).
-# Requires: jq. Claude Code v2.1.153+ exports COLUMNS/LINES and re-runs on resize.
+# Requires: jq, python3. Claude Code exports COLUMNS before each run (v2.1.153+).
+# Re-runs on: new assistant message, /compact, permission/vim mode change, refreshInterval timer.
+# Terminal resize is NOT an automatic trigger — refreshInterval is the only mitigation.
 #
-# Line 1  L: 🧠 <model> │ <effort>          R: [⚠ ]CTX: [bar] used/window
-# Line 2  L: 📁 path (branch) │ ↑in/↓out    R: 5hr: % (reset) │ 1wk: % (reset) │ $cost  OR  $: cost
+# Line 1  L: 🧠 <model> │ <effort> │ 🕐 time   R: ↑in⚡cache%/↓out │ [⚠ ]CTX: [bar] used/win
+# Line 2  L: 📁 path (branch) │ +add/-rem        R: 5hr: % (reset) │ 1wk: % (reset) │ $cost
 #
 # Env: STATUSLINE_GLYPHS=emoji|nerd|text   (default emoji)
 
@@ -23,17 +25,37 @@ _jq_int() { echo "$input" | jq -r "${1} // 0" 2>/dev/null | cut -d. -f1; }
 # ── width / format helpers ─────────────────────────────────────────────────
 ESC=$'\033'
 _vlen() {
-  printf '%s' "$1" \
-  | sed "s/${ESC}\[[0-9;]*m//g" \
-  | sed -e 's/🧠/##/g' -e 's/📁/##/g' -e 's/[│█░↑↓…⚠]/X/g' \
-  | awk '{print length}'
+  # Unicode-aware visual width: counts W/F chars as 2, combining marks as 0, rest as 1.
+  # Falls back to awk byte-count if python3 absent.
+  printf '%s' "$1" | python3 -c "
+import sys,re,unicodedata as u
+FW=set('⚠')
+s=sys.stdin.read()
+s=re.sub(r'\x1b\[[0-9;]*[A-Za-z]','',s)
+print(sum(2 if c in FW or u.east_asian_width(c) in('W','F') else(0 if u.category(c)=='Mn' else 1) for c in s))
+" 2>/dev/null || printf '%s' "$1" | sed "s/${ESC}\[[0-9;]*m//g" | awk '{print length}'
 }
 _trunc() {
-  local s="$1" n="$2" v vlen
-  v=$(printf '%s' "$s" | sed "s/${ESC}\[[0-9;]*m//g")
-  vlen=$(_vlen "$v")
-  if [ "$vlen" -le "$n" ]; then printf '%s' "$s"
-  else printf '%s…%s' "${v:0:$((n-1))}" "$RST"; fi
+  # Truncate to n visual columns, preserving ANSI color codes.
+  # Only appends RST when input contained ANSI. Fallback: plain-text truncation.
+  local s="$1" n="$2"
+  printf '%s' "$s" | python3 -c "
+import sys,re,unicodedata as u
+FW=set('⚠')
+def vw(c):return 2 if c in FW or u.east_asian_width(c) in('W','F') else(0 if u.category(c)=='Mn' else 1)
+s=sys.stdin.read(); n=int('$n')
+has_ansi=bool(re.search(r'\x1b\[',s))
+plain=re.sub(r'\x1b\[[0-9;]*[A-Za-z]','',s)
+if sum(vw(c) for c in plain)<=n:sys.stdout.write(s);sys.exit()
+r,w,i='',0,0
+while i<len(s):
+    m=re.match(r'\x1b\[[0-9;]*[A-Za-z]',s[i:])
+    if m:r+=m.group();i+=len(m.group());continue
+    cw=vw(s[i])
+    if w+cw>n-1:break
+    r+=s[i];w+=cw;i+=1
+sys.stdout.write(r+'…'+('\x1b[0m' if has_ansi else ''))
+" 2>/dev/null || { local v; v=$(printf '%s' "$s" | sed "s/${ESC}\[[0-9;]*m//g"); printf '%.*s…' "$((n-1))" "$v"; }
 }
 _human() {
   local n="${1:-0}"
@@ -53,6 +75,11 @@ _until() {
   elif [ "$h" -gt 0 ]; then printf '%dh%dm' "$h" "$m"
   else printf '%dm' "$m"; fi
 }
+_dur() {  # ms -> compact h/m (e.g. 3900000 -> "1h5m", 2400000 -> "40m")
+  local ms="${1:-0}" tot h m
+  tot=$(( ms / 60000 )); h=$(( tot / 60 )); m=$(( tot % 60 ))
+  if [ "$h" -gt 0 ]; then printf '%dh%dm' "$h" "$m"; else printf '%dm' "$m"; fi
+}
 _bar() {  # pct width
   local pct="$1" w="$2" f e i out=""
   f=$(( pct * w / 100 )); [ "$f" -gt "$w" ] && f=$w; [ "$f" -lt 0 ] && f=0
@@ -67,12 +94,13 @@ _pathshort() {  # collapse long path to <first>/…/<basename>
   printf '%s/…/%s' "${p%%/*}" "$(basename "$p")"
 }
 
-COLS="${COLUMNS:-80}"; MARGIN=3; USABLE=$(( COLS - MARGIN ))
+COLS="${COLUMNS:-80}"; MARGIN=4; USABLE=$(( COLS - MARGIN ))
 [ "$USABLE" -lt 20 ] && USABLE=20
 
-_lr() {  # left right -> pinned corners, truncate inner edges (RIGHT keeps priority)
-  local left="$1" right="$2" ll rl
-  ll=$(_vlen "$left"); rl=$(_vlen "$right")
+_lr() {  # left right [pre-ll] [pre-rl] -> outer-pinned line with truncation
+  local left="$1" right="$2" ll="${3:-}" rl="${4:-}"
+  [ -z "$ll" ] && ll=$(_vlen "$left")
+  [ -z "$rl" ] && rl=$(_vlen "$right")
   if [ $(( ll + rl + 1 )) -gt "$USABLE" ]; then
     local maxleft=$(( USABLE - rl - 1 )); [ "$maxleft" -lt 4 ] && maxleft=4
     left=$(_trunc "$left" "$maxleft"); ll=$(_vlen "$left")
@@ -84,7 +112,7 @@ _lr() {  # left right -> pinned corners, truncate inner edges (RIGHT keeps prior
   printf '%s%*s%s\n' "$left" "$pad" '' "$right"
 }
 
-# ── Line 1 LEFT: model │ effort ────────────────────────────────────────────
+# ── Line 1 LEFT: model │ effort │ 🕐 duration ──────────────────────────────
 MODEL=$(_jq '.model.display_name'); [ -z "$MODEL" ] && MODEL="?"
 case "$MODEL" in
   *Opus*)   MC="$MAG" ;; *Sonnet*) MC="$BLU" ;; *Haiku*) MC="$GRN" ;; *) MC="$BOLD" ;;
@@ -99,10 +127,16 @@ if [ -n "$EFFORT" ]; then
   esac
   L1L+=" ${DIM}│${RST} ${EC}${EFFORT}${RST}"
 fi
+DURATION_MS=$(_jq_int '.cost.total_duration_ms')
+if [ "$DURATION_MS" -ge 60000 ]; then
+  case "$GLYPHS" in emoji) CG="🕐 " ;; nerd) CG=$' ' ;; *) CG="" ;; esac
+  L1L+=" ${DIM}│${RST} ${DIM}${CG}$(_dur "$DURATION_MS")${RST}"
+fi
 
-# ── Line 1 RIGHT: context ──────────────────────────────────────────────────
+# ── Line 1 RIGHT: ↑tokens⚡cache/↓out │ [⚠ ]CTX bar ──────────────────────
 CTX_PCT=$(_jq_int '.context_window.used_percentage')
-USED=$(_jq_int '.context_window.total_input_tokens')
+IN=$(_jq_int '.context_window.total_input_tokens')
+OUT=$(_jq_int '.context_window.total_output_tokens')
 WIN=$(_jq_int '.context_window.context_window_size')
 EXCEEDS=$(_jq '.exceeds_200k_tokens')
 if   [ "$EXCEEDS" = "true" ] || [ "$CTX_PCT" -ge 90 ]; then BC="$RED"
@@ -111,10 +145,16 @@ elif [ "$CTX_PCT" -ge 50 ]; then BC="$BYLW"
 else BC="$GRN"; fi
 WARN=""
 { [ "$EXCEEDS" = "true" ] || [ "$CTX_PCT" -ge 90 ]; } && WARN="${RED}⚠ ${RST}"
-L1R="${WARN}${DIM}CTX:${RST} ${BC}[$(_bar "$CTX_PCT" 10)]${RST} ${DIM}$(_human "$USED")/$(_human "$WIN")${RST}"
-_lr "$L1L" "$L1R"
+CACHE_HIT=$(_jq_int '.context_window.current_usage.cache_read_input_tokens')
+IN_STR="${GRN}↑$(_human "$IN")${RST}"
+if [ "$IN" -gt 0 ] && [ "$CACHE_HIT" -gt 0 ]; then
+  CACHE_PCT=$(( CACHE_HIT * 100 / IN ))
+  IN_STR="${GRN}↑$(_human "$IN")${DIM}⚡${CACHE_PCT}%${RST}"
+fi
+TOK="${IN_STR}/${BLU}↓$(_human "$OUT")${RST} ${DIM}│${RST} "
+L1R="${TOK}${WARN}${DIM}CTX:${RST} ${BC}[$(_bar "$CTX_PCT" 10)]${RST} ${DIM}$(_human "$IN")/$(_human "$WIN")${RST}"
 
-# ── Line 2 LEFT: path (branch) │ ↑in/↓out ──────────────────────────────────
+# ── Line 2 LEFT: path (branch) │ +add/-rem ────────────────────────────────
 DIR=$(_jq '.workspace.current_dir // .cwd')
 RAWDIR="$DIR"
 case "$DIR" in "$HOME"*) DIR="~${DIR#$HOME}" ;; esac
@@ -127,9 +167,11 @@ WT=$(_jq '.workspace.git_worktree')
 case "$GLYPHS" in emoji) DG="📁 " ;; nerd) DG=$' ' ;; *) DG="" ;; esac
 L2L="${DG}${BOLD}${DIR}${RST}"
 [ -n "$BRANCH" ] && L2L+=" ${YLW}(${BRANCH})${RST}"
-IN=$(_jq_int '.context_window.total_input_tokens')
-OUT=$(_jq_int '.context_window.total_output_tokens')
-L2L+=" ${DIM}│${RST} ${GRN}↑$(_human "$IN")${RST}/${BLU}↓$(_human "$OUT")${RST}"
+LINES_ADD=$(_jq_int '.cost.total_lines_added')
+LINES_REM=$(_jq_int '.cost.total_lines_removed')
+if [ "$LINES_ADD" -gt 0 ] || [ "$LINES_REM" -gt 0 ]; then
+  L2L+=" ${DIM}│${RST} ${GRN}+${LINES_ADD}${RST}/${RED}-${LINES_REM}${RST}"
+fi
 
 # ── Line 2 RIGHT: rate limits (subscriber) OR cost (credit) ────────────────
 HAS_RL=$(_jq '.rate_limits')
@@ -146,6 +188,19 @@ if [ -n "$HAS_RL" ]; then
 else
   L2R="${DIM}\$:${RST} ${COST:-0.00}"
 fi
-_lr "$L2L" "$L2R"
+
+# ── Batch width computation → render both lines ────────────────────────────
+read -r _w1l _w1r _w2l _w2r < <(
+  printf '%s\n%s\n%s\n%s\n' "$L1L" "$L1R" "$L2L" "$L2R" \
+  | python3 -c "
+import sys,re,unicodedata as u
+FW=set('⚠')
+def vw(s):
+    s=re.sub(r'\x1b\[[0-9;]*[A-Za-z]','',s)
+    return sum(2 if c in FW or u.east_asian_width(c) in('W','F') else(0 if u.category(c)=='Mn' else 1) for c in s)
+for line in sys.stdin: print(vw(line.rstrip('\n')), end=' ')
+" 2>/dev/null) || true
+_lr "$L1L" "$L1R" "${_w1l:-}" "${_w1r:-}"
+_lr "$L2L" "$L2R" "${_w2l:-}" "${_w2r:-}"
 
 exit 0

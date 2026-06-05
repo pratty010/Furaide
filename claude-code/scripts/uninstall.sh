@@ -28,6 +28,32 @@ ok()   { printf "${GREEN}[ok]${NC}    %s\n" "$*"; }
 warn() { printf "${YELLOW}[warn]${NC}  %s\n" "$*" >&2; }
 info() { printf "        %s\n" "$*"; }
 
+# Remove all top-level keys in src JSON from dst JSON, in-place.
+_remove_settings_keys() {
+  local src="$1" dst="$2"
+  [[ -f "$src" && -f "$dst" ]] || return 0
+  if python3 -c "
+import json,sys
+keys=list(json.load(open(sys.argv[1])).keys())
+try: dst=json.load(open(sys.argv[2]))
+except: sys.exit()
+[dst.pop(k,None) for k in keys]
+open(sys.argv[2],'w').write(json.dumps(dst,indent=2)+'\n')
+" "$src" "$dst" 2>/dev/null; then
+    ok "removed settings.json keys from ~/.claude/settings.json"
+  elif command -v jq >/dev/null 2>&1; then
+    local keys filter tmp
+    mapfile -t keys < <(jq -r 'keys[]' "$src" 2>/dev/null)
+    filter=$(printf ' | del(."%s")' "${keys[@]}")
+    tmp=$(mktemp)
+    jq ".${filter}" "$dst" > "$tmp" 2>/dev/null && mv "$tmp" "$dst" \
+      && ok "removed settings.json keys from ~/.claude/settings.json" \
+      || { rm -f "$tmp"; warn "could not modify settings.json — remove keys manually"; }
+  else
+    warn "could not modify settings.json — remove keys from $dst manually"
+  fi
+}
+
 DRY_RUN=false
 PURGE=false
 
@@ -172,9 +198,25 @@ for cfile in CLAUDE.md statusline-command.sh; do
   fi
 done
 
-printf '\n[note] settings.json is NOT auto-modified. Remove the statusLine entry manually:\n'
-printf '  Open ~/.claude/settings.json\n'
-printf '  Remove the "statusLine" key/value from the JSON object\n'
+# 2c. ~/.claude/settings.json — remove keys installed by bootstrap
+src_settings="$REPO/config/settings.json"
+dst_settings="$HOME/.claude/settings.json"
+if [[ -f "$dst_settings" && -f "$src_settings" ]]; then
+  if $PURGE; then
+    _remove_settings_keys "$src_settings" "$dst_settings"
+  elif $DRY_RUN; then
+    keys=$(python3 -c "import json; print(', '.join(json.load(open('$src_settings')).keys()))" 2>/dev/null \
+           || echo "(see $src_settings)")
+    printf "[dry-run] would remove settings.json keys: %s\n" "$keys"
+  else
+    keys=$(python3 -c "import json; print(', '.join(json.load(open('$src_settings')).keys()))" 2>/dev/null \
+           || echo "(see $src_settings)")
+    printf '\nRemove installed keys from ~/.claude/settings.json? (%s) [y/N] ' "$keys"
+    read -r R </dev/tty || R=n
+    [[ "$R" =~ ^[Yy] ]] && _remove_settings_keys "$src_settings" "$dst_settings" \
+      || info "kept settings.json unchanged"
+  fi
+fi
 
 # ===========================================================================
 # Done
