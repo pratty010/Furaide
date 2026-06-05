@@ -1,5 +1,5 @@
 import { test, expect } from 'bun:test';
-const { __test_hookFor } = await import('../../plugins/security-patterns.js');
+const { __test_hookFor } = await import('../../plugins/komainu.js');
 
 test('clean content passes through', async () => {
   const hook = __test_hookFor();

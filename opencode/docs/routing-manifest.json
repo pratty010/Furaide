@@ -3,7 +3,7 @@
   "specialists": {
     "tsuchigumo": {
       "primary": "opencode-go/kimi-k2.5",
-      "fallback": ["openai/gpt-5.4-mini", "opencode-go/qwen3.6-plus", "opencode/nemotron-3-super-free"]
+      "fallback": ["openai/gpt-5.4-mini", "opencode-go/qwen3.6-plus", "opencode/nemotron-3-ultra-free"]
     },
     "daikoku": {
       "primary": "opencode-go/qwen3.7-max",
@@ -11,7 +11,7 @@
     },
     "enma": {
       "primary": "opencode-go/qwen3.6-plus",
-      "fallback": ["openai/gpt-5.4-mini", "opencode-go/glm-5", "opencode/nemotron-3-super-free"]
+      "fallback": ["openai/gpt-5.4-mini", "opencode-go/glm-5", "opencode/nemotron-3-ultra-free"]
     },
     "fudo": {
       "primary": "opencode-go/kimi-k2.6",
@@ -120,15 +120,15 @@
     },
     "tanuki": {
       "primary": "opencode/big-pickle",
-      "fallback": ["opencode-go/qwen3.6-plus", "opencode/nemotron-3-super-free", "google-vertex/gemini-3-flash-preview"]
+      "fallback": ["opencode-go/qwen3.6-plus", "opencode/nemotron-3-ultra-free", "google-vertex/gemini-3-flash-preview"]
     },
     "karasutengu": {
       "primary": "opencode/big-pickle",
-      "fallback": ["opencode-go/qwen3.6-plus", "opencode/nemotron-3-super-free"]
+      "fallback": ["opencode-go/qwen3.6-plus", "opencode/nemotron-3-ultra-free"]
     },
     "hanko": {
       "primary": "openai/gpt-5.4-mini",
-      "fallback": ["openai/gpt-5.4", "opencode-go/qwen3.6-plus"]
+      "fallback": ["opencode-go/qwen3.6-plus", "openai/gpt-5.4"]
     },
     "mizuchi": {
       "primary": "opencode-go/deepseek-v4-flash",

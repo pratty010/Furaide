@@ -1,7 +1,7 @@
 import { test, expect } from 'bun:test';
 import { join } from 'node:path';
 
-const pluginPath = join(import.meta.dir, '../../plugins/gate-enforcer.js');
+const pluginPath = join(import.meta.dir, '../../plugins/nio.js');
 
 async function loadPlugin() {
   return await import(pluginPath);

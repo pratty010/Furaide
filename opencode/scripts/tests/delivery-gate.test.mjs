@@ -1,5 +1,5 @@
 import { test, expect } from 'bun:test';
-const { __test_hookFor } = await import('../../plugins/delivery-gate.js');
+const { __test_hookFor } = await import('../../plugins/nurikabe.js');
 
 function makeHook(verdict) {
   return __test_hookFor({ readVerdict: () => verdict });
