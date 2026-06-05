@@ -9,7 +9,7 @@
 #   bash common/install-common.sh --project <dir>       # → <dir>/skills/
 #   bash common/install-common.sh --custom <path>       # → <path>/skills/
 #
-# Skills installed: bx, html-preview, brave-search, plan
+# Skills installed: bx, html-preview, brave-search, plan, github
 #
 # Copy (not symlink) mode — users own the installed copy; update by re-running.
 
@@ -93,7 +93,7 @@ for skill_dir in "$SKILLS_SRC"/*/; do
   if [[ -d "$dest" ]]; then
     warn "  $skill_name: already exists at $dest — skipping (delete to reinstall)"
   else
-    cp -r "$skill_dir" "$dest"
+    cp -rL "$skill_dir" "$dest"
     ok "  $skill_name → $dest"
   fi
 done
@@ -105,7 +105,7 @@ if [[ -n "$CLAUDE_DEST" ]]; then
     skill_name="$(basename "$skill_dir")"
     dest="$CLAUDE_DEST/$skill_name"
     if [[ ! -d "$dest" ]]; then
-      cp -r "$skill_dir" "$dest"
+      cp -rL "$skill_dir" "$dest"
       ok "  $skill_name → $dest"
     fi
   done
