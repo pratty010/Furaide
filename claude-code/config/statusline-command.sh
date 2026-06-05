@@ -23,11 +23,14 @@ _jq_int() { echo "$input" | jq -r "${1} // 0" 2>/dev/null | cut -d. -f1; }
 
 # ── width / format helpers ─────────────────────────────────────────────────
 ESC=$'\033'
+# NOTE: awk length counts bytes, not display columns. Multi-byte chars (emoji, block
+# glyphs) are over-counted, producing extra padding rather than overflow — safe failure.
 _vlen() { printf '%s' "$1" | sed "s/${ESC}\[[0-9;]*m//g" | awk '{print length}'; }
 _trunc() {
   local s="$1" n="$2" v
   v=$(printf '%s' "$s" | sed "s/${ESC}\[[0-9;]*m//g")
   if [ "${#v}" -le "$n" ]; then printf '%s' "$s"
+  # Truncation strips ANSI color from the sliced prefix; RST appended for safety.
   else printf '%s…%s' "${v:0:$((n-1))}" "$RST"; fi
 }
 _human() {
@@ -94,7 +97,7 @@ if [ -n "$EFFORT" ]; then
 fi
 
 # ── Line 1 RIGHT: context ──────────────────────────────────────────────────
-CTX_PCT=$(_jq_int '.context_window.used_percentage'); CTX_PCT=${CTX_PCT:-0}
+CTX_PCT=$(_jq_int '.context_window.used_percentage')
 USED=$(_jq_int '.context_window.total_input_tokens')
 WIN=$(_jq_int '.context_window.context_window_size')
 EXCEEDS=$(_jq '.exceeds_200k_tokens')
@@ -135,7 +138,7 @@ if [ -n "$HAS_RL" ]; then
     L2R+=" ${DIM}│${RST} ${DIM}1wk:${RST}[$(_bar "$R7" 4)]${R7}%"; [ -n "$T7" ] && L2R+=" (${T7})"
   fi
 else
-  COST=$(echo "$input" | jq -r '.cost.total_cost_usd // 0' 2>/dev/null | awk '{printf "%.2f",$1}')
+  COST=$(_jq '.cost.total_cost_usd // "0"' | awk '{printf "%.2f",$1}')
   L2R="${DIM}\$:${RST} ${COST}"
 fi
 _lr "$L2L" "$L2R"
