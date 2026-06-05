@@ -1,45 +1,23 @@
 {
   "hooks": {
-    "SessionStart": [
-      {
-        "hooks": [
-          { "type": "command", "command": "bash", "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/session_start.sh"] }
-        ]
-      }
-    ],
-    "PreToolUse": [
-      {
-        "hooks": [
-          { "type": "command", "command": "bash", "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/skill_pre.sh"] }
-        ]
-      }
-    ],
-    "PostToolUse": [
-      {
-        "hooks": [
-          { "type": "command", "command": "bash", "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/skill_post.sh"] },
-          { "type": "command", "command": "bash", "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/skill_post_failure.sh"] }
-        ]
-      }
-    ],
     "UserPromptExpansion": [
       {
         "hooks": [
-          { "type": "command", "command": "bash", "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/user_prompt_expansion.sh"] }
+          { "type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/hooks/user_prompt_expansion.sh" }
         ]
       }
     ],
     "Stop": [
       {
         "hooks": [
-          { "type": "command", "command": "bash", "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/stop.sh"] }
+          { "type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/hooks/stop.sh" }
         ]
       }
     ],
     "StopFailure": [
       {
         "hooks": [
-          { "type": "command", "command": "bash", "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/stop.sh"] }
+          { "type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/hooks/stop.sh" }
         ]
       }
     ]
