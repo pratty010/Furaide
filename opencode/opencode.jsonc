@@ -6,7 +6,8 @@
     "./plugins/nio.js",
     "./plugins/nurikabe.js",
     "./plugins/komainu.js",
-    "./plugins/migawari.js"
+    "./plugins/migawari.js",
+    "./plugins/omokage.js"
   ],
   "instructions": [
     "./rules/*.md"

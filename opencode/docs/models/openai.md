@@ -13,9 +13,9 @@ Active when model family is `openai/*` (gpt-5.2, 5.3-codex, 5.4, 5.4-mini, 5.5).
 ## Reasoning effort
 
 `reasoning_effort` parameter controls cost/quality tradeoff:
-- `high` — novel problems, architecture decisions, adversarial review, legal/compliance. Default for `reviewer`, `legal-compliance`, `synthesizer`.
-- `medium` — multi-file codegen, research synthesis, moderate debugging. Default for `coding`, `debugger`, `brand-builder`.
-- `minimal` — scan/parse/extract, boilerplate, format transforms. Use for `extractor`/`formatter` fallback when on gpt-5.x. Pair with tool preambles (see below).
+- `high` — novel problems, architecture decisions, adversarial review, legal/compliance. Default for `oni--red-team-reviewer`, `legal-compliance`, `jorogumo--synthesis-weaver`.
+- `medium` — multi-file codegen, research synthesis, moderate debugging. Default for `coding`, `bakeneko--bug-hunter`, `brand-builder`.
+- `minimal` — scan/parse/extract, boilerplate, format transforms. Use for `azukiarai--data-sifter`/`henge--format-shifter` fallback when on gpt-5.x. Pair with tool preambles (see below).
 
 ## Tool preambles for low-effort runs
 

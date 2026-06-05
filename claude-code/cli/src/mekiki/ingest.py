@@ -198,6 +198,7 @@ def run(platform: str = "claude-code") -> dict:
     hook_events = hooks.get("events", 0)
     return {
         **scan,
+        "sessions": scan.get("sessions", 0) + hooks.get("sessions", 0),
         "hook_events": hook_events,
         "events": hook_events,  # backward-compat alias
         "effort_updates": hooks.get("effort_updates", 0),

@@ -27,14 +27,14 @@ git clone https://github.com/pratty010/Furaide.git ~/Furaidē
 bash ~/Furaidē/claude-code/scripts/bootstrap.sh
 ```
 
-The bootstrap script runs with no prompts:
-1. Migrates `~/.satori` → `~/.mekiki` (one-time)
+The bootstrap script is interactive by default (Y/n prompt per step). Pass `--yes`/`-y` to run unattended:
+1. Migrates `~/.satori` → `~/.mekiki` (one-time, unconditional)
 2. Installs the `mekiki` CLI engine via `uv sync`
-3. Installs shared common skills (`github`, `bx`, `html-preview`, `brave-search`, `plan`) to `~/.agents/skills/` + `~/.claude/skills/`
+3. Installs shared common skills (`github`, `bx`, `html-preview`, `brave-search`, `plan`) — copies to `~/.agents/skills/`, symlinks `~/.claude/skills/` → `~/.agents/skills/`
 4. Copies `config/agents/hanko--git-seal.md` → `~/.claude/agents/`
 5. Backs up and copies `config/CLAUDE.md` + `config/statusline-command.sh` → `~/.claude/`
 
-Flags: `--minimal` (steps 1–2 only), `--no-config` (skip step 5), `--with-skills` (also install manifest skills), `-h`.
+Flags: `--yes`/`-y` (non-interactive), `--minimal` (steps 1–2 only), `--no-config` (skip step 5), `--with-skills` (also install manifest skills), `-h`.
 
 ### 2. Register and install Mekiki plugin in Claude Code
 
@@ -156,6 +156,35 @@ uv run pytest          # run test suite
 uv run pytest -x -q    # fail fast
 ```
 
+### Experimental `dev` Branch
+
+For testing upcoming features on the `dev` branch:
+
+1. **Clone and Bootstrap**
+   Check out the `dev` branch of Furaidē and run the installer:
+
+   ```bash
+   git clone -b dev https://github.com/pratty010/Furaide.git ~/furaide-dev
+   bash ~/furaide-dev/claude-code/scripts/bootstrap.sh
+   ```
+
+2. **Run Tests**
+   Ensure dependencies are synced and the test suite passes:
+
+   ```bash
+   cd ~/furaide-dev/claude-code/cli
+   uv run pytest
+   ```
+
+3. **Local Plugin Smoke Testing**
+   To test modifications to local plugins/skills before they are merged:
+   - **For skills**: modify the source under `common/skills/` and re-run `bootstrap.sh`.
+   - **For Claude Code plugins**: because `/plugin marketplace add` fetches the marketplace metadata from the default branch on GitHub, live marketplace commands resolve to the remote repo. For local plugin development, use the checked-out copy with local bootstrap, then run Claude Code while capturing event payloads:
+
+     ```bash
+     MEKIKI_CAPTURE_HOOK_PAYLOADS=1 claude
+     ```
+
 **Plugin structure:**
 ```
 plugins/
@@ -185,4 +214,4 @@ It stays at the root by design. Moving it under `claude-code/` would break the `
 
 ## Part of F.R.I.D.A.Y.
 
-The full collection lives at [pratty010/Furaide](https://github.com/pratty010/Furaide). Other components: `opencode/` (29-agent core fleet), `common/` (shared skills + docs), `pi-agent/`, `openclaw/`.
+The full collection lives at [pratty010/Furaide](https://github.com/pratty010/Furaide). Other components: `opencode/` (30-agent core fleet), `common/` (shared skills + docs), `pi-agent/`, `openclaw/`.

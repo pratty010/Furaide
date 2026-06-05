@@ -56,8 +56,8 @@ This is the opencode config dir (`~/.config/opencode/`) for a 12-specialist + 15
 | **DOMAIN-JOB** | Long-running, multi-phase task clearly in one of the 9 specialist domains | Route to the right specialist |
 | **GENERAL** | Open-ended · no clear domain · quick research · codebase nav | Build inline or escape hatch |
 
-**Build/coding specialist boundary:** 3 files or fewer -> Build directly. More than 3 files + multi-phase + test loops -> tsukumo.
-**Plan/specialist:** tsukuyomi, tsuchigumo, daikoku, enma, mujina are planning-shaped; Plan routes there.
+**Build/coding specialist boundary:** 3 files or fewer -> Build directly. More than 3 files + multi-phase + test loops -> tsukumogami--code-forgemaster.
+**Plan/specialist:** tsukuyomi--spec-oracle, tsuchigumo--research-weaver, daikoku--finance-steward, enma--compliance-judge, mujina--brand-shapeshifter are planning-shaped; Plan routes there.
 
 ---
 
@@ -108,38 +108,38 @@ Entry primary: **B** = Build routes here · **P** = Plan routes here · **B/P** 
 
 | Specialist | Yokai Name | Primary Model | Entry | Route when user says / task is |
 |---|---|---|---|---|
-| tsuchigumo | Tsuchigumo(Deep Researcher) | opencode-go/kimi-k2.5 | B/P | "dig deep", "research X", "detailed report", 3+ source synthesis + citations |
-| daikoku | Daikoku(Financial) | opencode-go/qwen3.7-max | P | valuation, DCF, investment case, unit economics, forecast, financial model |
-| enma | Enma(Legal/Compliance) | opencode-go/qwen3.6-plus | P | compliance check, contract review, regulatory mapping, jurisdiction rules |
-| fudo | Fudo(Security) | opencode-go/kimi-k2.6 | B | code audit, vulnerability research, threat modeling, CVE, pentest scope |
-| tsukumo | Tsukumo(Coder) | opencode-go/kimi-k2.5 | B | more than 3 files, multi-phase implementation, refactor, architecture codegen + test loops |
-| daidarabotchi | Daidarabotchi(DevOps/SRE) | opencode-go/kimi-k2.6 | B | incident response, deployment, runbook, CI/CD, infra changes |
-| tsukuyomi | Tsukuyomi(PM/Spec) | opencode-go/qwen3.6-plus | P | PRD, spec, acceptance criteria, Spec-Kit, technical requirements |
-| yumemi | Yumemi(Writer) | opencode-go/glm-5.1 | B | blog post, white paper, essay, script, case study (writing is the deliverable) |
-| mujina | Mujina(Brand Strategist) | openai/gpt-5.4 | B/P | brand positioning, messaging framework, campaign brief, GTM narrative (lightweight advisory, no workflow scaffolding) |
-| sojobō | Sōjōbō(Strategist) | opencode-go/kimi-k2.5 | P | ARCHITECT: ADRs, options tables, tradeoff analysis; PLAN: executor-ready multi-file implementation plans. Sibling to tsukuyomi; NOT for code writing (tsukumo) |
-| shiranui | Shiranui(Migrator) | opencode-go/kimi-k2.5 | B | dependency upgrades with breaking changes, large-scale refactors (N-file rename), API migrations v1→v2, phased migration runbooks with rollback plans |
-| planner | Planner(Implementation Planner) | opencode-go/kimi-k2.5 | P | multi-file changes (3+ files), plan before delegating to tsukumo, executor-ready plans with exact file paths + verification commands |
+| tsuchigumo--research-weaver | Tsuchigumo(Deep Researcher) | opencode-go/kimi-k2.5 | B/P | "dig deep", "research X", "detailed report", 3+ source synthesis + citations |
+| daikoku--finance-steward | Daikoku(Financial) | opencode-go/qwen3.7-max | P | valuation, DCF, investment case, unit economics, forecast, financial model |
+| enma--compliance-judge | Enma(Legal/Compliance) | opencode-go/qwen3.6-plus | P | compliance check, contract review, regulatory mapping, jurisdiction rules |
+| fudo--security-guardian | Fudo(Security) | opencode-go/kimi-k2.6 | B | code audit, vulnerability research, threat modeling, CVE, pentest scope |
+| tsukumogami--code-forgemaster | Tsukumo(Coder) | opencode-go/kimi-k2.5 | B | more than 3 files, multi-phase implementation, refactor, architecture codegen + test loops |
+| daidarabotchi--infra-shaper | Daidarabotchi(DevOps/SRE) | opencode-go/kimi-k2.6 | B | incident response, deployment, runbook, CI/CD, infra changes |
+| tsukuyomi--spec-oracle | Tsukuyomi(PM/Spec) | opencode-go/qwen3.6-plus | P | PRD, spec, acceptance criteria, Spec-Kit, technical requirements |
+| yumemi--story-smith | Yumemi(Writer) | opencode-go/glm-5.1 | B | blog post, white paper, essay, script, case study (writing is the deliverable) |
+| mujina--brand-shapeshifter | Mujina(Brand Strategist) | openai/gpt-5.4 | B/P | brand positioning, messaging framework, campaign brief, GTM narrative (lightweight advisory, no workflow scaffolding) |
+| sojobo--system-strategist | Sōjōbō(Strategist) | opencode-go/kimi-k2.5 | P | ARCHITECT: ADRs, options tables, tradeoff analysis; PLAN: executor-ready multi-file implementation plans. Sibling to tsukuyomi--spec-oracle; NOT for code writing (tsukumogami--code-forgemaster) |
+| shiranui--migration-guide | Shiranui(Migrator) | opencode-go/kimi-k2.5 | B | dependency upgrades with breaking changes, large-scale refactors (N-file rename), API migrations v1→v2, phased migration runbooks with rollback plans |
+| chizu--implementation-planner | Planner(Implementation Planner) | opencode-go/kimi-k2.5 | P | multi-file changes (3+ files), plan before delegating to tsukumogami--code-forgemaster, executor-ready plans with exact file paths + verification commands |
 
 ### 15 Shared Subagents (`mode: subagent`, dispatched BY specialists; not called directly by user)
 
 | Subagent | Yokai Name | Primary Model | Dispatch when |
 |---|---|---|---|
-| yamabiko | Yamabiko(Source Retriever) | opencode-go/minimax-m2.7 | Need raw sourced evidence before synthesis |
-| kagami | Kagami(Fact-Checker) | openai/gpt-5.4-mini | Verify numbers/dates/attributed claims before delivery |
-| soroban | Soroban(Data Analyst) | opencode-go/deepseek-v4-flash | Quant/math/telemetry -> tables + Evidence Matrix |
-| karakuri | Karakuri(Code Runner) | opencode-go/mimo-v2.5 | Execute any command/test/script; only bash-capable agent |
-| mikoshi | Mikoshi(Explorer) | opencode-go/qwen3.6-plus | Read-only recon: file/symbol map, no synthesis |
-| oni | Oni(Reviewer) | openai/gpt-5.5 | Adversarial review -> findings table; premium, high-stakes judgment |
-| kotodama | Kotodama(Prose Wordsmith) | google-vertex/gemini-3.1-pro-preview | Elevate draft prose -> publication quality + humanizer pass |
-| jorogumo | Jorogumo(Synthesizer) | opencode-go/glm-5 | Corpus -> narrative deliverable; after all evidence is gathered |
-| tengu | Tengu(Designer) | google-vertex/gemini-3.5-flash | Diagrams/SVG/HTML/identity; heavy:true -> gemini-3.1-pro |
-| bakeneko | Bakeneko(Debugger) | opencode-go/deepseek-v4-pro | RCA -> ExecutionPacket for karakuri; pure reasoning, no bash |
-| makimono | Makimono(Technical Writer) | opencode-go/glm-5 | Mechanical docs -> sectioned Markdown |
-| azukiarai (T2) | Azukiarai(Extractor) | opencode-go/minimax-m2.7 | Bulk structured extraction -> JSON array; no judgment |
-| henge (T2) | Henge(Formatter) | opencode-go/mimo-v2.5 | Bulk format/transform -> md/tables/JSON/SARIF; no judgment |
-| hanko | Hanko(GitHub Workflow) | openai/gpt-5.4-mini | Git commits, push to dev, gh PR creation and monitoring; bash: allow; question: ask for all push/PR ops |
-| mizuchi (T2) | Mizuchi(Data Architect) | opencode-go/deepseek-v4-flash | Schema design, dbt models, ETL/ELT pipeline architecture; dispatched by soroban when task shifts from computation to schema design |
+| yamabiko--source-echo | Yamabiko(Source Retriever) | opencode-go/minimax-m2.7 | Need raw sourced evidence before synthesis |
+| kagami--truth-mirror | Kagami(Fact-Checker) | openai/gpt-5.4-mini | Verify numbers/dates/attributed claims before delivery |
+| soroban--number-sage | Soroban(Data Analyst) | opencode-go/deepseek-v4-flash | Quant/math/telemetry -> tables + Evidence Matrix |
+| karakuri--command-runner | Karakuri(Code Runner) | opencode-go/mimo-v2.5 | Execute any command/test/script; only bash-capable agent |
+| mikoshi--code-pathfinder | Mikoshi(Explorer) | opencode-go/qwen3.6-plus | Read-only recon: file/symbol map, no synthesis |
+| oni--red-team-reviewer | Oni(Reviewer) | openai/gpt-5.5 | Adversarial review -> findings table; premium, high-stakes judgment |
+| kotodama--prose-polisher | Kotodama(Prose Wordsmith) | google-vertex/gemini-3.1-pro-preview | Elevate draft prose -> publication quality + humanizer pass |
+| jorogumo--synthesis-weaver | Jorogumo(Synthesizer) | opencode-go/glm-5 | Corpus -> narrative deliverable; after all evidence is gathered |
+| tengu--visual-artisan | Tengu(Designer) | google-vertex/gemini-3.5-flash | Diagrams/SVG/HTML/identity; heavy:true -> gemini-3.1-pro |
+| bakeneko--bug-hunter | Bakeneko(Debugger) | opencode-go/deepseek-v4-pro | RCA -> ExecutionPacket for karakuri--command-runner; pure reasoning, no bash |
+| makimono--docs-scribe | Makimono(Technical Writer) | opencode-go/glm-5 | Mechanical docs -> sectioned Markdown |
+| azukiarai--data-sifter (T2) | Azukiarai(Extractor) | opencode-go/minimax-m2.7 | Bulk structured extraction -> JSON array; no judgment |
+| henge--format-shifter (T2) | Henge(Formatter) | opencode-go/mimo-v2.5 | Bulk format/transform -> md/tables/JSON/SARIF; no judgment |
+| hanko--git-seal | Hanko(GitHub Workflow) | openai/gpt-5.4-mini | Git commits, push to dev, gh PR creation and monitoring; bash: allow; question: ask for all push/PR ops |
+| mizuchi--data-current (T2) | Mizuchi(Data Architect) | opencode-go/deepseek-v4-flash | Schema design, dbt models, ETL/ELT pipeline architecture; dispatched by soroban--number-sage when task shifts from computation to schema design |
 
 ### Escape Hatch: General Agents
 
@@ -147,17 +147,10 @@ Use only when the task is genuinely cross-domain or maps to none of the 9 specia
 
 | Agent | Use when |
 |---|---|
-| @tanuki | Open-ended research, codebase Q&A, cross-domain; no specialist fits |
-| @mikoshi | Fast read-only codebase nav: "where is X", "what references Y" |
-| @karasutengu | External docs / library / API lookup; ctx7 baked in |
+| @tanuki--general-trickster | Open-ended research, codebase Q&A, cross-domain; no specialist fits |
+| @mikoshi--code-pathfinder | Fast read-only codebase nav: "where is X", "what references Y" |
+| @karasutengu--docs-scout | External docs / library / API lookup; ctx7 baked in |
 
-### In Development: Brand-Builder Bundle (opt-in, unstable)
-
-The Kitsune(Brand Builder) domain is not part of the default fleet. It requires explicit installation (`scripts/install-fleet.sh`, brand-builder component) and `bun install` in `brand-builder-plugin/`. Do not route to it in production workflows.
-
-When stable, Kitsune will orchestrate 8 sub-familiars: Akashi(GitHub Proof), Amanojaku(Anti-Voice Reviewer), Hyakume(ATS Discoverability), Kataribe(Narrative Brand), Kodama(Growth Planner), Kuda-gitsune(Diagnostician), Kurabokko(Knowledge Steward), Migaki(LinkedIn Optimizer).
-
----
 
 ## On-Demand References
 

@@ -1,17 +1,21 @@
 #!/usr/bin/env bash
 # install-common.sh — F.R.I.D.A.Y. shared skills installer
 #
-# Copies vendored lightweight skills from common/skills/ to a user-chosen scope.
+# Copies skills from common/skills/ to ~/.agents/skills/ (source of truth).
+# For global and project modes, creates symlinks in ~/.claude/skills/ pointing to ~/.agents/.
+# Use --relink to replace pre-existing real directories with symlinks.
+#
+# Skills installed: bx, html-preview, brave-search, plan, github
+#
+# ~/.agents/skills/<name>  ← real copy (source of truth)
+# ~/.claude/skills/<name>  → symlink to ~/.agents/skills/<name>
+#
 # Called by both claude-code/scripts/bootstrap.sh and opencode/scripts/install-fleet.sh.
 #
 # Usage:
 #   bash common/install-common.sh --global              # → ~/.agents/skills/ + ~/.claude/skills/
-#   bash common/install-common.sh --project <dir>       # → <dir>/skills/
+#   bash common/install-common.sh --project <dir>       # → <dir>/.agents/skills/ + <dir>/.claude/skills/
 #   bash common/install-common.sh --custom <path>       # → <path>/skills/
-#
-# Skills installed: bx, html-preview, brave-search, plan, github
-#
-# Copy (not symlink) mode — users own the installed copy; update by re-running.
 
 set -euo pipefail
 
@@ -26,7 +30,7 @@ warn() { printf '%s\n' "${YLW}[warn]${RST} $*"; }
 err()  { printf '%s\n' "${RED}[error]${RST} $*" >&2; exit 1; }
 
 # ── Parse flags ───────────────────────────────────────────────────────────
-MODE=""; TARGET=""
+MODE=""; TARGET=""; RELINK=0
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --global)
@@ -40,6 +44,9 @@ while [[ $# -gt 0 ]]; do
       MODE="custom"
       TARGET="${2:?'--custom requires a path'}"
       shift 2 ;;
+    --relink)
+      RELINK=1
+      shift ;;
     -h|--help)
       sed -n '2,15p' "$0" | sed 's/^# //; s/^#//'
       exit 0 ;;
@@ -69,8 +76,8 @@ case "$MODE" in
     CLAUDE_DEST="$HOME/.claude/skills"
     ;;
   project)
-    AGENTS_DEST="$TARGET/skills"
-    CLAUDE_DEST=""
+    AGENTS_DEST="$TARGET/.agents/skills"
+    CLAUDE_DEST="$TARGET/.claude/skills"
     ;;
   custom)
     AGENTS_DEST="$TARGET/skills"
@@ -98,18 +105,40 @@ for skill_dir in "$SKILLS_SRC"/*/; do
   fi
 done
 
-# ── Also copy into Claude Code skills dir for global installs ─────────────
+# ── Symlink into Claude Code skills dir ───────────────────────────────────
 if [[ -n "$CLAUDE_DEST" ]]; then
   mkdir -p "$CLAUDE_DEST"
   for skill_dir in "$SKILLS_SRC"/*/; do
     skill_name="$(basename "$skill_dir")"
-    dest="$CLAUDE_DEST/$skill_name"
-    if [[ ! -d "$dest" ]]; then
-      cp -rL "$skill_dir" "$dest"
-      ok "  $skill_name → $dest"
+    src="$AGENTS_DEST/$skill_name"
+    link="$CLAUDE_DEST/$skill_name"
+    if [[ -L "$link" ]]; then
+      if [[ -e "$link" ]]; then
+        warn "  $skill_name: symlink exists — skipping (use --relink to replace)"
+      else
+        warn "  $skill_name: broken symlink at $link — pass --relink to fix"
+      fi
+    elif [[ -e "$link" ]] && [[ "$RELINK" -eq 0 ]]; then
+      warn "  $skill_name: real dir at $link — pass --relink to replace with symlink"
+    elif [[ -e "$link" ]] && [[ "$RELINK" -eq 1 ]]; then
+      if [[ ! -d "$src" ]]; then
+        warn "  $skill_name: agents copy missing at $src — re-run to fix"
+        continue
+      fi
+      rm -rf "$link"
+      ln -s "$src" "$link"
+      ok "  $skill_name → $link ⇒ $src (relinked)"
+    else
+      if [[ ! -d "$src" ]]; then
+        warn "  $skill_name: agents copy missing at $src — re-run to fix"
+        continue
+      fi
+      ln -s "$src" "$link"
+      ok "  $skill_name → $link ⇒ $src"
     fi
   done
 fi
 
 printf '\n%s\n' "${GRN}Done.${RST} Common skills installed."
-printf '%s\n' "${DIM}To update: delete the skill dirs and re-run this script.${RST}"
+printf '%s\n' "${DIM}To update: re-run this script.${RST}"
+[[ -n "${CLAUDE_DEST:-}" ]] && printf '%s\n' "${DIM}To switch copies to symlinks: re-run with --relink.${RST}"

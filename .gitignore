@@ -29,6 +29,8 @@ desktop.ini
 *.secret
 .secrets/
 secrets/
+issues/
+opencode.json
 
 # ── Python ───────────────────────────────────────────────────────────────────
 __pycache__/
@@ -78,3 +80,4 @@ graphify-out/.graphify_ast.json
 openclaw/agents/workspace-kagakusha/docs/*.pdf
 openclaw/agents/workspace-kagakusha/docs/*.zip
 openclaw/agents/workspace-kagakusha/reports/
+

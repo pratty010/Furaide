@@ -10,7 +10,11 @@
       "coupling": "nio.js and nurikabe.js exec scripts/workflow-state.mjs at runtime",
       "requires_bun": false,
       "default_on": true,
-      "target_subdirs": ["plugins", "scripts", "docs"],
+      "target_subdirs": [
+        "plugins",
+        "scripts",
+        "docs"
+      ],
       "files": [
         "plugins/nio.js",
         "plugins/nurikabe.js",
@@ -30,7 +34,10 @@
       "coupling": "migawari.js reads docs/routing-manifest.json at runtime",
       "requires_bun": false,
       "default_on": true,
-      "target_subdirs": ["plugins", "docs"],
+      "target_subdirs": [
+        "plugins",
+        "docs"
+      ],
       "files": [
         "plugins/migawari.js",
         "docs/routing-manifest.json"
@@ -45,63 +52,93 @@
       "coupling": "none",
       "requires_bun": false,
       "default_on": true,
-      "target_subdirs": ["plugins"],
+      "target_subdirs": [
+        "plugins"
+      ],
       "files": [
         "plugins/komainu.js"
       ],
       "globs": []
     },
     {
+      "id": "session-vault",
+      "label": "Session Vault",
+      "description": "Global session vault command, close-hook plugin, helper, and tests.",
+      "atomic": true,
+      "coupling": "command/session-vault.md depends on plugins/omokage.js and scripts/session-vault.mjs",
+      "requires_bun": false,
+      "default_on": true,
+      "target_subdirs": [
+        "command",
+        "plugins",
+        "scripts"
+      ],
+      "files": [
+        "command/session-vault.md",
+        "plugins/omokage.js",
+        "scripts/session-vault.mjs"
+      ],
+      "globs": [
+        "scripts/lib/session-vault-*.mjs",
+        "scripts/tests/session-vault-*.test.mjs"
+      ]
+    },
+    {
       "id": "agents-core",
-      "label": "Specialist Agents (29 core)",
-      "description": "29 specialist and subagent shikigami (12 specialists + 15 subagents + 2 escape-hatch). Soft dependency on failover routing-manifest.json and docs/models/** for model selection.",
+      "label": "Specialist Agents (30 core)",
+      "description": "30 specialist and subagent shikigami (12 specialists + 16 subagents + 2 escape-hatch). Soft dependency on failover routing-manifest.json and docs/models/** for model selection.",
       "atomic": false,
       "coupling": "soft dep on failover routing-manifest.json; auto-included at same scope if failover not selected there",
       "requires_bun": false,
       "default_on": true,
-      "target_subdirs": ["agents"],
+      "target_subdirs": [
+        "agents"
+      ],
       "files": [
-        "agents/azukiarai.md",
-        "agents/bakeneko.md",
-        "agents/daidarabotchi.md",
-        "agents/daikoku.md",
-        "agents/enma.md",
-        "agents/fudo.md",
-        "agents/henge.md",
-        "agents/jorogumo.md",
-        "agents/kagami.md",
-        "agents/karakuri.md",
-        "agents/karasutengu.md",
-        "agents/kotodama.md",
-        "agents/makimono.md",
-        "agents/mikoshi.md",
-        "agents/mujina.md",
-        "agents/oni.md",
-        "agents/soroban.md",
-        "agents/tanuki.md",
-        "agents/tengu.md",
-        "agents/tsuchigumo.md",
-        "agents/tsukumo.md",
-        "agents/tsukuyomi.md",
-        "agents/yamabiko.md",
-        "agents/yumemi.md",
-        "agents/hanko.md",
-        "agents/sojobō.md",
-        "agents/shiranui.md",
-        "agents/planner.md",
-        "agents/mizuchi.md"
+        "agents/azukiarai--data-sifter.md",
+        "agents/bakeneko--bug-hunter.md",
+        "agents/daidarabotchi--infra-shaper.md",
+        "agents/daikoku--finance-steward.md",
+        "agents/enma--compliance-judge.md",
+        "agents/fudo--security-guardian.md",
+        "agents/henge--format-shifter.md",
+        "agents/jorogumo--synthesis-weaver.md",
+        "agents/kagami--truth-mirror.md",
+        "agents/karakuri--command-runner.md",
+        "agents/karasutengu--docs-scout.md",
+        "agents/kotodama--prose-polisher.md",
+        "agents/makimono--docs-scribe.md",
+        "agents/mikoshi--code-pathfinder.md",
+        "agents/mujina--brand-shapeshifter.md",
+        "agents/oni--red-team-reviewer.md",
+        "agents/soroban--number-sage.md",
+        "agents/tanuki--general-trickster.md",
+        "agents/tanuki--codemod-runner.md",
+        "agents/tengu--visual-artisan.md",
+        "agents/tsuchigumo--research-weaver.md",
+        "agents/tsukumogami--code-forgemaster.md",
+        "agents/tsukuyomi--spec-oracle.md",
+        "agents/yamabiko--source-echo.md",
+        "agents/yumemi--story-smith.md",
+        "agents/hanko--git-seal.md",
+        "agents/sojobo--system-strategist.md",
+        "agents/shiranui--migration-guide.md",
+        "agents/chizu--implementation-planner.md",
+        "agents/mizuchi--data-current.md"
       ],
       "globs": []
     },
     {
       "id": "agent-scripts",
       "label": "Agent Support Scripts",
-      "description": "Verification and safety scripts called by agents via karakuri (code runner). No hard coupling.",
+      "description": "Verification and safety scripts called by agents via karakuri--command-runner (code runner). No hard coupling.",
       "atomic": false,
-      "coupling": "none (agents call via karakuri subagent)",
+      "coupling": "none (agents call via karakuri--command-runner subagent)",
       "requires_bun": false,
       "default_on": true,
-      "target_subdirs": ["scripts"],
+      "target_subdirs": [
+        "scripts"
+      ],
       "files": [
         "scripts/action-allowlist.mjs",
         "scripts/citation-verify.mjs",
@@ -124,7 +161,9 @@
       "coupling": "wired via instructions glob in opencode.json",
       "requires_bun": false,
       "default_on": true,
-      "target_subdirs": ["rules"],
+      "target_subdirs": [
+        "rules"
+      ],
       "files": [],
       "globs": [
         "rules/*.md"
@@ -138,7 +177,10 @@
       "coupling": "reference only; GITHUB.md and github-setup-check.sh sourced from common/ at install time",
       "requires_bun": false,
       "default_on": false,
-      "target_subdirs": ["docs", "scripts"],
+      "target_subdirs": [
+        "docs",
+        "scripts"
+      ],
       "files": [
         "docs/OPERATOR.md",
         "docs/architecture.md",
@@ -146,8 +188,14 @@
         "docs/agent-template.md"
       ],
       "common_files": [
-        { "src": "../common/docs/GITHUB.md", "dst": "docs/GITHUB.md" },
-        { "src": "../common/scripts/github-setup-check.sh", "dst": "scripts/github-setup-check.sh" }
+        {
+          "src": "../common/docs/GITHUB.md",
+          "dst": "docs/GITHUB.md"
+        },
+        {
+          "src": "../common/scripts/github-setup-check.sh",
+          "dst": "scripts/github-setup-check.sh"
+        }
       ],
       "globs": [
         "docs/models/**"
@@ -161,17 +209,22 @@
       "coupling": "brand-builder-plugin depends on its own node_modules; brand agents depend on brand commands and skills",
       "requires_bun": true,
       "default_on": false,
-      "target_subdirs": ["agents", "command", "skills", "brand-builder-plugin"],
+      "target_subdirs": [
+        "agents",
+        "command",
+        "skills",
+        "brand-builder-plugin"
+      ],
       "files": [
-        "agents/akashi.md",
-        "agents/amanojaku.md",
-        "agents/hyakume.md",
-        "agents/kataribe.md",
-        "agents/kitsune.md",
-        "agents/kodama.md",
-        "agents/kudagitsune.md",
-        "agents/kurabokko.md",
-        "agents/migaki.md"
+        "agents/akashi--proof-keeper.md",
+        "agents/amanojaku--voice-contrarian.md",
+        "agents/hyakume--ats-watchman.md",
+        "agents/kataribe--narrative-teller.md",
+        "agents/kitsune--brand-orchestrator.md",
+        "agents/kodama--growth-echo.md",
+        "agents/kudagitsune--fit-diviner.md",
+        "agents/kurabokko--knowledge-keeper.md",
+        "agents/migaki--profile-polisher.md"
       ],
       "globs": [
         "command/*.md",

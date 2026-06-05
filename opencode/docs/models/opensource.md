@@ -8,7 +8,7 @@ Active when model family is `opencode/*` (big-pickle, nemotron-3-super-free, dee
 
 ## DeepSeek-V4 (`opencode/deepseek-v4-flash-free`)
 
-**Strength:** math/STEM, numeric analysis, structured data transformations. Primary for `data-analyst`; also used in `explorer` fallback chain.
+**Strength:** math/STEM, numeric analysis, structured data transformations. Primary for `soroban--number-sage`; also used in `mikoshi--code-pathfinder` fallback chain.
 
 ### CO-STAR framework (recommended)
 
@@ -55,7 +55,7 @@ DeepSeek-V4 is an R1-style reasoning model — it generates its own chain-of-tho
 
 ## MiMo-v2.5 (`opencode/mimo-v2.5-free`)
 
-**Strength:** routine debugging passes, RL-tuned on agentic trajectories. Fallback for `@debugger`.
+**Strength:** routine debugging passes, RL-tuned on agentic trajectories. Fallback for `@bakeneko--bug-hunter`.
 
 ### 4-part skeleton (recommended)
 
@@ -77,7 +77,7 @@ MiMo is RL-tuned — it generates its own trajectory. Long reasoning examples in
 
 ## big-pickle (`opencode/big-pickle`)
 
-**Strength:** broad codebase research, market/trend scans, general-purpose free fallback. Primary for `general` escape-hatch agent; fallback for `source-retriever`, `explorer`, `formatter`. 200K context.
+**Strength:** broad codebase research, market/trend scans, general-purpose free fallback. Primary for `general` escape-hatch agent; fallback for `yamabiko--source-echo`, `mikoshi--code-pathfinder`, `henge--format-shifter`. 200K context.
 
 ### Prompting
 

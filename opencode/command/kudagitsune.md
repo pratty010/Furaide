@@ -1,7 +1,7 @@
 ---
 description: Run a current-state profile assessment across all ingested artifacts
 argument-hint: "[primary-goal] [timeline]"
-agent: kitsune
+agent: kitsune--brand-orchestrator
 ---
 
 Set intent to current_state_assessment and proceed.

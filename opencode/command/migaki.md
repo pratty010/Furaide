@@ -1,7 +1,7 @@
 ---
 description: Optimize LinkedIn sections with section diagnosis, rewrite variants, ATS review, and anti-voice gate
 argument-hint: "[sections: headline,about,experience,featured,skills] [role-target]"
-agent: kitsune
+agent: kitsune--brand-orchestrator
 ---
 
 Set intent to linkedin_optimization and proceed.

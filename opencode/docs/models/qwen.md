@@ -56,7 +56,7 @@ Active when model family is `opencode-go/qwen3.6-plus`, `opencode-go/qwen3.7-max
 
 ## Context and deployment
 
-- **qwen3.6-plus:** 1M context at the cheapest price point. Ideal for legal/PM-spec/explorer roles (high volume, moderate reasoning).
+- **qwen3.6-plus:** 1M context at the cheapest price point. Ideal for legal/PM-spec/mikoshi--code-pathfinder roles (high volume, moderate reasoning).
 - **qwen3.7-max:** API-only; some open-doc parameters may differ from local deployment. Use for production; verify params in the API response metadata.
 
 ---

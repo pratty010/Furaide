@@ -36,7 +36,7 @@ Not auto-loaded. Pull when editing fleet wiring, scripts, or file relationships.
 | `scripts/state-path.mjs` | Compute state directory paths for a workflow | Before accessing state files |
 | `scripts/verify-run.mjs` | Execute a verify.json command sequence, report per-command results | Coding: verification step |
 | `scripts/playbook-check.mjs` | Validate obligations map to playbook clauses | Legal-compliance: before final obligation map |
-| `scripts/action-allowlist.mjs` | Gate: proposed action must be in allowlist + have rollback | Devops-sre, code-runner: before destructive ops |
+| `scripts/action-allowlist.mjs` | Gate: proposed action must be in allowlist + have rollback | Devops-sre, @karakuri--command-runner: before destructive ops |
 
 ---
 

@@ -1,7 +1,7 @@
 ---
 description: Evaluate GitHub repositories for proof quality with per-repo dispositions, proof-gap detection, and next-project recommendations. Requires an explicit list of repos chosen by the user.
 argument-hint: "<repo1,repo2,...> [proof-objective]"
-agent: kitsune
+agent: kitsune--brand-orchestrator
 ---
 
 Set intent to github_proof_building and proceed.

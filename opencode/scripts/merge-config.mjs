@@ -34,7 +34,7 @@ try {
   raw = readFileSync(cfgPath, "utf8");
 } catch (e) {
   // If file doesn't exist, start with a minimal config
-  raw = '{"plugin":[],"instructions":[]}';
+  raw = '{"$schema":"https://opencode.ai/config.json","plugin":[],"instructions":[]}';
 }
 
 // Try parsing as-is first (most .jsonc files in this repo are valid JSON)

@@ -137,4 +137,4 @@ pi-agent/
 
 ## Part of F.R.I.D.A.Y.
 
-Other components: `opencode/` (29-agent core fleet), `claude-code/` (Mekiki + Hanko plugins), `common/` (shared skills + docs), `openclaw/` (stateful assistant personas).
+Other components: `opencode/` (30-agent core fleet), `claude-code/` (Mekiki + Hanko plugins), `common/` (shared skills + docs), `openclaw/` (stateful assistant personas).

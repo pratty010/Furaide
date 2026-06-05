@@ -60,7 +60,7 @@ Five components that wire Furaidē into AI coding harnesses:
 
 | Component | Harness | What it does |
 |-----------|---------|-------------|
-| `opencode/` | [OpenCode](https://opencode.ai) | 29-agent fleet: 12 domain specialists, 15 shared subagents, 4 always-on gate guardians, Kitsune brand-builder (opt-in) |
+| `opencode/` | [OpenCode](https://opencode.ai) | 30-agent fleet: 12 domain specialists, 16 shared subagents, 4 always-on gate guardians, Kitsune brand-builder (opt-in) |
 | `claude-code/` | [Claude Code](https://claude.ai/code) | Mekiki plugin (skill-usage analytics) + `github` skill / `hanko--git-seal` agent (git workflow) |
 | `pi-agent/` | [pi.dev](https://pi.dev) | Extension package: web-RAG tools, `/usage` cost tracking, animated TUI, friday and chimu themes, GSD skills |
 | `openclaw/` | [OpenCLAW](https://docs.openclaw.ai) | Persona workspace configs for four pre-built identities: kinyo, koda, kagakusha, tengan |
@@ -72,7 +72,7 @@ Five components that wire Furaidē into AI coding harnesses:
 
 ```
 Furaidē/
-├── opencode/          # 29-agent OpenCode fleet
+├── opencode/          # 30-agent OpenCode fleet
 ├── claude-code/       # Mekiki plugin + github skill / hanko--git-seal agent
 ├── pi-agent/          # Pi extension (friday-furaidee)
 ├── openclaw/          # OpenCLAW persona workspaces

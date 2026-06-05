@@ -1,7 +1,7 @@
 ---
 description: Evaluate profile fit against a target role. Requires a role title and job description (URL or pasted text).
 argument-hint: "<role-title> <jd-url-or-text>"
-agent: kitsune
+agent: kitsune--brand-orchestrator
 ---
 
 Set intent to role_fit_assessment and proceed.

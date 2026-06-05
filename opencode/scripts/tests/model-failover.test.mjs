@@ -1,11 +1,11 @@
 import { test, expect } from 'bun:test';
 import { readFileSync } from 'node:fs';
-import { resolveChain, nextModel, classify } from '../../plugins/model-failover.js';
+import { resolveChain, nextModel, classify } from '../../plugins/migawari.js';
 
 const manifest = JSON.parse(readFileSync('docs/routing-manifest.json', 'utf8'));
 
 test('resolveChain returns primary + fallbacks in order', () => {
-  const chain = resolveChain(manifest, 'reviewer');
+  const chain = resolveChain(manifest, 'oni--red-team-reviewer');
   expect(chain[0]).toBe('openai/gpt-5.5');
   expect(chain.length).toBeGreaterThan(1);
 });

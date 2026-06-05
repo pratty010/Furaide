@@ -16,7 +16,14 @@ Or if you already have the repo:
 bash opencode/scripts/install-fleet.sh
 ```
 
-The installer walks you through each component, lets you choose a scope per component (global, project, or a custom path), and wires the config automatically.
+The installer presents a redesigned, independent-choice flow:
+
+1. **Core bundle** (always default on): workflow gates, model failover, security gate, session vault, specialist agents, agent support scripts, rules, and reference docs.
+2. **Brand Builder / Kitsune** (optional, default **No**): the opt-in 9-agent brand domain. Skip unless you want it.
+3. **Location** (independent choice): global (`~/.config/opencode/`), project (`./.opencode/`), or a custom absolute path.
+4. **Mode** (independent choice): copy (default; writable, self-contained) or link (`ln -sfn` from the repo; useful for development).
+5. **Preflight summary**: before any write, the installer prints the resolved paths, file counts, mode, and per-component coupling. Confirm to proceed.
+6. **Conflict handling**: existing files at the target path are moved to `kura_backup/<timestamp>/` by default, so nothing is silently overwritten.
 
 ### Flags
 
@@ -48,11 +55,12 @@ The installer walks you through each component, lets you choose a scope per comp
 | 1 | Workflow Gates | yes | on | Nio + Nurikabe gate plugins + workflow state engine. Tightly coupled; cannot be split. |
 | 2 | Model Failover | yes | on | Migawari plugin + routing manifest. Tightly coupled; cannot be split. |
 | 3 | Security Gate | no | on | Komainu plugin: 35+ dangerous-pattern checks on every Edit/Write. Standalone. |
-| 4 | Specialist Agents | no | on | 29 core shikigami: 12 domain specialists + 2 general agents + 15 shared subagents. |
-| 5 | Agent Support Scripts | no | on | Verification and safety scripts called by agents via Karakuri. |
-| 6 | Rules | no | on | Memory contract and other rules wired via `instructions` glob. |
-| 7 | Reference Docs | no | off | OPERATOR guide, architecture overview, manifest schema, model family guides. |
-| 8 | Brand Builder / Kitsune | yes | off | Opt-in; in development. 9 brand agents + plugin + commands + skills. Needs `bun install`. |
+| 4 | Session Vault | yes | on | Global session vault command, close-hook plugin, helper, and tests. |
+| 5 | Specialist Agents | no | on | 29 core shikigami: 12 domain specialists + 2 general agents + 15 shared subagents. |
+| 6 | Agent Support Scripts | no | on | Verification and safety scripts called by agents via Karakuri. |
+| 7 | Rules | no | on | Memory contract and other rules wired via `instructions` glob. |
+| 8 | Reference Docs | no | off | OPERATOR guide, architecture overview, manifest schema, model family guides. |
+| 9 | Brand Builder / Kitsune | yes | off | Opt-in; in development. 9 brand agents + plugin + commands + skills. Needs `bun install`. |
 
 Run `bash opencode/scripts/install-fleet.sh --list` for the full machine-readable view.
 
@@ -134,6 +142,57 @@ Install with `scripts/install-fleet.sh` (brand-builder component). Not loaded by
 ---
 
 ## Tests
+
+```bash
+bun test scripts/tests/
+```
+
+---
+
+## Uninstall
+
+The OpenCode uninstaller removes OpenCode-owned shikigami files, gate plugins, and configs. It can also clean up shared `common/` skills used across harnesses.
+
+```bash
+bash opencode/scripts/uninstall-fleet.sh
+```
+
+### Flags
+
+| Flag | Effect |
+|------|--------|
+| `--dry-run` | Print planned deletions and config edits without making any filesystem writes. |
+| `--purge` | Non-interactive mode; auto-approves deletions across detected active scopes. |
+| `--global` | Run uninstall on global scope (`~/.config/opencode/`). |
+| `--project` | Run uninstall on project-local scope (`./.opencode/`). |
+| `--custom <dir>` | Run uninstall on a custom absolute directory. |
+| `--include-shared-skills` | Directly remove shared `common/` skills without prompting. |
+
+---
+
+## Experimental `dev` Branch
+
+For testing upcoming features on the `dev` branch:
+
+### 1. Clone and Install
+Check out the `dev` branch and run the installer in symlink mode:
+
+```bash
+git clone -b dev https://github.com/pratty010/Furaide.git ~/furaide-dev
+cd ~/furaide-dev/opencode
+bash scripts/install-fleet.sh --project --link
+```
+
+Using `--link` symlinks configuration files to your checked-out repository instead of copying them, allowing you to test modifications instantly.
+
+Alternatively, run the remote bootstrap installer pointing to the `dev` branch:
+
+```bash
+FURAIDE_BRANCH=dev bash <(curl -fsSL https://raw.githubusercontent.com/pratty010/Furaide/dev/opencode/scripts/install-fleet-bootstrap.sh)
+```
+
+### 2. Running Tests
+Verify the fleet configuration and scripts:
 
 ```bash
 bun test scripts/tests/

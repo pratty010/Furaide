@@ -1,7 +1,7 @@
 ---
 description: Intake or update a profile artifact (resume, LinkedIn, GitHub, website, job description)
 argument-hint: "[artifact-type] [scope: new|update]"
-agent: kitsune
+agent: kitsune--brand-orchestrator
 ---
 
 Set intent to artifact_intake_update and proceed.

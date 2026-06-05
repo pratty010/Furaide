@@ -2,7 +2,7 @@
 
 Active when model family is `google/gemma-*` (gemma-4-26b-a4b-it, gemma-4-31b-it).
 
-Gemma 4 is a local model — no API cost. Use when offline safety matters or when opencode-free quota is exhausted. Fallback role only in current routing (data-analyst local fallback / free-quota exhausted fallback).
+Gemma 4 is a local model — no API cost. Use when offline safety matters or when opencode-free quota is exhausted. Fallback role only in current routing (soroban--number-sage local fallback / free-quota exhausted fallback).
 
 ---
 

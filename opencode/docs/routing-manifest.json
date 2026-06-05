@@ -1,143 +1,289 @@
 {
   "version": "v9.1",
   "specialists": {
-    "tsuchigumo": {
+    "tsuchigumo--research-weaver": {
       "primary": "opencode-go/kimi-k2.5",
-      "fallback": ["openai/gpt-5.4-mini", "opencode-go/qwen3.6-plus", "opencode/nemotron-3-super-free"]
+      "fallback": [
+        "openai/gpt-5.4-mini",
+        "opencode-go/qwen3.6-plus",
+        "opencode/nemotron-3-ultra-free"
+      ]
     },
-    "daikoku": {
+    "daikoku--finance-steward": {
       "primary": "opencode-go/qwen3.7-max",
-      "fallback": ["openai/gpt-5.4", "opencode-go/minimax-m2.7", "google-vertex/gemini-3.5-flash"]
+      "fallback": [
+        "openai/gpt-5.4",
+        "opencode-go/minimax-m2.7",
+        "google-vertex/gemini-3.5-flash"
+      ]
     },
-    "enma": {
+    "enma--compliance-judge": {
       "primary": "opencode-go/qwen3.6-plus",
-      "fallback": ["openai/gpt-5.4-mini", "opencode-go/glm-5", "opencode/nemotron-3-super-free"]
+      "fallback": [
+        "openai/gpt-5.4-mini",
+        "opencode-go/glm-5",
+        "opencode/nemotron-3-ultra-free"
+      ]
     },
-    "fudo": {
+    "fudo--security-guardian": {
       "primary": "opencode-go/kimi-k2.6",
-      "fallback": ["openai/gpt-5.3-codex", "opencode-go/glm-5", "opencode-go/deepseek-v4-pro"]
+      "fallback": [
+        "openai/gpt-5.3-codex",
+        "opencode-go/glm-5",
+        "opencode-go/deepseek-v4-pro"
+      ]
     },
-    "tsukumo": {
+    "tsukumogami--code-forgemaster": {
       "primary": "opencode-go/kimi-k2.5",
       "heavy": "openai/gpt-5.3-codex",
       "simple": "opencode-go/minimax-m2.7",
-      "fallback": ["openai/gpt-5.3-codex", "opencode-go/glm-5", "opencode-go/minimax-m2.7"]
+      "fallback": [
+        "openai/gpt-5.3-codex",
+        "opencode-go/glm-5",
+        "opencode-go/minimax-m2.7"
+      ]
     },
-    "daidarabotchi": {
+    "daidarabotchi--infra-shaper": {
       "primary": "opencode-go/kimi-k2.6",
-      "fallback": ["openai/gpt-5.4-mini", "opencode-go/glm-5", "google-vertex/gemini-3-flash-preview"]
+      "fallback": [
+        "openai/gpt-5.4-mini",
+        "opencode-go/glm-5",
+        "google-vertex/gemini-3-flash-preview"
+      ]
     },
-    "tsukuyomi": {
+    "tsukuyomi--spec-oracle": {
       "primary": "opencode-go/qwen3.6-plus",
-      "fallback": ["openai/gpt-5.4-mini", "opencode-go/glm-5", "google-vertex/gemini-3-flash-preview"]
+      "fallback": [
+        "openai/gpt-5.4-mini",
+        "opencode-go/glm-5",
+        "google-vertex/gemini-3-flash-preview"
+      ]
     },
-    "yumemi": {
+    "yumemi--story-smith": {
       "primary": "opencode-go/glm-5.1",
-      "fallback": ["openai/gpt-5.4", "opencode-go/qwen3.6-plus", "google-vertex/gemini-3.5-flash"]
+      "fallback": [
+        "openai/gpt-5.4",
+        "opencode-go/qwen3.6-plus",
+        "google-vertex/gemini-3.5-flash"
+      ]
     },
-    "kitsune": {
+    "kitsune--brand-orchestrator": {
       "primary": "openai/gpt-5.4",
-      "fallback": ["opencode-go/glm-5.1", "opencode-go/qwen3.6-plus", "google-vertex/gemini-3.5-flash"],
+      "fallback": [
+        "opencode-go/glm-5.1",
+        "opencode-go/qwen3.6-plus",
+        "google-vertex/gemini-3.5-flash"
+      ],
       "_note": "in-development / opt-in brand-builder bundle; entry retained for failover coverage"
     },
-    "mujina": {
+    "mujina--brand-shapeshifter": {
       "primary": "openai/gpt-5.4",
-      "fallback": ["opencode-go/glm-5", "opencode-go/qwen3.6-plus", "google-vertex/gemini-3.5-flash"]
+      "fallback": [
+        "opencode-go/glm-5",
+        "opencode-go/qwen3.6-plus",
+        "google-vertex/gemini-3.5-flash"
+      ]
     },
-    "sojobō": {
+    "sojobo--system-strategist": {
       "primary": "opencode-go/kimi-k2.5",
-      "fallback": ["openai/gpt-5.4", "opencode-go/qwen3.6-plus", "google-vertex/gemini-3.5-flash"],
+      "fallback": [
+        "openai/gpt-5.4",
+        "opencode-go/qwen3.6-plus",
+        "google-vertex/gemini-3.5-flash"
+      ],
       "_note": "ARCHITECT mode = ADRs + tradeoff tables; PLAN mode = executor-ready implementation plans"
     },
-    "shiranui": {
+    "shiranui--migration-guide": {
       "primary": "opencode-go/kimi-k2.5",
-      "fallback": ["openai/gpt-5.4", "opencode-go/deepseek-v4-pro", "opencode-go/glm-5"],
-      "_note": "migration + codemod orchestrator; phased plans with rollback; dispatches tsukumo for execution"
+      "fallback": [
+        "openai/gpt-5.4",
+        "opencode-go/deepseek-v4-pro",
+        "opencode-go/glm-5"
+      ],
+      "_note": "migration + codemod orchestrator; phased plans with rollback; codemod execution routes via tanuki--codemod-runner; gated shell via karakuri--command-runner"
     },
-    "planner": {
+    "chizu--implementation-planner": {
       "primary": "opencode-go/kimi-k2.5",
-      "fallback": ["openai/gpt-5.4", "opencode-go/qwen3.6-plus", "opencode-go/glm-5"],
-      "_note": "implementation planner; executor-ready plans for tsukumo; no architecture decisions"
+      "fallback": [
+        "openai/gpt-5.4",
+        "opencode-go/qwen3.6-plus",
+        "opencode-go/glm-5"
+      ],
+      "_note": "implementation-planning role; executor-ready plans for tsukumogami--code-forgemaster; no architecture decisions"
     }
   },
   "subagents": {
-    "yamabiko": {
+    "yamabiko--source-echo": {
       "primary": "opencode-go/minimax-m2.7",
-      "fallback": ["openai/gpt-5.4-mini", "google-vertex/gemini-3-flash-preview", "opencode/big-pickle"]
+      "fallback": [
+        "openai/gpt-5.4-mini",
+        "google-vertex/gemini-3-flash-preview",
+        "opencode/big-pickle"
+      ]
     },
-    "kagami": {
+    "kagami--truth-mirror": {
       "primary": "openai/gpt-5.4-mini",
-      "fallback": ["opencode-go/glm-5", "google-vertex/gemini-3.5-flash", "opencode-go/deepseek-v4-flash"]
+      "fallback": [
+        "opencode-go/glm-5",
+        "google-vertex/gemini-3.5-flash",
+        "opencode-go/deepseek-v4-flash"
+      ]
     },
-    "soroban": {
+    "soroban--number-sage": {
       "primary": "opencode-go/deepseek-v4-flash",
       "heavy": "opencode-go/deepseek-v4-pro",
-      "fallback": ["openai/gpt-5.4-mini", "opencode-go/minimax-m2.7", "google-vertex/gemini-3.1-flash-lite"]
+      "fallback": [
+        "openai/gpt-5.4-mini",
+        "opencode-go/minimax-m2.7",
+        "google-vertex/gemini-3.1-flash-lite"
+      ]
     },
-    "karakuri": {
+    "karakuri--command-runner": {
       "primary": "opencode-go/mimo-v2.5",
       "canary": "A2",
-      "fallback": ["openai/gpt-5.3-codex", "openai/gpt-5.4-mini", "google-vertex/gemini-3.1-flash-lite"]
+      "fallback": [
+        "openai/gpt-5.3-codex",
+        "openai/gpt-5.4-mini",
+        "google-vertex/gemini-3.1-flash-lite"
+      ]
     },
-    "mikoshi": {
+    "mikoshi--code-pathfinder": {
       "primary": "opencode-go/qwen3.6-plus",
-      "fallback": ["google-vertex/gemini-3-flash-preview", "opencode-go/glm-5", "opencode/big-pickle"]
+      "fallback": [
+        "google-vertex/gemini-3-flash-preview",
+        "opencode-go/glm-5",
+        "opencode/big-pickle"
+      ]
     },
-    "oni": {
+    "oni--red-team-reviewer": {
       "primary": "openai/gpt-5.5",
-      "fallback": ["opencode-go/deepseek-v4-pro", "opencode-go/glm-5", "google-vertex/gemini-3.5-flash"]
+      "fallback": [
+        "opencode-go/deepseek-v4-pro",
+        "opencode-go/glm-5",
+        "google-vertex/gemini-3.5-flash"
+      ]
     },
-    "kotodama": {
+    "kotodama--prose-polisher": {
       "primary": "google-vertex/gemini-3.1-pro-preview",
-      "fallback": ["openai/gpt-5.4", "opencode-go/qwen3.6-plus", "opencode-go/glm-5"]
+      "fallback": [
+        "openai/gpt-5.4",
+        "opencode-go/qwen3.6-plus",
+        "opencode-go/glm-5"
+      ]
     },
-    "jorogumo": {
+    "jorogumo--synthesis-weaver": {
       "primary": "opencode-go/glm-5",
-      "fallback": ["openai/gpt-5.4-mini", "opencode-go/minimax-m2.7", "google-vertex/gemini-3-flash-preview"]
+      "fallback": [
+        "openai/gpt-5.4-mini",
+        "opencode-go/minimax-m2.7",
+        "google-vertex/gemini-3-flash-preview"
+      ]
     },
-    "tengu": {
+    "tengu--visual-artisan": {
       "primary": "google-vertex/gemini-3.5-flash",
       "heavy": "openai/gpt-5.4",
-      "fallback": ["opencode-go/glm-5", "openai/gpt-5.4-mini", "opencode-go/minimax-m2.7"]
+      "fallback": [
+        "opencode-go/glm-5",
+        "openai/gpt-5.4-mini",
+        "opencode-go/minimax-m2.7"
+      ]
     },
-    "bakeneko": {
+    "bakeneko--bug-hunter": {
       "primary": "opencode-go/deepseek-v4-pro",
-      "fallback": ["openai/gpt-5.4-mini", "opencode-go/glm-5", "opencode-go/mimo-v2.5-pro"]
+      "fallback": [
+        "openai/gpt-5.4-mini",
+        "opencode-go/glm-5",
+        "opencode-go/mimo-v2.5-pro"
+      ]
     },
-    "makimono": {
+    "makimono--docs-scribe": {
       "primary": "opencode-go/glm-5",
-      "fallback": ["openai/gpt-5.4-mini", "google-vertex/gemini-3-flash-preview", "opencode-go/minimax-m2.7"]
+      "fallback": [
+        "openai/gpt-5.4-mini",
+        "google-vertex/gemini-3-flash-preview",
+        "opencode-go/minimax-m2.7"
+      ]
     },
-    "azukiarai": {
+    "azukiarai--data-sifter": {
       "primary": "opencode-go/minimax-m2.7",
       "tier": "T2",
-      "fallback": ["google-vertex/gemini-3.1-flash-lite", "opencode-go/mimo-v2.5", "opencode-go/deepseek-v4-flash"]
+      "fallback": [
+        "google-vertex/gemini-3.1-flash-lite",
+        "opencode-go/mimo-v2.5",
+        "opencode-go/deepseek-v4-flash"
+      ]
     },
-    "henge": {
+    "henge--format-shifter": {
       "primary": "opencode-go/mimo-v2.5",
       "tier": "T2",
-      "fallback": ["google-vertex/gemini-3.1-flash-lite", "opencode-go/minimax-m2.7", "opencode/big-pickle"]
+      "fallback": [
+        "google-vertex/gemini-3.1-flash-lite",
+        "opencode-go/minimax-m2.7",
+        "opencode/big-pickle"
+      ]
     },
-    "tanuki": {
+    "tanuki--general-trickster": {
       "primary": "opencode/big-pickle",
-      "fallback": ["opencode-go/qwen3.6-plus", "opencode/nemotron-3-super-free", "google-vertex/gemini-3-flash-preview"]
+      "fallback": [
+        "opencode-go/qwen3.6-plus",
+        "opencode/nemotron-3-ultra-free",
+        "google-vertex/gemini-3-flash-preview"
+      ]
     },
-    "karasutengu": {
+    "karasutengu--docs-scout": {
       "primary": "opencode/big-pickle",
-      "fallback": ["opencode-go/qwen3.6-plus", "opencode/nemotron-3-super-free"]
+      "fallback": [
+        "opencode-go/qwen3.6-plus",
+        "opencode/nemotron-3-ultra-free"
+      ]
     },
-    "hanko": {
+    "hanko--git-seal": {
       "primary": "openai/gpt-5.4-mini",
-      "fallback": ["openai/gpt-5.4", "opencode-go/qwen3.6-plus"]
+      "fallback": [
+        "opencode-go/qwen3.6-plus",
+        "openai/gpt-5.4"
+      ]
     },
-    "mizuchi": {
+    "mizuchi--data-current": {
       "primary": "opencode-go/deepseek-v4-flash",
       "heavy": "opencode-go/deepseek-v4-pro",
-      "fallback": ["openai/gpt-5.4-mini", "opencode-go/minimax-m2.7", "google-vertex/gemini-3.1-flash-lite"],
-      "_note": "data architect leaf; dispatched by soroban for schema/dbt/ETL work"
+      "fallback": [
+        "openai/gpt-5.4-mini",
+        "opencode-go/minimax-m2.7",
+        "google-vertex/gemini-3.1-flash-lite"
+      ],
+      "_note": "data architect leaf; dispatched by soroban--number-sage for schema/dbt/ETL work"
+    },
+    "tanuki--codemod-runner": {
+      "primary": "opencode-go/mimo-v2.5",
+      "tier": "T2",
+      "fallback": [
+        "openai/gpt-5.4-mini",
+        "google-vertex/gemini-3.1-flash-lite",
+        "opencode-go/deepseek-v4-flash"
+      ],
+      "_note": "codemod orchestrator leaf; dispatches shell execution to karakuri--command-runner; called by shiranui--migration-guide and tsukumogami--code-forgemaster"
+    },
+    "kodama--growth-echo": {
+      "primary": "opencode-go/qwen3.6-plus",
+      "fallback": [
+        "openai/gpt-5.4-mini",
+        "opencode-go/glm-5",
+        "google-vertex/gemini-3-flash-preview"
+      ],
+      "_note": "brand-bundle growth-roadmap sub-familiar; promoted from deferred list to diversify away from gpt-5.2 concentration"
+    },
+    "kudagitsune--fit-diviner": {
+      "primary": "openai/gpt-5.4-mini",
+      "fallback": [
+        "opencode-go/qwen3.6-plus",
+        "opencode-go/glm-5",
+        "google-vertex/gemini-3-flash-preview"
+      ],
+      "_note": "brand-bundle role-fit scoring sub-familiar; promoted from deferred list; downgraded to mini for cost control"
     }
   },
   "_notes": {
-    "brand_subagents_deferred": "akashi, amanojaku, hyakume, kataribe, kodama, kudagitsune, kurabokko, migaki: intentionally omitted from subagents until the brand-builder bundle stabilizes"
+    "brand_subagents_deferred": "akashi--proof-keeper, amanojaku--voice-contrarian, hyakume--ats-watchman, kataribe--narrative-teller, kurabokko--knowledge-keeper, migaki--profile-polisher: intentionally omitted from subagents until the brand-builder bundle stabilizes. kodama--growth-echo and kudagitsune--fit-diviner promoted to subagents for #7 model diversification (2026-06-05)."
   }
 }

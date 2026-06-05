@@ -20,8 +20,8 @@ The `permitted_subagents` array is the single source for `permission.task`. Gene
 permission:
   task:
     "*": deny
-    source-retriever: allow
-    fact-checker: allow
+    @yamabiko--source-echo: allow
+    @kagami--truth-mirror: allow
     # ... one line per entry in permitted_subagents
 ```
 
@@ -40,13 +40,13 @@ playbooks:
 gate_scripts:
   - bun scripts/citation-verify.mjs
 permitted_subagents:
-  - source-retriever
-  - extractor
-  - fact-checker
-  - data-analyst
-  - synthesizer
-  - reviewer
-  - explorer
+  - yamabiko--source-echo
+  - azukiarai--data-sifter
+  - kagami--truth-mirror
+  - soroban--number-sage
+  - jorogumo--synthesis-weaver
+  - oni--red-team-reviewer
+  - mikoshi--code-pathfinder
 max_ralph_iterations: 3
 governing_file: docs/playbooks/research.md
 ```
@@ -56,11 +56,11 @@ Generated `permission.task` block:
 permission:
   task:
     "*": deny
-    source-retriever: allow
-    extractor: allow
-    fact-checker: allow
-    data-analyst: allow
-    synthesizer: allow
-    reviewer: allow
-    explorer: allow
+    @yamabiko--source-echo: allow
+    @azukiarai--data-sifter: allow
+    @kagami--truth-mirror: allow
+    @soroban--number-sage: allow
+    @jorogumo--synthesis-weaver: allow
+    "@oni--red-team-reviewer": allow
+    @mikoshi--code-pathfinder: allow
 ```
