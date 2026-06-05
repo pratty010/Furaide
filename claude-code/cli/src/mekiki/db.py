@@ -16,7 +16,9 @@ CREATE TABLE IF NOT EXISTS sessions (
   source TEXT,
   started_at TEXT,
   last_seen_at TEXT,
-  transcript_path TEXT
+  transcript_path TEXT,
+  ended_cleanly INTEGER,
+  effort_level TEXT
 );
 
 CREATE TABLE IF NOT EXISTS skill_invocations (
@@ -31,6 +33,7 @@ CREATE TABLE IF NOT EXISTS skill_invocations (
   load_success INTEGER,
   load_duration_ms INTEGER,
   load_error TEXT,
+  used_downstream INTEGER,
   FOREIGN KEY (session_id) REFERENCES sessions(session_id)
 );
 CREATE INDEX IF NOT EXISTS idx_invocations_skill ON skill_invocations(skill);
@@ -45,6 +48,7 @@ CREATE TABLE IF NOT EXISTS invocation_judgments (
   judgment_model TEXT,
   judged_at TEXT,
   notes TEXT,
+  score REAL,
   FOREIGN KEY (invocation_id) REFERENCES skill_invocations(id)
 );
 
@@ -93,6 +97,13 @@ CREATE TABLE IF NOT EXISTS skill_improvements (
 );
 """
 
+_MIGRATIONS = [
+    "ALTER TABLE skill_invocations ADD COLUMN used_downstream INTEGER",
+    "ALTER TABLE sessions ADD COLUMN ended_cleanly INTEGER",
+    "ALTER TABLE sessions ADD COLUMN effort_level TEXT",
+    "ALTER TABLE invocation_judgments ADD COLUMN score REAL",
+]
+
 def connect() -> sqlite3.Connection:
     conn = sqlite3.connect(str(state_db()))
     conn.row_factory = sqlite3.Row
@@ -104,6 +115,12 @@ def init() -> None:
     conn = connect()
     try:
         conn.executescript(SCHEMA)
+        for sql in _MIGRATIONS:
+            try:
+                conn.execute(sql)
+            except sqlite3.OperationalError as e:
+                if "duplicate column name" not in str(e).lower():
+                    raise
         conn.commit()
     finally:
         conn.close()
