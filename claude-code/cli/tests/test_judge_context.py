@@ -37,3 +37,28 @@ def test_build_uses_turn_bounded_window(mekiki_home):
     src = inspect.getsource(context)
     assert "turn_bounded_window" in src, "context.py must use turn_bounded_window"
     assert "window_around" not in src, "context.py must not call window_around"
+
+
+def test_build_raises_key_error_on_null_turn_index(mekiki_home):
+    """R3: turn_index=None must raise KeyError, not silently coerce to 0."""
+    import pytest
+    db.init()
+    transcript_path = str(FIXTURES / "transcript_simple.jsonl")
+    conn = db.connect()
+    conn.execute(
+        "INSERT INTO sessions(session_id,platform,started_at,last_seen_at,transcript_path) "
+        "VALUES('s_null','claude-code','2026-05-27T10:00:00.000Z','2026-05-27T10:00:03.000Z',?)",
+        (transcript_path,)
+    )
+    conn.execute(
+        "INSERT INTO skill_invocations(session_id,ts,skill,tool_use_id,trigger) "
+        "VALUES('s_null','2026-05-27T10:00:03.000Z','brainstorming','toolu_null','model')"
+    )
+    conn.commit()
+    inv_id = conn.execute(
+        "SELECT id FROM skill_invocations WHERE tool_use_id='toolu_null'"
+    ).fetchone()["id"]
+    conn.close()
+
+    with pytest.raises(KeyError):
+        ctxmod.build(inv_id)

@@ -73,6 +73,21 @@ def test_skill_invocation_has_ts():
     assert len(invs) == 1
     assert invs[0].ts == "2026-06-01T10:00:01.000Z"
 
+def test_turn_bounded_window_orphan_guard():
+    """R4: when no human message precedes the target, start at the target's own position."""
+    from mekiki.transcript import Turn, turn_bounded_window
+    turns = [
+        Turn(turn_index=0, uuid="a0", parent_uuid=None, role="assistant", timestamp="", text="preamble", raw={}),
+        Turn(turn_index=1, uuid="a1", parent_uuid=None, role="assistant", timestamp="", text="target", raw={}),
+        Turn(turn_index=2, uuid="u0", parent_uuid=None, role="user", timestamp="", text="first human", raw={}),
+    ]
+    window = turn_bounded_window(turns, target_turn_index=1)
+    indices = [t.turn_index for t in window]
+    # Must NOT include turn 0 (that would be the "swallow file head" bug)
+    assert 0 not in indices, "orphan guard must not include preamble before target"
+    assert 1 in indices
+
+
 def test_derive_downstream_used_respects_next_invocation_bound():
     """Attribution for a skill invocation must not bleed into the next same-skill invocation."""
     from mekiki.transcript import Turn, SkillInvocation, derive_downstream_used

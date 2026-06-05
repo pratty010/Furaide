@@ -1,9 +1,25 @@
+import hashlib
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from mekiki import db, transcript
 from mekiki.judge import context
 from mekiki.judge.interface import JudgeBackend, AvailableSkillCtx
+
+_TRIVIAL_ACKS = {"ok", "yes", "no", "thanks", "thank you", "got it", "sure", "yep", "nope", "okay"}
+
+
+def _trivial_user_turn(text: str) -> bool:
+    stripped = text.strip()
+    return len(stripped) < 15 or stripped.lower() in _TRIVIAL_ACKS
+
+
+def _sample_turn(session_id: str, turn_index: int, sample_rate: float) -> bool:
+    """Deterministic sampling — stable across re-runs for the same (session_id, turn_index)."""
+    if sample_rate >= 1.0:
+        return True
+    h = int(hashlib.sha1(f"{session_id}:{turn_index}".encode()).hexdigest()[:8], 16)
+    return (h / 0xFFFFFFFF) < sample_rate
 
 
 def _unjudged_invocations(conn) -> list[int]:
@@ -108,6 +124,10 @@ def detect_gaps(backend: JudgeBackend, sample_rate: float = 1.0) -> int:
                 if turn.role != "user":
                     continue
                 if (turn.turn_index + 1) in invocation_turns:
+                    continue
+                if _trivial_user_turn(turn.text):
+                    continue
+                if not _sample_turn(sess["session_id"], turn.turn_index, sample_rate):
                     continue
                 exists = conn.execute(
                     "SELECT 1 FROM gap_findings WHERE session_id=? AND turn_index=? LIMIT 1",
