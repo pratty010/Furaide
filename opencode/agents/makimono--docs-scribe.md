@@ -1,9 +1,13 @@
 ---
 name: makimono--docs-scribe
-description: "Makimono(Technical Writer): The scroll-spirit that records with mechanical precision, Mechanical reliable documentation, API docs, changelogs, inline comments, README sections"; returns sectioned Markdown; for structured docs, not editorial prose.
+description: >
+  Docs Scribe: Mechanical, sectioned Markdown documentation (API docs, changelogs, inline comments, README sections).
+  Use for: API references, architecture writeups, README generation, code-artifact explainers, structured docs that need consistent terminology and code examples.
+  Not for: editorial prose, narrative or persuasive content (kotodama--prose-polisher); for facts-only mechanical rendering, dispatch henge--format-shifter.
+  Behavior: returns sectioned Markdown with one heading per required section; flags missing source material as [NEEDS INFO] rather than guessing; never invents API behavior.
 mode: subagent
 model: opencode-go/glm-5
-temperature: 0.6
+temperature: 0.5
 permission:
   edit: deny
   bash: deny

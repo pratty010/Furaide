@@ -1,6 +1,10 @@
 ---
 name: azukiarai--data-sifter
-description: "Azukiarai(Extractor): The bean-washing spirit that sieves bulk data, Bulk structured data extraction from documents, web pages, code, or filings"; returns a JSON array; no judgment, pure extraction at scale for specialist dispatch only.
+description: >
+  Data Sifter: Bulk structured data extraction from documents, web pages, code, or filings into a JSON array matching a supplied schema.
+  Use for: high-throughput schema-consistent extraction (no judgment, no synthesis); called by yamabiko--source-echo, soroban--number-sage, kagami--truth-mirror, mikoshi--code-pathfinder when input exceeds their inline processing threshold.
+  Not for: interpretation, ranking, deduplication, or any task requiring judgment; the answer is the array, nothing more.
+  Behavior: returns a JSON array where each item maps exactly to the requested schema fields; applies null_policy for missing values; T2 leaf, never dispatches further; never writes state files.
 mode: subagent
 model: opencode-go/minimax-m2.7
 permission:

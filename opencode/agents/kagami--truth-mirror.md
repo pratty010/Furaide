@@ -1,6 +1,10 @@
 ---
 name: kagami--truth-mirror
-description: "Kagami(Fact-Checker): The sacred mirror that reflects only truth, Verify claims against sources and return per-claim verdict + confidence score"; dispatch before delivering numbers, dates, or attributed claims.
+description: >
+  Truth Mirror: Verifies an enumerated claim list against primary or authoritative sources and returns per-claim verdicts with confidence scores.
+  Use for: verifying numbers, dates, market sizes, attributed quotes, technical claims, regulatory citations before delivery; called once Source Manifest IDs are present.
+  Not for: source retrieval (yamabiko--source-echo), synthesis (jorogumo--synthesis-weaver), or upgrading confidence without a citation.
+  Behavior: returns Verdict Table (supported/unsupported/unverified × high/medium/low confidence) + summary counts; never extrapolates from training data; never fabricates citations.
 mode: subagent
 model: openai/gpt-5.4-mini
 permission:

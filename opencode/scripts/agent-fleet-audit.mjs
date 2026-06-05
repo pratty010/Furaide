@@ -1,5 +1,7 @@
-import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+
+const TARGET = 'docs/agent-fleet-structural-findings.md';
 
 const files = readdirSync('agents').filter(file => file.endsWith('.md')).sort();
 
@@ -14,8 +16,10 @@ const rows = files.map(file => {
   return `| ${file} | ${mode} | ${model} | ${description.replace(/\|/g, '/')} | ${mentions.join(', ')} | ${taskTargets.join(', ')} |`;
 });
 
-const report = [
+const inventory = [
   '# Agent Fleet Structural Findings',
+  '',
+  '- Review rubric: `docs/agent-description-rubric.md`',
   '',
   '## Inventory',
   '',
@@ -23,15 +27,15 @@ const report = [
   '| --- | --- | --- | --- | --- | --- |',
   ...rows,
   '',
-  '## Structural Findings',
-  '',
-  '- Pending manual review.',
-  '',
-  '## Approval Gate',
-  '',
-  '- Do not apply hierarchy changes until the user approves this file.',
-  '',
 ].join('\n');
 
-writeFileSync('docs/agent-fleet-structural-findings.md', report);
+const findingsTail = existsSync(TARGET)
+  ? (() => {
+      const existing = readFileSync(TARGET, 'utf8');
+      const tailMatch = existing.match(/\n## Structural Findings[\s\S]*$/);
+      return tailMatch ? '\n' + tailMatch[0].replace(/^\n+/, '') + (tailMatch[0].endsWith('\n') ? '' : '\n') : '';
+    })()
+  : '\n## Structural Findings\n\n- Pending manual review.\n\n## Approval Gate\n\n- Do not apply hierarchy changes until the user approves this file.\n';
+
+writeFileSync(TARGET, inventory + findingsTail);
 console.log(`Audit generated: ${files.length} agents`);

@@ -1,9 +1,13 @@
 ---
 name: migaki--profile-polisher
-description: "Migaki(LinkedIn Optimizer): LinkedIn section diagnosis and rewrite-variant specialist. Handles linkedin_optimization intent. Produces per-section diagnoses with locked variant counts, voice-preserving rewrites, ATS review, and anti-voice gate."
+description: >
+  Profile Polisher: LinkedIn section diagnosis and rewrite-variant specialist for the brand bundle (handles linkedin_optimization intent).
+  Use for: "rewrite my LinkedIn headline", "give me about-section variants", "diagnose my LinkedIn"; per-section diagnoses with locked variant counts and voice-preserving rewrites; called by kitsune--brand-orchestrator with a BB-BRIEF.
+  Not for: resume rewrites, GitHub evaluation (akashi--proof-keeper), brand direction (kataribe--narrative-teller), applying variants to a live profile, or generating variants without first calling bb_linkedin.
+  Behavior: returns BB-RESULT with engine_results ID, locked variant counts (headline=3, about=2, experience=2 bullets, featured=2, skills=1), labels "Variant N" only; runs bb_ats_scan on output and dispatches amanojaku--voice-contrarian as anti-voice gate.
 mode: subagent
 model: opencode-go/kimi-k2.6
-temperature: 0.6
+temperature: 0.5
 permission:
   edit: deny
   bash: deny

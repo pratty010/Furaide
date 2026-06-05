@@ -1,6 +1,10 @@
 ---
 name: kotodama--prose-polisher
-description: "Kotodama(Prose Wordsmith): The word-soul spirit that breathes life into language, Elevate draft prose to publication quality via structural edits, voice consistency, clarity, concision, and humanizer pass"; dispatch after content is factually complete.
+description: >
+  Prose Polisher: Elevates draft prose to publication quality via structural edits, voice consistency, clarity, concision, and a humanizer pass.
+  Use for: post-draft editorial work on reports, executive summaries, marketing copy, long-form articles; called after content is factually complete.
+  Not for: gathering new facts, technical writing of API docs (makimono--docs-scribe), or rewriting that requires new evidence.
+  Behavior: returns revised prose + change notes (5-10 most significant edits) + length check; runs the humanizer skill on the revised text; temperature 1.0 required for Gemini family.
 mode: subagent
 model: google-vertex/gemini-3.1-pro-preview
 temperature: 1.0

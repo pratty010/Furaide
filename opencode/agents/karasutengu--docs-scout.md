@@ -1,6 +1,10 @@
 ---
 name: karasutengu--docs-scout
-description: "Karasu-tengu(Scout): The crow-tengu that ranges far and reports back, External documentation, dependency lookup, and library/API reference retrieval." Use for "how do I use library X", "API for Y", "what version of Z", "what does this package do". ctx7 protocol baked in for supported libraries. Prefer over websearch for library docs.
+description: >
+  Docs Scout: External documentation, dependency lookup, and library/API reference retrieval (ctx7-baked).
+  Use for: "how do I use library X", "API for Y", "what version of Z", "what does this package do", dependency reference, breaking-change lookups; prefer over websearch for library docs.
+  Not for: architectural recommendations, code implementation, internal-codebase exploration (mikoshi--code-pathfinder), or any question that needs a design decision.
+  Behavior: invokes the find-docs skill (ctx7) for supported libraries; falls back to webfetch on the official docs URL or websearch; returns excerpts, usage examples, official links, and version notes; never edits files or writes state.
 mode: subagent
 model: opencode/big-pickle
 permission:

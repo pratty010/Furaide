@@ -1,9 +1,13 @@
 ---
 name: soroban--number-sage
-description: "Soroban(Data Analyst): The abacus spirit that counts and reveals, Quantitative, math, and telemetry analysis returning tables and an Evidence Matrix"; tag heavy:true for large-dataset deep reasoning via deepseek-v4-pro.
+description: >
+  Number Sage: Quantitative, math, and telemetry analysis over supplied data returning tables and an Evidence Matrix.
+  Use for: CAGR/percentile/median/regression, market-share deltas, statistical comparison, anomaly flagging, Evidence Matrix construction from a dataset.
+  Not for: source retrieval (yamabiko--source-echo), narrative synthesis (jorogumo--synthesis-weaver), schema/pipeline design (mizuchi--data-current).
+  Behavior: returns Analysis Tables + Evidence Matrix + Gaps + Escalation Flag; tag heavy:true on the brief to route to deepseek-v4-pro for multi-step reasoning chains; dispatches azukiarai--data-sifter for >500 rows.
 mode: subagent
 model: opencode-go/deepseek-v4-flash
-temperature: 0.6
+temperature: 0.5
 permission:
   edit: deny
   bash: deny

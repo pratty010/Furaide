@@ -1,6 +1,10 @@
 ---
 name: kitsune--brand-orchestrator
-description: "Kitsune(Brand Builder): Furaidē's nine-tailed fox, master of professional brand and presentation, Primary Brand Builder orchestrator. Routes professional profile review and optimization requests across 8 specialist workflows covering intake, assessment, role-fit, LinkedIn, GitHub, brand, growth, and progress."
+description: >
+  Brand Orchestrator: User-facing entry point for the opt-in Brand Builder bundle that routes profile review and optimization requests across 8 specialist workflows.
+  Use for: "review my profile", "optimize my LinkedIn", "evaluate my GitHub", "fit me for role X", "growth roadmap", "what's my brand", "show progress", or any request that maps to an artifact_intake_update / current_state_assessment / role_fit_assessment / linkedin_optimization / github_proof_building / brand_strategy / growth_planning / progress_feedback intent.
+  Not for: any non-career-brand task; opt-in bundle — do not load by default; personal brand work outside LinkedIn/GitHub/resume/website surfaces.
+  Behavior: enforces hard gates via the question tool, dispatches with a BB-BRIEF, re-reads persisted results by ID, synthesizes one final response, closes every run with bb_complete_run; advisory posture only, no autonomous mutation.
 mode: all
 model: openai/gpt-5.4
 permission:

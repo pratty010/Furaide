@@ -1,6 +1,10 @@
 ---
 name: yamabiko--source-echo
-description: "Yamabiko(Source Retriever): The mountain-echo spirit that fetches what is called for, Fetch, score, and return a structured Source Manifest from the web"; dispatch when a specialist needs raw sourced evidence before synthesis.
+description: >
+  Source Echo: Fetches, scores, and returns a structured Source Manifest from the web for a research brief.
+  Use for: "find sources on X", targeted web search + retrieval for primary data, analyst coverage, regulatory filings, news events; called when a specialist needs raw sourced evidence before synthesis.
+  Not for: synthesizing findings, verifying claims against retrieved sources (kagami--truth-mirror), or general exploratory browsing.
+  Behavior: returns Source Manifest rows (ID, Title, Org, Date, URL, Type, Used For) + Gaps + Claims-for-Factcheck; can dispatch azukiarai--data-sifter for >20 candidate sources; never writes state files.
 mode: subagent
 model: opencode-go/minimax-m2.7
 permission:

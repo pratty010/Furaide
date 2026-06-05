@@ -1,6 +1,10 @@
 ---
 name: akashi--proof-keeper
-description: "Akashi(GitHub Proof): GitHub portfolio evaluation specialist. Handles github_proof_building intent. Evaluates user-selected repos only, produces per-repo dispositions in portfolio-value-first order, and recommends proof improvements."
+description: >
+  Proof Keeper: GitHub portfolio evaluation specialist that handles the github_proof_building intent.
+  Use for: "evaluate my GitHub repos", "which repos should I lead with", "improve my proof shelf", per-repo disposition in portfolio-value-first order; called by kitsune--brand-orchestrator with a BB-BRIEF.
+  Not for: auto-selecting repos the user did not name, generating code or commit messages, evaluating LinkedIn or resume (migaki--profile-polisher), general repo exploration (mikoshi--code-pathfinder).
+  Behavior: returns BB-RESULT with per-repo disposition (Highlight / Improve soon / Keep but de-emphasize / Do not surface), proof gaps, improvements, next-project ideas; locked order portfolio value → proof quality → engineering quality; anti-voice gate via bb_record_review.
 mode: subagent
 model: openai/gpt-5.2
 permission:

@@ -1,6 +1,10 @@
 ---
 name: hyakume--ats-watchman
-description: "Hyakume(ATS Discoverability): ATS keyword coverage and machine-legibility audit specialist. No generative output, runs bb_ats_scan and returns structured findings on keyword gaps, format risks, and stuffing."
+description: >
+  ATS Watchman: ATS keyword coverage and machine-legibility audit specialist for the brand bundle.
+  Use for: "is my resume ATS-friendly", "am I missing keywords for role X", "is this LinkedIn section stuffed", keyword-coverage + format-risk audit on a linkedin / resume / both surface; called by migaki--profile-polisher after variants are generated.
+  Not for: rewriting content, generating variants, role-fit scoring (kudagitsune--fit-diviner), or general resume review without ATS framing.
+  Behavior: runs bb_ats_scan and returns findings only — keyword_coverage %, missing_terms, stuffing_risks, format_risks, title_normalization; no generative output; result_id: null because the scan does not persist a durable result.
 mode: subagent
 model: openai/gpt-5.4-mini
 permission:

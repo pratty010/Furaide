@@ -1,6 +1,10 @@
 ---
 name: kurabokko--knowledge-keeper
-description: "Kurabokko(Knowledge Steward): Artifact intake and memory hygiene specialist. Handles artifact_intake_update intent, compare-then-promote flow, conflict detection, evidence staleness marking."
+description: >
+  Knowledge Keeper: Artifact intake and memory hygiene specialist for the brand bundle (handles artifact_intake_update intent).
+  Use for: "ingest my updated resume", "intake a new LinkedIn snapshot", compare-then-promote flow, conflict detection, evidence staleness marking; called by kitsune--brand-orchestrator with a BB-BRIEF.
+  Not for: scoring profiles (kudagitsune--fit-diviner), rewriting artifacts, GitHub proof (akashi--proof-keeper), or any mutation without bb_approve confirmation.
+  Behavior: runs bb_intake, classifies update (new / unchanged / minor / meaningful), embeds new evidence, verifies staleness, surfaces conflicts; returns BB-RESULT with artifact_version ID; advisory posture only.
 mode: subagent
 model: openai/gpt-5.4-mini
 permission:

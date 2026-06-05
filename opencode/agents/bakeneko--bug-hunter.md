@@ -1,6 +1,10 @@
 ---
 name: bakeneko--bug-hunter
-description: "Bakeneko(Debugger): The shapeshifting cat that hunts what hides, Root-cause analysis of test failures or runtime errors; returns an ExecutionPacket(hypothesis/commands/expected_observations) for karakuri--command-runner to execute, no direct bash."
+description: >
+  Bug Hunter: Root-cause analysis of test failures and runtime errors that returns an ExecutionPacket for karakuri--command-runner.
+  Use for: "why does this test fail", "find the root cause of this bug", "diagnose this runtime error", ranked-hypothesis investigation.
+  Not for: applying fixes, running bash, writing state files, or one-shot answers (returns a plan, not a verdict).
+  Behavior: returns ranked hypotheses, files/lines to inspect, commands to run, expected_observations per hypothesis, and stop_criteria; never dispatches further agents; deepseek-v4-pro reasoner — do not set temperature.
 mode: subagent
 model: opencode-go/deepseek-v4-pro
 permission:

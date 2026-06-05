@@ -1,6 +1,10 @@
 ---
 name: kodama--growth-echo
-description: "Kodama(Growth Planner): Recurring-gap analysis and growth roadmap specialist. Handles growth_planning intent. Applies GROW-02 project/proof-first certificate gating and produces a medium-horizon(3-9 month) phased plan."
+description: >
+  Growth Echo: Recurring-gap analysis and growth roadmap specialist (handles growth_planning intent).
+  Use for: "what should I work on next", "3-9 month growth plan", "do I need a certificate", recurring-gap analysis across role-fit snapshot history; called by kitsune--brand-orchestrator with a BB-BRIEF.
+  Not for: short-horizon surface optimization, long-horizon (>9 month) roadmaps, role-fit scoring itself (kudagitsune--fit-diviner), or career-domain work outside the brand bundle.
+  Behavior: applies GROW-02 gate (certificate recs only when gap recurs ≥2 snapshots, is market-rewarded, and beats project/proof); project/proof is always primary; medium horizon 3-9 months; returns BB-RESULT with engine_results ID.
 mode: subagent
 model: openai/gpt-5.2
 permission:
