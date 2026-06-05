@@ -29,6 +29,7 @@ desktop.ini
 *.secret
 .secrets/
 secrets/
+issues/
 
 # ── Python ───────────────────────────────────────────────────────────────────
 __pycache__/

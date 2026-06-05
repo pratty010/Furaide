@@ -23,14 +23,17 @@ _jq_int() { echo "$input" | jq -r "${1} // 0" 2>/dev/null | cut -d. -f1; }
 
 # ── width / format helpers ─────────────────────────────────────────────────
 ESC=$'\033'
-# NOTE: awk length counts bytes, not display columns. Multi-byte chars (emoji, block
-# glyphs) are over-counted, producing extra padding rather than overflow — safe failure.
-_vlen() { printf '%s' "$1" | sed "s/${ESC}\[[0-9;]*m//g" | awk '{print length}'; }
+_vlen() {
+  printf '%s' "$1" \
+  | sed "s/${ESC}\[[0-9;]*m//g" \
+  | sed -e 's/🧠/##/g' -e 's/📁/##/g' -e 's/[│█░↑↓…⚠]/X/g' \
+  | awk '{print length}'
+}
 _trunc() {
-  local s="$1" n="$2" v
+  local s="$1" n="$2" v vlen
   v=$(printf '%s' "$s" | sed "s/${ESC}\[[0-9;]*m//g")
-  if [ "${#v}" -le "$n" ]; then printf '%s' "$s"
-  # Truncation strips ANSI color from the sliced prefix; RST appended for safety.
+  vlen=$(_vlen "$v")
+  if [ "$vlen" -le "$n" ]; then printf '%s' "$s"
   else printf '%s…%s' "${v:0:$((n-1))}" "$RST"; fi
 }
 _human() {
@@ -40,14 +43,16 @@ _human() {
   else printf '%d' "$n"; fi
 }
 _until() {
-  local t="$1" secs now diff h m
+  local t="$1" secs now diff d h m
   [ -z "$t" ] && return
   if printf '%s' "$t" | grep -qE '^[0-9]+$'; then secs="$t"
   else secs=$(date -d "$t" +%s 2>/dev/null || echo ""); fi
   [ -z "$secs" ] && return
   now=$(date +%s); diff=$(( secs - now )); [ "$diff" -lt 0 ] && diff=0
-  h=$(( diff/3600 )); m=$(( (diff%3600)/60 ))
-  if [ "$h" -gt 0 ]; then printf '%dh%dm' "$h" "$m"; else printf '%dm' "$m"; fi
+  d=$(( diff/86400 )); h=$(( (diff%86400)/3600 )); m=$(( (diff%3600)/60 ))
+  if   [ "$d" -gt 0 ]; then printf '%dd%dh' "$d" "$h"
+  elif [ "$h" -gt 0 ]; then printf '%dh%dm' "$h" "$m"
+  else printf '%dm' "$m"; fi
 }
 _bar() {  # pct width
   local pct="$1" w="$2" f e i out=""
@@ -115,8 +120,11 @@ DIR=$(_jq '.workspace.current_dir // .cwd')
 RAWDIR="$DIR"
 case "$DIR" in "$HOME"*) DIR="~${DIR#$HOME}" ;; esac
 DIR=$(_pathshort "$DIR")
-WT=$(_jq '.workspace.git_worktree'); BRANCH="$WT"
-[ -z "$BRANCH" ] && [ -n "$RAWDIR" ] && BRANCH=$(git -C "$RAWDIR" rev-parse --abbrev-ref HEAD 2>/dev/null || true)
+BRANCH=""
+[ -n "$RAWDIR" ] && BRANCH=$(git -C "$RAWDIR" branch --show-current 2>/dev/null \
+  || git -C "$RAWDIR" rev-parse --abbrev-ref HEAD 2>/dev/null || true)
+WT=$(_jq '.workspace.git_worktree')
+[ -z "$BRANCH" ] && BRANCH="$WT"
 case "$GLYPHS" in emoji) DG="📁 " ;; nerd) DG=$' ' ;; *) DG="" ;; esac
 L2L="${DG}${BOLD}${DIR}${RST}"
 [ -n "$BRANCH" ] && L2L+=" ${YLW}(${BRANCH})${RST}"
