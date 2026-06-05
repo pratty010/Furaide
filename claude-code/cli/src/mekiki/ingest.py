@@ -80,6 +80,7 @@ def run_transcript_scan(projects_root: Path | None = None) -> dict:
                     "ON CONFLICT(session_id) DO UPDATE SET "
                     "cwd=excluded.cwd, "
                     "model=excluded.model, "
+                    "started_at=excluded.started_at, "
                     "last_seen_at=excluded.last_seen_at, "
                     "transcript_path=excluded.transcript_path, "
                     "ended_cleanly=excluded.ended_cleanly",
