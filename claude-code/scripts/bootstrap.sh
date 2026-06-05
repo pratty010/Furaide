@@ -37,7 +37,7 @@ confirm() {  # confirm "message" — returns 0 (yes) / 1 (no); default yes
   [[ "$ASSUME_YES" -eq 1 ]] && return 0
   local reply
   printf "${YELLOW}?${NC} %s [Y/n] " "$1" >&2
-  read -r reply </dev/tty || reply="y"
+  read -r reply </dev/tty || { printf '\n' >&2; return 1; }
   case "$reply" in n|N|no|NO) return 1 ;; *) return 0 ;; esac
 }
 
@@ -59,7 +59,8 @@ for arg in "$@"; do
   esac
 done
 
-# ── 0) One-time data migration: ~/.satori → ~/.mekiki ────────────────────────
+# ── 0) One-time data migration (runs before flag checks — always safe) ────────
+# Migration: ~/.satori → ~/.mekiki
 if [[ -d "$HOME/.satori" && ! -d "$HOME/.mekiki" ]]; then
   mv "$HOME/.satori" "$HOME/.mekiki"
   ok "migrated ~/.satori → ~/.mekiki"
@@ -87,7 +88,7 @@ fi
 }
 
 # ── 2) Common skills ──────────────────────────────────────────────────────────
-if confirm "Install common skills (github, bx, html-preview, brave-search, plan) → ~/.agents/skills + symlink ~/.claude/skills?"; then
+if confirm "Install common skills → ~/.agents/skills (+ symlink ~/.claude/skills)?"; then
   bash "$COMMON/install-common.sh" --global
   ok "common skills installed"
 fi
