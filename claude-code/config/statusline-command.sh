@@ -102,7 +102,8 @@ if   [ "$EXCEEDS" = "true" ] || [ "$CTX_PCT" -ge 90 ]; then BC="$RED"
 elif [ "$CTX_PCT" -ge 70 ]; then BC="$YLW"
 elif [ "$CTX_PCT" -ge 50 ]; then BC="$BYLW"
 else BC="$GRN"; fi
-WARN=""; [ "$EXCEEDS" = "true" ] && WARN="${RED}⚠ ${RST}"
+WARN=""
+{ [ "$EXCEEDS" = "true" ] || [ "$CTX_PCT" -ge 90 ]; } && WARN="${RED}⚠ ${RST}"
 L1R="${WARN}${DIM}CTX:${RST} ${BC}[$(_bar "$CTX_PCT" 10)]${RST} ${DIM}$(_human "$USED")/$(_human "$WIN")${RST}"
 _lr "$L1L" "$L1R"
 
