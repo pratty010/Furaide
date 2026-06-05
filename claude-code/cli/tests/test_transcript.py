@@ -38,3 +38,37 @@ def test_extract_available_skills():
     by_name = {s.name: s.description for s in skills}
     assert "non-trivial task" in by_name["brainstorming"]
     assert "debugging" in by_name["diagnose"]
+
+def test_extract_session_meta_prefers_in_record_session_id():
+    meta = transcript.extract_session_meta(FIXTURES / "transcript_with_attribution.jsonl")
+    assert meta.session_id == "sess-attr"   # from in-record sessionId, NOT filename stem
+    assert meta.cwd == "/tmp/proj"
+    assert meta.started_at == "2026-06-01T10:00:00.000Z"
+    assert meta.ended_cleanly is True
+
+def test_extract_session_meta_no_stop_hook():
+    meta = transcript.extract_session_meta(FIXTURES / "transcript_simple.jsonl")
+    assert meta.ended_cleanly is False
+
+def test_turn_bounded_window_returns_block_between_human_messages():
+    turns = list(transcript.iter_turns(FIXTURES / "transcript_with_attribution.jsonl"))
+    # target_turn_index=1 is the assistant Skill tool_use record
+    # block runs from human message at turn_index=0 to before human message at turn_index=4
+    window = transcript.turn_bounded_window(turns, target_turn_index=1)
+    indices = [t.turn_index for t in window]
+    assert 0 in indices   # human prompt included
+    assert 1 in indices   # Skill tool_use included
+    assert 2 in indices   # tool_result included
+    assert 3 in indices   # downstream assistant included
+    assert 4 not in indices  # next human message excluded
+
+def test_derive_downstream_used_detects_attribution():
+    turns = list(transcript.iter_turns(FIXTURES / "transcript_with_attribution.jsonl"))
+    invocations = list(transcript.iter_skill_invocations(FIXTURES / "transcript_with_attribution.jsonl"))
+    result = transcript.derive_downstream_used(invocations, turns)
+    assert result["toolu_bs1"] is True
+
+def test_skill_invocation_has_ts():
+    invs = list(transcript.iter_skill_invocations(FIXTURES / "transcript_with_attribution.jsonl"))
+    assert len(invs) == 1
+    assert invs[0].ts == "2026-06-01T10:00:01.000Z"

@@ -1,0 +1,7 @@
+{"type":"user","uuid":"u1","sessionId":"sess-attr","parentUuid":null,"timestamp":"2026-06-01T10:00:00.000Z","cwd":"/tmp/proj","message":{"role":"user","content":"use brainstorming skill"}}
+{"type":"assistant","uuid":"a1","parentUuid":"u1","sessionId":"sess-attr","timestamp":"2026-06-01T10:00:01.000Z","attributionSkill":"brainstorming","message":{"role":"assistant","content":[{"type":"tool_use","id":"toolu_bs1","name":"Skill","input":{"skill":"brainstorming","args":"design mekiki"}}]}}
+{"type":"user","uuid":"tr1","parentUuid":"a1","sessionId":"sess-attr","timestamp":"2026-06-01T10:00:02.000Z","toolUseResult":true,"sourceToolAssistantUUID":"a1","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"toolu_bs1","content":"skill output"}]}}
+{"type":"assistant","uuid":"a2","parentUuid":"tr1","sessionId":"sess-attr","timestamp":"2026-06-01T10:00:03.000Z","attributionSkill":"brainstorming","message":{"role":"assistant","content":[{"type":"text","text":"Here is the brainstorming output"}]}}
+{"type":"user","uuid":"u2","parentUuid":"a2","sessionId":"sess-attr","timestamp":"2026-06-01T10:00:10.000Z","message":{"role":"user","content":"looks good"}}
+{"type":"assistant","uuid":"a3","parentUuid":"u2","sessionId":"sess-attr","timestamp":"2026-06-01T10:00:11.000Z","message":{"role":"assistant","content":[{"type":"text","text":"great"}]}}
+{"type":"system","uuid":"s1","sessionId":"sess-attr","timestamp":"2026-06-01T10:00:12.000Z","subtype":"stop_hook_summary","message":{"role":"system","content":"Session complete"}}
