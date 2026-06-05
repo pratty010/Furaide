@@ -113,14 +113,26 @@ if [[ -n "$CLAUDE_DEST" ]]; then
     src="$AGENTS_DEST/$skill_name"
     link="$CLAUDE_DEST/$skill_name"
     if [[ -L "$link" ]]; then
-      warn "  $skill_name: symlink exists — skipping (rm to relink)"
+      if [[ -e "$link" ]]; then
+        warn "  $skill_name: symlink exists — skipping (use --relink to replace)"
+      else
+        warn "  $skill_name: broken symlink at $link — pass --relink to fix"
+      fi
     elif [[ -e "$link" ]] && [[ "$RELINK" -eq 0 ]]; then
       warn "  $skill_name: real dir at $link — pass --relink to replace with symlink"
     elif [[ -e "$link" ]] && [[ "$RELINK" -eq 1 ]]; then
+      if [[ ! -d "$src" ]]; then
+        warn "  $skill_name: agents copy missing at $src — re-run to fix"
+        continue
+      fi
       rm -rf "$link"
       ln -s "$src" "$link"
       ok "  $skill_name → $link ⇒ $src (relinked)"
     else
+      if [[ ! -d "$src" ]]; then
+        warn "  $skill_name: agents copy missing at $src — re-run to fix"
+        continue
+      fi
       ln -s "$src" "$link"
       ok "  $skill_name → $link ⇒ $src"
     fi
@@ -128,4 +140,5 @@ if [[ -n "$CLAUDE_DEST" ]]; then
 fi
 
 printf '\n%s\n' "${GRN}Done.${RST} Common skills installed."
-printf '%s\n' "${DIM}To update: re-run this script. To switch copies to symlinks: re-run with --relink.${RST}"
+printf '%s\n' "${DIM}To update: re-run this script.${RST}"
+[[ -n "${CLAUDE_DEST:-}" ]] && printf '%s\n' "${DIM}To switch copies to symlinks: re-run with --relink.${RST}"
