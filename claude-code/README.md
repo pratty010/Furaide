@@ -1,19 +1,20 @@
 # claude-code/
 
-> *Two plugins, one engine. Furaidē's shikigami for Claude Code.*
+> *One plugin, one skill. Furaidē's shikigami for Claude Code.*
 
 Part of the [F.R.I.D.A.Y.](https://github.com/pratty010/Furaide) monorepo.
 
 ---
 
-## Plugins
+## Components
 
-| Plugin | Japanese | Role |
-|--------|----------|------|
-| **Mekiki** | 目利き ("appraiser") | Skill-usage analytics: captures every skill invocation and judges its effectiveness offline |
-| **Hanko** | 判子 ("signing seal") | Git workflow: Haiku subagent for commits, pushes, PR creation, and CI monitoring with human-in-the-loop approval |
+| Component | Role |
+|-----------|------|
+| **Mekiki** (plugin) | Skill-usage analytics: captures every skill invocation and judges its effectiveness offline |
+| **`github` skill** | Git/GitHub workflow recipes for the `hanko--git-seal` subagent |
+| **`hanko--git-seal`** (agent) | Quiet executor for all git/GitHub ops; routes through the `github` skill |
 
-Both plugins share a single engine (`cli/`) installed by `scripts/bootstrap.sh`.
+Mekiki and the `github` skill share a single engine (`cli/`) installed by `scripts/bootstrap.sh`.
 
 ---
 
@@ -26,18 +27,20 @@ git clone https://github.com/pratty010/Furaide.git ~/Furaidē
 bash ~/Furaidē/claude-code/scripts/bootstrap.sh
 ```
 
-The bootstrap script:
-- Installs the `mekiki` CLI engine via `uv sync` (creates `.venv` in `cli/`)
-- Offers to install shared skills (bx, html-preview, brave-search, plan) from `common/skills/`
-- Offers to install other skills from the manifest (superpowers, notebooklm, …)
-- Offers to copy the global config bundle into `~/.claude/`
+The bootstrap script runs with no prompts:
+1. Migrates `~/.satori` → `~/.mekiki` (one-time)
+2. Installs the `mekiki` CLI engine via `uv sync`
+3. Installs shared common skills (`github`, `bx`, `html-preview`, `brave-search`, `plan`) to `~/.agents/skills/` + `~/.claude/skills/`
+4. Copies `config/agents/hanko--git-seal.md` → `~/.claude/agents/`
+5. Backs up and copies `config/CLAUDE.md` + `config/statusline-command.sh` → `~/.claude/`
 
-### 2. Register and install plugins in Claude Code
+Flags: `--minimal` (steps 1–2 only), `--no-config` (skip step 5), `--with-skills` (also install manifest skills), `-h`.
+
+### 2. Register and install Mekiki plugin in Claude Code
 
 ```
 /plugin marketplace add pratty010/Furaide
 /plugin install mekiki@fr1d4y
-/plugin install hanko@fr1d4y
 /reload-plugins
 ```
 
@@ -65,16 +68,18 @@ mekiki improve --skill <name>     # build evidence pack
 mekiki improve --skill <name> --mark applied
 ```
 
-### Hanko: git workflow
+### Git/GitHub: hanko--git-seal + github skill
+
+All git and GitHub work routes to the `hanko--git-seal` subagent automatically:
 
 ```
-/github commit with "feat(opencode): add hanko subagent"
-/github create a PR to dev
-/github check CI status for my current branch
-/github push to dev and create a PR
+commit these changes to dev
+create a PR from feat/my-feature
+check CI status for my branch
+push to dev
 ```
 
-The Haiku subagent reads `GITHUB.md` (bundled in the plugin), validates conventional commit format, uses `gh` CLI, and **asks you before every commit, push, or PR creation**.
+The subagent invokes `Skill(github)` for the six standard workflow recipes and reads `GITHUB.md` for setup, SSH signing, PAT config, rulesets, and troubleshooting. It **asks before every commit, push, or PR creation**.
 
 ---
 
@@ -127,6 +132,22 @@ See [`config/README.md`](config/README.md) for per-file notes.
 
 ---
 
+## Uninstall
+
+```bash
+bash ~/Furaidē/claude-code/scripts/uninstall.sh
+```
+
+Default: interactive (prompts for user data). Flags: `--dry-run` (print what would be removed, no changes), `--purge` (remove everything with no prompts).
+
+Then in Claude Code:
+```
+/plugin uninstall mekiki@fr1d4y
+/plugin marketplace remove fr1d4y
+```
+
+---
+
 ## Development
 
 ```bash
@@ -143,12 +164,14 @@ plugins/
     commands/mekiki.md           # /mekiki slash command
     hooks/hooks.json             # event capture hooks (CLAUDE_PLUGIN_ROOT-relative)
     bin/mekiki                   # PATH shim → cli/.venv/bin/mekiki
-  hanko/
-    .claude-plugin/plugin.json   # plugin manifest
-    skills/github/SKILL.md       # /github skill
-    GITHUB.md                    # git/GitHub workflow reference
-    bin/github-setup-check       # SSH + gh CLI setup verification
+config/
+  agents/
+    hanko--git-seal.md           # git/GitHub subagent (installed → ~/.claude/agents/)
+  CLAUDE.md                      # global config (installed → ~/.claude/)
+  statusline-command.sh          # statusline helper (installed → ~/.claude/)
 ```
+
+**Adding a new skill:** add to `common/skills/`, then update `common/skills-manifest.json`.
 
 **Adding a new plugin:** create `plugins/<name>/.claude-plugin/plugin.json`, then register it in `/.claude-plugin/marketplace.json` at the repo root.
 

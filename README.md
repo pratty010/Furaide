@@ -61,7 +61,7 @@ Five components that wire Furaidē into AI coding harnesses:
 | Component | Harness | What it does |
 |-----------|---------|-------------|
 | `opencode/` | [OpenCode](https://opencode.ai) | 29-agent fleet: 12 domain specialists, 15 shared subagents, 4 always-on gate guardians, Kitsune brand-builder (opt-in) |
-| `claude-code/` | [Claude Code](https://claude.ai/code) | Two plugins: Mekiki (目利き, skill-usage analytics) and Hanko (判子, git workflow with human-in-the-loop approval) |
+| `claude-code/` | [Claude Code](https://claude.ai/code) | Mekiki plugin (skill-usage analytics) + `github` skill / `hanko--git-seal` agent (git workflow) |
 | `pi-agent/` | [pi.dev](https://pi.dev) | Extension package: web-RAG tools, `/usage` cost tracking, animated TUI, friday and chimu themes, GSD skills |
 | `openclaw/` | [OpenCLAW](https://docs.openclaw.ai) | Persona workspace configs for four pre-built identities: kinyo, koda, kagakusha, tengan |
 | `common/` | All of the above | Single source of truth: vendored skills, agent cores, shared docs, cross-ecosystem installers |
@@ -73,7 +73,7 @@ Five components that wire Furaidē into AI coding harnesses:
 ```
 Furaidē/
 ├── opencode/          # 29-agent OpenCode fleet
-├── claude-code/       # Mekiki + Hanko Claude Code plugins
+├── claude-code/       # Mekiki plugin + github skill / hanko--git-seal agent
 ├── pi-agent/          # Pi extension (friday-furaidee)
 ├── openclaw/          # OpenCLAW persona workspaces
 ├── common/            # Shared skills, agent cores, docs, installers
@@ -108,7 +108,7 @@ Flags: `--list` · `--all` · `--global` / `--project` / `--custom <dir>` · `--
 
 See [opencode/README.md](opencode/README.md).
 
-### Claude Code: Mekiki + Hanko
+### Claude Code: Mekiki
 
 ```bash
 git clone https://github.com/pratty010/Furaide.git ~/Furaidē
@@ -120,9 +120,11 @@ Then in Claude Code:
 ```
 /plugin marketplace add pratty010/Furaide
 /plugin install mekiki@fr1d4y
-/plugin install hanko@fr1d4y
 /reload-plugins
 ```
+
+To uninstall: `bash ~/Furaidē/claude-code/scripts/uninstall.sh`
+
 
 See [claude-code/README.md](claude-code/README.md).
 

@@ -1,6 +1,6 @@
 # GitHub Workflow Guide
 
-> *Shared reference for Claude Code agents (via Hanko plugin), OpenCode agents (via @hanko subagent), and the F.R.I.D.A.Y. developer.*
+> *Shared reference for Claude Code agents (via `hanko--git-seal` subagent + `github` skill), OpenCode agents (via @hanko subagent), and the F.R.I.D.A.Y. developer.*
 
 ---
 
@@ -105,15 +105,29 @@ The setup check script warns if you're using a broad token. Existing auth works;
 
 ## Agent Delegation
 
-### Claude Code (Hanko plugin)
+### Claude Code (github skill + hanko--git-seal agent)
 
-Use the `/github` command (Hanko plugin) to spawn a Haiku subagent for git operations:
+Route any git or GitHub operation to the `hanko--git-seal` subagent — the main orchestrator delegates all git/GitHub work there automatically.
 
-```
-/github create a PR for my feature branch with the standard template
-```
+The `hanko--git-seal` subagent (model: Haiku) invokes `Skill(github)` to load the six workflow recipes (commit/push, feature branch, PR to dev, dev→master, back-merge, status/CI), and reads this guide for setup, signing, rulesets, and troubleshooting.
 
-The Haiku subagent reads this guide, validates conventional commit format, uses `gh` CLI, and **asks you before every push or PR operation**. Never pushes to `master`.
+**hanko--git-seal's constraints:**
+- Invokes `Skill(github)` for all standard recipes
+- Read-only ops (status/diff/log/pr view) run without approval
+- Mutating ops (commit/push/PR creation/merge) always ask first
+- Never pushes to `master`; never uses `--force` or `--no-verify`
+- Appends `Co-Authored-By: Claude <model-id> <noreply@anthropic.com>` to every commit
+
+**How it operates:**
+1. Reads workflow recipes from `Skill(github)`
+2. Runs `git status` and `git diff --stat` to confirm staged changes
+3. Validates commit message (Conventional Commits format)
+4. Asks: "Ready to commit with message: '...'. Approve?"
+5. Commits with Co-Authored-By trailer
+6. Asks: "Ready to push to `<branch>`. Approve?"
+7. Pushes
+
+Read-only ops (`git log`, `git status`, `gh pr view`) run without asking.
 
 ### OpenCode (@hanko subagent)
 
@@ -338,5 +352,5 @@ gh pr list
 
 - **Branch protection standard:** `github-branch-protection.md` in project memory
 - **Setup checks:** `bash <scope>/scripts/github-setup-check.sh`
-- **Claude Code git agent:** `/github` (Hanko plugin)
+- **Claude Code git agent:** `hanko--git-seal` subagent + `github` skill (`claude-code/config/agents/`, `common/skills/github/`)
 - **OpenCode git agent:** `@hanko` subagent (`opencode/agents/hanko.md`)
