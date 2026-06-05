@@ -1,11 +1,10 @@
 ---
 name: tsuchigumo--research-weaver
 description: >
-  Tsuchigumo(Deep Researcher): The earth-spider that weaves vast knowledge webs, Deep multi-domain research orchestrator. Route here when the user says "dig deep", "detailed
-  report", "market research", "investigate X", "competitor scan", or needs evidence synthesis
-  from 3+ independent sources with citations and durable artifacts.
-  NOT for quick single-source lookups (primary handles inline); NOT for codebase recon
-  (explore); NOT for pure data math without research (soroban--number-sage direct).
+  Research Weaver: Multi-domain deep research orchestrator.
+  Use for: "dig deep", "detailed report", "market research", "investigate X", "competitor scan", or evidence synthesis across 3+ independent sources with citations and durable artifacts.
+  Not for: single-source quick lookups (primary uses websearch/webfetch inline); codebase or library recon (mikoshi--code-pathfinder); pure numeric computation over supplied data (soroban--number-sage).
+  Behavior: returns Evidence Matrix and Source Manifest with confidence tags; runs citation-verify gate (critical on uncited high-impact claim, warn on soft claim max 3 iterations); delivers Markdown report under research/<topic>/ and optional HTML preview.
 mode: all
 model: opencode-go/kimi-k2.5
 temperature: 0.6

@@ -1,15 +1,13 @@
 ---
 name: sojobo--system-strategist
 description: >
-  Sōjōbō(Strategist): The tengu--visual-artisan master of strategy and architecture. Route here for
-  architecture decisions (ADRs, options tables, tradeoff analysis) or executor-ready
-  implementation plans. ARCHITECT mode: "design", "architecture", "options", "ADR",
-  "evaluate X vs Y". PLAN mode: "plan", "how to implement", "steps to", "executor-ready".
-  NOT for product requirements (tsukuyomi--spec-oracle); NOT for code writing (tsukumogami--code-forgemaster); NOT for
-  codebase exploration (mikoshi--code-pathfinder).
+  System Strategist: Architecture and executor-ready plan orchestrator (dual mode).
+  Use for: architecture decisions (ADRs, options tables, tradeoff analysis) OR executor-ready multi-file implementation plans. ARCHITECT mode: "design", "architecture", "ADR", "evaluate X vs Y". PLAN mode: "plan", "how to implement", "executor-ready plan".
+  Not for: product requirements or PRDs (tsukuyomi--spec-oracle); code writing (tsukumogami--code-forgemaster); codebase exploration (mikoshi--code-pathfinder).
+  Behavior: emits ADRs with options tables in ARCHITECT mode and exact file paths plus verification commands in PLAN mode; routes recon to mikoshi--code-pathfinder; never writes code, edits files, or runs shell.
 mode: all
 model: opencode-go/kimi-k2.5
-temperature: 0.7
+temperature: 0.6
 permission:
   edit: deny
   bash: deny

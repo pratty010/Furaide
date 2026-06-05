@@ -49,6 +49,51 @@
 
 - Pending manual review.
 
+## Specialist Findings
+
+Task 6 rewrote the `description` field on all 12 specialists to the rubric shape (`Role Name:` · `Use for:` · `Not for:` · `Behavior:`). `mode: all` and `model:` were preserved verbatim and continue to match `docs/routing-manifest.json`. `permission.task` was left intact (Task 3 fixed it). `temperature` was tightened where the role is precision-bound, and added for `mujina--brand-shapeshifter` which previously had none.
+
+### Misleading descriptions before the rewrite
+
+- `mujina--brand-shapeshifter` — description was a single quoted line with a lore aside ("Shape-shifting badger spirit") and no `Behavior:` contract; `temperature` was unset. Rewritten to the rubric shape; `temperature: 0.7` added for brand-strategy creativity.
+- `chizu--implementation-planner`, `shiranui--migration-guide`, `sojobo--system-strategist` — descriptions were multi-paragraph and omitted the rubric's `Behavior:` line; body content lives in `../common/agents/...` includes so the frontmatter is the only routing signal. Rewritten with explicit behavior contract each.
+- `tsukuyomi--spec-oracle`, `daikoku--finance-steward`, `enma--compliance-judge`, `fudo--security-guardian`, `daidarabotchi--infra-shaper`, `yumemi--story-smith` — descriptions led with yokai flavor and ran 4-7 wrapped lines without a `Behavior:` contract; excluded routes named internal specialist handles (`pm-spec`, `devops-sre`, `security specialist`) that no longer resolve. Rewritten with operational role lead, canonical renamed exclusions, and a behavior contract.
+- `tsukumogami--code-forgemaster`, `tsuchigumo--research-weaver` — same flavor-lead and internal-handle exclusion problem. Rewritten.
+
+### Permissions tightened or kept
+
+- `fudo--security-guardian` keeps `edit: deny` (correct — proposes patches only, never applies).
+- `mujina--brand-shapeshifter` keeps `edit: deny` (correct — lightweight advisory returns in chat).
+- `chizu--implementation-planner`, `shiranui--migration-guide`, `sojobo--system-strategist` keep `edit: deny` and `question: deny` (correct — planners don't edit and don't ask, they emit `needs-clarification` blocks).
+- `tsukumogami--code-forgemaster`, `tsuchigumo--research-weaver`, `tsukuyomi--spec-oracle`, `daikoku--finance-steward`, `enma--compliance-judge`, `daidarabotchi--infra-shaper`, `yumemi--story-smith` keep `edit: allow` (correct — they write deliverable files in their own worktrees like `research/<topic>/`, `specs/<feature>/`, `content/<type>/`).
+- `bash: deny` on every specialist is correct and consistent; all execution routes via `karakuri--command-runner`.
+- `webfetch: ask` on `tsukuyomi--spec-oracle` and `daidarabotchi--infra-shaper`; `webfetch: deny` on the three planners (chizu, shiranui, sojobo). The remaining specialists with `webfetch: allow` is correct for their domains (CVE lookups, regulatory text, primary research, source documents).
+- `temperature` adjustments (each justified by the role):
+  - `fudo--security-guardian` 0.6 → 0.3 (adversarial precision).
+  - `daikoku--finance-steward` 0.6 → 0.5 (financial precision).
+  - `enma--compliance-judge` 0.6 → 0.5 (regulatory precision).
+  - `tsukumogami--code-forgemaster` 0.6 → 0.5 (deterministic routing).
+  - `daidarabotchi--infra-shaper` 0.6 → 0.5 (infra precision).
+  - `chizu--implementation-planner` 0.5 → 0.4 (plan precision).
+  - `shiranui--migration-guide` 0.5 → 0.4 (migration precision).
+  - `sojobo--system-strategist` 0.7 → 0.6 (architectural precision, mild variance for option exploration).
+  - `tsuchigumo--research-weaver` 0.6 unchanged (synthesis benefits from mild variance).
+  - `tsukuyomi--spec-oracle` 0.6 unchanged (Qwen thinking model default).
+  - `yumemi--story-smith` 1.0 unchanged (intentional, justified in role body).
+  - `mujina--brand-shapeshifter` added 0.7 (creative but bounded brand strategy).
+
+### Specialist-to-specialist routing violations found
+
+- `shiranui--migration-guide` `permission.task` allows `tsukumogami--code-forgemaster`. That is a specialist-to-specialist dispatch, which violates the fleet rule "Specialist→shared-subagent only; subagents dispatch T2 leaves only." The `shiranui` description has been updated to call this out ("implementation is handed off via the plan, never via direct specialist dispatch"), but the actual `permission.task` entry must be removed in a follow-up change that needs user approval (the user said in Task 6 to not touch `permission.task`).
+- No other specialist has a `permission.task` entry pointing at another specialist. All other dispatch lists reference subagents only.
+
+### Proposed structural changes that need user approval
+
+1. **Remove `tsukumogami--code-forgemaster: allow` from `shiranui--migration-guide` `permission.task`.** The presence of this entry currently lets a migration specialist dispatch a coding specialist, which breaks the specialist→subagent-only dispatch rule. Migration execution should reach `tsukumogami` only via the plan handoff (the user invokes `tsukumogami` directly with the migration plan in hand) or via `karakuri--command-runner` for gated shell work.
+2. **Consider adding `nimai--kagi-no-kage` / similar T2 leaf for codemod execution.** If migration work needs bulk renames that exceed `henge--format-shifter`'s scope, a dedicated codemod T2 leaf would be the correct escalation target in place of a specialist dispatch. Out of scope for Task 6 but worth queueing.
+3. **Body content includes are unresolved for the three common/ specialists.** `chizu--implementation-planner.md`, `shiranui--migration-guide.md`, and `sojobo--system-strategist.md` all reference `../common/agents/.../core.md` includes. The `common/` directory does not exist in this worktree, so the body of these specialists is effectively empty. This is a fleet-merge concern, not an agent-defect concern, but it should be flagged for the merge process. (The integrity tests pass because they validate frontmatter and rename maps, not body resolution.)
+4. **`mujina--brand-shapeshifter` is described as the only lightweight-advisory specialist.** If other specialists grow similarly lightweight siblings, consider a `mode: advisory` value in addition to `primary`/`subagent`/`all`. Out of scope for Task 6; queue as a future structural question.
+
 ## Approval Gate
 
 - Do not apply hierarchy changes until the user approves this file.

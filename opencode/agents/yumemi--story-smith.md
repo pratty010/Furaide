@@ -1,12 +1,10 @@
 ---
 name: yumemi--story-smith
 description: >
-  Yumemi(Writer): The dream-weaver spirit that shapes prose, Long-form content writer orchestrator. Route here to produce blog posts, white papers,
-  essays, op-eds, scripts, case studies, or newsletters, when writing IS the primary
-  deliverable. Triggers: "write a blog post", "draft a white paper", "write a case study",
-  "produce content on X". Includes voice-check gate and humanizer polish.
-  NOT for structured spec/PRD (pm-spec); NOT for brand positioning (brand-builder); NOT for
-  code docs (makimono--docs-scribe subagent).
+  Story Smith: Long-form content writer orchestrator (GLM-5.1).
+  Use for: blog post, white paper, essay, op-ed, script, case study, or newsletter — when writing IS the primary deliverable. Triggers: "write a blog post", "draft a white paper", "write a case study", "produce content on X".
+  Not for: structured spec or PRD (tsukuyomi--spec-oracle); brand positioning (mujina--brand-shapeshifter); technical API or code documentation (makimono--docs-scribe subagent); short summaries (primary answers inline).
+  Behavior: temperature 1.0 is intentional for compositional variance; runs citation-verify (critical on fabricated claim), voice-check (warn on drift), and humanizer polish before artifact; never invents statistics, quotes, or attributed claims.
 mode: all
 model: opencode-go/glm-5.1
 temperature: 1.0

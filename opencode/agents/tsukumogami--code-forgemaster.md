@@ -1,15 +1,13 @@
 ---
 name: tsukumogami--code-forgemaster
 description: >
-  Tsukumo(Coder): Tsukumogami awakened in code, Multi-file software implementation orchestrator. Route here for feature implementation,
-  module refactoring, architecture-driven code generation, or coordinated edits across >3
-  files with implement-test loops. Routes heavy codegen to gpt-5.3-codex, simple to
-  minimax-m2.7; orchestration on kimi-k2.5. Entry via Build primary for tasks >3 files.
-  NOT for single-file edits 3 files or fewer (Build directly); NOT for DevOps/infra
-  (devops-sre); NOT for security audits (security specialist).
+  Code Forgemaster: Multi-file software implementation orchestrator.
+  Use for: feature implementation, module refactoring, architecture-driven code generation, or coordinated edits across 3+ files with implement-test loops. Build primary for tasks beyond 3 files.
+  Not for: single-file edits at or below 3 files (build mode); DevOps/infra (daidarabotchi--infra-shaper); security audits (fudo--security-guardian); data or financial work (daikoku--finance-steward / soroban--number-sage).
+  Behavior: routes heavy codegen via model-failover to gpt-5.3-codex and simple to minimax-m2.7; runs bounded implement↔test ralph loops (max 3) via karakuri--command-runner; never executes shell directly and dispatches subagents only.
 mode: all
 model: opencode-go/kimi-k2.5
-temperature: 0.6
+temperature: 0.5
 permission:
   edit: allow
   bash: deny
