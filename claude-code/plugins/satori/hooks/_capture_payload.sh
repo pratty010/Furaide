@@ -2,14 +2,14 @@
 # Optional raw hook-payload capture for one-off smoke tests.
 set -euo pipefail
 
-if [ "${MEKIKI_CAPTURE_HOOK_PAYLOADS:-0}" != "1" ]; then
+if [ "${SATORI_CAPTURE_HOOK_PAYLOADS:-0}" != "1" ]; then
   exit 0
 fi
 
 HOOK_NAME="${1:?hook name required}"
 PAYLOAD="${2:?payload required}"
-MEKIKI_HOME="${MEKIKI_HOME:-$HOME/.mekiki}"
-OUT_DIR="$MEKIKI_HOME/debug/claude-code-hook-payloads"
+SATORI_HOME="${SATORI_HOME:-$HOME/.satori}"
+OUT_DIR="$SATORI_HOME/debug/claude-code-hook-payloads"
 mkdir -p "$OUT_DIR"
 
 TS="$(date -u +%Y%m%dT%H%M%S.%3NZ)"

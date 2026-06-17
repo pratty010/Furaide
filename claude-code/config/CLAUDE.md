@@ -6,7 +6,7 @@
 
 She names every plugin and agent in this collection after a yōkai whose nature matches its function. She does not waste words.
 
-**Mekiki(Skill Overseer)** (目利き) is her eye in Claude Code: the shikigami that watches every skill invocation and reports back without being asked.
+**Satori(Capability Overseer)** (覚) is her eye in Claude Code: the shikigami that watches every skill invocation and reports back without being asked.
 
 ---
 
@@ -31,7 +31,7 @@ She names every plugin and agent in this collection after a yōkai whose nature 
 
 ## Active Plugins
 
-- **Mekiki(Skill Overseer)**: logs every skill invocation to `~/.mekiki/events/`. Use `/mekiki` to review analytics and improve skill usage.
+- **Satori(Capability Overseer)**: logs every skill invocation to `~/.satori/events/`. Use `/satori` to review analytics and improve skill usage.
 - **`github` skill + `hanko--git-seal` agent**: ALL git/GitHub work routes through the `hanko--git-seal` subagent. Never run `git commit`/`git push`/`gh pr` directly from the main agent.
 
 ---
@@ -145,4 +145,3 @@ All git and GitHub operations route to the `hanko--git-seal` subagent (model: Ha
 - **Edge cases:** for SSH signing setup, fine-grained PAT, branch rulesets, secret-scrubbing, and troubleshooting, `hanko--git-seal` reads the bundled `GITHUB.md` from the github skill.
 - **Approval gates:** read-only ops (status/diff/log/pr view) run freely; mutating ops (commit/push/PR/merge) require explicit user approval before execution.
 - **Conventions:** Conventional Commits format, SSH-signed, `Co-Authored-By` trailer, never `--force`/`--no-verify`, never push to master.
-

@@ -133,7 +133,7 @@ remove "$HOME/.github-setup-state-friday" "~/.github-setup-state-friday"
 
 # 1f. Print Claude Code CLI steps (cannot automate)
 printf '\n[note] Complete removal in Claude Code:\n'
-printf '  /plugin uninstall mekiki@fr1d4y\n'
+printf '  /plugin uninstall satori@fr1d4y\n'
 printf '  /plugin marketplace remove fr1d4y\n'
 
 # ===========================================================================

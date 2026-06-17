@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
-# Mekiki PATH shim — execs the bootstrapped mekiki CLI.
+# Legacy Mekiki PATH shim — forwards to the bootstrapped Satori CLI.
 set -euo pipefail
 if command -v mekiki >/dev/null 2>&1 && [[ "$(command -v mekiki)" != "${BASH_SOURCE[0]}" ]]; then
   exec "$(command -v mekiki)" "$@"
 fi
-STATE="$HOME/.mekiki/cli-path"
+STATE="$HOME/.satori/cli-path"
 if [[ -f "$STATE" ]]; then
-  CLI_BIN="$(cat "$STATE")"; [[ -x "$CLI_BIN" ]] && exec "$CLI_BIN" "$@"
+  CLI_RUNNER="$(cat "$STATE")"
+  [[ -n "$CLI_RUNNER" ]] && exec bash -lc "$CLI_RUNNER \"\$@\"" bash "$@"
 fi
 echo "mekiki CLI not installed. Run: bash <repo>/claude-code/scripts/bootstrap.sh" >&2
 exit 127

@@ -10,11 +10,11 @@ Part of the [F.R.I.D.A.Y.](https://github.com/pratty010/Furaide) monorepo.
 
 | Component | Role |
 |-----------|------|
-| **Mekiki** (plugin) | Skill-usage analytics: captures every skill invocation and judges its effectiveness offline |
+| **Satori** (plugin) | Capability analytics: captures every skill invocation and surfaces offline improvement suggestions |
 | **`github` skill** | Git/GitHub workflow recipes for the `hanko--git-seal` subagent |
 | **`hanko--git-seal`** (agent) | Quiet executor for all git/GitHub ops; routes through the `github` skill |
 
-Mekiki and the `github` skill share a single engine (`cli/`) installed by `scripts/bootstrap.sh`.
+Satori and the `github` skill share a single engine (`cli/`) installed by `scripts/bootstrap.sh`.
 
 ---
 
@@ -28,19 +28,19 @@ bash ~/Furaidē/claude-code/scripts/bootstrap.sh
 ```
 
 The bootstrap script is interactive by default (Y/n prompt per step). Pass `--yes`/`-y` to run unattended:
-1. Migrates `~/.satori` → `~/.mekiki` (one-time, unconditional)
-2. Installs the `mekiki` CLI engine via `uv sync`
+1. Archives legacy `~/.mekiki` and creates `~/.satori`
+2. Installs the `satori` CLI engine via `bun install`
 3. Installs shared common skills (`github`, `bx`, `html-preview`, `brave-search`, `plan`) — copies to `~/.agents/skills/`, symlinks `~/.claude/skills/` → `~/.agents/skills/`
 4. Copies `config/agents/hanko--git-seal.md` → `~/.claude/agents/`
 5. Backs up and copies `config/CLAUDE.md` + `config/statusline-command.sh` → `~/.claude/`
 
 Flags: `--yes`/`-y` (non-interactive), `--minimal` (steps 1–2 only), `--no-config` (skip step 5), `--with-skills` (also install manifest skills), `-h`.
 
-### 2. Register and install Mekiki plugin in Claude Code
+### 2. Register and install Satori plugin in Claude Code
 
 ```
 /plugin marketplace add pratty010/Furaide
-/plugin install mekiki@fr1d4y
+/plugin install satori@fr1d4y
 /reload-plugins
 ```
 
@@ -48,24 +48,23 @@ Flags: `--yes`/`-y` (non-interactive), `--minimal` (steps 1–2 only), `--no-con
 
 ## Usage
 
-### Mekiki: skill analytics
+### Satori: capability analytics
 
 ```
-/mekiki                          # overview: which skills fired this week
-/mekiki skill <name>             # per-skill deep-dive
-/mekiki improve <name>           # build evidence pack → hand off to skill-creator
-/mekiki mark <name> applied      # record that you applied the rewrite
-/mekiki run                      # ingest + judge + aggregate only (no report)
+/satori                          # overview and latest profile
+/satori backlog                  # open improvement suggestions
+/satori improve <name>           # print a handoff brief for a capability
+/satori mark <id> accepted       # record outcome after applying an improvement
+/satori dream                    # ingest + consolidate
 ```
 
 Or call the CLI directly:
 
 ```bash
-mekiki run                        # ingest + judge + aggregate
-mekiki report --overview          # build + serve overview.html
-mekiki report --skill <name>      # build + serve skill detail
-mekiki improve --skill <name>     # build evidence pack
-mekiki improve --skill <name> --mark applied
+bun run ~/Furaidē/claude-code/cli/src/satori/src/cli/index.ts dream
+bun run ~/Furaidē/claude-code/cli/src/satori/src/cli/index.ts report --serve
+bun run ~/Furaidē/claude-code/cli/src/satori/src/cli/index.ts improve <name>
+bun run ~/Furaidē/claude-code/cli/src/satori/src/cli/index.ts mark <id> accepted
 ```
 
 ### Git/GitHub: hanko--git-seal + github skill
@@ -85,28 +84,28 @@ The subagent invokes `Skill(github)` for the six standard workflow recipes and r
 
 ## Data directory
 
-Runtime data lives in `~/.mekiki/` (or `$MEKIKI_HOME`):
+Runtime data lives in `~/.satori/` (or `$SATORI_HOME`):
 
 ```
-~/.mekiki/
+~/.satori/
   events/claude-code/YYYY-MM-DD.jsonl   # captured events
-  state.db                               # SQLite analyzer state
-  reports/                               # generated HTML
-  evidence/                              # evidence packs for skill improvement
-  cli-path                               # path to the installed mekiki binary
+  state/                                  # generated profile, backlog, findings
+  cache/                                  # disposable SQLite / report artifacts
+  evidence/                               # snapshotted evidence bands
+  cli-path                                # command used to launch the installed Satori CLI
 ```
 
 To capture raw hook payloads during smoke testing:
 
 ```bash
-MEKIKI_CAPTURE_HOOK_PAYLOADS=1 claude
+SATORI_CAPTURE_HOOK_PAYLOADS=1 claude
 ```
 
 ---
 
 ## Workflow skills
 
-Mekiki observes skills, so you need skills installed for it to observe anything. Bootstrap offers to run the common installer. You can also run it separately:
+Satori observes skills, so you need skills installed for it to observe anything. Bootstrap offers to run the common installer. You can also run it separately:
 
 ```bash
 bash ~/Furaidē/common/install-common.sh --global      # bx, html-preview, brave-search, plan
@@ -128,7 +127,7 @@ cp ~/Furaidē/claude-code/config/statusline-command.sh ~/.claude/statusline-comm
 
 See [`config/README.md`](config/README.md) for per-file notes.
 
-> The `hooks` block is intentionally absent from `config/settings.json`. Mekiki's plugin ships its own `hooks/hooks.json` using `${CLAUDE_PLUGIN_ROOT}`, so no manual hook wiring is required.
+> The `hooks` block is intentionally absent from `config/settings.json`. Satori's plugin ships its own hook scripts using `${CLAUDE_PLUGIN_ROOT}`, so no manual hook wiring is required.
 
 ---
 
@@ -142,7 +141,7 @@ Default: interactive (prompts for user data). Flags: `--dry-run` (print what wou
 
 Then in Claude Code:
 ```
-/plugin uninstall mekiki@fr1d4y
+/plugin uninstall satori@fr1d4y
 /plugin marketplace remove fr1d4y
 ```
 
@@ -182,17 +181,17 @@ For testing upcoming features on the `dev` branch:
    - **For Claude Code plugins**: because `/plugin marketplace add` fetches the marketplace metadata from the default branch on GitHub, live marketplace commands resolve to the remote repo. For local plugin development, use the checked-out copy with local bootstrap, then run Claude Code while capturing event payloads:
 
      ```bash
-     MEKIKI_CAPTURE_HOOK_PAYLOADS=1 claude
+      SATORI_CAPTURE_HOOK_PAYLOADS=1 claude
      ```
 
 **Plugin structure:**
 ```
 plugins/
-  mekiki/
+  satori/
     .claude-plugin/plugin.json   # plugin manifest
-    commands/mekiki.md           # /mekiki slash command
+    commands/satori.md           # /satori slash command
     hooks/hooks.json             # event capture hooks (CLAUDE_PLUGIN_ROOT-relative)
-    bin/mekiki                   # PATH shim → cli/.venv/bin/mekiki
+    bin/mekiki                   # legacy shim retained for compatibility
 config/
   agents/
     hanko--git-seal.md           # git/GitHub subagent (installed → ~/.claude/agents/)

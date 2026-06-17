@@ -30,9 +30,9 @@ LINE="$(printf '%s' "$PAYLOAD" | jq -c --arg ts "$TS" '{
 if [ "$EXIT_CODE" = "0" ]; then
   SKILL_NAME="$(printf '%s' "$PAYLOAD" | jq -r '.tool_input.skill // .tool_input.name // empty')"
   if [ -n "$SKILL_NAME" ]; then
-    MEKIKI_HOME="${MEKIKI_HOME:-$HOME/.mekiki}"
-    SIDECAR="$MEKIKI_HOME/statusline-sidecar.json"
-    mkdir -p "$MEKIKI_HOME"
+    SATORI_HOME="${SATORI_HOME:-$HOME/.satori}"
+    SIDECAR="$SATORI_HOME/statusline-sidecar.json"
+    mkdir -p "$SATORI_HOME"
     EXISTING_PMODE="$(jq -r '.permission_mode // empty' "$SIDECAR" 2>/dev/null || true)"
     jq -nc --arg ls "$SKILL_NAME" --arg pm "${EXISTING_PMODE}" \
       '{permission_mode: (if $pm == "" then null else $pm end), last_skill: $ls}' \

@@ -4,15 +4,15 @@
 # Prompts yes/no before each step. Pass --yes to run unattended.
 #
 # Steps:
-#   0) ~/.satori → ~/.mekiki data migration (one-time, always runs)
-#   1) mekiki CLI: uv sync in cli/; writes ~/.mekiki/cli-path
+#   0) Archive legacy ~/.mekiki, create ~/.satori (one-time, always runs)
+#   1) Satori CLI: bun install in cli/src/satori/; writes ~/.satori/cli-path
 #   2) Common skills: bash common/install-common.sh --global
 #   3) Agents: copy config/agents/*.md → ~/.claude/agents/ (skip if exists)
 #   4) Config bundle: back up + copy CLAUDE.md and statusline-command.sh → ~/.claude/
 #
 # Flags:
 #   --yes, -y     Run all steps unattended (no prompts)
-#   --minimal     Run only steps 0-1 (migration + mekiki CLI)
+#   --minimal     Run only steps 0-1 (migration + Satori CLI)
 #   --no-config   Run steps 0-3, skip step 4 (config bundle)
 #   --with-skills After step 2, also run install-skills.sh --ecosystem claude-code
 #   -h, --help    Print this usage and exit
@@ -115,7 +115,7 @@ fi
   ok "minimal mode — skipping steps 2-4"
   printf '\n%s\n' "$(printf "${GREEN}[done]${NC} Next steps in Claude Code:")"
   printf '  /plugin marketplace add pratty010/Furaide\n'
-  printf '  /plugin install mekiki@fr1d4y\n'
+  printf '  /plugin install satori@fr1d4y\n'
   printf '  /reload-plugins\n'
   exit 0
 }
@@ -153,7 +153,7 @@ fi
   ok "no-config mode — skipping step 4"
   printf '\n%s\n' "$(printf "${GREEN}[done]${NC} Next steps in Claude Code:")"
   printf '  /plugin marketplace add pratty010/Furaide\n'
-  printf '  /plugin install mekiki@fr1d4y\n'
+  printf '  /plugin install satori@fr1d4y\n'
   printf '  /reload-plugins\n'
   exit 0
 }
@@ -189,5 +189,5 @@ fi
 # ── Done ──────────────────────────────────────────────────────────────────────
 printf '\n%s\n' "$(printf "${GREEN}[done]${NC} Next steps in Claude Code:")"
 printf '  /plugin marketplace add pratty010/Furaide\n'
-printf '  /plugin install mekiki@fr1d4y\n'
+printf '  /plugin install satori@fr1d4y\n'
 printf '  /reload-plugins\n'

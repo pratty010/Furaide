@@ -19,7 +19,7 @@ Satori (覚) — capability analytics and improvement suggestions for your Claud
 ## Steps
 
 1. Parse the subcommand from the argument (default: `dream`).
-2. Shell out: `bun run ~/.friday/satori/src/cli/index.ts <subcommand> [args]`
+2. Read `~/.satori/cli-path`, then shell out: `$(cat ~/.satori/cli-path) <subcommand> [args]`
    - If the CLI is not installed, print: "Satori not installed. Run `claude-code/scripts/bootstrap.sh` first."
 3. For `dream`: after completion, also run `profile` and print the first 20 lines.
 4. For `improve`: after printing the brief, invoke `Skill(skill-creator)` or `Skill(writing-skills)` with the brief as context. Never rewrite the capability inline.
