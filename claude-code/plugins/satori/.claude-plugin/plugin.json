@@ -8,9 +8,12 @@
     "url": "https://github.com/pratty010/Furaide"
   },
   "hooks": {
+    "SessionStart":      ["hooks/session_start.sh"],
     "PreToolUse":        [{ "matcher": "Skill", "hooks": ["hooks/skill_pre.sh"] }],
     "PostToolUse":       [{ "matcher": "Skill", "hooks": ["hooks/skill_post.sh"] }],
     "PostToolUseFailure":[{ "matcher": "Skill", "hooks": ["hooks/skill_post_failure.sh"] }],
-    "Stop":              ["hooks/stop.sh"]
+    "UserPromptExpansion":["hooks/user_prompt_expansion.sh"],
+    "Stop":              ["hooks/stop.sh"],
+    "StopFailure":       ["hooks/stop.sh"]
   }
 }

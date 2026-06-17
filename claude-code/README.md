@@ -92,7 +92,7 @@ Runtime data lives in `~/.satori/` (or `$SATORI_HOME`):
   state/                                  # generated profile, backlog, findings
   cache/                                  # disposable SQLite / report artifacts
   evidence/                               # snapshotted evidence bands
-  cli-path                                # command used to launch the installed Satori CLI
+  cli-path                                # executable path used to launch the installed Satori CLI
 ```
 
 To capture raw hook payloads during smoke testing:

@@ -1,32 +1,31 @@
 #!/usr/bin/env bash
 # stop.sh - fired on CC Stop hook; triggers a dream pass if cadence allows
 set -euo pipefail
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-SATORI_HOME="${HOME}/.satori"
-DREAM_LOCK="${SATORI_HOME}/.dream.lock"
-LAST_DREAM_FILE="${SATORI_HOME}/.last_dream"
+SATORI_HOME="${SATORI_HOME:-$HOME/.satori}"
 CLI_PATH_FILE="${SATORI_HOME}/cli-path"
-INTERVAL_HOURS="${SATORI_DREAM_INTERVAL_HOURS:-24}"
+DEBUG_DIR="${SATORI_HOME}/debug"
 
 mkdir -p "${SATORI_HOME}"
-exec 9>"${DREAM_LOCK}"
+mkdir -p "${DEBUG_DIR}"
 
-if ! flock -x -n 9 2>/dev/null; then
+if [[ ! -f "${CLI_PATH_FILE}" ]]; then
+  "$SCRIPT_DIR/_mark_inactive.sh" "scheduled-dream-missing-cli-path"
+  exit 0
+fi
+CLI_RUNNER="$(cat "${CLI_PATH_FILE}")"
+if [[ -z "${CLI_RUNNER}" ]]; then
+  "$SCRIPT_DIR/_mark_inactive.sh" "scheduled-dream-empty-cli-path"
+  exit 0
+fi
+if [[ ! -x "${CLI_RUNNER}" ]]; then
+  "$SCRIPT_DIR/_mark_inactive.sh" "scheduled-dream-nonexecutable-cli"
   exit 0
 fi
 
-if [[ -f "${LAST_DREAM_FILE}" ]]; then
-  last="$(cat "${LAST_DREAM_FILE}")"
-  now="$(date +%s)"
-  elapsed=$(((now - last) / 3600))
-  if [[ "${elapsed}" -lt "${INTERVAL_HOURS}" ]]; then
-    exit 0
+(
+  if ! "${CLI_RUNNER}" dream --scheduled >>"${DEBUG_DIR}/scheduled-dream.log" 2>&1; then
+    "$SCRIPT_DIR/_mark_inactive.sh" "scheduled-dream-run-failed"
   fi
-fi
-
-if [[ ! -f "${CLI_PATH_FILE}" ]]; then exit 0; fi
-CLI_RUNNER="$(cat "${CLI_PATH_FILE}")"
-if [[ -z "${CLI_RUNNER}" ]]; then exit 0; fi
-
-date +%s > "${LAST_DREAM_FILE}"
-bash -lc "$CLI_RUNNER dream" &>/dev/null &
+) &

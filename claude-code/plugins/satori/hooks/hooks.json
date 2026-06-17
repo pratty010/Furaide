@@ -9,6 +9,7 @@
     ],
     "PreToolUse": [
       {
+        "matcher": "Skill",
         "hooks": [
           { "type": "command", "command": "bash", "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/skill_pre.sh"] }
         ]
@@ -16,8 +17,16 @@
     ],
     "PostToolUse": [
       {
+        "matcher": "Skill",
         "hooks": [
-          { "type": "command", "command": "bash", "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/skill_post.sh"] },
+          { "type": "command", "command": "bash", "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/skill_post.sh"] }
+        ]
+      }
+    ],
+    "PostToolUseFailure": [
+      {
+        "matcher": "Skill",
+        "hooks": [
           { "type": "command", "command": "bash", "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/skill_post_failure.sh"] }
         ]
       }

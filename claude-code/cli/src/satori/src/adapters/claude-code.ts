@@ -80,15 +80,17 @@ export class ClaudeCodeAdapter implements SessionAdapter {
     const content = (msg?.content as unknown[]) ?? []
     const turnIndex = typeof parsed.turnIndex === 'number' ? parsed.turnIndex : offset
 
-    for (const block of content) {
+    for (const [index, block] of content.entries()) {
       const b = block as Record<string, unknown>
       if (b.type === 'tool_use' && b.name === 'Skill') {
         const input = b.input as Record<string, unknown> | undefined
         const skillName = input?.skill as string | undefined
         if (!skillName) continue
         const toolUseId = b.id as string | undefined
+        const eventSourceId = toolUseId ? `cc-hook:${sessionId}` : sourceId
+        const sourcePosition = toolUseId ? `skill.invoke:${toolUseId}` : `${offset}:${index}`
 
-        yield makeTypedEvent('capability.invoked', sourceId, offset, 'claude_code', {
+        yield makeTypedEvent('capability.invoked', eventSourceId, sourcePosition, 'claude_code', {
           session_id: sessionId,
           turn_index: turnIndex,
           capability_id: skillName,

@@ -26,6 +26,7 @@
 set -euo pipefail
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"   # = claude-code/
 COMMON="$(cd "$REPO/../common" && pwd)"
+SATORI_HOME="${SATORI_HOME:-$HOME/.satori}"
 
 GREEN='\033[0;32m'; YELLOW='\033[1;33m'; NC='\033[0m'
 ok()   { printf "${GREEN}[ok]${NC}   %s\n" "$*"; }
@@ -101,11 +102,18 @@ fi
 # ── Satori CLI (TS/Bun) ──────────────────────────────────────────────────────
 if confirm "Install Satori CLI engine (bun install)?"; then
   if command -v bun >/dev/null 2>&1; then
+    if ! command -v jq >/dev/null 2>&1; then
+      warn "jq not found - Satori hooks require jq for telemetry capture."
+    fi
+    if ! command -v flock >/dev/null 2>&1; then
+      warn "flock not found - Satori hooks expect flock from util-linux."
+    fi
     SATORI_SRC="$REPO/cli/src/satori"
     ( cd "$SATORI_SRC" && bun install )
-    mkdir -p "$HOME/.satori"
-    echo "bun run $SATORI_SRC/src/cli/index.ts" > "$HOME/.satori/cli-path"
-    ok "Satori CLI installed -> bun run $SATORI_SRC/src/cli/index.ts"
+    chmod +x "$SATORI_SRC/src/cli/index.ts"
+    mkdir -p "$SATORI_HOME"
+    printf '%s\n' "$SATORI_SRC/src/cli/index.ts" > "$SATORI_HOME/cli-path"
+    ok "Satori CLI installed -> $SATORI_SRC/src/cli/index.ts"
   else
     warn "bun not found - install bun (https://bun.sh), then re-run."
   fi

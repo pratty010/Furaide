@@ -3,7 +3,7 @@ import { dreamLock } from '../lock.js'
 import { loadConfig } from '../config.js'
 import { loadCheckpoints, saveCheckpoint } from '../store/checkpoint.js'
 import { appendEvent, readEvents } from '../store/event-log.js'
-import { EVENTS_DIR, STATE_DIR, STATE_MANIFEST, CHECKPOINTS_FILE } from '../paths.js'
+import { EVENTS_DIR, STATE_DIR, STATE_MANIFEST, CHECKPOINTS_FILE, LAST_DREAM_FILE } from '../paths.js'
 import { ClaudeCodeAdapter } from '../adapters/claude-code.js'
 import { orient } from './orient.js'
 import { gather } from './gather.js'
@@ -21,12 +21,26 @@ export interface DreamRunResult {
   durationMs: number
 }
 
-export async function runDream(opts: { force?: boolean } = {}): Promise<DreamRunResult> {
-  void opts
+export async function runDream(opts: { force?: boolean; scheduled?: boolean } = {}): Promise<DreamRunResult> {
   const t0 = Date.now()
   const config = loadConfig()
 
   return dreamLock.withLock(async () => {
+    if (opts.scheduled && !opts.force && existsSync(LAST_DREAM_FILE)) {
+      const last = Number.parseInt((await import('node:fs')).readFileSync(LAST_DREAM_FILE, 'utf8').trim(), 10)
+      if (Number.isFinite(last)) {
+        const elapsedHours = (Date.now() / 1000 - last) / 3600
+        if (elapsedHours < config.dream_interval_hours) {
+          return {
+            eventsIngested: 0,
+            metricsComputed: 0,
+            clustersFound: 0,
+            durationMs: Date.now() - t0,
+          }
+        }
+      }
+    }
+
     const orientation = orient()
     console.log('[satori/dream] Phase 1 Orient complete')
 
@@ -88,6 +102,7 @@ export async function runDream(opts: { force?: boolean } = {}): Promise<DreamRun
 
     pruneAndIndex(config.evidence_retention_days)
     console.log('[satori/dream] Phase 4 Prune complete')
+    writeFileSync(LAST_DREAM_FILE, `${Math.floor(Date.now() / 1000)}\n`)
 
     return {
       eventsIngested: newEvents.length,

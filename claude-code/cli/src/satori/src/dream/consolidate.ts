@@ -21,7 +21,7 @@ export function buildMetricProjections(
     if (p.tool_use_id) outcomesByToolUseId.set(p.tool_use_id, p)
   }
 
-  const capInvocations = events.filter(e => e.event_type === 'capability.invoked')
+  const capInvocations = dedupeCapabilityInvocations(events.filter(e => e.event_type === 'capability.invoked'))
   const groups = groupBy(capInvocations, e => (e.payload as CapabilityInvokedPayload).capability_id)
 
   const result = new Map<string, CapabilityMetrics>()
@@ -91,4 +91,28 @@ export function buildMetricProjections(
   }
 
   return result
+}
+
+function dedupeCapabilityInvocations(events: EventEnvelope[]): EventEnvelope[] {
+  const deduped = new Map<string, EventEnvelope>()
+
+  for (const event of events) {
+    const payload = event.payload as CapabilityInvokedPayload
+    const semanticKey = payload.tool_use_id
+      ? `${payload.session_id}:${payload.tool_use_id}:${payload.capability_id}:${event.event_type}`
+      : event.event_id
+    const existing = deduped.get(semanticKey)
+
+    if (!existing) {
+      deduped.set(semanticKey, event)
+      continue
+    }
+
+    const shouldPreferCurrent = existing.source_id.startsWith('cc-hook:') && !event.source_id.startsWith('cc-hook:')
+    if (shouldPreferCurrent) {
+      deduped.set(semanticKey, event)
+    }
+  }
+
+  return [...deduped.values()]
 }

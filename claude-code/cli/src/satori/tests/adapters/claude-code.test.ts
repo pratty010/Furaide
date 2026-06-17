@@ -50,3 +50,35 @@ test('ClaudeCodeAdapter emits capability.invoked for Skill tool_use', async () =
 
   rmSync(TMP, { recursive: true })
 })
+
+test('ClaudeCodeAdapter keeps multiple Skill tool_use blocks in one assistant turn', async () => {
+  const projDir = join(TMP, `${slug}-multi`)
+  mkdirSync(projDir, { recursive: true })
+  const transcript = join(projDir, 'multi-session.jsonl')
+  writeFileSync(transcript, `${JSON.stringify({
+    type: 'assistant',
+    message: {
+      id: 'msg_02',
+      role: 'assistant',
+      model: 'claude-sonnet-4-6',
+      content: [
+        { type: 'tool_use', id: 'toolu_a', name: 'Skill', input: { skill: 'brainstorming' } },
+        { type: 'tool_use', id: 'toolu_b', name: 'Skill', input: { skill: 'tdd' } },
+      ],
+    },
+    ts: '2026-06-17T10:00:00.000Z',
+  })}\n`)
+
+  const adapter = new ClaudeCodeAdapter(TMP)
+  const events: import('../../src/types/events.js').EventEnvelope[] = []
+  for await (const ev of adapter.scan(new Map())) {
+    events.push(ev)
+  }
+
+  const capabilities = events
+    .filter(e => e.event_type === 'capability.invoked')
+    .map(e => (e.payload as { capability_id: string }).capability_id)
+  expect(capabilities).toContain('brainstorming')
+  expect(capabilities).toContain('tdd')
+  rmSync(projDir, { recursive: true })
+})
