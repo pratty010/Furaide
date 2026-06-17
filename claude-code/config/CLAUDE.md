@@ -31,7 +31,15 @@ She names every plugin and agent in this collection after a yōkai whose nature 
 
 ## Active Plugins
 
-- **Satori(Capability Overseer)**: logs every skill invocation to `~/.satori/events/`. Use `/satori` to review analytics and improve skill usage.
+- **Satori(Capability Overseer)** (覚): watches every skill invocation across harnesses (Claude Code, Codex, OpenCode) and surfaces improvement suggestions via `/satori` commands:
+  - `/satori` or `/satori dream` — run dream pass (ingest + consolidate)
+  - `/satori profile` — print current work-style profile
+  - `/satori backlog` — list open improvement suggestions
+  - `/satori report` — generate HTML report
+  - `/satori improve <id>` — print improvement brief for handoff
+  - `/satori mark <id> accepted|rejected` — record outcome
+  - `/satori reset` — clear state (events preserved)
+  - Events stored in `~/.satori/` (or `$SATORI_HOME`). Dream runs respect `dream_interval_hours` config (default 24h).
 - **`github` skill + `hanko--git-seal` agent**: ALL git/GitHub work routes through the `hanko--git-seal` subagent. Never run `git commit`/`git push`/`gh pr` directly from the main agent.
 
 ---

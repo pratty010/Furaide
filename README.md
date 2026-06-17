@@ -34,7 +34,7 @@ Copy any of these into your Claude Code or OpenCode session:
 graphify query "what is the overall architecture and how do the five components relate?"
 
 # Per-component deep dives
-graphify query "how does the mekiki skill analytics pipeline work end to end?"
+graphify query "how does the satori capability analytics pipeline work end to end?"
 graphify query "how does the opencode fleet route tasks between specialist agents?"
 graphify query "what does the pi-agent extension register and how does web search work?"
 
@@ -61,7 +61,7 @@ Five components that wire Furaidē into AI coding harnesses:
 | Component | Harness | What it does |
 |-----------|---------|-------------|
 | `opencode/` | [OpenCode](https://opencode.ai) | 30-agent fleet: 12 domain specialists, 16 shared subagents, 4 always-on gate guardians, Kitsune brand-builder (opt-in) |
-| `claude-code/` | [Claude Code](https://claude.ai/code) | Mekiki plugin (skill-usage analytics) + `github` skill / `hanko--git-seal` agent (git workflow) |
+| `claude-code/` | [Claude Code](https://claude.ai/code) | Satori plugin (capability analytics) + `github` skill / `hanko--git-seal` agent (git workflow) |
 | `pi-agent/` | [pi.dev](https://pi.dev) | Extension package: web-RAG tools, `/usage` cost tracking, animated TUI, friday and chimu themes, GSD skills |
 | `openclaw/` | [OpenCLAW](https://docs.openclaw.ai) | Persona workspace configs for four pre-built identities: kinyo, koda, kagakusha, tengan |
 | `common/` | All of the above | Single source of truth: vendored skills, agent cores, shared docs, cross-ecosystem installers |
@@ -73,7 +73,7 @@ Five components that wire Furaidē into AI coding harnesses:
 ```
 Furaidē/
 ├── opencode/          # 30-agent OpenCode fleet
-├── claude-code/       # Mekiki plugin + github skill / hanko--git-seal agent
+├── claude-code/       # Satori plugin + github skill / hanko--git-seal agent
 ├── pi-agent/          # Pi extension (friday-furaidee)
 ├── openclaw/          # OpenCLAW persona workspaces
 ├── common/            # Shared skills, agent cores, docs, installers
@@ -108,7 +108,7 @@ Flags: `--list` · `--all` · `--global` / `--project` / `--custom <dir>` · `--
 
 See [opencode/README.md](opencode/README.md).
 
-### Claude Code: Mekiki
+### Claude Code: Satori
 
 ```bash
 git clone https://github.com/pratty010/Furaide.git ~/Furaidē
@@ -119,7 +119,7 @@ Then in Claude Code:
 
 ```
 /plugin marketplace add pratty010/Furaide
-/plugin install mekiki@fr1d4y
+/plugin install satori@fr1d4y
 /reload-plugins
 ```
 

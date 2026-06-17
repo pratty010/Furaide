@@ -10,11 +10,42 @@ Part of the [F.R.I.D.A.Y.](https://github.com/pratty010/Furaide) monorepo.
 
 | Component | Role |
 |-----------|------|
-| **Satori** (plugin) | Capability analytics: captures every skill invocation and surfaces offline improvement suggestions |
+| **Satori** (plugin) | Capability analytics: captures skill invocations across harnesses, runs dream passes, and surfaces improvement suggestions |
 | **`github` skill** | Git/GitHub workflow recipes for the `hanko--git-seal` subagent |
 | **`hanko--git-seal`** (agent) | Quiet executor for all git/GitHub ops; routes through the `github` skill |
 
 Satori and the `github` skill share a single engine (`cli/`) installed by `scripts/bootstrap.sh`.
+
+### Satori architecture
+
+Satori runs a four-phase **dream loop** over your session data:
+
+```
+Orient → Gather → Consolidate → Prune
+```
+
+- **Orient** — loads config, manifest, and previous state
+- **Gather** — scans harness transcripts via adapters (Claude Code, Codex, OpenCode), deduplicates hook events against transcript events, appends new events to the log
+- **Consolidate** — computes capability metrics, builds intent clusters from BM25 terms, writes profile and backlog projections
+- **Prune** — evicts evidence past the retention window, reindexes
+
+The dream loop acquires a directory-based lock (`.dream.lock.d/` with PID/timestamp metadata) to prevent concurrent runs. Scheduled runs (triggered by the `Stop` hook) respect `dream_interval_hours` from config.
+
+**Adapters** implement a `SessionAdapter` interface (`scan(checkpoints): AsyncGenerator<EventEnvelope>`) to read harness-native session data:
+
+| Adapter | Reads from | Default path |
+|---------|-----------|--------------|
+| `ClaudeCodeAdapter` | JSONL transcripts | `~/.claude/projects/` |
+| `CodexAdapter` | Codex session files | `~/.codex/sessions/` |
+| `OpenCodeAdapter` | SQLite database | `~/.local/share/opencode/opencode.db` |
+
+Hook events and transcript events are deduplicated at read time using canonical `event_id` values derived from `source_id` + `source_position`. When a `tool_use_id` exists in transcript data, the adapter emits events with `cc-hook:sessionId` source format so they collide with hook-captured events and deduplicate naturally.
+
+**Projections** are the output artifacts written to `~/.satori/state/`:
+
+- `profile.json` — per-capability metrics (recency, frequency, session spread, intent cluster membership)
+- `backlog.json` — open improvement suggestions with priority scoring
+- `findings.json` — gap detection results
 
 ---
 
@@ -52,19 +83,28 @@ Flags: `--yes`/`-y` (non-interactive), `--minimal` (steps 1–2 only), `--no-con
 
 ```
 /satori                          # overview and latest profile
-/satori backlog                  # open improvement suggestions
-/satori improve <name>           # print a handoff brief for a capability
-/satori mark <id> accepted       # record outcome after applying an improvement
 /satori dream                    # ingest + consolidate
+/satori profile                  # print current work-style profile
+/satori backlog                  # open improvement suggestions
+/satori backlog --status=open    # filter to open suggestions only
+/satori report                   # generate HTML report
+/satori report --serve           # generate report and open in browser
+/satori improve <capability-id>   # print improvement brief for handoff
+/satori mark <id> accepted       # record outcome after applying an improvement
+/satori reset                    # clear all state (event log preserved)
+/satori reset --projections-only # clear projections only, keep events
 ```
 
 Or call the CLI directly:
 
 ```bash
 bun run ~/Furaidē/claude-code/cli/src/satori/src/cli/index.ts dream
+bun run ~/Furaidē/claude-code/cli/src/satori/src/cli/index.ts dream --scheduled  # respects cadence config
+bun run ~/Furaidē/claude-code/cli/src/satori/src/cli/index.ts profile --json
 bun run ~/Furaidē/claude-code/cli/src/satori/src/cli/index.ts report --serve
 bun run ~/Furaidē/claude-code/cli/src/satori/src/cli/index.ts improve <name>
 bun run ~/Furaidē/claude-code/cli/src/satori/src/cli/index.ts mark <id> accepted
+bun run ~/Furaidē/claude-code/cli/src/satori/src/cli/index.ts reset --projections-only
 ```
 
 ### Git/GitHub: hanko--git-seal + github skill
@@ -88,11 +128,17 @@ Runtime data lives in `~/.satori/` (or `$SATORI_HOME`):
 
 ```
 ~/.satori/
-  events/claude-code/YYYY-MM-DD.jsonl   # captured events
-  state/                                  # generated profile, backlog, findings
+  events/claude-code/YYYY-MM-DD.jsonl   # captured events (hook + transcript)
+  state/                                  # generated profile, backlog, findings, manifest.json
   cache/                                  # disposable SQLite / report artifacts
   evidence/                               # snapshotted evidence bands
-  cli-path                                # executable path used to launch the installed Satori CLI
+  catalog/                                # capability catalog
+  config.json                             # user config (all fields optional)
+  checkpoints.json                        # scan progress tracking per source
+  cli-path                                # executable path used to launch the Satori CLI
+  .dream.lock.d/                           # directory-based dream lock (with owner.json)
+  .last_dream                             # Unix timestamp of last completed dream
+  debug/                                  # diagnostic logs from hook dependency failures
 ```
 
 To capture raw hook payloads during smoke testing:
@@ -100,6 +146,21 @@ To capture raw hook payloads during smoke testing:
 ```bash
 SATORI_CAPTURE_HOOK_PAYLOADS=1 claude
 ```
+
+---
+
+## Configuration
+
+Satori reads optional config from `~/.satori/config.json` (or `$SATORI_HOME/config.json`). All fields have defaults:
+
+| Field | Default | Description |
+|-------|---------|-------------|
+| `dream_interval_hours` | 24 | Minimum hours between scheduled dream passes |
+| `harnesses` | `["claude_code"]` | Which session adapters to enable (`claude_code`, `codex`, `opencode`) |
+| `lookback_days` | 30 | How far back to scan for events |
+| `llm_budget_per_dream` | 50000 | Token budget reserved for future LLM-assisted analysis |
+| `evidence_retention_days` | 90 | Days to retain snapshotted evidence |
+| `min_sample_threshold` | 5 | Minimum events before a capability appears in projections |
 
 ---
 
@@ -150,9 +211,12 @@ Then in Claude Code:
 ## Development
 
 ```bash
-cd cli
-uv run pytest          # run test suite
-uv run pytest -x -q    # fail fast
+cd cli/src/satori
+bun test                # run test suite
+bun test -x -q          # fail fast
+bun run typecheck        # TypeScript type checking
+bun run lint             # biome check
+bun run fmt              # biome format --write
 ```
 
 ### Experimental `dev` Branch
@@ -171,8 +235,9 @@ For testing upcoming features on the `dev` branch:
    Ensure dependencies are synced and the test suite passes:
 
    ```bash
-   cd ~/furaide-dev/claude-code/cli
-   uv run pytest
+   cd ~/furaide-dev/claude-code/cli/src/satori
+   bun install
+   bun test
    ```
 
 3. **Local Plugin Smoke Testing**
@@ -190,8 +255,19 @@ plugins/
   satori/
     .claude-plugin/plugin.json   # plugin manifest
     commands/satori.md           # /satori slash command
+    commands/mekiki.md           # deprecated alias (forwards to /satori)
     hooks/hooks.json             # event capture hooks (CLAUDE_PLUGIN_ROOT-relative)
-    bin/mekiki                   # legacy shim retained for compatibility
+    hooks/session_start.sh       # session.start event
+    hooks/skill_pre.sh           # skill.invoke (PreToolUse matcher: Skill)
+    hooks/skill_post.sh          # skill outcome (PostToolUse matcher: Skill)
+    hooks/skill_post_failure.sh  # skill failure outcome
+    hooks/user_prompt_expansion.sh # skill.user_typed events
+    hooks/stop.sh                # triggers scheduled dream pass on session end
+    hooks/_emit.sh               # shared event emitter
+    hooks/_capture_payload.sh    # raw payload capture (debug mode)
+    hooks/_mark_inactive.sh      # dependency fail-open observability
+    bin/mekiki                   # legacy PATH shim → $SATORI_HOME/cli-path
+```
 config/
   agents/
     hanko--git-seal.md           # git/GitHub subagent (installed → ~/.claude/agents/)

@@ -94,5 +94,7 @@ The `hooks` block is intentionally absent. Satori's plugin ships its own `hooks/
 ## Notes
 
 - **Skills** (the symlinks in `~/.claude/skills/`) are not bundled here. Install them from their source repos.
-- **Hooks** are handled by the Satori plugin. Install the plugin via `dev-link-plugin.sh` or `claude plugin install`, hooks wire automatically.
+- **Hooks** are handled by the Satori plugin. Install the plugin via `bootstrap.sh` or `claude plugin install`, hooks wire automatically. The plugin hooks write events to `~/.satori/` (or `$SATORI_HOME`).
 - The `CLAUDE.md` in this bundle is Furaidē's full working guide including the persona preamble. The version at `~/.claude/CLAUDE.md` on your machine is the live copy Claude Code reads each session.
+- **Satori CLI commands**: `dream`, `profile`, `backlog`, `report`, `improve <id>`, `mark <id>`, `reset`. Access via `/satori <command>` in Claude Code or `bun run <cli-path> <command>` from the shell.
+- **Smoke testing hooks**: run `SATORI_CAPTURE_HOOK_PAYLOADS=1 claude` to capture raw hook payloads to `~/.satori/debug/`.
