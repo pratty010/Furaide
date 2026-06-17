@@ -34,6 +34,14 @@ export async function runDream(opts: { force?: boolean } = {}): Promise<DreamRun
     if (config.harnesses.includes('claude_code')) {
       adapters.push(new ClaudeCodeAdapter())
     }
+    if (config.harnesses.includes('codex')) {
+      const { CodexAdapter } = await import('../adapters/codex.js')
+      adapters.push(new CodexAdapter())
+    }
+    if (config.harnesses.includes('opencode')) {
+      const { OpenCodeAdapter } = await import('../adapters/opencode.js')
+      adapters.push(new OpenCodeAdapter())
+    }
 
     const checkpoints = loadCheckpoints(CHECKPOINTS_FILE)
     const { newEvents } = await gather(adapters, checkpoints, config.lookback_days)
