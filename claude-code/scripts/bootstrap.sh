@@ -98,15 +98,16 @@ if [[ ! -d "$HOME/.satori" ]]; then
   ok "created ~/.satori"
 fi
 
-# ── 1) mekiki CLI engine ──────────────────────────────────────────────────────
-if confirm "Install mekiki CLI engine (uv sync)?"; then
-  if command -v uv >/dev/null 2>&1; then
-    ( cd "$REPO/cli" && uv sync )
-    mkdir -p "$HOME/.mekiki"
-    echo "$REPO/cli/.venv/bin/mekiki" > "$HOME/.mekiki/cli-path"
-    ok "mekiki CLI installed → $REPO/cli/.venv/bin/mekiki"
+# ── Satori CLI (TS/Bun) ──────────────────────────────────────────────────────
+if confirm "Install Satori CLI engine (bun install)?"; then
+  if command -v bun >/dev/null 2>&1; then
+    SATORI_SRC="$REPO/cli/src/satori"
+    ( cd "$SATORI_SRC" && bun install )
+    mkdir -p "$HOME/.satori"
+    echo "bun run $SATORI_SRC/src/cli/index.ts" > "$HOME/.satori/cli-path"
+    ok "Satori CLI installed -> bun run $SATORI_SRC/src/cli/index.ts"
   else
-    warn "uv not found — install uv (https://docs.astral.sh/uv/getting-started/installation/), then re-run."
+    warn "bun not found - install bun (https://bun.sh), then re-run."
   fi
 fi
 

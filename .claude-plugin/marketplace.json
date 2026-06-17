@@ -6,9 +6,9 @@
   },
   "plugins": [
     {
-      "name": "mekiki",
-      "source": "./claude-code/plugins/mekiki",
-      "description": "Mekiki (目利き — 'appraiser'): captures every skill invocation and judges its effectiveness offline via the mekiki analytics engine."
+      "name": "satori",
+      "source": "./claude-code/plugins/satori",
+      "description": "Satori (覚 · Capability Overseer): watches how you work across harnesses and surfaces skill usage, gaps, and improvement suggestions."
     }
   ]
 }

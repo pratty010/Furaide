@@ -682,14 +682,14 @@ git commit -m "feat(satori): catalog, projection, and LLM-contract Zod schemas"
 ### Task 0.5 — Hook re-wire + plugin.json rename
 
 **Files:**
-- Modify: `claude-code/plugins/mekiki/.claude-plugin/plugin.json`
-- Modify: `claude-code/plugins/mekiki/hooks/skill_pre.sh` (remove args field — R5)
+- Modify: `claude-code/plugins/satori/.claude-plugin/plugin.json`
+- Modify: `claude-code/plugins/satori/hooks/skill_pre.sh` (remove args field — R5)
 
 > Note: The plugin directory rename (`mekiki/` → `satori/`) happens at the end of Phase 5 once all hooks are tested. For now, update content in-place.
 
 - [ ] **Step 1: Update plugin.json (name, displayName, description, hook re-wire)**
 
-Edit `claude-code/plugins/mekiki/.claude-plugin/plugin.json`:
+Edit `claude-code/plugins/satori/.claude-plugin/plugin.json`:
 ```json
 {
   "name": "satori",
@@ -711,7 +711,7 @@ Edit `claude-code/plugins/mekiki/.claude-plugin/plugin.json`:
 
 - [ ] **Step 2: Remove args field from skill_pre.sh (R5 — no raw args in event log)**
 
-Read `claude-code/plugins/mekiki/hooks/skill_pre.sh`, locate the line that emits `.tool_input.args` or similar. Replace the `args` emission with `args_present: true/false` boolean.
+Read `claude-code/plugins/satori/hooks/skill_pre.sh`, locate the line that emits `.tool_input.args` or similar. Replace the `args` emission with `args_present: true/false` boolean.
 
 The hook's `_emit.sh` call should produce a payload with `args_present` (boolean) instead of copying `.tool_input.args`. Typical change (adjust to match actual file content):
 
@@ -725,17 +725,17 @@ The hook's `_emit.sh` call should produce a payload with `args_present` (boolean
 
 - [ ] **Step 3: Verify hook syntax**
 
-Run: `bash -n claude-code/plugins/mekiki/hooks/skill_pre.sh`
+Run: `bash -n claude-code/plugins/satori/hooks/skill_pre.sh`
 Expected: No output (syntax OK).
 
-Run: `bash -n claude-code/plugins/mekiki/hooks/skill_post_failure.sh`
+Run: `bash -n claude-code/plugins/satori/hooks/skill_post_failure.sh`
 Expected: No output.
 
 - [ ] **Step 4: Commit**
 
 ```bash
-git add claude-code/plugins/mekiki/.claude-plugin/plugin.json \
-        claude-code/plugins/mekiki/hooks/skill_pre.sh
+git add claude-code/plugins/satori/.claude-plugin/plugin.json \
+        claude-code/plugins/satori/hooks/skill_pre.sh
 git commit -m "fix(satori): rename plugin, re-wire PostToolUseFailure, remove args from hook payload"
 ```
 
@@ -3770,8 +3770,8 @@ git commit -m "feat(satori): CLI entry point with subcommand dispatch"
 ### Task 5.4 — Plugin slash commands + deprecated alias
 
 **Files:**
-- Create: `claude-code/plugins/mekiki/commands/satori.md`
-- Modify: `claude-code/plugins/mekiki/commands/mekiki.md` (deprecation notice + forward)
+- Create: `claude-code/plugins/satori/commands/satori.md`
+- Modify: `claude-code/plugins/satori/commands/mekiki.md` (deprecation notice + forward)
 
 - [ ] **Step 1: Create commands/satori.md**
 
@@ -3820,8 +3820,8 @@ This command forwards to `/satori`. All arguments are passed through unchanged.
 - [ ] **Step 3: Commit**
 
 ```bash
-git add claude-code/plugins/mekiki/commands/satori.md \
-        claude-code/plugins/mekiki/commands/mekiki.md
+git add claude-code/plugins/satori/commands/satori.md \
+        claude-code/plugins/satori/commands/mekiki.md
 git commit -m "feat(satori): /satori slash command + /mekiki deprecated alias"
 ```
 
@@ -3830,12 +3830,12 @@ git commit -m "feat(satori): /satori slash command + /mekiki deprecated alias"
 ### Task 5.5 — Stop hook integration + bootstrap update
 
 **Files:**
-- Modify: `claude-code/plugins/mekiki/hooks/stop.sh` (trigger dream pass)
+- Modify: `claude-code/plugins/satori/hooks/stop.sh` (trigger dream pass)
 - Modify: `claude-code/scripts/bootstrap.sh` (install satori CLI path)
 
 - [ ] **Step 1: Update stop.sh to trigger dream pass**
 
-Read `claude-code/plugins/mekiki/hooks/stop.sh`. Replace the body (or add after existing content) with a cadence-gated dream trigger:
+Read `claude-code/plugins/satori/hooks/stop.sh`. Replace the body (or add after existing content) with a cadence-gated dream trigger:
 
 ```bash
 #!/usr/bin/env bash
@@ -3893,7 +3893,7 @@ fi
 
 - [ ] **Step 3: Verify bash syntax**
 
-Run: `bash -n claude-code/plugins/mekiki/hooks/stop.sh`
+Run: `bash -n claude-code/plugins/satori/hooks/stop.sh`
 Run: `bash -n claude-code/scripts/bootstrap.sh`
 Expected: No output from either.
 
@@ -3905,7 +3905,7 @@ Expected: All tests PASS.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add claude-code/plugins/mekiki/hooks/stop.sh \
+git add claude-code/plugins/satori/hooks/stop.sh \
         claude-code/scripts/bootstrap.sh
 git commit -m "feat(satori): stop hook cadence-gated dream trigger + bootstrap Satori CLI install"
 ```
@@ -3916,19 +3916,19 @@ git commit -m "feat(satori): stop hook cadence-gated dream trigger + bootstrap S
 
 > Do this last, after all hooks and commands are tested.
 
-**Files:** Move `claude-code/plugins/mekiki/` → `claude-code/plugins/satori/`
+**Files:** Move `claude-code/plugins/satori/` → `claude-code/plugins/satori/`
 
 - [ ] **Step 1: Rename directory**
 
 ```bash
-git mv claude-code/plugins/mekiki claude-code/plugins/satori
+git mv claude-code/plugins/satori claude-code/plugins/satori
 ```
 
 - [ ] **Step 2: Update any repo-internal references to the old path**
 
-Run: `grep -r 'plugins/mekiki' claude-code/ --include='*.json' --include='*.md' --include='*.sh' -l`
+Run: `grep -r 'plugins/satori' claude-code/ --include='*.json' --include='*.md' --include='*.sh' -l`
 
-For each file returned, replace `plugins/mekiki` with `plugins/satori`. Typical files:
+For each file returned, replace `plugins/satori` with `plugins/satori`. Typical files:
 - `claude-code/config/CLAUDE.md` — active plugin blurb path
 - `claude-code/README.md` — plugin reference
 - Any marketplace.json or manifest entries

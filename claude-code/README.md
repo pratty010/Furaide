@@ -206,7 +206,7 @@ config/
 
 ### Why `.claude-plugin/` is at the repo root
 
-Claude Code's marketplace command fetches `.claude-plugin/marketplace.json` from the repository root. That path is part of the discovery protocol: `/plugin marketplace add pratty010/Furaide` reads the repo-root copy, and each plugin `source` path is relative to that root (e.g. `./claude-code/plugins/mekiki`). The file is a small JSON index; the actual plugin code lives in `plugins/` here.
+Claude Code's marketplace command fetches `.claude-plugin/marketplace.json` from the repository root. That path is part of the discovery protocol: `/plugin marketplace add pratty010/Furaide` reads the repo-root copy, and each plugin `source` path is relative to that root (e.g. `./claude-code/plugins/satori`). The file is a small JSON index; the actual plugin code lives in `plugins/` here.
 
 It stays at the root by design. Moving it under `claude-code/` would break the `owner/repo` install shorthand, which only resolves a marketplace at the repository root.
 
