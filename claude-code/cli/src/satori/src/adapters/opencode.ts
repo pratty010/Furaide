@@ -32,7 +32,7 @@ export class OpenCodeAdapter implements SessionAdapter {
       const lastRowid = ck?.last_complete_line_offset ?? 0
 
       const rows = db
-        .query(`SELECT rowid, id, message_id, session_id, time_start, data FROM part WHERE rowid > ? ORDER BY rowid ASC`)
+        .query('SELECT rowid, id, message_id, session_id, time_start, data FROM part WHERE rowid > ? ORDER BY rowid ASC')
         .all(lastRowid) as PartRow[]
 
       for (const row of rows) {

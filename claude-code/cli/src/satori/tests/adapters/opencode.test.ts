@@ -7,9 +7,10 @@ const DB_PATH = '/tmp/satori-opencode-test.db'
 afterAll(() => { if (existsSync(DB_PATH)) rmSync(DB_PATH) })
 
 function createTestDb(): void {
+  if (existsSync(DB_PATH)) rmSync(DB_PATH)
   const db = new Database(DB_PATH)
-  db.run(`CREATE TABLE session (id TEXT PRIMARY KEY, time_created INTEGER, title TEXT)`)
-  db.run(`CREATE TABLE message (id TEXT PRIMARY KEY, session_id TEXT, role TEXT, time INTEGER)`)
+  db.run('CREATE TABLE session (id TEXT PRIMARY KEY, time_created INTEGER, title TEXT)')
+  db.run('CREATE TABLE message (id TEXT PRIMARY KEY, session_id TEXT, role TEXT, time INTEGER)')
   db.run(`CREATE TABLE part (
     id TEXT PRIMARY KEY, message_id TEXT, session_id TEXT,
     time_start INTEGER, time_end INTEGER,
@@ -22,9 +23,8 @@ function createTestDb(): void {
   db.close()
 }
 
-createTestDb()
-
 test('OpenCodeAdapter emits capability.invoked (inferred) for agent part', async () => {
+  createTestDb()
   const adapter = new OpenCodeAdapter(DB_PATH)
   const events = []
   for await (const ev of adapter.scan(new Map())) events.push(ev)
