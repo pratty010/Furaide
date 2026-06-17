@@ -27,6 +27,7 @@ test('computeRateMetric returns null for n < minSample', () => {
 test('computeRateMetric returns shrunken estimate for adequate sample', () => {
   const result = computeRateMetric(8, 10, 5, 0.7, 80)
   expect(result).not.toBeNull()
-  expect(result!.shrunken).toBeGreaterThan(0.5)
-  expect(result!.shrunken).toBeLessThan(1.0)
+  if (result === null) throw new Error('expected a metric result')
+  expect(result.shrunken).toBeGreaterThan(0.5)
+  expect(result.shrunken).toBeLessThan(1.0)
 })
