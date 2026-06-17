@@ -27,6 +27,11 @@ export function buildMetricProjections(
   const result = new Map<string, CapabilityMetrics>()
   const globalTotals = { downstreamHits: 0, downstreamN: 0, successHits: 0, successN: 0 }
 
+  const observedByCapability = new Map<string, EventEnvelope[]>()
+  const sessionsByCapability = new Map<string, Set<string>>()
+  const modelTriggersByCapability = new Map<string, EventEnvelope[]>()
+  const outcomeCountsByCapability = new Map<string, { downstreamHits: number; successHits: number }>()
+
   for (const [capId, evs] of groups.entries()) {
     const observed = evs.filter(e => (e.payload as CapabilityInvokedPayload).observability_level === 'observed')
     const sessions = new Set(evs.map(e => (e.payload as CapabilityInvokedPayload).session_id))
@@ -45,19 +50,31 @@ export function buildMetricProjections(
       globalTotals.successN++
     }
 
+    observedByCapability.set(capId, observed)
+    sessionsByCapability.set(capId, sessions)
+    modelTriggersByCapability.set(capId, modelTriggers)
+    outcomeCountsByCapability.set(capId, { downstreamHits, successHits })
+  }
+
+  for (const [capId, evs] of groups.entries()) {
+    const observed = observedByCapability.get(capId) ?? []
+    const sessions = sessionsByCapability.get(capId) ?? new Set<string>()
+    const modelTriggers = modelTriggersByCapability.get(capId) ?? []
+    const counts = outcomeCountsByCapability.get(capId) ?? { downstreamHits: 0, successHits: 0 }
+
     result.set(capId, {
       capability_id: capId,
       invocation_count: evs.length,
       session_count: sessions.size,
       used_downstream_rate: computeRateMetric(
-        downstreamHits,
+        counts.downstreamHits,
         observed.length,
         minSample,
         globalTotals.downstreamN > 0 ? globalTotals.downstreamHits / globalTotals.downstreamN : 0.5,
         globalTotals.downstreamN,
       ),
       load_success_rate: computeRateMetric(
-        successHits,
+        counts.successHits,
         observed.length,
         minSample,
         globalTotals.successN > 0 ? globalTotals.successHits / globalTotals.successN : 0.8,
