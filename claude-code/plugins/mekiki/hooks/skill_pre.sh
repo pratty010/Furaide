@@ -19,7 +19,7 @@ LINE="$(printf '%s' "$PAYLOAD" | jq -c --arg ts "$TS" '{
   session_id: .session_id,
   cwd: .cwd,
   skill: (.tool_input.skill // .tool_input.name // ""),
-  args: (.tool_input.args // ""),
+  args_present: (.tool_input.args != null),
   tool_use_id: .tool_use_id,
   transcript_path: .transcript_path
 }')"
