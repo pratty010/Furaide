@@ -88,10 +88,14 @@ for arg in "$@"; do
 done
 
 # ── 0) One-time data migration (runs before flag checks — always safe) ────────
-# Migration: ~/.satori → ~/.mekiki
-if [[ -d "$HOME/.satori" && ! -d "$HOME/.mekiki" ]]; then
-  mv "$HOME/.satori" "$HOME/.mekiki"
-  ok "migrated ~/.satori → ~/.mekiki"
+# Migration: archive ~/.mekiki → ~/.mekiki.bak, create ~/.satori (R8)
+if [[ -d "$HOME/.mekiki" && ! -d "$HOME/.mekiki.bak" ]]; then
+  cp -r "$HOME/.mekiki" "$HOME/.mekiki.bak"
+  ok "archived legacy ~/.mekiki → ~/.mekiki.bak (kept for rollback)"
+fi
+if [[ ! -d "$HOME/.satori" ]]; then
+  mkdir -p "$HOME/.satori"
+  ok "created ~/.satori"
 fi
 
 # ── 1) mekiki CLI engine ──────────────────────────────────────────────────────
