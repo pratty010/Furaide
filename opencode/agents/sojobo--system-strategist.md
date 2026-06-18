@@ -6,7 +6,6 @@ description: >
   Not for: product requirements or PRDs (tsukuyomi--spec-oracle); code writing (tsukumogami--code-forgemaster); codebase exploration (mikoshi--code-pathfinder).
   Behavior: emits ADRs with options tables in ARCHITECT mode and exact file paths plus verification commands in PLAN mode; routes recon to mikoshi--code-pathfinder; never writes code, edits files, or runs shell.
 mode: all
-model: opencode-go/kimi-k2.5
 temperature: 0.6
 permission:
   edit: deny

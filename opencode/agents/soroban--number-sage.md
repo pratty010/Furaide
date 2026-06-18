@@ -6,7 +6,6 @@ description: >
   Not for: source retrieval (yamabiko--source-echo), narrative synthesis (jorogumo--synthesis-weaver), schema/pipeline design (mizuchi--data-current).
   Behavior: returns Analysis Tables + Evidence Matrix + Gaps + Escalation Flag; tag heavy:true on the brief to route to deepseek-v4-pro for multi-step reasoning chains; dispatches azukiarai--data-sifter for >500 rows.
 mode: subagent
-model: opencode-go/deepseek-v4-flash
 temperature: 0.5
 permission:
   edit: deny

@@ -169,7 +169,7 @@ With:
 With:
 
 ```md
-| 4 | Specialist Agents | no | on | 29 core shikigami: 12 domain specialists + 2 general agents + 15 shared subagents. |
+| 4 | Specialist Agents | no | on | 30 core shikigami: 12 domain specialists + 2 general agents + 16 shared subagents. |
 | 5 | Agent Support Scripts | no | on | Verification and safety scripts called by agents via Karakuri. |
 | 6 | Rules | no | on | Memory contract and other rules wired via `instructions` glob. |
 | 7 | Reference Docs | no | off | OPERATOR guide, architecture overview, manifest schema, model family guides. |

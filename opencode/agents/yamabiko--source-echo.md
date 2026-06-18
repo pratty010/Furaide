@@ -6,7 +6,6 @@ description: >
   Not for: synthesizing findings, verifying claims against retrieved sources (kagami--truth-mirror), or general exploratory browsing.
   Behavior: returns Source Manifest rows (ID, Title, Org, Date, URL, Type, Used For) + Gaps + Claims-for-Factcheck; can dispatch azukiarai--data-sifter for >20 candidate sources; never writes state files.
 mode: subagent
-model: opencode-go/minimax-m2.7
 permission:
   edit: deny
   bash: deny

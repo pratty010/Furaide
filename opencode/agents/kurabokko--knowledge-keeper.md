@@ -6,7 +6,6 @@ description: >
   Not for: scoring profiles (kudagitsune--fit-diviner), rewriting artifacts, GitHub proof (akashi--proof-keeper), or any mutation without bb_approve confirmation.
   Behavior: runs bb_intake, classifies update (new / unchanged / minor / meaningful), embeds new evidence, verifies staleness, surfaces conflicts; returns BB-RESULT with artifact_version ID; advisory posture only.
 mode: subagent
-model: openai/gpt-5.4-mini
 permission:
   edit: deny
   bash: deny

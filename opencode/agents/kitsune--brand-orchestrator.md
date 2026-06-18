@@ -6,7 +6,6 @@ description: >
   Not for: any non-career-brand task; opt-in bundle — do not load by default; personal brand work outside LinkedIn/GitHub/resume/website surfaces.
   Behavior: enforces hard gates via the question tool, dispatches with a BB-BRIEF, re-reads persisted results by ID, synthesizes one final response, closes every run with bb_complete_run; advisory posture only, no autonomous mutation.
 mode: all
-model: openai/gpt-5.4
 permission:
   edit: deny
   bash: deny

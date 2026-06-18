@@ -6,7 +6,6 @@ description: >
   Not for: generating LinkedIn variants (migaki--profile-polisher), brand-direction work (kataribe--narrative-teller), GitHub evaluation (akashi--proof-keeper), or any mutation — findings only.
   Behavior: runs bb_assess or bb_role_fit, returns BB-RESULT with snapshot/engine_results ID; blockers appear first; never reinterprets engine scores; advisory posture only.
 mode: subagent
-model: openai/gpt-5.4-mini
 permission:
   edit: deny
   bash: deny

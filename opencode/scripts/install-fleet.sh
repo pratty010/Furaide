@@ -195,6 +195,7 @@ merge_config() {
   local target_dir="$1"
   local plugins_to_add=("${!2}")  # nameref array
   local has_rules="${3:-0}"
+  local has_agents_source="${4:-0}"  # 1 if agents-core was installed at this target
 
   # Prefer .json; fall back to .jsonc
   local cfg_json="$target_dir/opencode.json"
@@ -210,6 +211,9 @@ merge_config() {
       local mjs_args=()
       for p in "${plugins_to_add[@]}"; do mjs_args+=("$(basename "$p")"); done
       [[ "$has_rules" -eq 1 ]] && mjs_args+=("--rules")
+      if [[ "$has_agents_source" -eq 1 && -f "$FLEET_ROOT/opencode.jsonc" ]]; then
+        mjs_args+=("--agents-source" "$FLEET_ROOT/opencode.jsonc")
+      fi
       if [[ "$DRY_RUN" -eq 0 ]]; then
         bun "$FLEET_ROOT/scripts/merge-config.mjs" "$cfg" "${mjs_args[@]}" && _ok "Config merged (jsonc): $cfg" && return
         _warn "merge-config.mjs failed; falling back to manual instructions."
@@ -225,6 +229,9 @@ merge_config() {
     done
     if [[ "$has_rules" -eq 1 ]]; then
       printf '    %b"./rules/*.md"%b\n' "$YLW" "$RST"
+    fi
+    if [[ "$has_agents_source" -eq 1 ]]; then
+      _warn "Also merge agent model mappings from $FLEET_ROOT/opencode.jsonc (the 'agent' key) into $cfg."
     fi
     return
   else
@@ -243,10 +250,13 @@ merge_config() {
     if [[ "$has_rules" -eq 1 ]]; then
       printf '    add instructions: ./rules/*.md\n'
     fi
+    if [[ "$has_agents_source" -eq 1 ]]; then
+      printf '    add agent model mappings from %s\n' "$FLEET_ROOT/opencode.jsonc"
+    fi
     return
   fi
 
-  # Build jq filter to add plugins (dedup)
+  # Build jq filter to add plugins (dedup) and (optionally) agent model mappings
   local jq_expr='. '
   for p in "${plugins_to_add[@]}"; do
     local rel="./plugins/$(basename "$p")"
@@ -258,7 +268,21 @@ merge_config() {
 
   local tmp
   tmp=$(mktemp)
-  jq "$jq_expr" "$cfg" > "$tmp" && mv "$tmp" "$cfg"
+  if [[ "$has_agents_source" -eq 1 && -f "$FLEET_ROOT/opencode.jsonc" ]]; then
+    # Merge each agent from the fleet's opencode.jsonc into the target's agent key.
+    # Fleet entries win on conflict (.agent = target + fleet, jq object-merge
+    # right-side wins), so model upgrades land and user agents not in the
+    # source fleet are preserved.
+    local fleet_agents_tmp
+    fleet_agents_tmp=$(mktemp)
+    jq -r '.agent // {}' "$FLEET_ROOT/opencode.jsonc" > "$fleet_agents_tmp"
+    jq --slurpfile fleet_agents "$fleet_agents_tmp" \
+      "$jq_expr | .agent = (.agent // {}) + \$fleet_agents[0]" \
+      "$cfg" > "$tmp" && mv "$tmp" "$cfg"
+    rm -f "$fleet_agents_tmp"
+  else
+    jq "$jq_expr" "$cfg" > "$tmp" && mv "$tmp" "$cfg"
+  fi
   _ok "Config merged: $cfg"
 }
 
@@ -337,6 +361,7 @@ fi
 # Tracks which plugins go to which target dir, for config merge
 declare -A TARGET_PLUGINS   # target_dir -> space-separated plugin basenames
 declare -A TARGET_HAS_RULES # target_dir -> 1 if rules selected
+declare -A TARGET_HAS_AGENTS # target_dir -> 1 if agents-core or brand-builder selected
 
 for i in $(seq 0 $((COMPONENT_COUNT - 1))); do
   id=$(jq -r       ".components[$i].id"           "$MANIFEST")
@@ -427,6 +452,11 @@ for i in $(seq 0 $((COMPONENT_COUNT - 1))); do
     if [[ "$id" == "rules" ]]; then
       TARGET_HAS_RULES["$target_dir"]=1
     fi
+    # agents-core and brand-builder both contribute fleet agent files;
+    # their model mappings come from $FLEET_ROOT/opencode.jsonc.
+    if [[ "$id" == "agents-core" || "$id" == "brand-builder" ]]; then
+      TARGET_HAS_AGENTS["$target_dir"]=1
+    fi
 
     _ok "Done: $label -> $target_dir"
   done
@@ -434,9 +464,15 @@ done
 
 # ── Config merge for each target dir ─────────────────────────────────────────
 _bold "\nWiring configs...\n"
-for target_dir in "${!TARGET_PLUGINS[@]}"; do
-  plugins_str="${TARGET_PLUGINS[$target_dir]}"
+# Build the union of all target dirs that need config wiring
+declare -A WIRED_TARGETS
+for target_dir in "${!TARGET_PLUGINS[@]}" "${!TARGET_HAS_RULES[@]}" "${!TARGET_HAS_AGENTS[@]}"; do
+  WIRED_TARGETS["$target_dir"]=1
+done
+for target_dir in "${!WIRED_TARGETS[@]}"; do
+  plugins_str="${TARGET_PLUGINS[$target_dir]:-}"
   has_rules="${TARGET_HAS_RULES[$target_dir]:-0}"
+  has_agents="${TARGET_HAS_AGENTS[$target_dir]:-0}"
   # Convert space-separated string to array
   IFS=' ' read -ra plugins_arr <<< "$plugins_str"
   # Remove empty entries
@@ -444,15 +480,7 @@ for target_dir in "${!TARGET_PLUGINS[@]}"; do
   for p in "${plugins_arr[@]}"; do
     [[ -n "$p" ]] && filtered+=("$p")
   done
-  merge_config "$target_dir" filtered[@] "$has_rules"
-done
-
-# Also wire configs for dirs that only got rules (no plugins)
-for target_dir in "${!TARGET_HAS_RULES[@]}"; do
-  if [[ -z "${TARGET_PLUGINS[$target_dir]:-}" ]]; then
-    empty_arr=()
-    merge_config "$target_dir" empty_arr[@] "1"
-  fi
+  merge_config "$target_dir" filtered[@] "$has_rules" "$has_agents"
 done
 
 # ── Post-install notes ────────────────────────────────────────────────────────

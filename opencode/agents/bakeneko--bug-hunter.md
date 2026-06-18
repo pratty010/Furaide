@@ -6,7 +6,6 @@ description: >
   Not for: applying fixes, running bash, writing state files, or one-shot answers (returns a plan, not a verdict).
   Behavior: returns ranked hypotheses, files/lines to inspect, commands to run, expected_observations per hypothesis, and stop_criteria; never dispatches further agents; deepseek-v4-pro reasoner — do not set temperature.
 mode: subagent
-model: opencode-go/deepseek-v4-pro
 permission:
   edit: deny
   bash: deny

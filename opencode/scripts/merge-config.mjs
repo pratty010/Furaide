@@ -2,55 +2,75 @@
 // merge-config.mjs — Comment-tolerant opencode.json(c) config merger
 //
 // Usage:
-//   bun scripts/merge-config.mjs <config-path> [plugin-basename...] [--rules]
+//   bun scripts/merge-config.mjs <config-path> [plugin-basename...] [--rules] [--agents-source <path>]
 //
 // Reads a .json or .jsonc opencode config, adds missing plugin and instructions
-// entries, and writes back atomically (tmp + rename). Idempotent — running twice
+// entries, optionally merges agent model mappings from a source fleet config,
+// and writes back atomically (tmp + rename). Idempotent — running twice
 // produces the same result.
 //
+// Flags:
+//   --rules             Add the "./rules/*.md" instructions glob.
+//   --agents-source <path>
+//                       Path to a source opencode.json(c) whose `agent` block
+//                       should be merged into the target's `agent` block.
+//                       Fleet-owned agent names present in the source are
+//                       merged/overwritten into the target; agent names NOT
+//                       present in the source are preserved on the target
+//                       (i.e. user-defined agents survive).
+//
 // For .jsonc files: strips line comments (// ...) before parsing, then writes
-// clean JSON. The $ schema comment is preserved via a field, not inline comments.
+// clean JSON. The $schema comment is preserved via a field, not inline comments.
 
-import { readFileSync, writeFileSync, renameSync, mkdtempSync } from "fs";
+import { readFileSync, writeFileSync, renameSync } from "fs";
 import { tmpdir } from "os";
-import { join, dirname, basename } from "path";
+import { join, basename, dirname } from "path";
+import { fileURLToPath } from "url";
+import { parseJsonc } from "./lib/jsonc.mjs";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 const [, , cfgPath, ...rest] = process.argv;
 
 if (!cfgPath) {
   console.error(
-    "Usage: merge-config.mjs <config-path> [plugin-basename...] [--rules]"
+    "Usage: merge-config.mjs <config-path> [plugin-basename...] [--rules] [--agents-source <path>]"
   );
   process.exit(1);
 }
 
+// Parse positional + flag args
 const rulesIdx = rest.indexOf("--rules");
 const hasRules = rulesIdx !== -1;
+const agentsIdx = rest.indexOf("--agents-source");
+let agentsSource = agentsIdx !== -1 ? rest[agentsIdx + 1] : null;
+if (agentsIdx !== -1) {
+  // Remove --agents-source and its value from the rest array
+  rest.splice(agentsIdx, 2);
+}
 const pluginArgs = rest.filter((a) => a !== "--rules");
+
+// --agents-source requires a real path argument. Catch three failure modes:
+//   1) flag is the last arg with no value at all
+//   2) flag is followed by another flag like --rules
+//   3) flag is followed by an empty string
+if (agentsSource === undefined || agentsSource === null || agentsSource === "" || agentsSource.startsWith("--")) {
+  console.error("--agents-source requires a path argument");
+  process.exit(1);
+}
 
 // ── Read and strip JSONC comments ────────────────────────────────────────────
 let raw;
 try {
   raw = readFileSync(cfgPath, "utf8");
-} catch (e) {
+} catch {
   // If file doesn't exist, start with a minimal config
   raw = '{"$schema":"https://opencode.ai/config.json","plugin":[],"instructions":[]}';
 }
 
-// Try parsing as-is first (most .jsonc files in this repo are valid JSON)
-// If that fails, strip line comments (only // at line start or after whitespace,
-// not // inside string values like URLs).
-let stripped = raw;
-try { JSON.parse(raw); } catch {
-  stripped = raw
-    .replace(/\/\*[\s\S]*?\*\//g, "")
-    .replace(/^\s*\/\/[^\n]*/gm, "")    // full-line // comments
-    .replace(/\s+\/\/[^"'\n][^\n]*/g, ""); // trailing // comments (not inside strings)
-}
-
 let config;
 try {
-  config = JSON.parse(stripped);
+  config = parseJsonc(raw);
 } catch (e) {
   console.error(`Failed to parse ${cfgPath}: ${e.message}`);
   process.exit(1);
@@ -78,13 +98,40 @@ if (hasRules) {
   }
 }
 
+if (agentsSource) {
+  let sourceRaw;
+  try {
+    sourceRaw = readFileSync(agentsSource, "utf8");
+  } catch (e) {
+    console.error(`--agents-source: cannot read ${agentsSource}: ${e.message}`);
+    process.exit(1);
+  }
+  let sourceCfg;
+  try {
+    sourceCfg = parseJsonc(sourceRaw);
+  } catch (e) {
+    console.error(`--agents-source: failed to parse ${agentsSource}: ${e.message}`);
+    process.exit(1);
+  }
+  const sourceAgents = sourceCfg?.agent ?? {};
+  config.agent ??= {};
+  for (const [agentName, agentEntry] of Object.entries(sourceAgents)) {
+    const existing = config.agent[agentName];
+    const next = JSON.stringify(agentEntry);
+    if (JSON.stringify(existing) !== next) {
+      config.agent[agentName] = agentEntry;
+      changed = true;
+    }
+  }
+}
+
 if (!changed) {
   process.exit(0); // already up to date, no-op
 }
 
 // ── Write atomically ──────────────────────────────────────────────────────────
 const out = JSON.stringify(config, null, 2) + "\n";
-const tmpFile = join(tmpdir(), `merge-config-${Date.now()}.json`);
+const tmpFile = join(tmpdir(), `merge-config-${Date.now()}-${process.pid}.json`);
 writeFileSync(tmpFile, out, "utf8");
 renameSync(tmpFile, cfgPath);
 

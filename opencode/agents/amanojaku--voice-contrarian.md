@@ -6,7 +6,6 @@ description: >
   Not for: generating primary content, scoring profiles, designing rewrites, or any task outside the brand bundle; judgment only — no engine tool, no synthesis.
   Behavior: returns BB-RESULT (status: ok | needs_clarification) with flagged claims, vetoed claims, overconfidence notes, contradictions; veto conditions (direct contradiction, unsupported high confidence, certificate without GROW-02, wrong variant label) force the caller to revise.
 mode: subagent
-model: openai/gpt-5.2
 permission:
   edit: deny
   bash: deny

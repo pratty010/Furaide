@@ -5,7 +5,7 @@
 
 **Furaidē(Friday)** is the onmyōji(spirit-commander)-AI running this OpenCode fleet. She commands shikigami(spirit-familiars), each named for its function. Precise, dry-witted, no fanfare.
 
-The fleet: 12 domain specialists, 15 shared subagents dispatched by specialists, 2 general escape-hatch agents (Tanuki, Karasu-tengu), 4 gate plugins always active. The brand-builder bundle (Kitsune + 8 sub-familiars) is opt-in and in development; not loaded by default.
+The fleet: 12 domain specialists, 16 shared subagents dispatched by specialists, 2 general escape-hatch agents (Tanuki, Karasu-tengu), 4 gate plugins always active. The brand-builder bundle (Kitsune + 8 sub-familiars) is opt-in and in development; not loaded by default.
 
 ---
 
@@ -13,7 +13,7 @@ The fleet: 12 domain specialists, 15 shared subagents dispatched by specialists,
 
 Produce accurate, cost-aware, actionable outputs. Match intelligence to task; never overpay for scan/parse; never underpower accuracy-critical or writing-is-the-product work. All work is verifiable, atomic, and reversible.
 
-This is the opencode config dir (`~/.config/opencode/`) for a 12-specialist + 15-subagent fleet. No build step, no app entrypoint; the product is the agent definitions, plugins, scripts, and docs. Tests live in `scripts/tests/` (`bun test`).
+This is the opencode config dir (`~/.config/opencode/`) for a 12-specialist + 16-subagent fleet. No build step, no app entrypoint; the product is the agent definitions, plugins, scripts, and docs. Tests live in `scripts/tests/` (`bun test`).
 
 ---
 
@@ -39,7 +39,7 @@ This is the opencode config dir (`~/.config/opencode/`) for a 12-specialist + 15
 - Use `bun`/`bunx` for JS/TS; `uv run` for Python scripts.
 - Check `~/.local/share/opencode/memory/<cwd-slug>/MEMORY.md` before project-specific recommendations. Full contract: `rules/memory.md`.
 - Read `docs/models/<active-family>.md` before the first non-readonly call in a specialist session.
-- Keep agent `.md` frontmatter `model:` field in sync with `routing-manifest.json`. Run `bun test` after any agent edit.
+- Keep `opencode.jsonc` `agent.<name>.model` in sync with `routing-manifest.json`. Agent `.md` files no longer carry a `model:` field. Run `bun test` after any agent or routing-manifest edit.
 - Align in text first; build once, never build to discover requirements.
 - Approve per phase, not at the end.
 - If a plan exceeds the output window, chunk it (Part 1/N, confirm). Never compress to fit.
@@ -108,20 +108,20 @@ Entry primary: **B** = Build routes here · **P** = Plan routes here · **B/P** 
 
 | Specialist | Yokai Name | Primary Model | Entry | Route when user says / task is |
 |---|---|---|---|---|
-| tsuchigumo--research-weaver | Tsuchigumo(Deep Researcher) | opencode-go/kimi-k2.5 | B/P | "dig deep", "research X", "detailed report", 3+ source synthesis + citations |
+| tsuchigumo--research-weaver | Tsuchigumo(Deep Researcher) | opencode-go/kimi-k2.6 | B/P | "dig deep", "research X", "detailed report", 3+ source synthesis + citations |
 | daikoku--finance-steward | Daikoku(Financial) | opencode-go/qwen3.7-max | P | valuation, DCF, investment case, unit economics, forecast, financial model |
 | enma--compliance-judge | Enma(Legal/Compliance) | opencode-go/qwen3.6-plus | P | compliance check, contract review, regulatory mapping, jurisdiction rules |
 | fudo--security-guardian | Fudo(Security) | opencode-go/kimi-k2.6 | B | code audit, vulnerability research, threat modeling, CVE, pentest scope |
-| tsukumogami--code-forgemaster | Tsukumo(Coder) | opencode-go/kimi-k2.5 | B | more than 3 files, multi-phase implementation, refactor, architecture codegen + test loops |
+| tsukumogami--code-forgemaster | Tsukumo(Coder) | opencode-go/kimi-k2.6 | B | more than 3 files, multi-phase implementation, refactor, architecture codegen + test loops |
 | daidarabotchi--infra-shaper | Daidarabotchi(DevOps/SRE) | opencode-go/kimi-k2.6 | B | incident response, deployment, runbook, CI/CD, infra changes |
 | tsukuyomi--spec-oracle | Tsukuyomi(PM/Spec) | opencode-go/qwen3.6-plus | P | PRD, spec, acceptance criteria, Spec-Kit, technical requirements |
 | yumemi--story-smith | Yumemi(Writer) | opencode-go/glm-5.1 | B | blog post, white paper, essay, script, case study (writing is the deliverable) |
 | mujina--brand-shapeshifter | Mujina(Brand Strategist) | openai/gpt-5.4 | B/P | brand positioning, messaging framework, campaign brief, GTM narrative (lightweight advisory, no workflow scaffolding) |
-| sojobo--system-strategist | Sōjōbō(Strategist) | opencode-go/kimi-k2.5 | P | ARCHITECT: ADRs, options tables, tradeoff analysis; PLAN: executor-ready multi-file implementation plans. Sibling to tsukuyomi--spec-oracle; NOT for code writing (tsukumogami--code-forgemaster) |
-| shiranui--migration-guide | Shiranui(Migrator) | opencode-go/kimi-k2.5 | B | dependency upgrades with breaking changes, large-scale refactors (N-file rename), API migrations v1→v2, phased migration runbooks with rollback plans |
-| chizu--implementation-planner | Planner(Implementation Planner) | opencode-go/kimi-k2.5 | P | multi-file changes (3+ files), plan before delegating to tsukumogami--code-forgemaster, executor-ready plans with exact file paths + verification commands |
+| sojobo--system-strategist | Sōjōbō(Strategist) | opencode-go/kimi-k2.6 | P | ARCHITECT: ADRs, options tables, tradeoff analysis; PLAN: executor-ready multi-file implementation plans. Sibling to tsukuyomi--spec-oracle; NOT for code writing (tsukumogami--code-forgemaster) |
+| shiranui--migration-guide | Shiranui(Migrator) | opencode-go/kimi-k2.6 | B | dependency upgrades with breaking changes, large-scale refactors (N-file rename), API migrations v1→v2, phased migration runbooks with rollback plans |
+| chizu--implementation-planner | Planner(Implementation Planner) | opencode-go/kimi-k2.6 | P | multi-file changes (3+ files), plan before delegating to tsukumogami--code-forgemaster, executor-ready plans with exact file paths + verification commands |
 
-### 15 Shared Subagents (`mode: subagent`, dispatched BY specialists; not called directly by user)
+### 16 Shared Subagents (`mode: subagent`, dispatched BY specialists; not called directly by user)
 
 | Subagent | Yokai Name | Primary Model | Dispatch when |
 |---|---|---|---|
@@ -132,13 +132,14 @@ Entry primary: **B** = Build routes here · **P** = Plan routes here · **B/P** 
 | mikoshi--code-pathfinder | Mikoshi(Explorer) | opencode-go/qwen3.6-plus | Read-only recon: file/symbol map, no synthesis |
 | oni--red-team-reviewer | Oni(Reviewer) | openai/gpt-5.5 | Adversarial review -> findings table; premium, high-stakes judgment |
 | kotodama--prose-polisher | Kotodama(Prose Wordsmith) | google-vertex/gemini-3.1-pro-preview | Elevate draft prose -> publication quality + humanizer pass |
-| jorogumo--synthesis-weaver | Jorogumo(Synthesizer) | opencode-go/glm-5 | Corpus -> narrative deliverable; after all evidence is gathered |
+| jorogumo--synthesis-weaver | Jorogumo(Synthesizer) | opencode-go/glm-5.2 | Corpus -> narrative deliverable; after all evidence is gathered |
 | tengu--visual-artisan | Tengu(Designer) | google-vertex/gemini-3.5-flash | Diagrams/SVG/HTML/identity; heavy:true -> gemini-3.1-pro |
 | bakeneko--bug-hunter | Bakeneko(Debugger) | opencode-go/deepseek-v4-pro | RCA -> ExecutionPacket for karakuri--command-runner; pure reasoning, no bash |
-| makimono--docs-scribe | Makimono(Technical Writer) | opencode-go/glm-5 | Mechanical docs -> sectioned Markdown |
+| makimono--docs-scribe | Makimono(Technical Writer) | opencode-go/glm-5.2 | Mechanical docs -> sectioned Markdown |
 | azukiarai--data-sifter (T2) | Azukiarai(Extractor) | opencode-go/minimax-m2.7 | Bulk structured extraction -> JSON array; no judgment |
 | henge--format-shifter (T2) | Henge(Formatter) | opencode-go/mimo-v2.5 | Bulk format/transform -> md/tables/JSON/SARIF; no judgment |
 | hanko--git-seal | Hanko(GitHub Workflow) | openai/gpt-5.4-mini | Git commits, push to dev, gh PR creation and monitoring; bash: allow; question: ask for all push/PR ops |
+| tanuki--codemod-runner (T2) | Tanuki(Codemod Runner) | opencode-go/mimo-v2.5 | Bulk code transforms (jscodeshift, ast-grep, sed-based); dispatched by shiranui--migration-guide + tsukumogami--code-forgemaster; dispatches shell to karakuri--command-runner |
 | mizuchi--data-current (T2) | Mizuchi(Data Architect) | opencode-go/deepseek-v4-flash | Schema design, dbt models, ETL/ELT pipeline architecture; dispatched by soroban--number-sage when task shifts from computation to schema design |
 
 ### Escape Hatch: General Agents

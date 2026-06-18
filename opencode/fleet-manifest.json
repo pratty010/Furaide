@@ -64,9 +64,9 @@
     {
       "id": "agents-core",
       "label": "Specialist Agents (30 core)",
-      "description": "30 specialist and subagent shikigami (12 specialists + 16 subagents + 2 escape-hatch). Soft dependency on failover routing-manifest.json and docs/models/** for model selection.",
+      "description": "30 specialist and subagent shikigami (12 specialists + 16 subagents + 2 escape-hatch) plus the runtime opencode.jsonc (provider whitelist, gate-plugin array, agent model mappings). Soft dependency on failover routing-manifest.json and docs/models/** for model selection.",
       "atomic": false,
-      "coupling": "soft dep on failover routing-manifest.json; auto-included at same scope if failover not selected there",
+      "coupling": "soft dep on failover routing-manifest.json; auto-included at same scope if failover not selected there. opencode.jsonc ships with the bundle so fleet agent model mappings are installed by default; install-fleet.sh rewrites its 'plugin' and 'instructions' arrays against the current fleet manifest after copy. POST-COPY CONFIG MERGE IS MANDATORY: every scope where agents-core lands must run merge-config.mjs with --agents-source $FLEET_ROOT/opencode.jsonc, otherwise the installed opencode.jsonc will not be picked up by opencode and the fleet agents will inherit the user's previous model assignments (or none).",
       "requires_bun": false,
       "default_on": true,
       "target_subdirs": [
@@ -102,7 +102,8 @@
         "agents/sojobo--system-strategist.md",
         "agents/shiranui--migration-guide.md",
         "agents/chizu--implementation-planner.md",
-        "agents/mizuchi--data-current.md"
+        "agents/mizuchi--data-current.md",
+        "opencode.jsonc"
       ],
       "globs": []
     },

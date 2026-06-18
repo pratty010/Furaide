@@ -6,7 +6,6 @@ description: >
   Not for: anything that fits a v9.1 specialist (see the `specialists` section of `docs/routing-manifest.json` for the canonical list) — if one fits, surface the routing and stop.
   Behavior: cheap, broad-coverage research; summarizes findings with citations or [unverified] tags; never edits files, runs bash, or writes state files; defaults to the cheapest capable path.
 mode: all
-model: opencode/big-pickle
 permission:
   edit: deny
   bash: deny

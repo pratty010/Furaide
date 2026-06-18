@@ -6,7 +6,6 @@ description: >
   Not for: rewriting artifacts, writing state files, dispatching further agents, or low-stakes proofreading.
   Behavior: returns a Findings table with severity (critical/high/medium/low/info), evidence pointers, and concrete fix recommendations; never softens findings; reasoning_effort: high.
 mode: subagent
-model: openai/gpt-5.5
 permission:
   edit: deny
   bash: deny

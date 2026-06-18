@@ -6,7 +6,6 @@ description: >
   Not for: LinkedIn section rewrites (migaki--profile-polisher), GitHub proof evaluation (akashi--proof-keeper), implementation/deployment/hosting guidance, or non-career brand work (mujina--brand-shapeshifter).
   Behavior: advisory mode by default; active mode produces site job, section map, proof shelf, alignment checklist, voice notes; returns BB-RESULT with engine_results ID; no HTML/CSS/JS, no hosting or domain guidance.
 mode: subagent
-model: opencode-go/kimi-k2.6
 temperature: 0.5
 permission:
   edit: deny

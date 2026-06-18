@@ -1,38 +1,47 @@
 import { test, expect } from 'bun:test';
-import { readFileSync, readdirSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { parseJsonc } from '../lib/jsonc.mjs';
 
-const manifest = JSON.parse(readFileSync('docs/routing-manifest.json', 'utf8'));
-const subagentNames = Object.keys(manifest.subagents);
+const FLEET_ROOT = join(import.meta.dir, '..', '..');
+const manifest = JSON.parse(readFileSync(join(FLEET_ROOT, 'docs/routing-manifest.json'), 'utf8'));
+const config = parseJsonc(readFileSync(join(FLEET_ROOT, 'opencode.jsonc'), 'utf8'));
+const configAgents = config.agent ?? {};
 
-for (const name of subagentNames) {
-  test(`agents/${name}.md model matches manifest primary`, () => {
-    let content;
-    try {
-      content = readFileSync(`agents/${name}.md`, 'utf8');
-    } catch {
-      throw new Error(`agents/${name}.md does not exist`);
-    }
-    const match = content.match(/^model:\s*(.+)$/m);
-    expect(match, `agents/${name}.md has no model: field`).not.toBeNull();
-    const fileModel = match[1].trim();
-    const manifestModel = manifest.subagents[name].primary;
-    expect(fileModel).toBe(manifestModel);
+const allAgents = {
+  ...manifest.specialists,
+  ...manifest.subagents,
+  ...Object.fromEntries(
+    Object.entries(manifest.brand_builder_subagents ?? {}).filter(([k]) => !k.startsWith('_'))
+  ),
+};
+
+for (const [name, entry] of Object.entries(allAgents)) {
+  test(`opencode.jsonc agent["${name}"].model matches manifest primary`, () => {
+    const cfg = configAgents[name];
+    expect(cfg, `opencode.jsonc agent["${name}"] is missing`).not.toBeUndefined();
+    expect(cfg.model, `opencode.jsonc agent["${name}"].model is missing`).not.toBeUndefined();
+    expect(cfg.model).toBe(entry.primary);
   });
 }
 
-const specialistNames = Object.keys(manifest.specialists);
-for (const name of specialistNames) {
-  test(`agents/${name}.md model matches manifest primary (specialist)`, () => {
-    let content;
-    try {
-      content = readFileSync(`agents/${name}.md`, 'utf8');
-    } catch {
-      throw new Error(`agents/${name}.md does not exist`);
-    }
-    const match = content.match(/^model:\s*(.+)$/m);
-    expect(match, `agents/${name}.md has no model: field`).not.toBeNull();
-    const fileModel = match[1].trim();
-    const manifestModel = manifest.specialists[name].primary;
-    expect(fileModel).toBe(manifestModel);
-  });
-}
+test('manifest covers all 39 agent config entries', () => {
+  // opencode.jsonc must be the source of truth for runtime model assignments,
+  // but the routing manifest must enumerate them so the canonical check has
+  // something to compare against.
+  const manifestNames = new Set([
+    ...Object.keys(manifest.specialists ?? {}),
+    ...Object.keys(manifest.subagents ?? {}),
+    ...Object.entries(manifest.brand_builder_subagents ?? {})
+      .filter(([k]) => !k.startsWith('_'))
+      .map(([k]) => k),
+  ]);
+  const configNames = new Set(Object.keys(configAgents));
+  for (const name of configNames) {
+    expect(manifestNames.has(name), `${name} is in opencode.jsonc but not in any manifest section`).toBe(true);
+  }
+  for (const name of manifestNames) {
+    expect(configNames.has(name), `${name} is in manifest but not in opencode.jsonc`).toBe(true);
+  }
+  expect(configNames.size).toBe(39);
+});

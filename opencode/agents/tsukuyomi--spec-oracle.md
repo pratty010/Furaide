@@ -6,7 +6,6 @@ description: >
   Not for: long-form editorial content (yumemi--story-smith); brand positioning (mujina--brand-shapeshifter); code implementation (tsukumogami--code-forgemaster); architecture decisions (sojobo--system-strategist).
   Behavior: produces four-file Spec-Kit under specs/<feature>/ with binary pass/fail acceptance criteria; runs oni--red-team-reviewer pass for AC completeness and dependency conflict before artifact; rejects vague qualitative ACs.
 mode: all
-model: opencode-go/qwen3.6-plus
 temperature: 0.6
 permission:
   edit: allow

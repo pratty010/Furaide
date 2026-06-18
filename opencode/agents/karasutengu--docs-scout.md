@@ -6,7 +6,6 @@ description: >
   Not for: architectural recommendations, code implementation, internal-codebase exploration (mikoshi--code-pathfinder), or any question that needs a design decision.
   Behavior: invokes the find-docs skill (ctx7) for supported libraries; falls back to webfetch on the official docs URL or websearch; returns excerpts, usage examples, official links, and version notes; never edits files or writes state.
 mode: subagent
-model: opencode/big-pickle
 permission:
   edit: deny
   bash: deny

@@ -6,7 +6,6 @@ description: >
   Not for: editorial prose, narrative or persuasive content (kotodama--prose-polisher); for facts-only mechanical rendering, dispatch henge--format-shifter.
   Behavior: returns sectioned Markdown with one heading per required section; flags missing source material as [NEEDS INFO] rather than guessing; never invents API behavior.
 mode: subagent
-model: opencode-go/glm-5
 temperature: 0.5
 permission:
   edit: deny

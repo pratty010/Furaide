@@ -1,8 +1,8 @@
 # Furaidē's Fleet: OpenCode Setup
 
-> *"Twenty-nine spirits. Four gate-guardians. The fleet is ready."*
+> *"Thirty spirits. Four gate-guardians. The fleet is ready."*
 
-Furaidē's [OpenCode](https://opencode.ai) configuration: a 29-agent fleet of named shikigami specialists, four gate plugins enforcing workflow integrity, and Kitsune's brand-builder domain (opt-in, in development). Part of the [F.R.I.D.A.Y.](https://github.com/pratty010/Furaide) collection.
+Furaidē's [OpenCode](https://opencode.ai) configuration: a 30-agent fleet of named shikigami specialists, four gate plugins enforcing workflow integrity, and Kitsune's brand-builder domain (opt-in, in development). Part of the [F.R.I.D.A.Y.](https://github.com/pratty010/Furaide) collection.
 
 There is no marketplace: the installer is the distribution. One command clones and installs:
 
@@ -55,7 +55,7 @@ The installer presents a redesigned, independent-choice flow:
 | 1 | Workflow Gates | yes | on | Nio + Nurikabe gate plugins + workflow state engine. Tightly coupled; cannot be split. |
 | 2 | Model Failover | yes | on | Migawari plugin + routing manifest. Tightly coupled; cannot be split. |
 | 3 | Security Gate | no | on | Komainu plugin: 35+ dangerous-pattern checks on every Edit/Write. Standalone. |
-| 4 | Specialist Agents | no | on | 29 core shikigami: 12 domain specialists + 2 general agents + 15 shared subagents. |
+| 4 | Specialist Agents | no | on | 30 core shikigami: 12 domain specialists + 2 general agents + 16 shared subagents. |
 | 5 | Agent Support Scripts | no | on | Verification and safety scripts called by agents via Karakuri. |
 | 6 | Rules | no | on | Memory contract and other rules wired via `instructions` glob. |
 | 7 | Reference Docs | no | off | OPERATOR guide, architecture overview, manifest schema, model family guides. |
@@ -93,7 +93,7 @@ Run `bash opencode/scripts/install-fleet.sh --list` for the full machine-readabl
 | Tanuki(General) | Cost-aware generalist for tasks that fit no specialist |
 | Karasu-tengu(Scout) | Library and dependency lookup; ctx7 protocol baked in |
 
-### 15 Shared Subagents
+### 16 Shared Subagents
 
 | Shikigami | Role |
 |-----------|------|
@@ -112,6 +112,7 @@ Run `bash opencode/scripts/install-fleet.sh --list` for the full machine-readabl
 | Hanko(GitHub Workflow) | Git commits, pushes, PR creation, and CI monitoring with human-in-the-loop approval |
 | Planner(Implementation Planner) | Turns a goal into an executor-ready plan with exact file paths and verification commands |
 | Shiranui(Migrator) | Migration and codemod orchestrator for dependency upgrades and large-scale refactors |
+| Tanuki(Codemod Runner) | Bulk code transforms via jscodeshift, ast-grep, sed; dispatches shell to Karakuri |
 
 ### 4 Gate Shikigami (always active)
 

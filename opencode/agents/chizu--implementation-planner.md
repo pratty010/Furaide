@@ -6,7 +6,6 @@ description: >
   Not for: single-file trivial edits (build mode); architecture decisions or ADRs (sojobo--system-strategist); code writing itself (tsukumogami--code-forgemaster).
   Behavior: emits a plan with no judgment calls left to the implementer; routes codebase recon to mikoshi--code-pathfinder; never writes code, edits files, or runs shell.
 mode: all
-model: opencode-go/kimi-k2.5
 temperature: 0.4
 permission:
   edit: deny

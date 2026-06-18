@@ -1,6 +1,6 @@
 # Kimi K2.x Prompting Nuance
 
-Active when model family is `opencode-go/kimi-k2.5`, `opencode-go/kimi-k2.6`.
+Active when model family is `opencode-go/kimi-k2.6`, `opencode-go/kimi-k2.7-code`.
 
 ---
 
