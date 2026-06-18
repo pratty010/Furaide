@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { createCliRenderer, TextRenderable } from "@opentui/core";
@@ -21,6 +21,7 @@ export type UiState = {
   stack: Array<Pick<UiState, "cursor" | "listScroll" | "tab" | "query" | "directory" | "sort">>;
   viewport: Viewport;
   status: string;
+  pendingAction: "delete" | "archive" | "restore" | "export_sanitized" | "export_raw" | null;
 };
 
 const tabs: Tab[] = ["active", "archived", "all"];
@@ -37,6 +38,7 @@ export function createInitialState(sessions: UiSession[], viewport: Viewport): U
     stack: [],
     viewport,
     status: "ready",
+    pendingAction: null,
   };
 }
 
@@ -88,11 +90,13 @@ export function applyKey(state: UiState, key: string): UiState {
   if (key === "Tab") return clampCursor({ ...state, tab: tabs[(tabs.indexOf(state.tab) + 1) % tabs.length], cursor: 0, listScroll: 0 });
   if (key === "b") return popDrill(state);
   if (key === "B") return clampCursor({ ...state, stack: [], directory: undefined, query: "", cursor: 0, listScroll: 0, status: "reset" });
-  if (key === "d") return { ...state, status: `confirm delete ${currentSession(state)?.id || ""}`.trim() };
-  if (key === "a") return { ...state, status: `confirm archive ${currentSession(state)?.id || ""}`.trim() };
-  if (key === "r") return { ...state, status: `confirm restore ${currentSession(state)?.id || ""}`.trim() };
-  if (key === "e") return { ...state, status: `confirm export sanitized ${currentSession(state)?.id || ""}`.trim() };
-  if (key === "E") return { ...state, status: `confirm export raw ${currentSession(state)?.id || ""}`.trim() };
+  if (key === "d") return { ...state, status: `confirm delete ${currentSession(state)?.id || ""}`.trim(), pendingAction: "delete" };
+  if (key === "a") return { ...state, status: `confirm archive ${currentSession(state)?.id || ""}`.trim(), pendingAction: "archive" };
+  if (key === "r") return { ...state, status: `confirm restore ${currentSession(state)?.id || ""}`.trim(), pendingAction: "restore" };
+  if (key === "e") return { ...state, status: `confirm export sanitized ${currentSession(state)?.id || ""}`.trim(), pendingAction: "export_sanitized" };
+  if (key === "E") return { ...state, status: `confirm export raw ${currentSession(state)?.id || ""}`.trim(), pendingAction: "export_raw" };
+  if (state.pendingAction && (key === "y" || key === "Enter")) return { ...state, status: `executed ${state.pendingAction}`, pendingAction: null };
+  if (state.pendingAction && (key === "n" || key === "Escape")) return { ...state, status: "cancelled", pendingAction: null };
   return state;
 }
 
@@ -225,7 +229,8 @@ export function restoreSession(id: string): void {
 export function continueSession(id: string, fork = false): never {
   const args = ["--session", id];
   if (fork) args.push("--fork");
-  spawnSync(opencodeBin(), args, { stdio: "inherit" });
+  const child = spawn(opencodeBin(), args, { stdio: "inherit", detached: true });
+  child.unref();
   process.exit(0);
 }
 

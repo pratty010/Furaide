@@ -93,4 +93,18 @@ describe("confirmation state", () => {
     state = applyKey(state, "a");
     expect(state.status).toContain("confirm archive");
   });
+
+  test("y executes the pending action and clears status", () => {
+    let state = createInitialState(sessions.slice(0, 1), { height: 10, width: 100 });
+    state = applyKey(state, "a");
+    state = applyKey(state, "y");
+    expect(state.status).not.toContain("confirm");
+  });
+
+  test("n cancels the pending action", () => {
+    let state = createInitialState(sessions.slice(0, 1), { height: 10, width: 100 });
+    state = applyKey(state, "d");
+    state = applyKey(state, "n");
+    expect(state.status).not.toContain("confirm");
+  });
 });

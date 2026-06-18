@@ -52,7 +52,7 @@ export function renderSafe(input: unknown): string {
 }
 
 export function hasControlBytes(input: unknown): boolean {
-  return /[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/.test(String(input ?? ""));
+  return /[\x00-\x08\x0b\x0c\x0e-\x1f\x1b\x7f]/.test(String(input ?? ""));
 }
 
 export function capText(input: unknown, max: number): string {
