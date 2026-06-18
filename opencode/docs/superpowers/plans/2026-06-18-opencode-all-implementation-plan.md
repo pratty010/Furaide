@@ -1256,11 +1256,834 @@ bun test opencode/tools/opencode-all/tests/sanitize.test.ts
 
 Expected: PASS.
 
+## Task 9: Replace Prototype Rendering With Real Themed Panes
+
+**Files:**
+
+- Modify: `opencode/tools/opencode-all/src/tui.tsx`
+- Modify: `opencode/tools/opencode-all/tests/tui.test.tsx`
+
+- [ ] **Step 1: Add failing theme-render tests**
+
+Append to `opencode/tools/opencode-all/tests/tui.test.tsx`:
+
+```ts
+describe("theme usage", () => {
+  test("selected row render includes themed marker text", () => {
+    const state = createInitialState(sessions.slice(0, 3), { height: 10, width: 100 });
+    const output = renderRows(state).join("\n");
+    expect(output).toContain("theme:selected");
+  });
+
+  test("detail pane render includes separate themed section", () => {
+    const state = createInitialState(sessions.slice(0, 3), { height: 10, width: 100 });
+    const output = renderRows(state).join("\n");
+    expect(output).toContain("theme:detail");
+  });
+});
+```
+
+- [ ] **Step 2: Run the TUI tests to verify failure**
+
+Run:
+
+```bash
+bun test opencode/tools/opencode-all/tests/tui.test.tsx
+```
+
+Expected: FAIL because the current renderer does not expose themed pane markers or a real detail pane.
+
+- [ ] **Step 3: Load the Friday theme and expose pane render roles**
+
+Modify `opencode/tools/opencode-all/src/tui.tsx` so that it:
+
+- reads `themes/friday.json`
+- resolves pane slots for selected row, normal row, archived row, suspicious row, detail labels, detail values, status hints
+- emits separate logical render sections for left pane, right pane, and status line
+
+Add near the top of the file:
+
+```ts
+import { readFileSync } from "node:fs";
+
+type ThemeDoc = {
+  name: string;
+  vars: Record<string, string>;
+  pane: Record<string, string>;
+};
+
+function loadTheme(): ThemeDoc {
+  return JSON.parse(readFileSync(new URL("../themes/friday.json", import.meta.url), "utf8")) as ThemeDoc;
+}
+
+const theme = loadTheme();
+
+function tone(slot: string): string {
+  const key = theme.pane[slot] || slot;
+  return theme.vars[key] || key;
+}
+```
+
+- [ ] **Step 4: Replace the current single-string detail stub with explicit pane rows**
+
+Update `renderRows(state)` so it no longer renders the selected row's details inline on one line. Instead:
+
+- left pane rows continue listing sessions
+- right pane rows start with detail labels and values from the selected session
+- the first right-pane row contains `theme:detail`
+- the selected left row contains `theme:selected`
+
+The first three rendered rows should follow this shape:
+
+```ts
+const lines = [
+  `theme:list Sessions ${state.cursor + 1} / ${state.sessions.length} [${state.tab}]`.padEnd(leftWidth) + " │ " + `theme:detail ${selected?.title || "No session selected"}`,
+  `${selectedMarker}${selectedTitle}`.padEnd(leftWidth) + " │ " + `Directory: ${selected?.directory || "-"}`,
+  `${secondRow}`.padEnd(leftWidth) + " │ " + `Agent: ${selected?.agent || "-"}`,
+];
+```
+
+- [ ] **Step 5: Run tests to verify pass**
+
+Run:
+
+```bash
+bun test opencode/tools/opencode-all/tests/tui.test.tsx
+```
+
+Expected: PASS.
+
+## Task 10: Build Folder-To-Sessions Navigation In The Left Pane
+
+**Files:**
+
+- Modify: `opencode/tools/opencode-all/src/db.ts`
+- Modify: `opencode/tools/opencode-all/src/tui.tsx`
+- Modify: `opencode/tools/opencode-all/tests/db.test.ts`
+- Modify: `opencode/tools/opencode-all/tests/tui.test.tsx`
+
+- [ ] **Step 1: Add failing directory summary tests**
+
+Append to `opencode/tools/opencode-all/tests/db.test.ts`:
+
+```ts
+test("lists directories with active and archived counts", () => {
+  const rows = listDirectories({ dbPath, prefix: "/repo" });
+  expect(rows).toEqual([
+    { directory: "/repo/archive", active: 0, archived: 1, latestUpdated: 2000 },
+    { directory: "/repo/current", active: 1, archived: 0, latestUpdated: 5000 },
+    { directory: "/repo/current/sub", active: 1, archived: 0, latestUpdated: 3000 },
+    { directory: "/repo/other", active: 1, archived: 0, latestUpdated: 6000 },
+  ]);
+});
+```
+
+Append to `opencode/tools/opencode-all/tests/tui.test.tsx`:
+
+```ts
+test("initial left mode is folders", () => {
+  const state = createInitialState(sessions, { height: 20, width: 100 });
+  expect(state.mode).toBe("folders");
+});
+
+test("enter folder switches to sessions mode", () => {
+  let state = createInitialState(sessions, { height: 20, width: 100 });
+  state = applyKey(state, "folder:/repo/current");
+  expect(state.mode).toBe("sessions");
+  expect(state.directory).toBe("/repo/current");
+});
+```
+
+- [ ] **Step 2: Run tests to verify failure**
+
+Run:
+
+```bash
+bun test opencode/tools/opencode-all/tests/db.test.ts
+bun test opencode/tools/opencode-all/tests/tui.test.tsx
+```
+
+Expected: FAIL because `listDirectories()` does not expose active/archived/latest fields and `UiState` has no `mode`.
+
+- [ ] **Step 3: Extend directory summary in `db.ts`**
+
+Change `listDirectories()` to return:
+
+```ts
+export function listDirectories(options: { dbPath?: string; prefix?: string }): Array<{
+  directory: string;
+  active: number;
+  archived: number;
+  latestUpdated: number;
+}> {
+```
+
+Use this query:
+
+```ts
+return db.query(`
+  SELECT
+    directory,
+    SUM(CASE WHEN time_archived IS NULL THEN 1 ELSE 0 END) AS active,
+    SUM(CASE WHEN time_archived IS NOT NULL THEN 1 ELSE 0 END) AS archived,
+    MAX(time_updated) AS latest_updated
+  FROM session
+  WHERE parent_id IS NULL
+  GROUP BY directory
+  ORDER BY directory ASC
+`).all()
+  .map((row: any) => ({
+    directory: renderSafe(row.directory),
+    active: Number(row.active || 0),
+    archived: Number(row.archived || 0),
+    latestUpdated: Number(row.latest_updated || 0),
+  }))
+  .filter(row => !prefix || row.directory.toLowerCase().includes(prefix));
+```
+
+- [ ] **Step 4: Add folder mode to `UiState` and key handlers**
+
+In `opencode/tools/opencode-all/src/tui.tsx`, update the state types:
+
+```ts
+export type DirectoryRow = { directory: string; active: number; archived: number; latestUpdated: number };
+
+export type UiState = {
+  mode: "folders" | "sessions";
+  folders: DirectoryRow[];
+  sessions: UiSession[];
+  cursor: number;
+  listScroll: number;
+  detailScroll: number;
+  tab: Tab;
+  query: string;
+  directory?: string;
+  sort: "updated" | "created" | "cost" | "title" | "recency";
+  stack: Array<Pick<UiState, "cursor" | "listScroll" | "tab" | "query" | "directory" | "sort" | "mode">>;
+  viewport: Viewport;
+  status: string;
+  pendingAction: "delete" | "archive" | "restore" | "export_sanitized" | "export_raw" | null;
+};
+```
+
+Update `createInitialState()` to start in folder mode:
+
+```ts
+export function createInitialState(sessions: UiSession[], viewport: Viewport): UiState {
+  const cwd = process.env.OPENCODE_ALL_CWD || process.cwd();
+  return {
+    mode: "folders",
+    folders: listDirectories({ prefix: "" }).sort((a, b) => Number(b.directory.startsWith(cwd)) - Number(a.directory.startsWith(cwd)) || b.latestUpdated - a.latestUpdated),
+    sessions,
+    cursor: 0,
+    listScroll: 0,
+    detailScroll: 0,
+    tab: "active",
+    query: "",
+    sort: "updated",
+    stack: [],
+    viewport,
+    status: "ready",
+    pendingAction: null,
+  };
+}
+```
+
+Add folder drill behavior to `applyKey()`:
+
+```ts
+if (key.startsWith("folder:")) {
+  const directory = key.slice("folder:".length);
+  return clampCursor({
+    ...state,
+    mode: "sessions",
+    stack: [...state.stack, { cursor: state.cursor, listScroll: state.listScroll, tab: state.tab, query: state.query, directory: state.directory, sort: state.sort, mode: state.mode }],
+    directory,
+    sessions: listSessions({ tab: state.tab, cwd: process.env.OPENCODE_ALL_CWD || process.cwd(), directory }),
+    cursor: 0,
+    listScroll: 0,
+    status: `opened ${directory}`,
+  });
+}
+```
+
+Update `popDrill()` and `B` reset to restore `mode`.
+
+- [ ] **Step 5: Run tests to verify pass**
+
+Run:
+
+```bash
+bun test opencode/tools/opencode-all/tests/db.test.ts
+bun test opencode/tools/opencode-all/tests/tui.test.tsx
+```
+
+Expected: PASS.
+
+## Task 11: Implement Real Search, Directory Shortcut, And Input State
+
+**Files:**
+
+- Modify: `opencode/tools/opencode-all/src/tui.tsx`
+- Modify: `opencode/tools/opencode-all/tests/tui.test.tsx`
+
+- [ ] **Step 1: Add failing input-mode tests**
+
+Append to `opencode/tools/opencode-all/tests/tui.test.tsx`:
+
+```ts
+test("slash enters search mode", () => {
+  let state = createInitialState(sessions, { height: 20, width: 100 });
+  state = applyKey(state, "/");
+  expect(state.inputMode).toBe("search");
+});
+
+test("directory shortcut enters directory mode", () => {
+  let state = createInitialState(sessions, { height: 20, width: 100 });
+  state = applyKey(state, "\\");
+  expect(state.inputMode).toBe("directory");
+});
+
+test("typing in search mode updates query", () => {
+  let state = createInitialState(sessions, { height: 20, width: 100 });
+  state = applyKey(state, "/");
+  state = applyKey(state, "type:curr");
+  expect(state.query).toBe("curr");
+});
+```
+
+- [ ] **Step 2: Run tests to verify failure**
+
+Run:
+
+```bash
+bun test opencode/tools/opencode-all/tests/tui.test.tsx
+```
+
+Expected: FAIL because `inputMode` and `type:` handlers do not exist.
+
+- [ ] **Step 3: Add `inputMode` to `UiState` and search handlers**
+
+In `opencode/tools/opencode-all/src/tui.tsx`, extend `UiState`:
+
+```ts
+  inputMode: null | "search" | "directory" | "filter";
+```
+
+Set the initial value in `createInitialState()`:
+
+```ts
+    inputMode: null,
+```
+
+Add to `applyKey()` before navigation handlers:
+
+```ts
+if (key === "/") return { ...state, inputMode: "search", query: "", status: "search" };
+if (key === "\\") return { ...state, inputMode: "directory", query: "", status: "directory" };
+if (key === "f") return { ...state, inputMode: "filter", status: "filter" };
+if (key.startsWith("type:")) {
+  const query = key.slice("type:".length);
+  if (state.inputMode === "search") {
+    return clampCursor({
+      ...state,
+      query,
+      sessions: listSessions({ tab: state.tab, cwd: process.env.OPENCODE_ALL_CWD || process.cwd(), directory: state.directory, query }),
+      cursor: 0,
+      listScroll: 0,
+      status: `search:${query}`,
+    });
+  }
+  if (state.inputMode === "directory") {
+    return { ...state, query, folders: listDirectories({ prefix: query }), status: `directory:${query}` };
+  }
+}
+if (key === "Escape") return { ...state, inputMode: null, query: "", status: "ready" };
+```
+
+- [ ] **Step 4: Run tests to verify pass**
+
+Run:
+
+```bash
+bun test opencode/tools/opencode-all/tests/tui.test.tsx
+```
+
+Expected: PASS.
+
+## Task 12: Make Tabs Reload Real Data
+
+**Files:**
+
+- Modify: `opencode/tools/opencode-all/src/tui.tsx`
+- Modify: `opencode/tools/opencode-all/tests/tui.test.tsx`
+
+- [ ] **Step 1: Add failing tab-reload tests**
+
+Append to `opencode/tools/opencode-all/tests/tui.test.tsx`:
+
+```ts
+test("tab reloads visible sessions for archived mode", () => {
+  let state = createInitialState(sessions.slice(0, 3).map((s, i) => ({ ...s, timeArchived: i === 2 ? 100 : null })), { height: 20, width: 100 });
+  state.mode = "sessions";
+  state.sessions = sessions.slice(0, 3).map((s, i) => ({ ...s, timeArchived: i === 2 ? 100 : null }));
+  state = applyKey(state, "Tab");
+  expect(state.tab).toBe("archived");
+});
+```
+
+- [ ] **Step 2: Run tests to verify failure or insufficiency**
+
+Run:
+
+```bash
+bun test opencode/tools/opencode-all/tests/tui.test.tsx
+```
+
+Expected: FAIL or expose that the row set is unchanged after `Tab`.
+
+- [ ] **Step 3: Add `reloadState()` and use it from `Tab`**
+
+In `opencode/tools/opencode-all/src/tui.tsx`, add:
+
+```ts
+function reloadState(state: UiState): UiState {
+  const cwd = process.env.OPENCODE_ALL_CWD || process.cwd();
+  if (state.mode === "folders") {
+    return {
+      ...state,
+      folders: listDirectories({ prefix: state.query }).sort((a, b) => Number(b.directory.startsWith(cwd)) - Number(a.directory.startsWith(cwd)) || b.latestUpdated - a.latestUpdated),
+      cursor: 0,
+      listScroll: 0,
+    };
+  }
+  return clampCursor({
+    ...state,
+    sessions: listSessions({ tab: state.tab, cwd, directory: state.directory, query: state.query }),
+    cursor: 0,
+    listScroll: 0,
+  });
+}
+```
+
+Replace the `Tab` handler with:
+
+```ts
+if (key === "Tab") {
+  const next = { ...state, tab: tabs[(tabs.indexOf(state.tab) + 1) % tabs.length] };
+  return reloadState(next);
+}
+```
+
+- [ ] **Step 4: Run tests to verify pass**
+
+Run:
+
+```bash
+bun test opencode/tools/opencode-all/tests/tui.test.tsx
+```
+
+Expected: PASS.
+
+## Task 13: Build A Real Right Detail Panel With Metadata, Usage, Recent Messages, And Tool Summary
+
+**Files:**
+
+- Modify: `opencode/tools/opencode-all/src/db.ts`
+- Modify: `opencode/tools/opencode-all/src/tui.tsx`
+- Modify: `opencode/tools/opencode-all/tests/db.test.ts`
+- Modify: `opencode/tools/opencode-all/tests/tui.test.tsx`
+
+- [ ] **Step 1: Add failing detail tests**
+
+Append to `opencode/tools/opencode-all/tests/db.test.ts`:
+
+```ts
+test("detail includes usage summaries and recent text preview", () => {
+  const detail = getSessionDetail({ dbPath, id: "ses_a", cwd: "/repo/current" }) as any;
+  expect(detail.messages).toBe(2);
+  expect(detail.recentText).toBeDefined();
+  expect(Array.isArray(detail.recentText)).toBe(true);
+  expect(detail.partCounts).toBeDefined();
+  expect(detail.toolCounts).toBeDefined();
+});
+```
+
+Append to `opencode/tools/opencode-all/tests/tui.test.tsx`:
+
+```ts
+test("renderRows includes rich detail pane labels", () => {
+  const state = createInitialState(sessions.slice(0, 3), { height: 12, width: 100 });
+  const output = renderRows(state).join("\n");
+  expect(output).toContain("Directory:");
+  expect(output).toContain("Agent:");
+  expect(output).toContain("Model:");
+  expect(output).toContain("Recent:");
+});
+```
+
+- [ ] **Step 2: Run tests to verify failure**
+
+Run:
+
+```bash
+bun test opencode/tools/opencode-all/tests/db.test.ts
+bun test opencode/tools/opencode-all/tests/tui.test.tsx
+```
+
+Expected: FAIL because `getSessionDetail()` and `renderRows()` do not expose these fields.
+
+- [ ] **Step 3: Extend `SessionDetail`**
+
+In `opencode/tools/opencode-all/src/db.ts`, replace the existing type with:
+
+```ts
+export type SessionDetail = SessionRow & {
+  messages: number;
+  diffPath: string | null;
+  partCounts: Record<string, number>;
+  toolCounts: Array<{ tool: string; status: string; count: number }>;
+  recentText: Array<{ role: "user" | "assistant" | "system"; timeCreated: number; text: string }>;
+  tokensReasoning: number;
+  tokensCacheRead: number;
+  tokensCacheWrite: number;
+  summaryFiles: number;
+  summaryAdditions: number;
+  summaryDeletions: number;
+  diffBytes: number | null;
+};
+```
+
+- [ ] **Step 4: Extend `getSessionDetail()` queries**
+
+Replace the existing `getSessionDetail()` implementation body with this exact structure:
+
+```ts
+export function getSessionDetail(options: { dbPath?: string; id: string; cwd?: string }): SessionDetail | null {
+  const db = openDb(options.dbPath);
+  try {
+    const raw = db.query(`
+      SELECT id, title, directory, COALESCE(path, '') AS path, COALESCE(agent, '') AS agent,
+             COALESCE(model, '') AS model, COALESCE(share_url, '') AS share_url,
+             cost, tokens_input, tokens_output, tokens_reasoning, tokens_cache_read, tokens_cache_write,
+             summary_files, summary_additions, summary_deletions,
+             time_created, time_updated, time_archived
+      FROM session WHERE id = ?
+    `).get(options.id) as any;
+    if (!raw) return null;
+
+    const row = toRow(raw, options.cwd || process.cwd());
+    const messages = Number((db.query("SELECT COUNT(*) AS count FROM message WHERE session_id = ?").get(options.id) as { count?: number } | null)?.count || 0);
+
+    const partRows = db.query(`
+      SELECT json_extract(data, '$.type') AS type, COUNT(*) AS count
+      FROM part
+      WHERE session_id = ?
+      GROUP BY json_extract(data, '$.type')
+    `).all(options.id) as any[];
+    const partCounts = Object.fromEntries(partRows.map(row => [String(row.type || "unknown"), Number(row.count || 0)]));
+
+    const toolCounts = db.query(`
+      SELECT json_extract(data, '$.tool') AS tool,
+             json_extract(data, '$.state.status') AS status,
+             COUNT(*) AS count
+      FROM part
+      WHERE session_id = ? AND json_extract(data, '$.type') = 'tool'
+      GROUP BY tool, status
+      ORDER BY count DESC
+      LIMIT 12
+    `).all(options.id).map((row: any) => ({
+      tool: renderSafe(row.tool || "unknown"),
+      status: renderSafe(row.status || "unknown"),
+      count: Number(row.count || 0),
+    }));
+
+    const recentText = db.query(`
+      SELECT json_extract(m.data, '$.role') AS role,
+             m.time_created AS time_created,
+             substr(json_extract(p.data, '$.text'), 1, 240) AS text
+      FROM message m
+      JOIN part p ON p.message_id = m.id
+      WHERE m.session_id = ? AND json_extract(p.data, '$.type') = 'text'
+      ORDER BY m.time_created DESC
+      LIMIT 4
+    `).all(options.id).map((row: any) => ({
+      role: (renderSafe(row.role || "assistant") as "user" | "assistant" | "system"),
+      timeCreated: Number(row.time_created || 0),
+      text: capText(renderSafe(row.text || ""), 120),
+    }));
+
+    const diffBase = process.env.XDG_DATA_HOME || join(process.env.HOME || ".", ".local", "share");
+    const diffPath = join(diffBase, "opencode", "storage", "session_diff", `${options.id}.json`);
+    const diffBytes = existsSync(diffPath) ? Number(require("node:fs").statSync(diffPath).size || 0) : null;
+
+    return {
+      ...row,
+      messages,
+      diffPath: existsSync(diffPath) ? diffPath : null,
+      partCounts,
+      toolCounts,
+      recentText,
+      tokensReasoning: Number(raw.tokens_reasoning || 0),
+      tokensCacheRead: Number(raw.tokens_cache_read || 0),
+      tokensCacheWrite: Number(raw.tokens_cache_write || 0),
+      summaryFiles: Number(raw.summary_files || 0),
+      summaryAdditions: Number(raw.summary_additions || 0),
+      summaryDeletions: Number(raw.summary_deletions || 0),
+      diffBytes,
+    };
+  } finally {
+    db.close();
+  }
+}
+```
+
+- [ ] **Step 5: Render the detail pane from `getSessionDetail()`**
+
+In `opencode/tools/opencode-all/src/tui.tsx`, update `renderRows()` so it fetches detail for the selected session and prints the following labels in the right pane:
+
+```ts
+const selected = currentSession(state);
+const detail = selected ? getSessionDetail({ id: selected.id, cwd: process.env.OPENCODE_ALL_CWD || process.cwd() }) : null;
+```
+
+Use these right-pane rows in order:
+
+```ts
+const detailLines = detail ? [
+  `theme:detail ${detail.title}`,
+  `ID: ${detail.id}`,
+  `Directory: ${detail.directory}`,
+  `Agent: ${detail.agent || "-"}`,
+  `Model: ${detail.model || "-"}`,
+  `Messages: ${detail.messages}`,
+  `Tokens: in ${detail.tokensInput} · out ${detail.tokensOutput} · reasoning ${detail.tokensReasoning}`,
+  `Cache: read ${detail.tokensCacheRead} · write ${detail.tokensCacheWrite}`,
+  `Cost: ${fmtCost(detail.cost) || "$0.00"}`,
+  `Changes: ${detail.summaryFiles} files · +${detail.summaryAdditions} / -${detail.summaryDeletions}`,
+  `Diff: ${detail.diffPath ? `${detail.diffPath} (${detail.diffBytes || 0} bytes)` : "-"}`,
+  `Recent:`,
+  ...detail.recentText.map(item => `${item.role[0].toUpperCase()} ${item.text}`),
+  `Tools:`,
+  ...detail.toolCounts.slice(0, 4).map(item => `${item.tool} ${item.count} ${item.status}`),
+] : ["theme:detail No session selected"];
+```
+
+Use `detailLines[i] || ""` for the right side of each row.
+
+- [ ] **Step 6: Run tests to verify pass**
+
+Run:
+
+```bash
+bun test opencode/tools/opencode-all/tests/db.test.ts
+bun test opencode/tools/opencode-all/tests/tui.test.tsx
+```
+
+Expected: PASS.
+
+## Task 14: Execute Real Actions After Confirmation
+
+**Files:**
+
+- Modify: `opencode/tools/opencode-all/src/tui.tsx`
+- Modify: `opencode/tools/opencode-all/tests/tui.test.tsx`
+
+- [ ] **Step 1: Add failing confirmation-action tests**
+
+Append to `opencode/tools/opencode-all/tests/tui.test.tsx`:
+
+```ts
+test("archive confirm executes and clears pending action", () => {
+  let state = createInitialState(sessions.slice(0, 1), { height: 10, width: 100 });
+  state = applyKey(state, "a");
+  state = applyKey(state, "y");
+  expect(state.status).toContain("archive");
+  expect(state.pendingAction).toBeNull();
+});
+
+test("cancel does not execute action", () => {
+  let state = createInitialState(sessions.slice(0, 1), { height: 10, width: 100 });
+  state = applyKey(state, "d");
+  state = applyKey(state, "n");
+  expect(state.status).toBe("cancelled");
+  expect(state.pendingAction).toBeNull();
+});
+```
+
+- [ ] **Step 2: Run tests to verify current insufficiency**
+
+Run:
+
+```bash
+bun test opencode/tools/opencode-all/tests/tui.test.tsx
+```
+
+Expected: FAIL or expose that action side effects are not being run.
+
+- [ ] **Step 3: Add a real confirmation executor**
+
+In `opencode/tools/opencode-all/src/tui.tsx`, add this helper before `applyKey()`:
+
+```ts
+function executePendingAction(state: UiState): UiState {
+  const selected = currentSession(state);
+  if (!selected || !state.pendingAction) return { ...state, pendingAction: null, status: "cancelled" };
+
+  if (state.pendingAction === "archive") archiveSession(selected.id);
+  if (state.pendingAction === "restore") restoreSession(selected.id);
+  if (state.pendingAction === "delete") deleteSession(selected.id);
+  if (state.pendingAction === "export_sanitized") exportSession(selected.id, false);
+  if (state.pendingAction === "export_raw") exportSession(selected.id, true);
+
+  const next = reloadState({
+    ...state,
+    pendingAction: null,
+    status: `executed ${state.pendingAction}`,
+  });
+  return next;
+}
+```
+
+Replace the current `y`/`Enter` branch in `applyKey()` with:
+
+```ts
+if (state.pendingAction && (key === "y" || key === "Enter")) return executePendingAction(state);
+```
+
+- [ ] **Step 4: Run tests to verify pass**
+
+Run:
+
+```bash
+bun test opencode/tools/opencode-all/tests/tui.test.tsx
+```
+
+Expected: PASS.
+
+## Task 15: Rewrite `TESTING.md` To Match Real Product Behavior
+
+**Files:**
+
+- Modify: `opencode/tools/opencode-all/TESTING.md`
+
+- [ ] **Step 1: Replace fixture-first wording with real-DB-first workflow**
+
+Update the introduction so the first testing path is:
+
+```md
+## Primary human test (real DB)
+
+Run:
+
+```bash
+cd /d/Everything/Furaidē
+opencode-all
+```
+
+This uses `~/.local/share/opencode/opencode.db` by default and shows cwd-prioritized folders first.
+```
+
+- [ ] **Step 2: Move the fixture flow into a secondary section**
+
+Retitle the fixture setup section to:
+
+```md
+## Safe regression test (throwaway fixture)
+```
+
+- [ ] **Step 3: Update the checklist so it only references implemented shortcuts**
+
+The checklist must include:
+
+- theme colors visible
+- folders shown first in left pane
+- Enter/click folder opens sessions
+- `b` and `B` go back
+- `/` opens search and filters
+- `\\` opens directory mode
+- `Tab` changes active/archived/all visible rows
+- right panel shows metadata, usage, recent messages, and tool summary
+- `a`/`r`/`d`/`e`/`E` confirm and execute/cancel properly
+- `c` continues without hanging
+
+- [ ] **Step 4: Save and review the updated markdown**
+
+Run:
+
+```bash
+grep -n "Primary human test\|Safe regression test\|theme colors visible\|folders shown first\|right panel shows metadata" opencode/tools/opencode-all/TESTING.md
+```
+
+Expected: all lines present.
+
+## Task 16: Final Human-Test Gate Before Merge
+
+**Files:**
+
+- Use existing files modified by prior tasks.
+
+- [ ] **Step 1: Run the full opencode-all test suite**
+
+Run:
+
+```bash
+bun test opencode/tools/opencode-all/tests
+```
+
+Expected: PASS.
+
+- [ ] **Step 2: Reinstall the live symlink target**
+
+Run:
+
+```bash
+bash opencode/tools/opencode-all/scripts/install.sh
+```
+
+Expected output includes:
+
+```text
+installed opencode-all -> /home/ace/.local/bin/opencode-all
+```
+
+- [ ] **Step 3: Verify the real DB list path still works**
+
+Run:
+
+```bash
+cd /d/Everything/Furaidē && opencode-all --list
+```
+
+Expected: prints current real sessions without throwing.
+
+- [ ] **Step 4: Human-test checklist before merge**
+
+Manually verify in the live TUI:
+
+1. Theme colors are visible.
+2. Left pane starts in folders mode.
+3. Enter or click opens a folder into sessions mode.
+4. `b` goes back one level; `B` resets to root.
+5. `/` search filters rows.
+6. `\\` directory mode shows folder options.
+7. `Tab` changes visible rows between Active, Archived, and All.
+8. Right pane shows title, id, directory, agent, parsed model, messages, tokens, cache, cost, diff path, recent messages, and tool summary.
+9. `a` archive confirm works.
+10. `r` restore confirm works.
+11. `d` delete confirm works.
+12. `e` and `E` export confirms work.
+13. `c` continue handoff does not hang.
+
+- [ ] **Step 5: Stop if any human-test item fails**
+
+If any of the 13 manual checks fail, do **not** merge. Write a failing automated test for the bug first, then fix it, then repeat Task 16.
+
 ## Self-Review Checklist
 
-- Spec coverage: install path, standalone process, DB reads, archive/restore carve-out, DLP, sort priority, tabs, search, directory drill, scrolling, click-to-drill, actions, error handling, and tests are covered by tasks.
+- Spec coverage: install path, standalone process, DB reads, archive/restore carve-out, DLP, sort priority, tabs, search, directory drill, scrolling, click-to-drill, actions, error handling, richer right detail panel content, recent message preview, tool summary, real confirmed actions, and tests are covered by tasks.
 - Placeholder scan: this plan uses concrete paths, commands, file contents, and expected outputs.
-- Type consistency: `SessionRow`, `UiSession`, `UiState`, `Tab`, `listSessions`, `getSessionDetail`, `setArchived`, `renderSafe`, `hasControlBytes`, and `capText` are defined before use.
+- Type consistency: `SessionRow`, `SessionDetail`, `DirectoryRow`, `UiSession`, `UiState`, `Tab`, `listSessions`, `listDirectories`, `getSessionDetail`, `setArchived`, `renderSafe`, `hasControlBytes`, and `capText` are defined before use.
 
 ## Execution Options
 

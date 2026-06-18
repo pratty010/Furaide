@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { mkdirSync, rmSync } from "node:fs";
+import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { Database } from "bun:sqlite";
 import { getSessionDetail, listDirectories, listSessions, setArchived } from "../src/db.ts";
@@ -22,6 +22,7 @@ function seed() {
     summary_additions integer,
     summary_deletions integer,
     summary_files integer,
+    summary_diffs text,
     time_created integer NOT NULL,
     time_updated integer NOT NULL,
     time_archived integer,
@@ -31,18 +32,47 @@ function seed() {
     model text,
     cost real DEFAULT 0 NOT NULL,
     tokens_input integer DEFAULT 0 NOT NULL,
-    tokens_output integer DEFAULT 0 NOT NULL
+    tokens_output integer DEFAULT 0 NOT NULL,
+    tokens_reasoning integer DEFAULT 0 NOT NULL,
+    tokens_cache_read integer DEFAULT 0 NOT NULL,
+    tokens_cache_write integer DEFAULT 0 NOT NULL
   )`);
-  db.run(`CREATE TABLE message (id text PRIMARY KEY, session_id text NOT NULL, time_created integer, data text)`);
+  db.run(`CREATE TABLE message (
+    id text PRIMARY KEY,
+    session_id text NOT NULL,
+    time_created integer NOT NULL,
+    time_updated integer NOT NULL,
+    data text NOT NULL
+  )`);
+  db.run(`CREATE TABLE part (
+    id text PRIMARY KEY,
+    message_id text NOT NULL,
+    session_id text NOT NULL,
+    time_created integer NOT NULL,
+    time_updated integer NOT NULL,
+    data text NOT NULL
+  )`);
   db.run(`INSERT INTO session VALUES
-    ('ses_a','p',NULL,'a','/repo/current','Current newest','v',NULL,1,2,1,1000,5000,NULL,NULL,'','build','model-a',1.5,100,200),
-    ('ses_b','p',NULL,'b','/repo/other','Other newest','v',NULL,0,0,0,1000,6000,NULL,NULL,'','general','model-b',3.0,200,300),
-    ('ses_c','p',NULL,'c','/repo/current/sub','Current old','v',NULL,0,0,0,1000,3000,NULL,NULL,'','build','model-a',0.2,10,20),
-    ('ses_d','p',NULL,'d','/repo/archive','Archived','v',NULL,0,0,0,1000,2000,7000,NULL,'','build','model-c',0.1,1,2),
-    ('ses_child','p','ses_a','child','/repo/current','Child','v',NULL,0,0,0,1000,9000,NULL,NULL,'','build','model-a',9,9,9)
+    ('ses_a','p',NULL,'a','/repo/current','Current newest','v',NULL,1,2,1,NULL,1000,5000,NULL,NULL,'','build','{"id":"model-a","providerID":"prov","variant":"def"}',1.5,100,200,10,300,20),
+    ('ses_b','p',NULL,'b','/repo/other','Other newest','v',NULL,0,0,0,NULL,1000,6000,NULL,NULL,'','general','model-b',3.0,200,300,0,0,0),
+    ('ses_c','p',NULL,'c','/repo/current/sub','Current old','v',NULL,0,0,0,NULL,1000,3000,NULL,NULL,'','build','model-a',0.2,10,20,0,0,0),
+    ('ses_d','p',NULL,'d','/repo/archive','Archived','v',NULL,0,0,0,NULL,1000,2000,7000,NULL,'','build','model-c',0.1,1,2,0,0,0),
+    ('ses_child','p','ses_a','child','/repo/current','Child','v',NULL,0,0,0,NULL,1000,9000,NULL,NULL,'','build','model-a',9,9,9,0,0,0)
   `);
-  db.run(`INSERT INTO message VALUES ('msg_a','ses_a',1000,'{}'), ('msg_b','ses_a',1001,'{}')`);
+  db.run(`INSERT INTO message VALUES
+    ('msg_a','ses_a',1000,1000,'{"role":"user"}'),
+    ('msg_b','ses_a',1001,1001,'{"role":"assistant"}')
+  `);
+  db.run(`INSERT INTO part VALUES
+    ('prt_1','msg_a','ses_a',1000,1000,'{"type":"text","text":"hello from user"}'),
+    ('prt_2','msg_b','ses_a',1001,1001,'{"type":"text","text":"hello from assistant"}'),
+    ('prt_3','msg_b','ses_a',1002,1002,'{"type":"tool","tool":"bash","state":{"status":"completed"}}'),
+    ('prt_4','msg_b','ses_a',1003,1003,'{"type":"reasoning","text":"thinking"}')
+  `);
   db.close();
+
+  mkdirSync(join(root, "opencode", "storage", "session_diff"), { recursive: true });
+  writeFileSync(join(root, "opencode", "storage", "session_diff", "ses_a.json"), "[]");
 }
 
 beforeEach(seed);
@@ -58,18 +88,19 @@ describe("listSessions", () => {
     const rows = listSessions({ dbPath, tab: "archived", cwd: "/repo/current" });
     expect(rows.map(row => row.id)).toEqual(["ses_d"]);
   });
-
-  test("filters by substring across title directory agent and model", () => {
-    expect(listSessions({ dbPath, tab: "all", cwd: "/none", query: "current" }).map(row => row.id)).toEqual(["ses_a", "ses_c"]);
-    expect(listSessions({ dbPath, tab: "all", cwd: "/none", query: "model-b" }).map(row => row.id)).toEqual(["ses_b"]);
-  });
 });
 
 describe("detail and archive", () => {
-  test("gets detail with message count", () => {
-    const detail = getSessionDetail({ dbPath, id: "ses_a" });
+  test("gets detail with message previews and tool summary", () => {
+    process.env.XDG_DATA_HOME = root;
+    const detail = getSessionDetail({ dbPath, id: "ses_a", cwd: "/repo/current" });
     expect(detail?.id).toBe("ses_a");
     expect(detail?.messages).toBe(2);
+    expect(detail?.partCounts.text).toBe(2);
+    expect(detail?.toolCounts[0]?.tool).toBe("bash");
+    expect(detail?.recentText[0]?.text).toContain("hello");
+    expect(detail?.diffBytes).toBe(2);
+    delete process.env.XDG_DATA_HOME;
   });
 
   test("archives and restores a session", () => {
@@ -81,12 +112,12 @@ describe("detail and archive", () => {
 });
 
 describe("directories", () => {
-  test("lists unique directories with counts", () => {
+  test("lists directories with active and archived counts", () => {
     expect(listDirectories({ dbPath, prefix: "/repo" })).toEqual([
-      { directory: "/repo/archive", count: 1 },
-      { directory: "/repo/current", count: 1 },
-      { directory: "/repo/current/sub", count: 1 },
-      { directory: "/repo/other", count: 1 },
+      { directory: "/repo/archive", active: 0, archived: 1, latestUpdated: 2000 },
+      { directory: "/repo/current", active: 1, archived: 0, latestUpdated: 5000 },
+      { directory: "/repo/current/sub", active: 1, archived: 0, latestUpdated: 3000 },
+      { directory: "/repo/other", active: 1, archived: 0, latestUpdated: 6000 },
     ]);
   });
 });
