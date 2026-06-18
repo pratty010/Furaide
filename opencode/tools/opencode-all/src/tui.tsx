@@ -8,7 +8,7 @@ import { DirectoryRow, getSessionDetail, listDirectories, listSessions, SessionD
 export type UiSession = SessionRow;
 export type Viewport = { height: number; width: number };
 type InputMode = null | "search" | "directory" | "filter";
-type PendingAction = "delete" | "archive" | "restore" | "export_sanitized" | "export_raw" | null;
+type PendingAction = "delete" | "archive" | "restore" | "export_sanitized" | "export_raw" | "continue" | "continue_fork" | null;
 
 type ThemeDoc = {
   name: string;
@@ -49,6 +49,10 @@ function cwd(): string {
 }
 
 function leftRowsCount(state: UiState): number {
+  return Math.max(1, state.viewport.height - 3);
+}
+
+function rightRowsCount(state: UiState): number {
   return Math.max(1, state.viewport.height - 3);
 }
 
@@ -171,6 +175,8 @@ function executePendingAction(state: UiState): UiState {
   if (state.pendingAction === "delete") deleteSession(selected.id);
   if (state.pendingAction === "export_sanitized") exportSession(selected.id, false);
   if (state.pendingAction === "export_raw") exportSession(selected.id, true);
+  if (state.pendingAction === "continue") continueSession(selected.id, false);
+  if (state.pendingAction === "continue_fork") continueSession(selected.id, true);
 
   return clampCursor(reloadState({ ...state, pendingAction: null, status: `executed ${state.pendingAction}` }));
 }
@@ -209,14 +215,16 @@ export function applyKey(state: UiState, key: string): UiState {
   if (key === "Enter") {
     if (state.pendingAction) return executePendingAction(state);
     const row = getVisibleRows(state)[state.cursor];
-    if (row && !('id' in row)) {
+    if (row && !("id" in row)) {
       const dir = (row as DirectoryRow).directory;
       const nextExpanded = new Set(state.expandedFolders);
       if (nextExpanded.has(dir)) nextExpanded.delete(dir);
       else nextExpanded.add(dir);
       return clampCursor(reloadState({ ...state, expandedFolders: nextExpanded }));
     }
-    return state;
+    return currentSession(state)
+      ? { ...state, status: `confirm continue ${currentSession(state)?.id || ""}`.trim(), pendingAction: "continue" }
+      : state;
   }
   
   if (key === "d") return currentSession(state) ? { ...state, status: `confirm delete ${currentSession(state)?.id || ""}`.trim(), pendingAction: "delete" } : state;
@@ -224,6 +232,8 @@ export function applyKey(state: UiState, key: string): UiState {
   if (key === "r") return currentSession(state) ? { ...state, status: `confirm restore ${currentSession(state)?.id || ""}`.trim(), pendingAction: "restore" } : state;
   if (key === "e") return currentSession(state) ? { ...state, status: `confirm export sanitized ${currentSession(state)?.id || ""}`.trim(), pendingAction: "export_sanitized" } : state;
   if (key === "E") return currentSession(state) ? { ...state, status: `confirm export raw ${currentSession(state)?.id || ""}`.trim(), pendingAction: "export_raw" } : state;
+  if (key === "c") return currentSession(state) ? { ...state, status: `confirm continue ${currentSession(state)?.id || ""}`.trim(), pendingAction: "continue" } : state;
+  if (key === "C") return currentSession(state) ? { ...state, status: `confirm continue fork ${currentSession(state)?.id || ""}`.trim(), pendingAction: "continue_fork" } : state;
 
   return state;
 }
@@ -231,6 +241,13 @@ export function applyKey(state: UiState, key: string): UiState {
 function pad(text: string, width: number): string {
   if (text.length >= width) return text.slice(0, width);
   return text + " ".repeat(width - text.length);
+}
+
+function clip(text: string, width: number): string {
+  if (width <= 0) return "";
+  if (text.length <= width) return text;
+  if (width === 1) return "…";
+  return `${text.slice(0, width - 1)}…`;
 }
 
 function fmtCost(value: number): string {
@@ -248,18 +265,53 @@ function treeRowLabel(row: DirectoryRow | UiSession, isSelected: boolean, isExpa
   if (isDir) {
     const dir = row as DirectoryRow;
     const prefix = isExpanded ? "▼" : "▶";
-    return `${isSelected ? "❯ " : "  "}${prefix} ${dir.directory} (${dir.active} active)`;
+    const cwdMark = dir.directory.startsWith(cwd()) ? "◉ " : "○ ";
+    return `${isSelected ? "❯ " : "  "}theme:folder-${dir.directory.startsWith(cwd()) ? "cwd" : "other"} ${cwdMark}${prefix} ${dir.directory} (${dir.active} active)`;
   } else {
     const session = row as UiSession;
     const archive = session.timeArchived == null ? "" : "[A] ";
-    return `${isSelected ? "❯ " : "  "}  ${archive}${session.title}`;
+    return `${isSelected ? "❯ " : "  "}theme:session-${session.isCurrent ? "cwd" : "other"}   ${archive}${session.title}`;
   }
+}
+
+function overlayLines(state: UiState, width: number, height: number): Array<{ row: number; text: string }> {
+  if (!state.pendingAction) return [];
+  const selected = currentSession(state);
+  const action = state.pendingAction.replaceAll("_", " ").toUpperCase();
+  const target = selected ? clip(`${selected.title} (${selected.id})`, width - 8) : "No session selected";
+  const body = state.pendingAction === "delete"
+    ? "This permanently removes the session."
+    : state.pendingAction === "archive"
+      ? "This moves the session into Archived."
+      : state.pendingAction === "restore"
+        ? "This restores the session to Active."
+        : state.pendingAction === "continue" || state.pendingAction === "continue_fork"
+          ? "This opens the session in OpenCode."
+          : "This action will run now.";
+  const boxWidth = Math.min(64, Math.max(38, width - 8));
+  const start = Math.max(1, Math.floor((height - 7) / 2));
+  const left = Math.max(0, Math.floor((width - boxWidth) / 2));
+  const top = `${" ".repeat(left)}┌${"─".repeat(boxWidth - 2)}┐`;
+  const title = `${" ".repeat(left)}│ ${clip(action, boxWidth - 4).padEnd(boxWidth - 4)} │`;
+  const targetLine = `${" ".repeat(left)}│ ${clip(target, boxWidth - 4).padEnd(boxWidth - 4)} │`;
+  const bodyLine = `${" ".repeat(left)}│ ${clip(body, boxWidth - 4).padEnd(boxWidth - 4)} │`;
+  const buttons = `${" ".repeat(left)}│ ${clip("[y] confirm   [n] cancel   [Esc] dismiss", boxWidth - 4).padEnd(boxWidth - 4)} │`;
+  const bottom = `${" ".repeat(left)}└${"─".repeat(boxWidth - 2)}┘`;
+  return [
+    { row: start, text: top },
+    { row: start + 1, text: title },
+    { row: start + 2, text: targetLine },
+    { row: start + 3, text: bodyLine },
+    { row: start + 4, text: buttons },
+    { row: start + 5, text: bottom },
+  ];
 }
 
 export function renderRows(state: UiState): string[] {
   const visible = getVisibleRows(state);
   const rows = leftRowsCount(state);
   const leftWidth = Math.min(58, Math.max(28, Math.floor(state.viewport.width * 0.48)));
+  const rightWidth = Math.max(20, state.viewport.width - leftWidth - 3);
   const visibleSlice = visible.slice(state.listScroll, state.listScroll + rows);
   const detail = selectedDetail(state);
   const header = `theme:list Folders & Sessions ${state.cursor + 1} / ${Math.max(visible.length, 1)} [${state.tab}]`;
@@ -297,7 +349,7 @@ export function renderRows(state: UiState): string[] {
     detailLines = curSession ? fallbackDetailLines : ["theme:detail No session selected"];
   }
 
-  const lines = [pad(header, leftWidth) + " │ " + (detailLines[0] || "")];
+  const lines = [pad(clip(header, leftWidth), leftWidth) + " │ " + pad(clip(detailLines[0] || "", rightWidth), rightWidth)];
 
   for (let i = 0; i < rows; i++) {
     const item = visibleSlice[i];
@@ -305,10 +357,16 @@ export function renderRows(state: UiState): string[] {
     const isExpanded = item && !('id' in item) ? state.expandedFolders.has((item as DirectoryRow).directory) : false;
     const left = item ? treeRowLabel(item, absolute === state.cursor, isExpanded) : "";
     const right = detailLines[i + 1] || "";
-    lines.push(pad(left, leftWidth) + " │ " + right);
+    lines.push(pad(clip(left, leftWidth), leftWidth) + " │ " + pad(clip(right, rightWidth), rightWidth));
   }
 
-  lines.push(`q quit · / search · o toggle all · m msgs · Tab tabs · Enter toggle/drill · b back · e export · a archive · d delete · c continue`);
+  lines.push(pad(clip(`q quit · / search · o toggle all · m msgs · Tab tabs · Enter open/toggle · b back · e export · a archive · d delete · c continue`, state.viewport.width), state.viewport.width));
+
+  const overlay = overlayLines(state, state.viewport.width, lines.length);
+  for (const item of overlay) {
+    if (item.row >= 0 && item.row < lines.length) lines[item.row] = pad(clip(item.text, state.viewport.width), state.viewport.width);
+  }
+
   return lines;
 }
 
@@ -332,12 +390,28 @@ function styledScreen(state: UiState): StyledText {
       chunks.push(...chunkLine(line.replace("theme:detail ", ""), tone("text"), undefined, true));
       continue;
     }
-    if (line.includes("❯")) {
-      chunks.push(...chunkLine(line.replace("theme:selected ", ""), tone("text"), tone("listSelectedBg"), true));
+    if (line.includes("┌") || line.includes("└") || line.includes("[y] confirm")) {
+      chunks.push(...chunkLine(line, tone("modalFg"), tone("modalBg"), true));
       continue;
     }
-    if (line.includes("▼") || line.includes("▶")) {
-      chunks.push(...chunkLine(line, tone("success")));
+    if (line.includes("❯")) {
+      chunks.push(...chunkLine(line.replace("theme:selected ", "").replace(/theme:(folder|session)-(cwd|other) /g, ""), tone("text"), tone("listSelectedBg"), true));
+      continue;
+    }
+    if (line.includes("theme:folder-cwd ")) {
+      chunks.push(...chunkLine(line.replace("theme:folder-cwd ", ""), tone("cyan"), undefined, true));
+      continue;
+    }
+    if (line.includes("theme:folder-other ")) {
+      chunks.push(...chunkLine(line.replace("theme:folder-other ", ""), tone("success"), undefined, true));
+      continue;
+    }
+    if (line.includes("theme:session-cwd ")) {
+      chunks.push(...chunkLine(line.replace("theme:session-cwd ", ""), tone("cyan")));
+      continue;
+    }
+    if (line.includes("theme:session-other ")) {
+      chunks.push(...chunkLine(line.replace("theme:session-other ", ""), tone("muted")));
       continue;
     }
     chunks.push(...chunkLine(line, tone("text")));
@@ -384,6 +458,12 @@ export async function startInteractiveTui(): Promise<void> {
   const screen = new TextRenderable(renderer, { id: "opencode-all-screen", content: styledScreen(state) });
   renderer.root.add(screen);
   let pendingG = false;
+
+  process.stdout.on("resize", () => {
+    state = { ...state, viewport: { height: process.stdout.rows || 24, width: process.stdout.columns || 100 } };
+    screen.content = styledScreen(state);
+    renderer.requestRender();
+  });
 
   renderer.keyInput.on("keypress", (key: any) => {
     const mapped = mapKey(key);

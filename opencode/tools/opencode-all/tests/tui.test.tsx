@@ -82,6 +82,15 @@ describe("session navigation", () => {
     state = applyKey(state, "Tab");
     expect(state.tab).toBe("all");
   });
+
+  test("Enter on a session opens continue confirmation", () => {
+    let state = createInitialState(sessions, { height: 10, width: 100 });
+    state = applyKey(state, "Enter");
+    state = applyKey(state, "j");
+    state = applyKey(state, "Enter");
+    expect(state.pendingAction).toBe("continue");
+    expect(state.status).toContain("confirm continue");
+  });
 });
 
 describe("renderRows", () => {
@@ -100,6 +109,24 @@ describe("renderRows", () => {
     expect(output).toContain("Directory ");
     expect(output).toContain("Agent     ");
     expect(output).toContain("Model     ");
+  });
+
+  test("clips rows to viewport width so panels stay separate", () => {
+    let state = createInitialState(sessions.map(session => ({ ...session, title: `${session.title} ${"x".repeat(120)}` })), { height: 12, width: 60 });
+    state = applyKey(state, "Enter");
+    state = applyKey(state, "j");
+    const output = renderRows(state);
+    expect(output.every(line => line.length <= 60)).toBe(true);
+  });
+
+  test("renders confirmation overlay in front of content", () => {
+    let state = createInitialState(sessions, { height: 14, width: 100 });
+    state = applyKey(state, "Enter");
+    state = applyKey(state, "j");
+    state = applyKey(state, "d");
+    const output = renderRows(state).join("\n");
+    expect(output).toContain("[y] confirm");
+    expect(output).toContain("DELETE");
   });
 });
 
