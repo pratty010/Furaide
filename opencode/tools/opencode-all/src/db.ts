@@ -34,6 +34,7 @@ export type ListOptions = {
 };
 
 export function defaultDbPath(): string {
+  if (process.env.OPENCODE_ALL_DB_PATH) return process.env.OPENCODE_ALL_DB_PATH;
   const base = process.env.XDG_DATA_HOME || join(process.env.HOME || ".", ".local", "share");
   return join(base, "opencode", "opencode.db");
 }
