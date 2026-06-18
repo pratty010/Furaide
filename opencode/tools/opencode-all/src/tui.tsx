@@ -7,7 +7,6 @@ import { DirectoryRow, getSessionDetail, listDirectories, listSessions, SessionD
 
 export type UiSession = SessionRow;
 export type Viewport = { height: number; width: number };
-type LeftMode = "folders" | "sessions";
 type InputMode = null | "search" | "directory" | "filter";
 type PendingAction = "delete" | "archive" | "restore" | "export_sanitized" | "export_raw" | null;
 
@@ -18,10 +17,11 @@ type ThemeDoc = {
 };
 
 export type UiState = {
-  mode: LeftMode;
   folders: DirectoryRow[];
   allSessions: UiSession[];
   sessions: UiSession[];
+  expandedFolders: Set<string>;
+  messagesExpanded: boolean;
   cursor: number;
   listScroll: number;
   detailScroll: number;
@@ -30,7 +30,7 @@ export type UiState = {
   query: string;
   directory?: string;
   sort: "updated" | "created" | "cost" | "title" | "recency";
-  stack: Array<Pick<UiState, "cursor" | "listScroll" | "tab" | "query" | "directory" | "sort" | "mode">>;
+  stack: Array<Pick<UiState, "cursor" | "listScroll" | "tab" | "query" | "directory" | "sort" | "expandedFolders">>;
   viewport: Viewport;
   status: string;
   pendingAction: PendingAction;
@@ -48,7 +48,7 @@ function cwd(): string {
   return process.env.OPENCODE_ALL_CWD || process.cwd();
 }
 
-function leftRows(state: UiState): number {
+function leftRowsCount(state: UiState): number {
   return Math.max(1, state.viewport.height - 3);
 }
 
@@ -66,23 +66,29 @@ function parseModel(model: string): string {
   }
 }
 
-function currentFolder(state: UiState): DirectoryRow | undefined {
-  return state.folders[state.cursor];
+export function getVisibleRows(state: UiState): Array<DirectoryRow | UiSession> {
+  const rows: Array<DirectoryRow | UiSession> = [];
+  for (const folder of state.folders) {
+    rows.push(folder);
+    if (state.expandedFolders.has(folder.directory)) {
+      const folderSessions = state.sessions.filter(s => s.directory === folder.directory);
+      rows.push(...folderSessions);
+    }
+  }
+  return rows;
 }
 
 export function currentSession(state: UiState): UiSession | undefined {
-  return state.sessions[state.cursor];
+  const row = getVisibleRows(state)[state.cursor];
+  if (row && 'id' in row) return row as UiSession;
+  return undefined;
 }
 
 function reloadState(state: UiState): UiState {
   const baseCwd = cwd();
-  if (state.mode === "folders") {
-    let folders = sortFolders(listDirectories({ prefix: state.query }), baseCwd);
-    if (state.inputMode === "search" && state.query) {
-      folders = folders.filter(row => row.directory.toLowerCase().includes(state.query.toLowerCase()));
-    }
-    const cursor = Math.min(state.cursor, Math.max(0, folders.length - 1));
-    return { ...state, folders, cursor, listScroll: Math.min(state.listScroll, cursor) };
+  let folders = sortFolders(listDirectories({ prefix: state.query }), baseCwd);
+  if (state.inputMode === "search" && state.query) {
+    folders = folders.filter(row => row.directory.toLowerCase().includes(state.query.toLowerCase()));
   }
 
   const dbSessions = listSessions({ tab: state.tab, cwd: baseCwd, directory: state.directory, query: state.query });
@@ -91,16 +97,19 @@ function reloadState(state: UiState): UiState {
     : state.allSessions
         .filter(row => !state.directory || row.directory === state.directory)
         .filter(row => !state.query || [row.title, row.directory, row.path, row.agent, row.model, row.shareUrl].some(value => value.toLowerCase().includes(state.query.toLowerCase())));
-  const cursor = Math.min(state.cursor, Math.max(0, sessions.length - 1));
-  return { ...state, sessions, cursor, listScroll: Math.min(state.listScroll, cursor) };
+  
+  const visible = getVisibleRows({ ...state, folders, sessions });
+  const cursor = Math.min(state.cursor, Math.max(0, visible.length - 1));
+  return { ...state, folders, sessions, cursor, listScroll: Math.min(state.listScroll, cursor) };
 }
 
 export function createInitialState(sessions: UiSession[], viewport: Viewport): UiState {
   return {
-    mode: "folders",
     folders: sortFolders(listDirectories({ prefix: "" }), cwd()),
     allSessions: sessions,
     sessions,
+    expandedFolders: new Set<string>(),
+    messagesExpanded: false,
     cursor: 0,
     listScroll: 0,
     detailScroll: 0,
@@ -116,27 +125,26 @@ export function createInitialState(sessions: UiSession[], viewport: Viewport): U
 }
 
 function clampCursor(state: UiState): UiState {
-  const total = state.mode === "folders" ? state.folders.length : state.sessions.length;
+  const total = getVisibleRows(state).length;
   const max = Math.max(0, total - 1);
   const cursor = Math.max(0, Math.min(state.cursor, max));
-  const rows = leftRows(state);
+  const rows = leftRowsCount(state);
   let listScroll = state.listScroll;
   if (cursor < listScroll) listScroll = cursor;
   if (cursor >= listScroll + rows) listScroll = cursor - rows + 1;
   return { ...state, cursor, listScroll: Math.max(0, listScroll) };
 }
 
-function openFolder(state: UiState, directory: string): UiState {
+function pushDrill(state: UiState, directory: string): UiState {
   const next: UiState = {
     ...state,
-    mode: "sessions",
-    stack: [...state.stack, { cursor: state.cursor, listScroll: state.listScroll, tab: state.tab, query: state.query, directory: state.directory, sort: state.sort, mode: state.mode }],
+    stack: [...state.stack, { cursor: state.cursor, listScroll: state.listScroll, tab: state.tab, query: state.query, directory: state.directory, sort: state.sort, expandedFolders: new Set(state.expandedFolders) }],
     directory,
     query: "",
     inputMode: null,
     cursor: 0,
     listScroll: 0,
-    status: `opened ${directory}`,
+    status: `drilled into ${directory}`,
   };
   return clampCursor(reloadState(next));
 }
@@ -168,40 +176,55 @@ function executePendingAction(state: UiState): UiState {
 }
 
 export function applyKey(state: UiState, key: string): UiState {
-  if (key.startsWith("folder:")) return openFolder(state, key.slice("folder:".length));
-  if (key.startsWith("drill:")) return openFolder(state, key.slice("drill:".length));
+  if (key.startsWith("drill:")) return pushDrill(state, key.slice("drill:".length));
   if (key === "/") return { ...state, inputMode: "search", query: "", status: "search" };
-  if (key === "\\") return { ...state, inputMode: "directory", mode: "folders", query: "", status: "directory" };
+  if (key === "\\") return { ...state, inputMode: "directory", query: "", status: "directory" };
   if (key === "f") return { ...state, inputMode: "filter", status: "filter" };
   if (key.startsWith("type:")) {
     const query = key.slice("type:".length);
     return clampCursor(reloadState({ ...state, query, cursor: 0, listScroll: 0, status: `${state.inputMode || "input"}:${query}` }));
   }
-  if (key === "Escape" || key === "Esc") return clampCursor(reloadState({ ...state, inputMode: null, query: "", status: "ready" }));
+  if (key === "Escape" || key === "Esc") return clampCursor(reloadState({ ...state, inputMode: null, query: "", status: "ready", pendingAction: null }));
+  
+  if (state.pendingAction && key === "y") return executePendingAction(state);
+  if (state.pendingAction && key === "n") return { ...state, status: "cancelled", pendingAction: null };
+
   if (key === "j" || key === "ArrowDown") return clampCursor({ ...state, cursor: state.cursor + 1 });
   if (key === "k" || key === "ArrowUp") return clampCursor({ ...state, cursor: state.cursor - 1 });
-  if (key === "G") return clampCursor({ ...state, cursor: (state.mode === "folders" ? state.folders.length : state.sessions.length) - 1 });
+  if (key === "G") return clampCursor({ ...state, cursor: getVisibleRows(state).length - 1 });
   if (key === "gg") return clampCursor({ ...state, cursor: 0 });
-  if (key === "Ctrl+D" || key === "PageDown") return clampCursor({ ...state, cursor: state.cursor + Math.floor(leftRows(state) / 2) });
-  if (key === "Ctrl+U" || key === "PageUp") return clampCursor({ ...state, cursor: state.cursor - Math.floor(leftRows(state) / 2) });
+  if (key === "Ctrl+D" || key === "PageDown") return clampCursor({ ...state, cursor: state.cursor + Math.floor(leftRowsCount(state) / 2) });
+  if (key === "Ctrl+U" || key === "PageUp") return clampCursor({ ...state, cursor: state.cursor - Math.floor(leftRowsCount(state) / 2) });
   if (key === "Tab") return clampCursor(reloadState({ ...state, tab: tabs[(tabs.indexOf(state.tab) + 1) % tabs.length], cursor: 0, listScroll: 0 }));
   if (key === "b") return popStack(state);
-  if (key === "B") return clampCursor(reloadState({ ...state, mode: "folders", directory: undefined, query: "", inputMode: null, stack: [], cursor: 0, listScroll: 0, status: "reset" }));
+  if (key === "B") return clampCursor(reloadState({ ...state, directory: undefined, query: "", inputMode: null, stack: [], cursor: 0, listScroll: 0, status: "reset" }));
+  if (key === "m") return { ...state, messagesExpanded: !state.messagesExpanded };
+  if (key === "o") {
+    const allExpanded = state.folders.every(f => state.expandedFolders.has(f.directory));
+    const nextSet = new Set<string>();
+    if (!allExpanded) state.folders.forEach(f => { nextSet.add(f.directory); });
+    return clampCursor(reloadState({ ...state, expandedFolders: nextSet }));
+  }
+  
   if (key === "Enter") {
     if (state.pendingAction) return executePendingAction(state);
-    if (state.mode === "folders") {
-      const folder = currentFolder(state);
-      return folder ? openFolder(state, folder.directory) : state;
+    const row = getVisibleRows(state)[state.cursor];
+    if (row && !('id' in row)) {
+      const dir = (row as DirectoryRow).directory;
+      const nextExpanded = new Set(state.expandedFolders);
+      if (nextExpanded.has(dir)) nextExpanded.delete(dir);
+      else nextExpanded.add(dir);
+      return clampCursor(reloadState({ ...state, expandedFolders: nextExpanded }));
     }
     return state;
   }
-  if (key === "d") return state.mode === "sessions" ? { ...state, status: `confirm delete ${currentSession(state)?.id || ""}`.trim(), pendingAction: "delete" } : state;
-  if (key === "a") return state.mode === "sessions" ? { ...state, status: `confirm archive ${currentSession(state)?.id || ""}`.trim(), pendingAction: "archive" } : state;
-  if (key === "r") return state.mode === "sessions" ? { ...state, status: `confirm restore ${currentSession(state)?.id || ""}`.trim(), pendingAction: "restore" } : state;
-  if (key === "e") return state.mode === "sessions" ? { ...state, status: `confirm export sanitized ${currentSession(state)?.id || ""}`.trim(), pendingAction: "export_sanitized" } : state;
-  if (key === "E") return state.mode === "sessions" ? { ...state, status: `confirm export raw ${currentSession(state)?.id || ""}`.trim(), pendingAction: "export_raw" } : state;
-  if (state.pendingAction && key === "y") return executePendingAction(state);
-  if (state.pendingAction && key === "n") return { ...state, status: "cancelled", pendingAction: null };
+  
+  if (key === "d") return currentSession(state) ? { ...state, status: `confirm delete ${currentSession(state)?.id || ""}`.trim(), pendingAction: "delete" } : state;
+  if (key === "a") return currentSession(state) ? { ...state, status: `confirm archive ${currentSession(state)?.id || ""}`.trim(), pendingAction: "archive" } : state;
+  if (key === "r") return currentSession(state) ? { ...state, status: `confirm restore ${currentSession(state)?.id || ""}`.trim(), pendingAction: "restore" } : state;
+  if (key === "e") return currentSession(state) ? { ...state, status: `confirm export sanitized ${currentSession(state)?.id || ""}`.trim(), pendingAction: "export_sanitized" } : state;
+  if (key === "E") return currentSession(state) ? { ...state, status: `confirm export raw ${currentSession(state)?.id || ""}`.trim(), pendingAction: "export_raw" } : state;
+
   return state;
 }
 
@@ -215,81 +238,77 @@ function fmtCost(value: number): string {
 }
 
 function selectedDetail(state: UiState): SessionDetail | null {
-  if (state.mode !== "sessions") return null;
   const selected = currentSession(state);
   if (!selected) return null;
   return getSessionDetail({ id: selected.id, cwd: cwd() });
 }
 
-function folderLabel(row: DirectoryRow, isSelected: boolean): string {
-  const marker = isSelected ? "❯ " : "  ";
-  return `${marker}${row.directory} (${row.active} active, ${row.archived} archived)`;
-}
-
-function sessionLabel(row: UiSession, isSelected: boolean): string {
-  const marker = isSelected ? "❯ " : "  ";
-  const archive = row.timeArchived == null ? "" : "[A] ";
-  return `${marker}${archive}${row.title}`;
+function treeRowLabel(row: DirectoryRow | UiSession, isSelected: boolean, isExpanded?: boolean): string {
+  const isDir = !('id' in row);
+  if (isDir) {
+    const dir = row as DirectoryRow;
+    const prefix = isExpanded ? "▼" : "▶";
+    return `${isSelected ? "❯ " : "  "}${prefix} ${dir.directory} (${dir.active} active)`;
+  } else {
+    const session = row as UiSession;
+    const archive = session.timeArchived == null ? "" : "[A] ";
+    return `${isSelected ? "❯ " : "  "}  ${archive}${session.title}`;
+  }
 }
 
 export function renderRows(state: UiState): string[] {
-  const rows = leftRows(state);
+  const visible = getVisibleRows(state);
+  const rows = leftRowsCount(state);
   const leftWidth = Math.min(58, Math.max(28, Math.floor(state.viewport.width * 0.48)));
-  const source = state.mode === "folders" ? state.folders : state.sessions;
-  const visible = source.slice(state.listScroll, state.listScroll + rows);
+  const visibleSlice = visible.slice(state.listScroll, state.listScroll + rows);
   const detail = selectedDetail(state);
-  const header = state.mode === "folders"
-    ? `theme:list Folders ${state.cursor + 1} / ${Math.max(source.length, 1)} [${state.tab}]`
-    : `theme:list Sessions ${state.cursor + 1} / ${Math.max(source.length, 1)} [${state.tab}]`;
+  const header = `theme:list Folders & Sessions ${state.cursor + 1} / ${Math.max(visible.length, 1)} [${state.tab}]`;
 
-  const fallbackDetailLines = state.mode === "sessions" && currentSession(state) ? [
-    `theme:detail ${currentSession(state)?.title || "No session selected"}`,
-    `Directory: ${currentSession(state)?.directory || "-"}`,
-    `Agent: ${currentSession(state)?.agent || "-"}`,
-    `Model: ${parseModel(currentSession(state)?.model || "")}`,
+  const curSession = currentSession(state);
+  const fallbackDetailLines = curSession ? [
+    `theme:detail ${curSession.title}`,
+    `ID: ${curSession.id}`,
+    `Directory: ${curSession.directory}`,
+    `Agent: ${curSession.agent || "-"}`,
+    `Model: ${parseModel(curSession.model)}`,
     `Recent:`,
   ] : [];
 
-  const detailLines = detail ? [
-    `theme:detail ${detail.title}`,
-    `ID: ${detail.id}`,
-    `Directory: ${detail.directory}`,
-    `Agent: ${detail.agent || "-"}`,
-    `Model: ${parseModel(detail.model)}`,
-    `Messages: ${detail.messages}`,
-    `Parts: text ${detail.partCounts.text || 0} · tool ${detail.partCounts.tool || 0} · reasoning ${detail.partCounts.reasoning || 0}`,
-    `Tokens: in ${detail.tokensInput} · out ${detail.tokensOutput} · reasoning ${detail.tokensReasoning}`,
-    `Cache: read ${detail.tokensCacheRead} · write ${detail.tokensCacheWrite}`,
-    `Cost: ${fmtCost(detail.cost)}`,
-    `Changes: ${detail.summaryFiles} files · +${detail.summaryAdditions} / -${detail.summaryDeletions}`,
-    `Diff: ${detail.diffPath ? `${detail.diffPath} (${detail.diffBytes || 0} bytes)` : "-"}`,
-    `Recent:`,
-    ...detail.recentText.map(item => `${item.role[0].toUpperCase()} ${item.text}`),
-    `Tools:`,
-    ...detail.toolCounts.slice(0, 4).map(item => `${item.tool} ${item.count} ${item.status}`),
-  ] : state.mode === "folders" ? [
-    `theme:detail Folder browser`,
-    `Directory: ${currentFolder(state)?.directory || "-"}`,
-    `Active: ${currentFolder(state)?.active || 0}`,
-    `Archived: ${currentFolder(state)?.archived || 0}`,
-    `Latest: ${currentFolder(state)?.latestUpdated || 0}`,
-    `Shortcut: Enter opens sessions`,
-    `Back: b one level · B root`,
-  ] : fallbackDetailLines.length > 0 ? fallbackDetailLines : ["theme:detail No session selected"];
+  let detailLines: string[] = [];
+  if (detail) {
+    detailLines = [
+      `theme:detail Detail: ${detail.title}`,
+      `ID        ${detail.id}`,
+      `Directory ${detail.directory}`,
+      `Agent     ${detail.agent || "-"}`,
+      `Model     ${parseModel(detail.model)}`,
+      `Cost      ${fmtCost(detail.cost)}`,
+      `Tokens    in ${detail.tokensInput} · out ${detail.tokensOutput} · reasoning ${detail.tokensReasoning}`,
+      `Cache     read ${detail.tokensCacheRead} · write ${detail.tokensCacheWrite}`,
+      `Messages  ${detail.messages} (${detail.partCounts.tool || 0} tool · ${detail.partCounts.step || 0} step · ${detail.partCounts.text || 0} text · ${detail.partCounts.reasoning || 0} think)`,
+      `Changes   ${detail.summaryFiles} files · +${detail.summaryAdditions} / -${detail.summaryDeletions}`,
+      `Diff      ${detail.diffPath ? `${detail.diffPath} (${detail.diffBytes || 0} bytes)` : "-"}`,
+      `Recent Messages (m to toggle)`,
+      ...detail.recentText.slice(0, state.messagesExpanded ? 10 : 4).map(item => `[${item.role[0].toUpperCase()}] ${item.text}`),
+      `Top Tools`,
+      ...detail.toolCounts.slice(0, 4).map(item => `${item.tool}: ${item.count} ok, ${item.status === "error" ? item.count : 0} err`),
+    ];
+  } else {
+    detailLines = curSession ? fallbackDetailLines : ["theme:detail No session selected"];
+  }
 
   const lines = [pad(header, leftWidth) + " │ " + (detailLines[0] || "")];
 
   for (let i = 0; i < rows; i++) {
-    const item = visible[i];
+    const item = visibleSlice[i];
     const absolute = state.listScroll + i;
-    const left = state.mode === "folders"
-      ? item ? folderLabel(item as DirectoryRow, absolute === state.cursor) : ""
-      : item ? sessionLabel(item as UiSession, absolute === state.cursor) : "";
+    const isExpanded = item && !('id' in item) ? state.expandedFolders.has((item as DirectoryRow).directory) : false;
+    const left = item ? treeRowLabel(item, absolute === state.cursor, isExpanded) : "";
     const right = detailLines[i + 1] || "";
     lines.push(pad(left, leftWidth) + " │ " + right);
   }
 
-  lines.push(`q quit · / search · \\ folders · Tab tabs · Enter open · b back · e export · a archive · r restore · d delete · c continue · R refresh`);
+  lines.push(`q quit · / search · o toggle all · m msgs · Tab tabs · Enter toggle/drill · b back · e export · a archive · d delete · c continue`);
   return lines;
 }
 
@@ -315,6 +334,10 @@ function styledScreen(state: UiState): StyledText {
     }
     if (line.includes("❯")) {
       chunks.push(...chunkLine(line.replace("theme:selected ", ""), tone("text"), tone("listSelectedBg"), true));
+      continue;
+    }
+    if (line.includes("▼") || line.includes("▶")) {
+      chunks.push(...chunkLine(line, tone("success")));
       continue;
     }
     chunks.push(...chunkLine(line, tone("text")));

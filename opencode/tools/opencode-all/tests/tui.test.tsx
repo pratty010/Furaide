@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { applyKey, createInitialState, currentSession, renderRows, type UiSession } from "../src/tui.tsx";
+import { applyKey, createInitialState, currentSession, renderRows, getVisibleRows, type UiSession } from "../src/tui.tsx";
 
 const sessions: UiSession[] = Array.from({ length: 6 }, (_, index) => ({
   id: `ses_${index}`,
@@ -19,24 +19,28 @@ const sessions: UiSession[] = Array.from({ length: 6 }, (_, index) => ({
   suspicious: false,
 }));
 
-describe("folder navigation", () => {
-  test("initial mode is folders", () => {
+describe("folder tree navigation", () => {
+  test("initial state shows only folders", () => {
     const state = createInitialState(sessions, { height: 20, width: 100 });
-    expect(state.mode).toBe("folders");
+    const visible = getVisibleRows(state);
+    expect(visible.every(row => !('id' in row))).toBe(true);
   });
 
-  test("folder shortcut opens sessions mode", () => {
+  test("Enter on a folder expands it to show sessions", () => {
     let state = createInitialState(sessions, { height: 20, width: 100 });
-    state = applyKey(state, "folder:/repo/current");
-    expect(state.mode).toBe("sessions");
-    expect(state.directory).toBe("/repo/current");
+    // Assume the first folder is /repo/current
+    state = applyKey(state, "Enter");
+    expect(state.expandedFolders.size).toBe(1);
+    const visible = getVisibleRows(state);
+    expect(visible.some(row => 'id' in row)).toBe(true);
   });
 
-  test("b returns to previous mode", () => {
+  test("o toggles all folders", () => {
     let state = createInitialState(sessions, { height: 20, width: 100 });
-    state = applyKey(state, "folder:/repo/current");
-    state = applyKey(state, "b");
-    expect(state.mode).toBe("folders");
+    state = applyKey(state, "o");
+    expect(state.expandedFolders.size).toBeGreaterThan(0);
+    state = applyKey(state, "o");
+    expect(state.expandedFolders.size).toBe(0);
   });
 });
 
@@ -51,7 +55,6 @@ describe("search and input modes", () => {
     let state = createInitialState(sessions, { height: 20, width: 100 });
     state = applyKey(state, "\\");
     expect(state.inputMode).toBe("directory");
-    expect(state.mode).toBe("folders");
   });
 
   test("type updates query in search mode", () => {
@@ -63,18 +66,16 @@ describe("search and input modes", () => {
 });
 
 describe("session navigation", () => {
-  test("moves selection and scrolls in sessions mode", () => {
+  test("moves selection and scrolls", () => {
     let state = createInitialState(sessions, { height: 5, width: 100 });
-    state = applyKey(state, "folder:/repo/current");
+    state = applyKey(state, "o"); // expand all so we have rows
     state = applyKey(state, "j");
     state = applyKey(state, "j");
     expect(state.cursor).toBe(2);
-    expect(currentSession(state)?.id).toBe("ses_2");
   });
 
   test("tab cycles tab state", () => {
     let state = createInitialState(sessions, { height: 10, width: 100 });
-    state = applyKey(state, "folder:/repo/current");
     expect(state.tab).toBe("active");
     state = applyKey(state, "Tab");
     expect(state.tab).toBe("archived");
@@ -91,21 +92,22 @@ describe("renderRows", () => {
     expect(output).toContain("theme:detail");
   });
 
-  test("renders detail labels in sessions mode", () => {
+  test("renders detail labels when a session is selected", () => {
     let state = createInitialState(sessions, { height: 14, width: 100 });
-    state = applyKey(state, "folder:/repo/current");
+    state = applyKey(state, "Enter"); // expand first folder
+    state = applyKey(state, "j"); // move to first session
     const output = renderRows(state).join("\n");
-    expect(output).toContain("Directory:");
-    expect(output).toContain("Agent:");
-    expect(output).toContain("Model:");
-    expect(output).toContain("Recent:");
+    expect(output).toContain("Directory ");
+    expect(output).toContain("Agent     ");
+    expect(output).toContain("Model     ");
   });
 });
 
 describe("confirmation state", () => {
   test("archive opens a confirmation modal", () => {
     let state = createInitialState(sessions, { height: 10, width: 100 });
-    state = applyKey(state, "folder:/repo/current");
+    state = applyKey(state, "Enter");
+    state = applyKey(state, "j");
     state = applyKey(state, "a");
     expect(state.pendingAction).toBe("archive");
     expect(state.status).toContain("confirm archive");
@@ -113,7 +115,8 @@ describe("confirmation state", () => {
 
   test("n cancels the pending action", () => {
     let state = createInitialState(sessions, { height: 10, width: 100 });
-    state = applyKey(state, "folder:/repo/current");
+    state = applyKey(state, "Enter");
+    state = applyKey(state, "j");
     state = applyKey(state, "d");
     state = applyKey(state, "n");
     expect(state.pendingAction).toBeNull();
