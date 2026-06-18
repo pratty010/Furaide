@@ -2,6 +2,7 @@
 import { spawnSync } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { createCliRenderer, TextRenderable } from "@opentui/core";
 import { getSessionDetail, listDirectories, listSessions, setArchived, type SessionRow, type Tab } from "./db.ts";
 
 export type UiSession = SessionRow;
@@ -87,7 +88,99 @@ export function applyKey(state: UiState, key: string): UiState {
   if (key === "Tab") return clampCursor({ ...state, tab: tabs[(tabs.indexOf(state.tab) + 1) % tabs.length], cursor: 0, listScroll: 0 });
   if (key === "b") return popDrill(state);
   if (key === "B") return clampCursor({ ...state, stack: [], directory: undefined, query: "", cursor: 0, listScroll: 0, status: "reset" });
+  if (key === "d") return { ...state, status: `confirm delete ${currentSession(state)?.id || ""}`.trim() };
+  if (key === "a") return { ...state, status: `confirm archive ${currentSession(state)?.id || ""}`.trim() };
+  if (key === "r") return { ...state, status: `confirm restore ${currentSession(state)?.id || ""}`.trim() };
+  if (key === "e") return { ...state, status: `confirm export sanitized ${currentSession(state)?.id || ""}`.trim() };
+  if (key === "E") return { ...state, status: `confirm export raw ${currentSession(state)?.id || ""}`.trim() };
   return state;
+}
+
+function pad(text: string, width: number): string {
+  if (text.length >= width) return text.slice(0, width);
+  return text + " ".repeat(width - text.length);
+}
+
+function fmtCost(value: number): string {
+  return value > 0 ? `$${value.toFixed(2)}` : "";
+}
+
+export function renderRows(state: UiState): string[] {
+  const rows = visibleRows(state);
+  const leftWidth = Math.min(50, Math.max(24, Math.floor(state.viewport.width * 0.45)));
+  const visible = state.sessions.slice(state.listScroll, state.listScroll + rows);
+  const lines = [`Sessions ${state.cursor + 1} / ${state.sessions.length} [${state.tab}]`.padEnd(leftWidth) + " │ Detail"];
+  for (let i = 0; i < rows; i++) {
+    const session = visible[i];
+    if (!session) {
+      lines.push(pad("", leftWidth) + " │");
+      continue;
+    }
+    const absolute = state.listScroll + i;
+    const marker = absolute === state.cursor ? "❯" : " ";
+    const archive = session.timeArchived == null ? "" : "[A] ";
+    const left = `${marker} ${archive}${session.title}`;
+    const right = absolute === state.cursor ? `${session.id} ${session.directory} ${fmtCost(session.cost)}` : "";
+    lines.push(pad(left, leftWidth) + " │ " + right);
+  }
+  lines.push("q quit · / search · \\ dirs · Tab tabs · e export · a archive · r restore · d delete · c continue · R refresh");
+  return lines;
+}
+
+export function errorMessage(error: unknown): string {
+  if (error && typeof error === "object" && "code" in error && (error as any).code === "ENOENT") {
+    return "opencode CLI not found. Set OPENCODE_ALL_OPENCODE_BIN or install opencode.";
+  }
+  return error instanceof Error ? error.message : String(error);
+}
+
+function mapKey(key: any): string {
+  if (key?.ctrl && key?.name === "c") return "q";
+  if (key?.ctrl && key?.name === "d") return "Ctrl+D";
+  if (key?.ctrl && key?.name === "u") return "Ctrl+U";
+  if (key?.name === "down") return "j";
+  if (key?.name === "up") return "k";
+  if (key?.name === "pagedown") return "PageDown";
+  if (key?.name === "pageup") return "PageUp";
+  if (key?.name === "tab") return "Tab";
+  return key?.sequence || key?.name || "";
+}
+
+export async function startInteractiveTui(): Promise<void> {
+  const renderer = await createCliRenderer({
+    exitOnCtrlC: true,
+    targetFps: 30,
+    useMouse: true,
+  });
+
+  let state = createInitialState(
+    listSessions({ tab: "active", cwd: process.env.OPENCODE_ALL_CWD || process.cwd() }),
+    { height: process.stdout.rows || 24, width: process.stdout.columns || 100 },
+  );
+
+  const screen = new TextRenderable(renderer, { id: "opencode-all-screen", content: renderRows(state).join("\n"), fg: "#f2eaff" });
+  renderer.root.add(screen);
+
+  let pendingG = false;
+  renderer.keyInput.on("keypress", (key: any) => {
+    const mapped = mapKey(key);
+    if (mapped === "q") {
+      renderer.destroy();
+      process.exit(0);
+    }
+    if (pendingG && mapped === "g") {
+      state = applyKey(state, "gg");
+      pendingG = false;
+    } else if (mapped === "g") {
+      pendingG = true;
+      return;
+    } else {
+      pendingG = false;
+      state = applyKey(state, mapped);
+    }
+    screen.content = renderRows(state).join("\n");
+    renderer.requestRender();
+  });
 }
 
 function dataDir(): string {
@@ -149,7 +242,14 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
     return;
   }
 
-  printFallbackList();
+  if (process.stdout.isTTY && !argv.includes("--no-tui")) {
+    await startInteractiveTui();
+    return;
+  }
+
+  const rows = listSessions({ tab: "active", cwd: process.env.OPENCODE_ALL_CWD || process.cwd() });
+  const state = createInitialState(rows, { height: process.stdout.rows || 24, width: process.stdout.columns || 100 });
+  for (const line of renderRows(state)) console.log(line);
 }
 
 if (import.meta.main) await main();

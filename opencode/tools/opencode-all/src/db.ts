@@ -133,7 +133,7 @@ export function getSessionDetail(options: { dbPath?: string; id: string; cwd?: s
     `).get(options.id);
     if (!raw) return null;
     const row = toRow(raw, options.cwd || process.cwd());
-    const messages = Number(db.query("SELECT COUNT(*) AS count FROM message WHERE session_id = ?").get(options.id)?.count || 0);
+    const messages = Number((db.query("SELECT COUNT(*) AS count FROM message WHERE session_id = ?").get(options.id) as { count?: number } | null)?.count || 0);
     const diffBase = process.env.XDG_DATA_HOME || join(process.env.HOME || ".", ".local", "share");
     const diffPath = join(diffBase, "opencode", "storage", "session_diff", `${options.id}.json`);
     return { ...row, messages, diffPath: existsSync(diffPath) ? diffPath : null };

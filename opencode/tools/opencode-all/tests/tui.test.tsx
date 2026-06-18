@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { applyKey, createInitialState, currentSession, type UiSession } from "../src/tui.tsx";
+import { applyKey, createInitialState, currentSession, renderRows, type UiSession } from "../src/tui.tsx";
 
 const sessions: UiSession[] = Array.from({ length: 100 }, (_, index) => ({
   id: `ses_${index}`,
@@ -63,5 +63,34 @@ describe("TUI state", () => {
     state = applyKey(state, "B");
     expect(state.directory).toBeUndefined();
     expect(state.stack).toHaveLength(0);
+  });
+});
+
+describe("renderRows", () => {
+  test("renders selected row and status", () => {
+    const state = createInitialState(sessions.slice(0, 3), { height: 10, width: 100 });
+    const output = renderRows(state).join("\n");
+    expect(output).toContain("❯ Session 0");
+    expect(output).toContain("q quit");
+  });
+
+  test("renders scroll counter", () => {
+    let state = createInitialState(sessions, { height: 10, width: 100 });
+    state = applyKey(state, "G");
+    expect(renderRows(state).join("\n")).toContain("100 / 100");
+  });
+});
+
+describe("confirmation state", () => {
+  test("delete opens a confirmation modal", () => {
+    let state = createInitialState(sessions.slice(0, 1), { height: 10, width: 100 });
+    state = applyKey(state, "d");
+    expect(state.status).toContain("confirm delete");
+  });
+
+  test("archive opens a confirmation modal", () => {
+    let state = createInitialState(sessions.slice(0, 1), { height: 10, width: 100 });
+    state = applyKey(state, "a");
+    expect(state.status).toContain("confirm archive");
   });
 });
