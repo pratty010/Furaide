@@ -169,6 +169,7 @@ unwire_config() {
   local plugins_to_remove=("${!2}")  # array reference
   local has_rules="${3:-0}"
   local has_agents_source="${4:-0}"
+  local agents_source_override="${5:-}"
 
   local cfg_json="$target_dir/opencode.json"
   local cfg_jsonc="$target_dir/opencode.jsonc"
@@ -185,7 +186,9 @@ unwire_config() {
   local unwire_args=()
   for p in "${plugins_to_remove[@]}"; do unwire_args+=("$(basename "$p")"); done
   [[ "$has_rules" -eq 1 ]] && unwire_args+=("--rules")
-  if [[ "$has_agents_source" -eq 1 && -f "$FLEET_ROOT/opencode.jsonc" ]]; then
+  if [[ "$has_agents_source" -eq 1 && -n "$agents_source_override" && -f "$agents_source_override" ]]; then
+    unwire_args+=("--agents-source" "$agents_source_override")
+  elif [[ "$has_agents_source" -eq 1 && -f "$FLEET_ROOT/opencode.jsonc" ]]; then
     unwire_args+=("--agents-source" "$FLEET_ROOT/opencode.jsonc")
   fi
 
@@ -286,6 +289,15 @@ fi
 declare -A TARGET_PLUGINS
 declare -A TARGET_HAS_RULES
 declare -A TARGET_HAS_AGENTS
+declare -A TARGET_AGENT_SOURCE_OVERRIDE
+
+build_receipt_agent_source() {
+  local receipt_path="$1"
+  local tmp
+  tmp=$(mktemp)
+  jq '{agent: (.mergedConfig.agentKeys // [] | reduce .[] as $key ({}; .[$key] = {}))}' "$receipt_path" > "$tmp"
+  printf '%s\n' "$tmp"
+}
 
 for scope_spec in "${selected_scopes[@]}"; do
   local_custom=""
@@ -298,10 +310,25 @@ for scope_spec in "${selected_scopes[@]}"; do
   target_dir=$(resolve_scope_dir "$scope" "$local_custom")
   _bold "\nCleaning scope: $target_dir\n"
 
+  receipt_path="$target_dir/.furaide-install-receipt.json"
+  use_receipt=0
+  if [[ -f "$receipt_path" ]]; then
+    use_receipt=1
+    if jq -e '.mergedConfig.agentKeys | length > 0' "$receipt_path" >/dev/null 2>&1; then
+      TARGET_AGENT_SOURCE_OVERRIDE["$target_dir"]="$(build_receipt_agent_source "$receipt_path")"
+    fi
+  fi
+
   # Loop components backwards to remove leaf nodes first
   for i in $(seq $((COMPONENT_COUNT - 1)) -1 0); do
     id=$(jq -r ".components[$i].id" "$MANIFEST")
     label=$(jq -r ".components[$i].label" "$MANIFEST")
+
+    if [[ "$use_receipt" -eq 1 ]]; then
+      if ! jq -e --arg id "$id" '.selectedComponents | index($id)' "$receipt_path" >/dev/null 2>&1; then
+        continue
+      fi
+    fi
     
     _info "Cleaning component: $label"
 
@@ -356,7 +383,19 @@ for target_dir in "${!UNWIRE_TARGETS[@]}"; do
   for p in "${plugins_arr[@]}"; do
     [[ -n "$p" ]] && filtered+=("$p")
   done
-  unwire_config "$target_dir" filtered[@] "$has_rules" "$has_agents"
+  unwire_config "$target_dir" filtered[@] "$has_rules" "$has_agents" "${TARGET_AGENT_SOURCE_OVERRIDE[$target_dir]:-}"
+  receipt_path="$target_dir/.furaide-install-receipt.json"
+  if [[ -f "$receipt_path" ]]; then
+    if [[ "$DRY_RUN" -eq 1 ]]; then
+      printf '  %b[dry-run]%b rm %s\n' "$DIM" "$RST" "$receipt_path"
+    else
+      rm -f "$receipt_path"
+      _ok "Removed receipt $receipt_path"
+    fi
+  fi
+  if [[ -n "${TARGET_AGENT_SOURCE_OVERRIDE[$target_dir]:-}" ]]; then
+    rm -f "${TARGET_AGENT_SOURCE_OVERRIDE[$target_dir]}"
+  fi
 done
 
 # ── Clean up shared common skills ─────────────────────────────────────────────
