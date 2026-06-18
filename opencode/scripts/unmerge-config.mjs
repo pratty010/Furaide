@@ -50,7 +50,7 @@ const pluginArgs = rest.filter((a) => a !== "--rules");
 //   1) flag is the last arg with no value at all
 //   2) flag is followed by another flag like --rules
 //   3) flag is followed by an empty string
-if (agentsSource === undefined || agentsSource === null || agentsSource === "" || agentsSource.startsWith("--")) {
+if (agentsIdx !== -1 && (agentsSource === undefined || agentsSource === null || agentsSource === "" || agentsSource.startsWith("--"))) {
   console.error("--agents-source requires a path argument");
   process.exit(1);
 }

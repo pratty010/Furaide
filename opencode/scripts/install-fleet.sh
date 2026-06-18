@@ -40,6 +40,7 @@ INSTALL_ALL=0
 LINK_MODE=0
 FORCE_SCOPE=""   # 'global' | 'project' | 'custom'
 CUSTOM_DIR=""
+NO_COMMON_SKILLS=0
 
 # ── Parse args ────────────────────────────────────────────────────────────────
 while [[ $# -gt 0 ]]; do
@@ -60,6 +61,9 @@ while [[ $# -gt 0 ]]; do
       ;;
     --link)
       LINK_MODE=1
+      ;;
+    --no-common-skills)
+      NO_COMMON_SKILLS=1
       ;;
     -h|--help)
       sed -n '2,20p' "${BASH_SOURCE[0]}" | sed 's/^# \?//'
@@ -82,6 +86,53 @@ fi
 if [[ ! -f "$MANIFEST" ]]; then
   _err "Manifest not found: $MANIFEST"
   exit 1
+fi
+
+if ! command -v bun &>/dev/null; then
+  _err "bun is required for model resolution. Install via: curl -fsSL https://bun.sh/install | bash"
+  exit 1
+fi
+
+# ── Model resolution ───────────────────────────────────────────────────────────
+MODEL_RESOLVER="$FLEET_ROOT/scripts/model-resolve.mjs"
+if [[ ! -f "$MODEL_RESOLVER" ]]; then
+  _err "Model resolver not found: $MODEL_RESOLVER"
+  exit 1
+fi
+
+_info "Resolving model mappings..."
+RESOLVER_OUTPUT=$(bun "$MODEL_RESOLVER" 2>/dev/null)
+if [[ $? -ne 0 ]]; then
+  _err "Model resolver failed"
+  exit 1
+fi
+
+ALL_AVAILABLE=$(echo "$RESOLVER_OUTPUT" | jq -r '.allAvailable')
+CHANGES_JSON=$(echo "$RESOLVER_OUTPUT" | jq -c '.changes')
+MODEL_MAP_JSON=$(echo "$RESOLVER_OUTPUT" | jq -c '.modelMap')
+RESOLVED_ROUTING_JSON=$(echo "$RESOLVER_OUTPUT" | jq -c '.resolvedManifest')
+
+# Check if resolver produced valid output
+if [[ "$ALL_AVAILABLE" == "null" || "$MODEL_MAP_JSON" == "null" || "$RESOLVED_ROUTING_JSON" == "null" ]]; then
+  _err "Model resolver produced invalid output"
+  exit 1
+fi
+
+# Show model change summary and confirm if changes
+CHANGE_COUNT=$(echo "$CHANGES_JSON" | jq 'length')
+if [[ "$CHANGE_COUNT" -gt 0 ]]; then
+  _bold "\nModel Mapping Changes Required:"
+  echo "$RESOLVER_OUTPUT" | jq -r '.changes[] | "  \(.agent).\(.field): \(.from) -> \(.to // "none") (\(.reason))"'
+  printf '\nApply these model mappings? [Y/n] '
+  read -r confirm
+  confirm="${confirm:-Y}"
+  if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
+    _info "Install cancelled by user."
+    exit 0
+  fi
+  _ok "Model mappings confirmed."
+else
+  _ok "All desired models available. No changes needed."
 fi
 
 # ── Load manifest ─────────────────────────────────────────────────────────────
@@ -196,6 +247,7 @@ merge_config() {
   local plugins_to_add=("${!2}")  # nameref array
   local has_rules="${3:-0}"
   local has_agents_source="${4:-0}"  # 1 if agents-core was installed at this target
+  local resolved_model_map_json="${5:-}"  # JSON string of resolved model map
 
   # Prefer .json; fall back to .jsonc
   local cfg_json="$target_dir/opencode.json"
@@ -211,8 +263,8 @@ merge_config() {
       local mjs_args=()
       for p in "${plugins_to_add[@]}"; do mjs_args+=("$(basename "$p")"); done
       [[ "$has_rules" -eq 1 ]] && mjs_args+=("--rules")
-      if [[ "$has_agents_source" -eq 1 && -f "$FLEET_ROOT/opencode.jsonc" ]]; then
-        mjs_args+=("--agents-source" "$FLEET_ROOT/opencode.jsonc")
+      if [[ "$has_agents_source" -eq 1 && -n "$resolved_model_map_json" ]]; then
+        mjs_args+=("--agents-json" "$resolved_model_map_json")
       fi
       if [[ "$DRY_RUN" -eq 0 ]]; then
         bun "$FLEET_ROOT/scripts/merge-config.mjs" "$cfg" "${mjs_args[@]}" && _ok "Config merged (jsonc): $cfg" && return
@@ -231,7 +283,7 @@ merge_config() {
       printf '    %b"./rules/*.md"%b\n' "$YLW" "$RST"
     fi
     if [[ "$has_agents_source" -eq 1 ]]; then
-      _warn "Also merge agent model mappings from $FLEET_ROOT/opencode.jsonc (the 'agent' key) into $cfg."
+      _warn "Also merge agent model mappings from resolved model map into $cfg."
     fi
     return
   else
@@ -251,7 +303,7 @@ merge_config() {
       printf '    add instructions: ./rules/*.md\n'
     fi
     if [[ "$has_agents_source" -eq 1 ]]; then
-      printf '    add agent model mappings from %s\n' "$FLEET_ROOT/opencode.jsonc"
+      printf '    add agent model mappings from resolved model map\n'
     fi
     return
   fi
@@ -268,22 +320,38 @@ merge_config() {
 
   local tmp
   tmp=$(mktemp)
-  if [[ "$has_agents_source" -eq 1 && -f "$FLEET_ROOT/opencode.jsonc" ]]; then
-    # Merge each agent from the fleet's opencode.jsonc into the target's agent key.
+  if [[ "$has_agents_source" -eq 1 && -n "$resolved_model_map_json" ]]; then
+    # Merge each agent from the resolved model map into the target's agent key.
     # Fleet entries win on conflict (.agent = target + fleet, jq object-merge
     # right-side wins), so model upgrades land and user agents not in the
     # source fleet are preserved.
     local fleet_agents_tmp
     fleet_agents_tmp=$(mktemp)
-    jq -r '.agent // {}' "$FLEET_ROOT/opencode.jsonc" > "$fleet_agents_tmp"
+    echo "$resolved_model_map_json" | jq 'with_entries(.value = { model: .value }) | {agent: .}' > "$fleet_agents_tmp"
     jq --slurpfile fleet_agents "$fleet_agents_tmp" \
-      "$jq_expr | .agent = (.agent // {}) + \$fleet_agents[0]" \
+      "$jq_expr | .agent = (.agent // {}) + \$fleet_agents[0].agent" \
       "$cfg" > "$tmp" && mv "$tmp" "$cfg"
     rm -f "$fleet_agents_tmp"
   else
     jq "$jq_expr" "$cfg" > "$tmp" && mv "$tmp" "$cfg"
   fi
   _ok "Config merged: $cfg"
+}
+
+# ── Write resolved routing manifest ────────────────────────────────────────────
+write_resolved_routing() {
+  local target_dir="$1"
+  local resolved_routing_json="$2"
+  local dst="$target_dir/docs/routing-manifest.json"
+
+  if [[ "$DRY_RUN" -eq 1 ]]; then
+    printf '  %b[dry-run]%b write resolved routing-manifest.json -> %s\n' "$DIM" "$RST" "$dst"
+    return
+  fi
+
+  mkdir -p "$(dirname "$dst")"
+  echo "$resolved_routing_json" | jq '.' > "$dst"
+  _ok "Resolved routing manifest written: $dst"
 }
 
 # ── Interactive scope selection ───────────────────────────────────────────────
@@ -480,7 +548,9 @@ for target_dir in "${!WIRED_TARGETS[@]}"; do
   for p in "${plugins_arr[@]}"; do
     [[ -n "$p" ]] && filtered+=("$p")
   done
-  merge_config "$target_dir" filtered[@] "$has_rules" "$has_agents"
+  merge_config "$target_dir" filtered[@] "$has_rules" "$has_agents" "$MODEL_MAP_JSON"
+  # Write resolved routing manifest to targets that have failover component
+  write_resolved_routing "$target_dir" "$RESOLVED_ROUTING_JSON"
 done
 
 # ── Post-install notes ────────────────────────────────────────────────────────
@@ -516,24 +586,26 @@ if [[ "$DRY_RUN" -eq 1 ]]; then
 fi
 
 # ── Common skills (B6) ────────────────────────────────────────────────────────
-COMMON_DIR="$(cd "$FLEET_ROOT/../common" 2>/dev/null && pwd)" || COMMON_DIR=""
-if [[ -n "$COMMON_DIR" && -f "$COMMON_DIR/install-common.sh" ]]; then
-  printf '\n'
-  _bold "Shared skills (bx, html-preview, brave-search, plan)"
-  printf 'Install to [g]lobal ~/.agents/skills, [p]roject, or [s]kip? [g/p/s] '
-  read -r _skill_scope </dev/tty || _skill_scope=s
-  case "$_skill_scope" in
-    g|G)
-      if [[ "$DRY_RUN" -eq 0 ]]; then bash "$COMMON_DIR/install-common.sh" --global
-      else printf '  [dry-run] bash common/install-common.sh --global\n'; fi ;;
-    p|P)
-      if [[ "$DRY_RUN" -eq 0 ]]; then bash "$COMMON_DIR/install-common.sh" --project "$PWD"
-      else printf '  [dry-run] bash common/install-common.sh --project %s\n' "$PWD"; fi ;;
-    *) _info "Common skills skipped." ;;
-  esac
-  printf 'Install other opencode skills from manifest (superpowers, tavily-*, …)? [y/N] '
-  read -r _extra_skills </dev/tty || _extra_skills=n
-  if [[ "$_extra_skills" =~ ^[Yy] && "$DRY_RUN" -eq 0 ]]; then
-    bash "$COMMON_DIR/install-skills.sh" --ecosystem opencode
+if [[ "$NO_COMMON_SKILLS" -eq 0 ]]; then
+  COMMON_DIR="$(cd "$FLEET_ROOT/../common" 2>/dev/null && pwd)" || COMMON_DIR=""
+  if [[ -n "$COMMON_DIR" && -f "$COMMON_DIR/install-common.sh" ]]; then
+    printf '\n'
+    _bold "Shared skills (bx, html-preview, brave-search, plan)"
+    printf 'Install to [g]lobal ~/.agents/skills, [p]roject, or [s]kip? [g/p/s] '
+    read -r _skill_scope </dev/tty || _skill_scope=s
+    case "$_skill_scope" in
+      g|G)
+        if [[ "$DRY_RUN" -eq 0 ]]; then bash "$COMMON_DIR/install-common.sh" --global
+        else printf '  [dry-run] bash common/install-common.sh --global\n'; fi ;;
+      p|P)
+        if [[ "$DRY_RUN" -eq 0 ]]; then bash "$COMMON_DIR/install-common.sh" --project "$PWD"
+        else printf '  [dry-run] bash common/install-common.sh --project %s\n' "$PWD"; fi ;;
+      *) _info "Common skills skipped." ;;
+    esac
+    printf 'Install other opencode skills from manifest (superpowers, tavily-*, …)? [y/N] '
+    read -r _extra_skills </dev/tty || _extra_skills=n
+    if [[ "$_extra_skills" =~ ^[Yy] && "$DRY_RUN" -eq 0 ]]; then
+      bash "$COMMON_DIR/install-skills.sh" --ecosystem opencode
+    fi
   fi
 fi
