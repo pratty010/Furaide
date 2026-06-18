@@ -18,7 +18,7 @@ bash opencode/scripts/install-fleet.sh
 
 The installer presents a redesigned, independent-choice flow:
 
-1. **Core bundle** (always default on): workflow gates, model failover, security gate, session vault, specialist agents, agent support scripts, rules, and reference docs.
+1. **Core bundle** (always default on): workflow gates, model failover, security gate, specialist agents, agent support scripts, rules, and reference docs.
 2. **Brand Builder / Kitsune** (optional, default **No**): the opt-in 9-agent brand domain. Skip unless you want it.
 3. **Location** (independent choice): global (`~/.config/opencode/`), project (`./.opencode/`), or a custom absolute path.
 4. **Mode** (independent choice): copy (default; writable, self-contained) or link (`ln -sfn` from the repo; useful for development).
@@ -55,12 +55,11 @@ The installer presents a redesigned, independent-choice flow:
 | 1 | Workflow Gates | yes | on | Nio + Nurikabe gate plugins + workflow state engine. Tightly coupled; cannot be split. |
 | 2 | Model Failover | yes | on | Migawari plugin + routing manifest. Tightly coupled; cannot be split. |
 | 3 | Security Gate | no | on | Komainu plugin: 35+ dangerous-pattern checks on every Edit/Write. Standalone. |
-| 4 | Session Vault | yes | on | Global session vault command, close-hook plugin, helper, and tests. |
-| 5 | Specialist Agents | no | on | 29 core shikigami: 12 domain specialists + 2 general agents + 15 shared subagents. |
-| 6 | Agent Support Scripts | no | on | Verification and safety scripts called by agents via Karakuri. |
-| 7 | Rules | no | on | Memory contract and other rules wired via `instructions` glob. |
-| 8 | Reference Docs | no | off | OPERATOR guide, architecture overview, manifest schema, model family guides. |
-| 9 | Brand Builder / Kitsune | yes | off | Opt-in; in development. 9 brand agents + plugin + commands + skills. Needs `bun install`. |
+| 4 | Specialist Agents | no | on | 29 core shikigami: 12 domain specialists + 2 general agents + 15 shared subagents. |
+| 5 | Agent Support Scripts | no | on | Verification and safety scripts called by agents via Karakuri. |
+| 6 | Rules | no | on | Memory contract and other rules wired via `instructions` glob. |
+| 7 | Reference Docs | no | off | OPERATOR guide, architecture overview, manifest schema, model family guides. |
+| 8 | Brand Builder / Kitsune | yes | off | Opt-in; in development. 9 brand agents + plugin + commands + skills. Needs `bun install`. |
 
 Run `bash opencode/scripts/install-fleet.sh --list` for the full machine-readable view.
 

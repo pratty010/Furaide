@@ -60,29 +60,7 @@
       ],
       "globs": []
     },
-    {
-      "id": "session-vault",
-      "label": "Session Vault",
-      "description": "Global session vault command, close-hook plugin, helper, and tests.",
-      "atomic": true,
-      "coupling": "command/session-vault.md depends on plugins/omokage.js and scripts/session-vault.mjs",
-      "requires_bun": false,
-      "default_on": true,
-      "target_subdirs": [
-        "command",
-        "plugins",
-        "scripts"
-      ],
-      "files": [
-        "command/session-vault.md",
-        "plugins/omokage.js",
-        "scripts/session-vault.mjs"
-      ],
-      "globs": [
-        "scripts/lib/session-vault-*.mjs",
-        "scripts/tests/session-vault-*.test.mjs"
-      ]
-    },
+
     {
       "id": "agents-core",
       "label": "Specialist Agents (30 core)",
