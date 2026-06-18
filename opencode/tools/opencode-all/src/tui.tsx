@@ -2,7 +2,7 @@
 import { spawn, spawnSync } from "node:child_process";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { bg, bold, createCliRenderer, fg, StyledText, TextChunk, TextRenderable } from "@opentui/core";
+import { bg, bold, Box, createCliRenderer, fg, StyledText, TextChunk, TextRenderable } from "@opentui/core";
 import { DirectoryRow, getSessionDetail, listDirectories, listSessions, SessionDetail, SessionRow, setArchived, Tab } from "./db.ts";
 
 export type UiSession = SessionRow;
@@ -34,10 +34,14 @@ export type UiState = {
   viewport: Viewport;
   status: string;
   pendingAction: PendingAction;
+  searchSelected: number;
 };
 
 const tabs: Tab[] = ["active", "archived", "all"];
 const theme = JSON.parse(readFileSync(new URL("../themes/friday.json", import.meta.url), "utf8")) as ThemeDoc;
+
+let continueRequest: { id: string; fork: boolean } | null = null;
+let quitRequestCode: number | null = null;
 
 function tone(slot: string): string {
   const key = theme.pane[slot] || slot;
@@ -72,10 +76,14 @@ function parseModel(model: string): string {
 
 export function getVisibleRows(state: UiState): Array<DirectoryRow | UiSession> {
   const rows: Array<DirectoryRow | UiSession> = [];
+  const visibleSessions = state.directory
+    ? state.sessions.filter(s => s.directory === state.directory)
+    : state.sessions;
   for (const folder of state.folders) {
+    if (state.directory && folder.directory !== state.directory) continue;
     rows.push(folder);
     if (state.expandedFolders.has(folder.directory)) {
-      const folderSessions = state.sessions.filter(s => s.directory === folder.directory);
+      const folderSessions = visibleSessions.filter(s => s.directory === folder.directory);
       rows.push(...folderSessions);
     }
   }
@@ -125,7 +133,28 @@ export function createInitialState(sessions: UiSession[], viewport: Viewport): U
     viewport,
     status: "ready",
     pendingAction: null,
+    searchSelected: 0,
   };
+}
+
+function searchResultsFor(state: UiState): UiSession[] {
+  const query = state.query.trim().toLowerCase();
+  const base = state.allSessions;
+  if (!query) return base.slice(0, 20);
+  return base.filter(row =>
+    [row.title, row.directory, row.path, row.agent, row.model, row.shareUrl].some(v =>
+      v.toLowerCase().includes(query)
+    )
+  ).slice(0, 20);
+}
+
+function actionContext(state: UiState): { isFolder: boolean; isSession: boolean; isArchived: boolean; hasStack: boolean } {
+  const row = getVisibleRows(state)[state.cursor];
+  const isFolder = row && !("id" in row);
+  const isSession = row && "id" in row;
+  const isArchived = isSession && (row as UiSession).timeArchived != null;
+  const hasStack = state.stack.length > 0;
+  return { isFolder: !!isFolder, isSession: !!isSession, isArchived, hasStack };
 }
 
 function clampCursor(state: UiState): UiState {
@@ -155,7 +184,7 @@ function pushDrill(state: UiState, directory: string): UiState {
 
 function popStack(state: UiState): UiState {
   const prev = state.stack.at(-1);
-  if (!prev) return state;
+  if (!prev) return { ...state, status: "already at root" };
   const next: UiState = {
     ...state,
     ...prev,
@@ -175,22 +204,28 @@ function executePendingAction(state: UiState): UiState {
   if (state.pendingAction === "delete") deleteSession(selected.id);
   if (state.pendingAction === "export_sanitized") exportSession(selected.id, false);
   if (state.pendingAction === "export_raw") exportSession(selected.id, true);
-  if (state.pendingAction === "continue") continueSession(selected.id, false);
-  if (state.pendingAction === "continue_fork") continueSession(selected.id, true);
+  if (state.pendingAction === "continue") {
+    continueRequest = { id: selected.id, fork: false };
+    return { ...state, pendingAction: null, status: `continuing ${selected.id}` };
+  }
+  if (state.pendingAction === "continue_fork") {
+    continueRequest = { id: selected.id, fork: true };
+    return { ...state, pendingAction: null, status: `continuing fork ${selected.id}` };
+  }
 
   return clampCursor(reloadState({ ...state, pendingAction: null, status: `executed ${state.pendingAction}` }));
 }
 
 export function applyKey(state: UiState, key: string): UiState {
   if (key.startsWith("drill:")) return pushDrill(state, key.slice("drill:".length));
-  if (key === "/") return { ...state, inputMode: "search", query: "", status: "search" };
-  if (key === "\\") return { ...state, inputMode: "directory", query: "", status: "directory" };
-  if (key === "f") return { ...state, inputMode: "filter", status: "filter" };
+  if (key === "/") return { ...state, inputMode: "search", query: "", searchSelected: 0, status: "search" };
+  if (key === "\\") return { ...state, inputMode: "directory", query: "", searchSelected: 0, status: "directory" };
+  if (key === "f") return { ...state, inputMode: "filter", searchSelected: 0, status: "filter" };
   if (key.startsWith("type:")) {
     const query = key.slice("type:".length);
     return clampCursor(reloadState({ ...state, query, cursor: 0, listScroll: 0, status: `${state.inputMode || "input"}:${query}` }));
   }
-  if (key === "Escape" || key === "Esc") return clampCursor(reloadState({ ...state, inputMode: null, query: "", status: "ready", pendingAction: null }));
+  if (key === "Escape" || key === "Esc") return clampCursor(reloadState({ ...state, inputMode: null, query: "", searchSelected: 0, status: "ready", pendingAction: null }));
   
   if (state.pendingAction && key === "y") return executePendingAction(state);
   if (state.pendingAction && key === "n") return { ...state, status: "cancelled", pendingAction: null };
@@ -202,16 +237,20 @@ export function applyKey(state: UiState, key: string): UiState {
   if (key === "Ctrl+D" || key === "PageDown") return clampCursor({ ...state, cursor: state.cursor + Math.floor(leftRowsCount(state) / 2) });
   if (key === "Ctrl+U" || key === "PageUp") return clampCursor({ ...state, cursor: state.cursor - Math.floor(leftRowsCount(state) / 2) });
   if (key === "Tab") return clampCursor(reloadState({ ...state, tab: tabs[(tabs.indexOf(state.tab) + 1) % tabs.length], cursor: 0, listScroll: 0 }));
-  if (key === "b") return popStack(state);
+  if (!state.inputMode && key === "b") return popStack(state);
   if (key === "B") return clampCursor(reloadState({ ...state, directory: undefined, query: "", inputMode: null, stack: [], cursor: 0, listScroll: 0, status: "reset" }));
-  if (key === "m") return { ...state, messagesExpanded: !state.messagesExpanded };
-  if (key === "o") {
+  if (!state.inputMode && key === "m") return { ...state, messagesExpanded: !state.messagesExpanded };
+  if (!state.inputMode && key === "o") {
     const allExpanded = state.folders.every(f => state.expandedFolders.has(f.directory));
     const nextSet = new Set<string>();
     if (!allExpanded) state.folders.forEach(f => { nextSet.add(f.directory); });
     return clampCursor(reloadState({ ...state, expandedFolders: nextSet }));
   }
-  
+
+  // Context-sensitive actions
+  const ctx = actionContext(state);
+  const session = currentSession(state);
+
   if (key === "Enter") {
     if (state.pendingAction) return executePendingAction(state);
     const row = getVisibleRows(state)[state.cursor];
@@ -222,18 +261,47 @@ export function applyKey(state: UiState, key: string): UiState {
       else nextExpanded.add(dir);
       return clampCursor(reloadState({ ...state, expandedFolders: nextExpanded }));
     }
-    return currentSession(state)
-      ? { ...state, status: `confirm continue ${currentSession(state)?.id || ""}`.trim(), pendingAction: "continue" }
+    return session
+      ? { ...state, status: `confirm continue ${session.id}`, pendingAction: "continue" }
       : state;
   }
-  
-  if (key === "d") return currentSession(state) ? { ...state, status: `confirm delete ${currentSession(state)?.id || ""}`.trim(), pendingAction: "delete" } : state;
-  if (key === "a") return currentSession(state) ? { ...state, status: `confirm archive ${currentSession(state)?.id || ""}`.trim(), pendingAction: "archive" } : state;
-  if (key === "r") return currentSession(state) ? { ...state, status: `confirm restore ${currentSession(state)?.id || ""}`.trim(), pendingAction: "restore" } : state;
-  if (key === "e") return currentSession(state) ? { ...state, status: `confirm export sanitized ${currentSession(state)?.id || ""}`.trim(), pendingAction: "export_sanitized" } : state;
-  if (key === "E") return currentSession(state) ? { ...state, status: `confirm export raw ${currentSession(state)?.id || ""}`.trim(), pendingAction: "export_raw" } : state;
-  if (key === "c") return currentSession(state) ? { ...state, status: `confirm continue ${currentSession(state)?.id || ""}`.trim(), pendingAction: "continue" } : state;
-  if (key === "C") return currentSession(state) ? { ...state, status: `confirm continue fork ${currentSession(state)?.id || ""}`.trim(), pendingAction: "continue_fork" } : state;
+
+  // Navigation and universal keys are always allowed
+  if (["j", "k", "ArrowDown", "ArrowUp", "G", "gg", "Ctrl+D", "PageDown", "Ctrl+U", "PageUp", "Tab", "b", "B", "m", "o"].includes(key)) {
+    return state;
+  }
+
+  if (ctx.isFolder) {
+    // Folder rows: only navigation, Enter, o, /, \, Tab, b, B are valid (already handled above)
+    // Invalid actions on folder: a, r, d, e, E, c, C, m
+    if (["a", "r", "d", "e", "E", "c", "C"].includes(key)) {
+      return { ...state, status: "actions only apply to sessions" };
+    }
+    return state;
+  }
+
+  if (ctx.isSession) {
+    if (ctx.isArchived) {
+      // Archived session: valid: Enter/c (continue), C (fork), r (restore), d (delete), e, E, m, tabs, nav
+      // Invalid: a (archive)
+      if (key === "a") return { ...state, status: "archive only applies to active sessions" };
+      if (key === "r") return session ? { ...state, status: `confirm restore ${session.id}`, pendingAction: "restore" } : state;
+    } else {
+      // Active session: valid: Enter/c (continue), C (fork), a (archive), d (delete), e, E, m, tabs, nav
+      // Invalid: r (restore)
+      if (key === "r") return { ...state, status: "restore only applies to archived sessions" };
+      if (key === "a") return session ? { ...state, status: `confirm archive ${session.id}`, pendingAction: "archive" } : state;
+    }
+
+    // Common actions for both active and archived
+    if (key === "d") return session ? { ...state, status: `confirm delete ${session.id}`, pendingAction: "delete" } : state;
+    if (key === "e") return session ? { ...state, status: `confirm export sanitized ${session.id}`, pendingAction: "export_sanitized" } : state;
+    if (key === "E") return session ? { ...state, status: `confirm export raw ${session.id}`, pendingAction: "export_raw" } : state;
+    if (key === "c") return session ? { ...state, status: `confirm continue ${session.id}`, pendingAction: "continue" } : state;
+    if (key === "C") return session ? { ...state, status: `confirm continue fork ${session.id}`, pendingAction: "continue_fork" } : state;
+
+    return state;
+  }
 
   return state;
 }
@@ -289,7 +357,7 @@ function overlayLines(state: UiState, width: number, height: number): Array<{ ro
           ? "This opens the session in OpenCode."
           : "This action will run now.";
   const boxWidth = Math.min(64, Math.max(38, width - 8));
-  const start = Math.max(1, Math.floor((height - 7) / 2));
+  const start = Math.max(1, Math.min(Math.floor((height - 7) / 2), Math.max(1, height - 6)));
   const left = Math.max(0, Math.floor((width - boxWidth) / 2));
   const top = `${" ".repeat(left)}┌${"─".repeat(boxWidth - 2)}┐`;
   const title = `${" ".repeat(left)}│ ${clip(action, boxWidth - 4).padEnd(boxWidth - 4)} │`;
@@ -370,53 +438,211 @@ export function renderRows(state: UiState): string[] {
   return lines;
 }
 
-function chunkLine(text: string, fgColor: string, bgColor?: string, strong = false): TextChunk[] {
-  let chunk: TextChunk = strong ? bold(text) : ({ __isChunk: true, text } as TextChunk);
-  chunk = fg(fgColor)(chunk as any);
-  if (bgColor) chunk = bg(bgColor)(chunk as any);
-  return [chunk, { __isChunk: true, text: "\n" } as TextChunk];
+function buildLeftContent(state: UiState): StyledText {
+  const chunks: TextChunk[] = [];
+  const visible = getVisibleRows(state);
+  const header = `Folders & Sessions ${state.cursor + 1} / ${Math.max(visible.length, 1)} [${state.tab}]`;
+  chunks.push({ text: header + "\n", fg: tone("text"), bg: tone("surfaceAlt"), bold: true });
+
+  const visibleSlice = visible.slice(state.listScroll, state.listScroll + leftRowsCount(state));
+  for (let i = 0; i < visibleSlice.length; i++) {
+    const item = visibleSlice[i];
+    const absolute = state.listScroll + i;
+    const isDir = item && !('id' in item);
+    const isExpanded = isDir ? state.expandedFolders.has((item as DirectoryRow).directory) : false;
+    const isSelected = absolute === state.cursor;
+
+    if (isDir) {
+      const dir = item as DirectoryRow;
+      const prefix = isExpanded ? "▼" : "▶";
+      const cwdMark = dir.directory.startsWith(cwd()) ? "◉ " : "○ ";
+      const label = `${isSelected ? "❯ " : "  "}${cwdMark}${prefix} ${dir.directory} (${dir.active} active)`;
+      const color = dir.directory.startsWith(cwd()) ? tone("cyan") : tone("success");
+      chunks.push({ text: label + "\n", fg: color, bold: isSelected });
+    } else {
+      const session = item as UiSession;
+      const archive = session.timeArchived == null ? "" : "[A] ";
+      const label = `${isSelected ? "❯ " : "  "}  ${archive}${session.title}`;
+      const color = session.isCurrent ? tone("cyan") : tone("muted");
+      chunks.push({ text: label + "\n", fg: color, bg: isSelected ? tone("listSelectedBg") : undefined });
+    }
+  }
+
+  return new StyledText(chunks);
 }
 
-function styledScreen(state: UiState): StyledText {
-  const rows = renderRows(state);
+function buildRightContent(state: UiState): StyledText {
   const chunks: TextChunk[] = [];
-  for (let i = 0; i < rows.length; i++) {
-    const line = rows[i];
-    if (i === 0) {
-      chunks.push(...chunkLine(line.replace("theme:list ", "").replace("theme:detail ", ""), tone("text"), tone("surfaceAlt"), true));
-      continue;
-    }
-    if (line.includes("theme:detail ")) {
-      chunks.push(...chunkLine(line.replace("theme:detail ", ""), tone("text"), undefined, true));
-      continue;
-    }
-    if (line.includes("┌") || line.includes("└") || line.includes("[y] confirm")) {
-      chunks.push(...chunkLine(line, tone("modalFg"), tone("modalBg"), true));
-      continue;
-    }
-    if (line.includes("❯")) {
-      chunks.push(...chunkLine(line.replace("theme:selected ", "").replace(/theme:(folder|session)-(cwd|other) /g, ""), tone("text"), tone("listSelectedBg"), true));
-      continue;
-    }
-    if (line.includes("theme:folder-cwd ")) {
-      chunks.push(...chunkLine(line.replace("theme:folder-cwd ", ""), tone("cyan"), undefined, true));
-      continue;
-    }
-    if (line.includes("theme:folder-other ")) {
-      chunks.push(...chunkLine(line.replace("theme:folder-other ", ""), tone("success"), undefined, true));
-      continue;
-    }
-    if (line.includes("theme:session-cwd ")) {
-      chunks.push(...chunkLine(line.replace("theme:session-cwd ", ""), tone("cyan")));
-      continue;
-    }
-    if (line.includes("theme:session-other ")) {
-      chunks.push(...chunkLine(line.replace("theme:session-other ", ""), tone("muted")));
-      continue;
-    }
-    chunks.push(...chunkLine(line, tone("text")));
+  const selected = currentSession(state);
+  const detail = selected ? getSessionDetail({ id: selected.id, cwd: cwd() }) : null;
+
+  if (!detail) {
+    chunks.push({ text: "No session selected\n", fg: tone("muted") });
+    return new StyledText(chunks);
   }
+
+  // Header
+  chunks.push({ text: `Detail: ${detail.title}\n`, fg: tone("text"), bold: true });
+
+  // Metadata with Friday theme colors
+  const labelColor = tone("detailLabel");
+  const valueColor = tone("detailValue");
+
+  chunks.push({ text: "ID        ", fg: labelColor });
+  chunks.push({ text: detail.id + "\n", fg: valueColor });
+
+  chunks.push({ text: "Directory ", fg: labelColor });
+  chunks.push({ text: detail.directory + "\n", fg: valueColor });
+
+  chunks.push({ text: "Agent     ", fg: labelColor });
+  chunks.push({ text: (detail.agent || "-") + "\n", fg: valueColor });
+
+  chunks.push({ text: "Model     ", fg: labelColor });
+  chunks.push({ text: parseModel(detail.model) + "\n", fg: valueColor });
+
+  chunks.push({ text: "Cost      ", fg: labelColor });
+  chunks.push({ text: fmtCost(detail.cost) + "\n", fg: tone("detailCost") });
+
+  chunks.push({ text: "Tokens    ", fg: labelColor });
+  chunks.push({ text: `in ${detail.tokensInput} · out ${detail.tokensOutput} · reasoning ${detail.tokensReasoning}\n`, fg: tone("detailTokens") });
+
+  chunks.push({ text: "Cache     ", fg: labelColor });
+  chunks.push({ text: `read ${detail.tokensCacheRead} · write ${detail.tokensCacheWrite}\n`, fg: tone("detailTokens") });
+
+  chunks.push({ text: "Messages  ", fg: labelColor });
+  chunks.push({ text: `${detail.messages} (${detail.partCounts.tool || 0} tool · ${detail.partCounts.step || 0} step · ${detail.partCounts.text || 0} text · ${detail.partCounts.reasoning || 0} think)\n`, fg: valueColor });
+
+  chunks.push({ text: "Changes   ", fg: labelColor });
+  chunks.push({ text: `${detail.summaryFiles} files · +${detail.summaryAdditions} / -${detail.summaryDeletions}\n`, fg: valueColor });
+
+  chunks.push({ text: "Diff      ", fg: labelColor });
+  chunks.push({ text: (detail.diffPath ? `${detail.diffPath} (${detail.diffBytes || 0} bytes)` : "-") + "\n", fg: valueColor });
+
+  // Recent messages
+  chunks.push({ text: "\nRecent Messages (m to toggle)\n", fg: labelColor, bold: true });
+  const recentLimit = state.messagesExpanded ? 10 : 4;
+  for (const item of detail.recentText.slice(0, recentLimit)) {
+    const roleColor = item.role === "user" ? tone("cyan") : tone("text");
+    chunks.push({ text: `[${item.role[0].toUpperCase()}] `, fg: roleColor });
+    chunks.push({ text: item.text + "\n", fg: tone("muted") });
+  }
+
+  // Top tools
+  chunks.push({ text: "\nTop Tools\n", fg: labelColor, bold: true });
+  for (const item of detail.toolCounts.slice(0, 4)) {
+    chunks.push({ text: `${item.tool}: `, fg: valueColor });
+    chunks.push({ text: `${item.count} ok`, fg: tone("success") });
+    if (item.status === "error") {
+      chunks.push({ text: `, ${item.count} err`, fg: tone("error") });
+    }
+    chunks.push({ text: "\n" });
+  }
+
   return new StyledText(chunks);
+}
+
+function buildSearchOverlay(state: UiState): StyledText {
+  const width = Math.floor(state.viewport.width * 0.7);
+  const boxWidth = Math.max(40, Math.min(width, state.viewport.width - 4));
+  const innerWidth = boxWidth - 4;
+  const results = searchResultsFor(state);
+  const maxResults = Math.min(results.length, 10);
+
+  const chunks: TextChunk[] = [];
+
+  // Top border
+  chunks.push({ text: "┌" + "─".repeat(boxWidth - 2) + "┐\n", fg: tone("modalBorder") });
+
+  // Title line
+  const title = "🔍 Search Sessions";
+  const closeHint = "Esc";
+  const titleLine = `│ ${title}${" ".repeat(Math.max(0, innerWidth - title.length - closeHint.length - 1))}${closeHint} │`;
+  chunks.push({ text: titleLine + "\n", fg: tone("modalFg"), bg: tone("modalBg") });
+
+  // Input line
+  const queryDisplay = state.query + "█";
+  const inputLine = `│ > ${clip(queryDisplay, innerWidth - 3)}${" ".repeat(Math.max(0, innerWidth - 3 - queryDisplay.length))} │`;
+  chunks.push({ text: inputLine + "\n", fg: tone("text"), bg: tone("modalBg") });
+
+  // Separator
+  chunks.push({ text: "├" + "─".repeat(boxWidth - 2) + "┤\n", fg: tone("modalBorder"), bg: tone("modalBg") });
+
+  // Results
+  if (results.length === 0) {
+    const noResults = "No results";
+    chunks.push({ text: `│ ${noResults}${" ".repeat(innerWidth - noResults.length)} │\n`, fg: tone("muted"), bg: tone("modalBg") });
+  } else {
+    for (let i = 0; i < maxResults; i++) {
+      const session = results[i];
+      const isSelected = i === state.searchSelected;
+      const marker = isSelected ? "❯ " : "  ";
+      const titleText = clip(session.title, innerWidth - 2);
+      const line = `│ ${marker}${titleText}${" ".repeat(Math.max(0, innerWidth - 2 - titleText.length))} │`;
+      chunks.push({ text: line + "\n", fg: tone("text"), bg: isSelected ? tone("listSelectedBg") : tone("modalBg") });
+    }
+    // Fill remaining space
+    for (let i = maxResults; i < 10; i++) {
+      chunks.push({ text: `│ ${" ".repeat(innerWidth)} │\n`, fg: tone("modalFg"), bg: tone("modalBg") });
+    }
+  }
+
+  // Separator
+  chunks.push({ text: "├" + "─".repeat(boxWidth - 2) + "┤\n", fg: tone("modalBorder"), bg: tone("modalBg") });
+
+  // Footer
+  const footer = "↑↓ navigate · Enter select · Esc cancel";
+  const footerLine = `│ ${clip(footer, innerWidth)}${" ".repeat(Math.max(0, innerWidth - footer.length))} │`;
+  chunks.push({ text: footerLine + "\n", fg: tone("dim"), bg: tone("modalBg") });
+
+  // Bottom border
+  chunks.push({ text: "└" + "─".repeat(boxWidth - 2) + "┘\n", fg: tone("modalBorder"), bg: tone("modalBg") });
+
+  return new StyledText(chunks);
+}
+
+function buildConfirmOverlay(state: UiState): StyledText {
+  const chunks: TextChunk[] = [];
+  if (!state.pendingAction) return new StyledText(chunks);
+  const width = Math.floor(state.viewport.width * 0.7);
+  const boxWidth = Math.max(44, Math.min(width, state.viewport.width - 6));
+  const innerWidth = boxWidth - 4;
+  const session = currentSession(state);
+  const action = state.pendingAction.replaceAll("_", " ").toUpperCase();
+  const target = session ? clip(`${session.title} (${session.id})`, innerWidth) : "No session selected";
+  const body = state.pendingAction === "delete"
+    ? "This permanently removes the session."
+    : state.pendingAction === "archive"
+      ? "This moves the session into Archived."
+      : state.pendingAction === "restore"
+        ? "This restores the session to Active."
+        : state.pendingAction === "continue" || state.pendingAction === "continue_fork"
+          ? "This opens the session in OpenCode."
+          : "This action will run now.";
+
+  chunks.push({ text: "┌" + "─".repeat(boxWidth - 2) + "┐\n", fg: tone("modalBorder") });
+  const titleLine = `│ ${clip(action, innerWidth).padEnd(innerWidth)} │`;
+  chunks.push({ text: titleLine + "\n", fg: tone("modalFg"), bg: tone("modalBg"), bold: true });
+  const targetLine = `│ ${clip(target, innerWidth).padEnd(innerWidth)} │`;
+  chunks.push({ text: targetLine + "\n", fg: tone("detailValue"), bg: tone("modalBg") });
+  const bodyLine = `│ ${clip(body, innerWidth).padEnd(innerWidth)} │`;
+  chunks.push({ text: bodyLine + "\n", fg: tone("warning"), bg: tone("modalBg") });
+  const buttonLine = `│ ${clip("[y] confirm   [n] cancel   [Esc] dismiss", innerWidth).padEnd(innerWidth)} │`;
+  chunks.push({ text: buttonLine + "\n", fg: tone("dim"), bg: tone("modalBg") });
+  chunks.push({ text: "└" + "─".repeat(boxWidth - 2) + "┘\n", fg: tone("modalBorder") });
+  return new StyledText(chunks);
+}
+
+function contextHints(state: UiState): string {
+  if (state.pendingAction) return "[y] confirm · [n] cancel · [Esc] dismiss";
+  if (state.inputMode === "search") return "↑↓ navigate · Enter select · Esc cancel";
+  const row = getVisibleRows(state)[state.cursor];
+  if (!row) return "q quit";
+  if (!("id" in row)) return "Enter expand/collapse · o toggle all · / search · \\ folders · Tab tabs · b back · q quit";
+  const session = row as UiSession;
+  if (session.timeArchived != null) {
+    return "Enter continue · r restore · d delete · e export · E raw · c continue · C fork · m msgs · b back · q quit";
+  }
+  return "Enter continue · a archive · d delete · e export · E raw · c continue · C fork · m msgs · b back · q quit";
 }
 
 export function errorMessage(error: unknown): string {
@@ -441,37 +667,124 @@ function mapKey(key: any): string {
   return key?.sequence || key?.name || "";
 }
 
-function appendTyped(state: UiState, value: string): UiState {
-  if (!state.inputMode) return state;
+function appendTyped(state: UiState, value: string): UiState | null {
+  if (!state.inputMode) return null;
   if (value === "Backspace") {
     return applyKey(state, `type:${state.query.slice(0, -1)}`);
   }
   if (value.length === 1 && value >= " ") {
     return applyKey(state, `type:${state.query}${value}`);
   }
-  return state;
+  return null;
 }
 
 export async function startInteractiveTui(): Promise<void> {
-  const renderer = await createCliRenderer({ exitOnCtrlC: true, targetFps: 30, useMouse: true });
+  const renderer = await createCliRenderer({
+    exitOnCtrlC: true,
+    targetFps: 30,
+    useMouse: true,
+    onDestroy: () => {
+      if (continueRequest && quitRequestCode === null) {
+        const req = continueRequest;
+        continueRequest = null;
+        const child = spawn(opencodeBin(), ["--session", req.id, ...(req.fork ? ["--fork"] : [])], { stdio: "inherit" });
+        child.on("exit", (code) => process.exit(code ?? 0));
+        child.on("error", () => process.exit(1));
+        return;
+      }
+      if (quitRequestCode !== null) {
+        const code = quitRequestCode;
+        quitRequestCode = null;
+        process.exit(code);
+      }
+    },
+  });
   let state = createInitialState(listSessions({ tab: "active", cwd: cwd() }), { height: process.stdout.rows || 24, width: process.stdout.columns || 100 });
-  const screen = new TextRenderable(renderer, { id: "opencode-all-screen", content: styledScreen(state) });
-  renderer.root.add(screen);
+
+  // Create left and right panes with Box layout
+  const leftPane = new TextRenderable(renderer, {
+    id: "left-pane",
+    width: "50%",
+    wrapMode: "none",
+    truncate: true,
+    content: buildLeftContent(state),
+  });
+
+  const rightPane = new TextRenderable(renderer, {
+    id: "right-pane",
+    width: "50%",
+    wrapMode: "word",
+    content: buildRightContent(state),
+  });
+
+  const statusBar = new TextRenderable(renderer, {
+    id: "status-bar",
+    height: 1,
+    wrapMode: "none",
+    truncate: true,
+    content: new StyledText([{ text: contextHints(state), fg: tone("statusFg"), bg: tone("statusBg") }]),
+  });
+
+  const contentRow = Box({ flexDirection: "row", width: "100%", flexGrow: 1 }, leftPane, rightPane);
+  const rootBox = Box({ flexDirection: "column", width: "100%", height: "100%" }, contentRow, statusBar);
+  renderer.root.add(rootBox);
+
+  // Create search overlay
+  const searchOverlay = new TextRenderable(renderer, {
+    id: "search-overlay",
+    position: "absolute",
+    top: "20%",
+    left: "10%",
+    right: "10%",
+    height: "60%",
+    zIndex: 100,
+    visible: false,
+    content: buildSearchOverlay(state),
+  });
+  renderer.root.add(searchOverlay);
+
+  const confirmOverlay = new TextRenderable(renderer, {
+    id: "confirm-overlay",
+    position: "absolute",
+    top: "35%",
+    left: "15%",
+    right: "15%",
+    height: "30%",
+    zIndex: 110,
+    visible: false,
+    content: buildConfirmOverlay(state),
+  });
+  renderer.root.add(confirmOverlay);
+
   let pendingG = false;
 
   process.stdout.on("resize", () => {
     state = { ...state, viewport: { height: process.stdout.rows || 24, width: process.stdout.columns || 100 } };
-    screen.content = styledScreen(state);
+    leftPane.content = buildLeftContent(state);
+    rightPane.content = buildRightContent(state);
+    statusBar.content = new StyledText([{ text: contextHints(state), fg: tone("statusFg"), bg: tone("statusBg") }]);
+    if (searchOverlay.visible) searchOverlay.content = buildSearchOverlay(state);
+    if (confirmOverlay.visible) confirmOverlay.content = buildConfirmOverlay(state);
     renderer.requestRender();
   });
 
   renderer.keyInput.on("keypress", (key: any) => {
     const mapped = mapKey(key);
+
+    // Global quit
     if (mapped === "q") {
+      quitRequestCode = 0;
       renderer.destroy();
-      process.exit(0);
+      return;
     }
 
+    const hasPendingAction = !!state.pendingAction;
+    const isSearchMode = state.inputMode === "search";
+    const isDirectoryMode = state.inputMode === "directory";
+    const isFilterMode = state.inputMode === "filter";
+    const hasOverlay = hasPendingAction || isSearchMode || isDirectoryMode || isFilterMode;
+
+    // Handle 'gg' double-tap
     if (mapped === "g") {
       if (pendingG) {
         state = applyKey(state, "gg");
@@ -482,11 +795,89 @@ export async function startInteractiveTui(): Promise<void> {
       }
     } else {
       pendingG = false;
-      const next = appendTyped(state, mapped);
-      state = next === state ? applyKey(state, mapped) : next;
     }
 
-    screen.content = styledScreen(state);
+    // Overlay-first routing
+    if (hasPendingAction) {
+      // Only y, n, Escape are handled
+      if (mapped === "y" || mapped === "n" || mapped === "Escape" || mapped === "Esc") {
+        state = applyKey(state, mapped);
+      }
+      // All other keys ignored
+    } else if (isSearchMode) {
+      // Search mode: handle navigation, selection, typing
+      if (mapped === "ArrowUp" || mapped === "k") {
+        const results = searchResultsFor(state);
+        state = { ...state, searchSelected: Math.max(0, state.searchSelected - 1) };
+      } else if (mapped === "ArrowDown" || mapped === "j") {
+        const results = searchResultsFor(state);
+        state = { ...state, searchSelected: Math.min(results.length - 1, state.searchSelected + 1) };
+      } else if (mapped === "Enter") {
+        const results = searchResultsFor(state);
+        const selected = results[state.searchSelected];
+        if (selected) {
+          // Ensure folder is expanded
+          const nextExpanded = new Set(state.expandedFolders);
+          nextExpanded.add(selected.directory);
+          const refreshed = reloadState({ ...state, expandedFolders: nextExpanded });
+          // Find the row index in visible rows
+          const visible = getVisibleRows(refreshed);
+          const rowIndex = visible.findIndex(r => "id" in r && r.id === selected.id);
+          if (rowIndex >= 0) {
+            state = {
+              ...refreshed,
+              expandedFolders: nextExpanded,
+              cursor: rowIndex,
+              listScroll: Math.max(0, rowIndex - Math.floor(leftRowsCount(refreshed) / 2)),
+              inputMode: null,
+              query: "",
+              searchSelected: 0,
+              status: `selected ${selected.id}`
+            };
+          }
+        }
+      } else if (mapped === "Escape" || mapped === "Esc") {
+        state = applyKey(state, "Escape");
+      } else {
+        // Handle typing and backspace
+        const typed = appendTyped(state, mapped);
+        if (typed !== null) state = { ...typed, searchSelected: 0 };
+      }
+    } else if (isDirectoryMode || isFilterMode) {
+      // Directory/Filter mode: only typing, backspace, escape
+      if (mapped === "Escape" || mapped === "Esc") {
+        state = applyKey(state, "Escape");
+      } else {
+        const typed = appendTyped(state, mapped);
+        if (typed !== null) state = typed;
+      }
+    } else {
+      // No overlay active: normal navigation and actions
+      const typed = appendTyped(state, mapped);
+      state = typed !== null ? typed : applyKey(state, mapped);
+    }
+
+    // Update panes
+    leftPane.content = buildLeftContent(state);
+    rightPane.content = buildRightContent(state);
+    statusBar.content = new StyledText([{ text: contextHints(state), fg: tone("statusFg"), bg: tone("statusBg") }]);
+
+    // Toggle search overlay visibility
+    searchOverlay.visible = state.inputMode === "search";
+    if (searchOverlay.visible) {
+      searchOverlay.content = buildSearchOverlay(state);
+    }
+
+    confirmOverlay.visible = !!state.pendingAction;
+    if (confirmOverlay.visible) {
+      confirmOverlay.content = buildConfirmOverlay(state);
+    }
+
+    if (continueRequest) {
+      renderer.destroy();
+      return;
+    }
+
     renderer.requestRender();
   });
 }
@@ -530,12 +921,12 @@ export function restoreSession(id: string): void {
   audit("restore", id, "ok");
 }
 
-export function continueSession(id: string, fork = false): never {
+export function continueSession(id: string, fork = false): void {
   const args = ["--session", id];
   if (fork) args.push("--fork");
-  const child = spawn(opencodeBin(), args, { stdio: "inherit", detached: true });
-  child.unref();
-  process.exit(0);
+  const child = spawn(opencodeBin(), args, { stdio: "inherit" });
+  child.on("exit", (code) => process.exit(code ?? 0));
+  child.on("error", () => process.exit(1));
 }
 
 function printFallbackList(): void {

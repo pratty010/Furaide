@@ -1,5 +1,5 @@
-import { describe, expect, test } from "bun:test";
-import { applyKey, createInitialState, currentSession, renderRows, getVisibleRows, type UiSession } from "../src/tui.tsx";
+import { describe, expect, test, vi, beforeEach, afterEach } from "bun:test";
+import { applyKey, createInitialState, currentSession, renderRows, getVisibleRows, type UiSession, buildLeftContent, buildRightContent, buildSearchOverlay, continueSession } from "../src/tui.tsx";
 
 const sessions: UiSession[] = Array.from({ length: 6 }, (_, index) => ({
   id: `ses_${index}`,
@@ -42,6 +42,12 @@ describe("folder tree navigation", () => {
     state = applyKey(state, "o");
     expect(state.expandedFolders.size).toBe(0);
   });
+
+  test("b at root shows feedback", () => {
+    let state = createInitialState(sessions, { height: 20, width: 100 });
+    state = applyKey(state, "b");
+    expect(state.status).toBe("already at root");
+  });
 });
 
 describe("search and input modes", () => {
@@ -62,6 +68,13 @@ describe("search and input modes", () => {
     state = applyKey(state, "/");
     state = applyKey(state, "type:curr");
     expect(state.query).toBe("curr");
+  });
+
+  test("entering search resets searchSelected", () => {
+    let state = createInitialState(sessions, { height: 20, width: 100 });
+    state = { ...state, searchSelected: 5 };
+    state = applyKey(state, "/");
+    expect(state.searchSelected).toBe(0);
   });
 });
 
@@ -148,5 +161,35 @@ describe("confirmation state", () => {
     state = applyKey(state, "n");
     expect(state.pendingAction).toBeNull();
     expect(state.status).toBe("cancelled");
+  });
+
+  test("folder rows reject session-only actions", () => {
+    let state = createInitialState(sessions, { height: 10, width: 100 });
+    state = applyKey(state, "d");
+    expect(state.status).toBe("actions only apply to sessions");
+    expect(state.pendingAction).toBeNull();
+  });
+
+  test("active sessions reject restore", () => {
+    let state = createInitialState(sessions, { height: 10, width: 100 });
+    state = applyKey(state, "Enter");
+    state = applyKey(state, "j");
+    state = applyKey(state, "r");
+    expect(state.status).toBe("restore only applies to archived sessions");
+  });
+
+  test("archived sessions reject archive", () => {
+    const archivedSession = { ...sessions[0], timeArchived: 999, directory: "/repo/current" };
+    let state = createInitialState([archivedSession], { height: 10, width: 100 });
+    state = {
+      ...state,
+      folders: [{ directory: "/repo/current", active: 0, archived: 1, latestUpdated: 1 }],
+      sessions: [archivedSession],
+      allSessions: [archivedSession],
+      expandedFolders: new Set(["/repo/current"]),
+      cursor: 1,
+    };
+    state = applyKey(state, "a");
+    expect(state.status).toBe("archive only applies to active sessions");
   });
 });
