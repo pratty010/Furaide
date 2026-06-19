@@ -1,4 +1,4 @@
-import type { WebSearchConfig } from "../types.ts";
+import type { WebSearchConfig, ResultMetadata } from "../types.ts";
 import { hashRequest } from "../util/hash.ts";
 import { errorSink } from "../util/error-sink.ts";
 
@@ -27,14 +27,7 @@ export interface SearchResultItem {
 
 export interface SearchProviderResult {
   results: SearchResultItem[];
-  metadata: {
-    provider: string;
-    latencyMs: number;
-    unitsUsed?: number;
-    tokensInput?: number;
-    tokensOutput?: number;
-    estimatedCostUsd?: number;
-  };
+  metadata: ResultMetadata;
 }
 
 export interface WebSearchPublicResult {

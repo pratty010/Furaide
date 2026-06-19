@@ -4,7 +4,7 @@ import type { WebToolsConfig } from "./web-tools/types.ts";
 import { InMemoryCache } from "./web-tools/cache.ts";
 import { createTables, recordWebSearch, recordFetchContent } from "./web-tools/db.ts";
 import { createUsageTracker } from "./web-tools/provider-usage.ts";
-import type { BudgetConfig } from "./web-tools/provider-usage.ts";
+import type { BudgetConfig } from "./web-tools/types.ts";
 import { executeWebSearchTool } from "./web-tools/tools/web-search.ts";
 import type { WebSearchArgs, NormalizedWebSearchRequest, SearchProviderResult as WebSearchProviderResult } from "./web-tools/tools/web-search.ts";
 import { executeFetchContentTool } from "./web-tools/tools/fetch-content.ts";

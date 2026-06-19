@@ -1,4 +1,4 @@
-import type { MapsSearchConfig } from "../types.ts";
+import type { MapsSearchConfig, ResultMetadata } from "../types.ts";
 import { errorSink } from "../util/error-sink.ts";
 
 export interface MapsSearchArgs {
@@ -21,14 +21,7 @@ export interface MapsSearchResultItem {
 
 export interface MapsProviderResult {
   results: MapsSearchResultItem[];
-  metadata: {
-    provider: string;
-    latencyMs: number;
-    unitsUsed?: number;
-    tokensInput?: number;
-    tokensOutput?: number;
-    estimatedCostUsd?: number;
-  };
+  metadata: ResultMetadata;
 }
 
 export interface MapsSearchPublicResult {

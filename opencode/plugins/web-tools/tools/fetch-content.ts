@@ -1,4 +1,4 @@
-import type { FetchContentConfig } from "../types.ts";
+import type { FetchContentConfig, ResultMetadata } from "../types.ts";
 import { hashRequest } from "../util/hash.ts";
 import { errorSink } from "../util/error-sink.ts";
 
@@ -22,14 +22,7 @@ export interface FetchContentItem {
 
 export interface FetchProviderResult {
   results: FetchContentItem[];
-  metadata: {
-    provider: string;
-    latencyMs: number;
-    unitsUsed?: number;
-    tokensInput?: number;
-    tokensOutput?: number;
-    estimatedCostUsd?: number;
-  };
+  metadata: ResultMetadata;
 }
 
 export interface FetchContentPublicResult {

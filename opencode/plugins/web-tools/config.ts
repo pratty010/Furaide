@@ -1,4 +1,5 @@
-import { readFile, existsSync } from "node:fs";
+import { readFile } from "node:fs/promises";
+import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { parse } from "yaml";
 import type { WebToolsConfig, WebProvider } from "./types.ts";

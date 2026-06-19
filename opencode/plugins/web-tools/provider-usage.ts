@@ -1,19 +1,5 @@
 import { Database } from "bun:sqlite";
-import type { UsageRecord, UsageSnapshot, WebProvider } from "./types.ts";
-
-export interface ProviderMetadata {
-  provider: string;
-  unitsUsed?: number;
-  tokensInput?: number;
-  tokensOutput?: number;
-  estimatedCostUsd?: number;
-}
-
-export interface BudgetConfig {
-  geminiUsd: number;
-  braveRequests: number;
-  tavilyCredits: number;
-}
+import type { UsageRecord, UsageSnapshot, WebProvider, BudgetConfig, UsageMetadata } from "./types.ts";
 
 export interface BudgetCheckResult {
   blocked: boolean;
@@ -24,8 +10,8 @@ export interface BudgetCheckResult {
 export interface UsageTracker {
   record(opts: UsageRecord): Promise<void>;
   getMonth(provider: WebProvider, month: string): Promise<UsageSnapshot>;
-  recordFromSearch(metadata: ProviderMetadata): Promise<void>;
-  recordFromFetch(metadata: ProviderMetadata): Promise<void>;
+  recordFromSearch(metadata: UsageMetadata): Promise<void>;
+  recordFromFetch(metadata: UsageMetadata): Promise<void>;
   checkAndRecord(opts: { provider: WebProvider; unitsUsed?: number; tokensInput?: number; tokensOutput?: number; estimatedCostUsd?: number }): Promise<{ snapshot: UsageSnapshot; budget: BudgetCheckResult }>;
 }
 
@@ -148,7 +134,7 @@ export function createUsageTracker(db: Database, budgets?: BudgetConfig): UsageT
     };
   }
 
-  async function recordFromSearch(metadata: ProviderMetadata): Promise<void> {
+  async function recordFromSearch(metadata: UsageMetadata): Promise<void> {
     const month = currentMonth();
     return record({
       provider: metadata.provider as WebProvider,
@@ -160,7 +146,7 @@ export function createUsageTracker(db: Database, budgets?: BudgetConfig): UsageT
     });
   }
 
-  async function recordFromFetch(metadata: ProviderMetadata): Promise<void> {
+  async function recordFromFetch(metadata: UsageMetadata): Promise<void> {
     return recordFromSearch(metadata);
   }
 

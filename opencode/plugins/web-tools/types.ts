@@ -52,6 +52,17 @@ export interface UsageRecord {
   tokensOutput?: number;
 }
 
+export interface ResultMetadata {
+  provider: string;
+  latencyMs: number;
+  unitsUsed?: number;
+  tokensInput?: number;
+  tokensOutput?: number;
+  estimatedCostUsd?: number;
+}
+
+export type UsageMetadata = Omit<ResultMetadata, "latencyMs">;
+
 export interface UsageSnapshot {
   provider: string;
   month: string;
