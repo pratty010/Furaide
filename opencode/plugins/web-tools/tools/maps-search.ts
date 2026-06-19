@@ -26,6 +26,7 @@ export interface MapsProviderResult {
     unitsUsed?: number;
     tokensInput?: number;
     tokensOutput?: number;
+    estimatedCostUsd?: number;
   };
 }
 
@@ -35,9 +36,13 @@ export interface MapsSearchPublicResult {
 
 export interface MapsSearchRuntime {
   config: { mapsSearch: MapsSearchConfig };
+  usage: {
+    recordFromSearch(metadata: MapsProviderResult["metadata"]): Promise<void>;
+  };
   providers: {
     searchMaps(request: NormalizedMapsSearchRequest & { lat?: number; lng?: number }): Promise<MapsProviderResult>;
   };
+  recordWithBudget(provider: string, metadata: { unitsUsed?: number; tokensInput?: number; tokensOutput?: number; estimatedCostUsd?: number }): Promise<string | null>;
 }
 
 export function normalizeMapsSearchArgs(args: MapsSearchArgs, config: MapsSearchConfig): NormalizedMapsSearchRequest {
@@ -61,7 +66,11 @@ export async function executeMapsSearchTool(args: MapsSearchArgs, runtime: MapsS
     lat: args.lat,
     lng: args.lng,
   });
-  return {
+  void runtime.usage.recordFromSearch(result.metadata);
+  const preamble = await runtime.recordWithBudget(result.metadata.provider, result.metadata);
+  const publicResult: MapsSearchPublicResult = {
     results: result.results.map(toPublicMapsResult),
   };
+  if (preamble) (publicResult as Record<string, unknown>)._warning = preamble;
+  return publicResult;
 }

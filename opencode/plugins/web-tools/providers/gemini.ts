@@ -1,4 +1,5 @@
 import type { WebProvider } from "../types.ts";
+import type { PricingHelper } from "../pricing.ts";
 
 export interface SearchResult {
   title: string;
@@ -16,6 +17,7 @@ export interface SearchProviderMetadata {
   unitsUsed?: number;
   tokensInput?: number;
   tokensOutput?: number;
+  estimatedCostUsd?: number;
 }
 
 export interface SearchProviderResult {
@@ -38,12 +40,14 @@ export interface GeminiSearchWebArgs {
   count?: number;
   freshness?: "pd" | "pw" | "pm" | "py";
   rawContent?: boolean;
+  pricing?: PricingHelper;
 }
 
 export interface GeminiFetchContentArgs {
   urls: string[];
   mode?: "extract" | "crawl" | "map";
   format?: "markdown" | "text";
+  pricing?: PricingHelper;
 }
 
 export interface GeminiSearchMapsArgs {
@@ -51,11 +55,21 @@ export interface GeminiSearchMapsArgs {
   lat?: number;
   lng?: number;
   count?: number;
+  pricing?: PricingHelper;
 }
 
 const GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
-const DEFAULT_MODEL = "gemini-2.0-flash";
+const DEFAULT_MODEL = "gemini-3.1-flash-lite";
 const MAX_CHARS = 100_000;
+
+function estimateGeminiCost(pricing: PricingHelper | undefined, model: string, tool: "google_search" | "googleMaps" | "url_context", tokensInput: number, tokensOutput: number): number | undefined {
+  if (!pricing) return undefined;
+  try {
+    return pricing.estimateGeminiCall({ model, inputTokens: tokensInput, outputTokens: tokensOutput, tool });
+  } catch {
+    return undefined;
+  }
+}
 
 export async function searchWeb(args: GeminiSearchWebArgs): Promise<SearchProviderResult> {
   const start = performance.now();
@@ -82,7 +96,10 @@ export async function searchWeb(args: GeminiSearchWebArgs): Promise<SearchProvid
   const json: any = await res.json();
   const chunks = json.candidates?.[0]?.groundingMetadata?.groundingChunks ?? [];
   const usageMeta = json.usageMetadata;
-  const answerText = json.candidates?.[0]?.content?.parts?.[0]?.text;
+
+  const tokensInput = usageMeta?.promptTokenCount ?? 0;
+  const tokensOutput = usageMeta?.candidatesTokenCount ?? 0;
+  const estimatedCostUsd = estimateGeminiCost(args.pricing, DEFAULT_MODEL, "google_search", tokensInput, tokensOutput);
 
   return {
     results: chunks.slice(0, args.count ?? 5).map((c: any) => ({
@@ -94,8 +111,9 @@ export async function searchWeb(args: GeminiSearchWebArgs): Promise<SearchProvid
       provider: "gemini" as WebProvider,
       latencyMs: Math.round(performance.now() - start),
       unitsUsed: 1,
-      tokensInput: usageMeta?.promptTokenCount ?? 0,
-      tokensOutput: usageMeta?.candidatesTokenCount ?? 0,
+      tokensInput,
+      tokensOutput,
+      estimatedCostUsd,
     },
   };
 }
@@ -104,6 +122,9 @@ export async function fetchContent(args: GeminiFetchContentArgs): Promise<FetchC
   const start = performance.now();
   const key = process.env.GEMINI_API_KEY;
   if (!key) throw new Error("Gemini fetch_content requires GEMINI_API_KEY");
+
+  let totalTokensInput = 0;
+  let totalTokensOutput = 0;
 
   const results = await Promise.all(
     args.urls.slice(0, 5).map(async (url) => {
@@ -129,9 +150,14 @@ export async function fetchContent(args: GeminiFetchContentArgs): Promise<FetchC
 
       const json: any = await res.json();
       const content = json.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+      const usageMeta = json.usageMetadata;
+      totalTokensInput += usageMeta?.promptTokenCount ?? 0;
+      totalTokensOutput += usageMeta?.candidatesTokenCount ?? 0;
       return { url, title: undefined as string | undefined, content: content.slice(0, MAX_CHARS) };
     }),
   );
+
+  const estimatedCostUsd = estimateGeminiCost(args.pricing, DEFAULT_MODEL, "url_context", totalTokensInput, totalTokensOutput);
 
   return {
     results,
@@ -139,6 +165,9 @@ export async function fetchContent(args: GeminiFetchContentArgs): Promise<FetchC
       provider: "gemini" as WebProvider,
       latencyMs: Math.round(performance.now() - start),
       unitsUsed: 1,
+      tokensInput: totalTokensInput,
+      tokensOutput: totalTokensOutput,
+      estimatedCostUsd,
     },
   };
 }
@@ -169,6 +198,10 @@ export async function searchMaps(args: GeminiSearchMapsArgs): Promise<MapsResult
   const chunks = json.candidates?.[0]?.groundingMetadata?.groundingChunks ?? [];
   const usageMeta = json.usageMetadata;
 
+  const tokensInput = usageMeta?.promptTokenCount ?? 0;
+  const tokensOutput = usageMeta?.candidatesTokenCount ?? 0;
+  const estimatedCostUsd = estimateGeminiCost(args.pricing, DEFAULT_MODEL, "googleMaps", tokensInput, tokensOutput);
+
   return {
     results: chunks.slice(0, args.count ?? 5).map((c: any) => {
       const uri = c.web?.uri ?? "";
@@ -183,8 +216,9 @@ export async function searchMaps(args: GeminiSearchMapsArgs): Promise<MapsResult
       provider: "gemini" as WebProvider,
       latencyMs: Math.round(performance.now() - start),
       unitsUsed: 1,
-      tokensInput: usageMeta?.promptTokenCount ?? 0,
-      tokensOutput: usageMeta?.candidatesTokenCount ?? 0,
+      tokensInput,
+      tokensOutput,
+      estimatedCostUsd,
     },
   };
 }

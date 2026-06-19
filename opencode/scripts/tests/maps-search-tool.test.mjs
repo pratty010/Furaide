@@ -10,6 +10,7 @@ test("maps_search tool executes with mock runtime", async () => {
         count: 3,
       },
     },
+    usage: { recordFromSearch: async () => {} },
     providers: {
       searchMaps: async () => ({
         results: [
@@ -19,6 +20,7 @@ test("maps_search tool executes with mock runtime", async () => {
         metadata: { provider: "gemini", latencyMs: 200 },
       }),
     },
+    recordWithBudget: async () => null,
   };
 
   const result = await executeMapsSearchTool({ query: "coffee near Shibuya", count: 3 }, mockRuntime);
@@ -36,12 +38,14 @@ test("maps_search returns lean fields only", async () => {
     config: {
       mapsSearch: { defaultProvider: "gemini", count: 5 },
     },
+    usage: { recordFromSearch: async () => {} },
     providers: {
       searchMaps: async () => ({
         results: [{ title: "Place", uri: "https://maps.google.com/" }],
         metadata: { provider: "gemini", latencyMs: 100, unitsUsed: 1 },
       }),
     },
+    recordWithBudget: async () => null,
   };
 
   const result = await executeMapsSearchTool({ query: "test" }, mockRuntime);

@@ -32,6 +32,7 @@ export interface SearchProviderResult {
     unitsUsed?: number;
     tokensInput?: number;
     tokensOutput?: number;
+    estimatedCostUsd?: number;
   };
 }
 
@@ -54,6 +55,7 @@ export interface WebSearchRuntime {
   providers: {
     searchWithFallback(request: NormalizedWebSearchRequest): Promise<SearchProviderResult>;
   };
+  recordWithBudget(provider: string, metadata: { unitsUsed?: number; tokensInput?: number; tokensOutput?: number; estimatedCostUsd?: number }): Promise<string | null>;
 }
 
 export function normalizeWebSearchArgs(args: WebSearchArgs, config: WebSearchConfig): NormalizedWebSearchRequest {
@@ -95,7 +97,9 @@ export async function executeWebSearchTool(args: WebSearchArgs, runtime: WebSear
 
   runtime.cache.setWebSearch(cacheKey, publicResult);
   void runtime.db.recordWebSearch(request, result);
-  void runtime.usage.recordFromSearch(result.metadata);
+  const preamble = await runtime.recordWithBudget(result.metadata.provider, result.metadata);
+
+  if (preamble) (publicResult as Record<string, unknown>)._warning = preamble;
 
   return publicResult;
 }

@@ -17,14 +17,45 @@ interface CachedFetchResult {
   }>;
 }
 
+export interface CacheSyncAdapter {
+  flush(entries: Array<{ key: string; value: unknown }>): Promise<void>;
+}
+
+export const NOOP_SYNC_ADAPTER: CacheSyncAdapter = { async flush() {} };
+
 export class InMemoryCache {
   private store = new Map<string, { value: unknown; expiresAt: number }>();
   private webSearchTtlMs: number;
   private fetchContentTtlMs: number;
+  private syncIntervalMs: number;
+  private syncAdapter: CacheSyncAdapter;
+  private syncTimer: ReturnType<typeof setInterval> | null = null;
 
-  constructor(opts?: { webSearchTtlMs?: number; fetchContentTtlMs?: number }) {
+  constructor(opts?: { webSearchTtlMs?: number; fetchContentTtlMs?: number; syncIntervalMs?: number; syncAdapter?: CacheSyncAdapter }) {
     this.webSearchTtlMs = opts?.webSearchTtlMs ?? 3_600_000;
     this.fetchContentTtlMs = opts?.fetchContentTtlMs ?? 86_400_000;
+    this.syncIntervalMs = opts?.syncIntervalMs ?? 300_000;
+    this.syncAdapter = opts?.syncAdapter ?? NOOP_SYNC_ADAPTER;
+  }
+
+  startSync(): void {
+    if (this.syncTimer) return;
+    this.syncTimer = setInterval(() => {
+      const entries: Array<{ key: string; value: unknown }> = [];
+      for (const [key, entry] of this.store) {
+        if (Date.now() <= entry.expiresAt) {
+          entries.push({ key, value: entry.value });
+        }
+      }
+      void this.syncAdapter.flush(entries);
+    }, this.syncIntervalMs);
+  }
+
+  stopSync(): void {
+    if (this.syncTimer) {
+      clearInterval(this.syncTimer);
+      this.syncTimer = null;
+    }
   }
 
   get<T>(key: string): T | undefined {

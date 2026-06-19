@@ -30,6 +30,7 @@ test("web_search tool executes with mock runtime", async () => {
         metadata: { provider: "tavily", latencyMs: 50 },
       }),
     },
+    recordWithBudget: async () => null,
   };
 
   const result = await executeWebSearchTool({ query: "hello" }, mockRuntime);
@@ -62,6 +63,7 @@ test("web_search omits metadata from public result", async () => {
         metadata: { provider: "brave", latencyMs: 10, unitsUsed: 1 },
       }),
     },
+    recordWithBudget: async () => null,
   };
 
   const result = await executeWebSearchTool({ query: "test", count: 2 }, mockRuntime);
@@ -101,6 +103,7 @@ test("web_search caches identical requests", async () => {
         };
       },
     },
+    recordWithBudget: async () => null,
   };
 
   const r1 = await executeWebSearchTool({ query: "cache-test" }, mockRuntime);

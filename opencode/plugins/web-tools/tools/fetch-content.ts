@@ -27,6 +27,7 @@ export interface FetchProviderResult {
     unitsUsed?: number;
     tokensInput?: number;
     tokensOutput?: number;
+    estimatedCostUsd?: number;
   };
 }
 
@@ -49,6 +50,7 @@ export interface FetchContentRuntime {
   providers: {
     fetchWithFallback(request: NormalizedFetchContentRequest): Promise<FetchProviderResult>;
   };
+  recordWithBudget(provider: string, metadata: { unitsUsed?: number; tokensInput?: number; tokensOutput?: number; estimatedCostUsd?: number }): Promise<string | null>;
 }
 
 export function normalizeFetchContentArgs(args: FetchContentArgs, config: FetchContentConfig): NormalizedFetchContentRequest {
@@ -87,7 +89,9 @@ export async function executeFetchContentTool(args: FetchContentArgs, runtime: F
 
   runtime.cache.setFetchContent(cacheKey, publicResult);
   void runtime.db.recordFetchContent(request, result);
-  void runtime.usage.recordFromFetch(result.metadata);
+  const preamble = await runtime.recordWithBudget(result.metadata.provider, result.metadata);
+
+  if (preamble) (publicResult as Record<string, unknown>)._warning = preamble;
 
   return publicResult;
 }
