@@ -9,6 +9,14 @@ interface CachedSearchResult {
   }>;
 }
 
+interface CachedFetchResult {
+  results: Array<{
+    url: string;
+    title?: string;
+    content?: string;
+  }>;
+}
+
 export class InMemoryCache {
   private store = new Map<string, { value: unknown; expiresAt: number }>();
   private webSearchTtlMs: number;
@@ -41,11 +49,11 @@ export class InMemoryCache {
     this.set(key, value, this.webSearchTtlMs);
   }
 
-  getFetchContent(key: string): unknown {
-    return this.get(key);
+  getFetchContent(key: string): CachedFetchResult | undefined {
+    return this.get<CachedFetchResult>(key);
   }
 
-  setFetchContent(key: string, value: unknown): void {
+  setFetchContent(key: string, value: CachedFetchResult): void {
     this.set(key, value, this.fetchContentTtlMs);
   }
 

@@ -87,6 +87,50 @@ interface WebSearchRecordResult {
   metadata: { provider: string };
 }
 
+interface NormalizedFetchContentRequest {
+  urls: string[];
+  mode: "extract" | "crawl" | "map";
+  format: "markdown" | "text";
+}
+
+interface FetchContentRecordResult {
+  results: Array<{ url: string; title?: string; content?: string }>;
+  metadata: { provider: string };
+}
+
+export function recordFetchContent(
+  db: Database,
+  request: NormalizedFetchContentRequest,
+  result: FetchContentRecordResult,
+): void {
+  const stmt = db.prepare(`
+    insert into fetch_content_results (url_hash, provider, mode, normalized_url, title, content, format, seen_count, first_seen, last_seen, last_query_hash)
+    values (?1, ?2, ?3, ?4, ?5, ?6, ?7, 1, datetime('now'), datetime('now'), ?8)
+    on conflict (url_hash, provider, mode) do update set
+      seen_count = seen_count + 1,
+      last_seen = datetime('now'),
+      title = excluded.title,
+      content = excluded.content,
+      format = excluded.format
+  `);
+
+  const queryHash = hashString(JSON.stringify(request.urls));
+
+  for (const r of result.results) {
+    const urlHash = hashString(normalizeUrl(r.url));
+    stmt.run(
+      urlHash,
+      result.metadata.provider,
+      request.mode,
+      normalizeUrl(r.url),
+      r.title ?? null,
+      r.content ?? null,
+      request.format,
+      queryHash,
+    );
+  }
+}
+
 export function recordWebSearch(
   db: Database,
   request: NormalizedSearchRequest,
