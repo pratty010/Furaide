@@ -1,7 +1,7 @@
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-const TARGET = 'docs/agent-fleet-structural-findings.md';
+const TARGET = 'docs/archive/agent-fleet-structural-findings.md';
 
 const files = readdirSync('agents').filter(file => file.endsWith('.md')).sort();
 
