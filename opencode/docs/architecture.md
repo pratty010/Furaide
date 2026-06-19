@@ -11,8 +11,8 @@ Not auto-loaded. Pull when editing fleet wiring, scripts, or file relationships.
 | `agents/<name>.md` | Agent definition (frontmatter + body) | `permission.task` must match manifest `permitted_subagents`; no `model:` field — model lives in `opencode.jsonc` |
 | `docs/routing-manifest.json` | Canonical model routing (primary + fallback chains) | Routing + fallback source of truth; installer may write a resolved copy into the target install |
 | `docs/OPERATOR.md` | Tier discipline, model budget, reserve justification | `routing-manifest.json` should respect tier assignments here |
-| `opencode.jsonc` | Provider whitelist + plugin list + permissions + `agent` model mappings | Plugin array must include all 4 gate plugins; provider whitelists must not include `gemini-2.5-*`; `agent.<name>.model` is the runtime assignment |
-| `plugins/*.js` | Runtime gates (fail-closed on load error) | `migawari.js` reads `routing-manifest.json` at runtime |
+| `opencode.jsonc` | Provider whitelist + plugin list + permissions + `agent` model mappings | Plugin array must include all 4 gate plugins plus `web-tools.ts`; provider whitelists must not include `gemini-2.5-*`; `agent.<name>.model` is the runtime assignment |
+| `plugins/*.js` / `plugins/web-tools.ts` | Runtime gates and tools plugins (fail-closed on load error) | Gate plugins are `.js`; web-tools is `.ts` loaded directly by opencode; `migawari.js` reads `routing-manifest.json` at runtime |
 | `scripts/workflow-state.mjs` | Sole writer of `state.json` | Specialists call at phase boundaries; never write state directly |
 | `scripts/lib/state-lock.mjs` | File-based locking for workflow state | Used by `workflow-state.mjs` for CAS safety |
 | `docs/manifest-schema.md` | Schema for agent frontmatter manifest fields | `permission.task` allow-list is generated from `permitted_subagents` |

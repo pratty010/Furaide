@@ -1,8 +1,8 @@
 # Furaidē's Fleet: OpenCode Setup
 
-> *"Thirty spirits. Four gate-guardians. The fleet is ready."*
+> *"Thirty spirits. Five plugins. The fleet is ready."*
 
-Furaidē's [OpenCode](https://opencode.ai) configuration: a 30-agent fleet of named shikigami specialists, four gate plugins enforcing workflow integrity, and Kitsune's brand-builder domain (opt-in, in development). Part of the [F.R.I.D.A.Y.](https://github.com/pratty010/Furaide) collection.
+Furaidē's [OpenCode](https://opencode.ai) configuration: a 30-agent fleet of named shikigami specialists, four gate plugins, the web-tools plugin, and Kitsune's brand-builder domain (opt-in, in development). Part of the [F.R.I.D.A.Y.](https://github.com/pratty010/Furaide) collection.
 
 There is no marketplace: the installer is the distribution. One command clones and installs:
 
@@ -65,6 +65,7 @@ After install, edit runtime models in the installed `opencode.json` or `opencode
 | 6 | Rules | no | on | Memory contract and other rules wired via `instructions` glob. |
 | 7 | Reference Docs | no | off | OPERATOR guide, architecture overview, manifest schema, model family guides. |
 | 8 | Brand Builder / Kitsune | yes | off | Opt-in; in development. 9 brand agents + plugin + commands + skills. Needs `bun install`. |
+| 9 | Web Tools | yes | on | Lean web-search/fetch/maps plugin with provider budgets and interactive config. |
 
 Run `bash opencode/scripts/install-fleet.sh --list` for the full machine-readable view.
 
