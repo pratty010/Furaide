@@ -33,11 +33,11 @@ This compensates for reduced lookahead and prevents tool-selection errors.
 In sessions >10 turns, GPT-5.x may drop markdown formatting and code fence discipline. Re-append formatting rules every 3-5 turns as a brief reminder:
 > "Reminder: use markdown headers, fenced code blocks with language tags, and no inline HTML."
 
-## gpt-5.3-codex specifics
+## gpt-5.4 specifics
 
-- Requires `phase` field in multi-file edit requests: `phase: "read"` before edits, `phase: "write"` for the edit batch.
-- Computer-use compatible — the `computer_use` tool is available; invoke it for tasks requiring cursor/scroll/screenshot.
-- Cheapest GPT-5.x option for codegen; prefer over 5.4 unless reasoning is the bottleneck.
+- Default OpenAI model for heavy codegen and adversarial review fallback.
+- Balanced cost/reasoning; use when GPT-5.5 is overkill and GPT-5.4-mini is insufficient.
+- Does not require the `phase` field pattern that gpt-5.3-codex needed.
 
 ## Escape hatches for stuck states
 

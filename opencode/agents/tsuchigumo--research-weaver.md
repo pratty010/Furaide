@@ -6,7 +6,6 @@ description: >
   Not for: single-source quick lookups (primary uses websearch/webfetch inline); codebase or library recon (mikoshi--code-pathfinder); pure numeric computation over supplied data (soroban--number-sage).
   Behavior: returns Evidence Matrix and Source Manifest with confidence tags; runs citation-verify gate (critical on uncited high-impact claim, warn on soft claim max 3 iterations); delivers Markdown report under research/<topic>/ and optional HTML preview.
 mode: all
-model: opencode-go/kimi-k2.5
 temperature: 0.6
 permission:
   edit: allow

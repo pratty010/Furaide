@@ -6,7 +6,6 @@ description: >
   Not for: software feature implementation (tsukumogami--code-forgemaster); security audit of infrastructure (fudo--security-guardian); single-line config change with no blast radius (build mode).
   Behavior: defaults to dry-run when apply authorization is ambiguous; every action requires both an allowlist entry and a non-empty rollback path; multi-service apply routes through oni--red-team-reviewer for blast-radius challenge before execution.
 mode: all
-model: opencode-go/kimi-k2.6
 temperature: 0.5
 permission:
   edit: allow

@@ -6,7 +6,6 @@ description: >
   Not for: general data crunching without financial framing (soroban--number-sage); market research without numeric output (tsuchigumo--research-weaver); legal or regulatory compliance (enma--compliance-judge).
   Behavior: ALL arithmetic routes via karakuri--command-runner which calls validate_dcf.py — never compute totals, DCF outputs, or compound rates inline; runs citation-verify on regulated or material numeric claims before artifact.
 mode: all
-model: opencode-go/qwen3.7-max
 temperature: 0.5
 permission:
   edit: allow

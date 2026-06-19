@@ -6,7 +6,6 @@ description: >
   Not for: editing files, running commands, synthesizing answers, or making recommendations (dispatch a specialist for those).
   Behavior: returns File Map + Symbol Map + Grep Results + Structural Observations; no synthesis, no execution; can dispatch azukiarai--data-sifter for >30 matches per pattern.
 mode: subagent
-model: opencode-go/qwen3.6-plus
 temperature: 0.5
 permission:
   edit: deny

@@ -6,7 +6,6 @@ description: >
   Not for: gathering new facts, technical writing of API docs (makimono--docs-scribe), or rewriting that requires new evidence.
   Behavior: returns revised prose + change notes (5-10 most significant edits) + length check; runs the humanizer skill on the revised text; temperature 1.0 required for Gemini family.
 mode: subagent
-model: google-vertex/gemini-3.1-pro-preview
 temperature: 1.0
 permission:
   edit: deny

@@ -6,7 +6,6 @@ description: >
   Not for: structured spec or PRD (tsukuyomi--spec-oracle); brand positioning (mujina--brand-shapeshifter); technical API or code documentation (makimono--docs-scribe subagent); short summaries (primary answers inline).
   Behavior: temperature 1.0 is intentional for compositional variance; runs citation-verify (critical on fabricated claim), voice-check (warn on drift), and humanizer polish before artifact; never invents statistics, quotes, or attributed claims.
 mode: all
-model: opencode-go/glm-5.1
 temperature: 1.0
 permission:
   edit: allow

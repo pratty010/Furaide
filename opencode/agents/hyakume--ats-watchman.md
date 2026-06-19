@@ -6,7 +6,6 @@ description: >
   Not for: rewriting content, generating variants, role-fit scoring (kudagitsune--fit-diviner), or general resume review without ATS framing.
   Behavior: runs bb_ats_scan and returns findings only — keyword_coverage %, missing_terms, stuffing_risks, format_risks, title_normalization; no generative output; result_id: null because the scan does not persist a durable result.
 mode: subagent
-model: openai/gpt-5.4-mini
 permission:
   edit: deny
   bash: deny

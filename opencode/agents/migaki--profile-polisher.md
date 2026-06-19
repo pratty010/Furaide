@@ -6,7 +6,6 @@ description: >
   Not for: resume rewrites, GitHub evaluation (akashi--proof-keeper), brand direction (kataribe--narrative-teller), applying variants to a live profile, or generating variants without first calling bb_linkedin.
   Behavior: returns BB-RESULT with engine_results ID, locked variant counts (headline=3, about=2, experience=2 bullets, featured=2, skills=1), labels "Variant N" only; runs bb_ats_scan on output and dispatches amanojaku--voice-contrarian as anti-voice gate.
 mode: subagent
-model: opencode-go/kimi-k2.6
 temperature: 0.5
 permission:
   edit: deny

@@ -6,7 +6,6 @@ description: >
   Not for: gathering new data, verifying claims, computing metrics (soroban--number-sage), or production code.
   Behavior: returns TL;DR + sectioned narrative with inline [SourceID] citations, preserves source disagreement, quantifies every claim, flags qualitative inferences; dispatches henge--format-shifter for >10-section output.
 mode: subagent
-model: opencode-go/glm-5
 temperature: 0.5
 permission:
   edit: deny

@@ -6,7 +6,6 @@ description: >
   Not for: editing content, reordering rows without instruction, summarization, or any transformation that changes meaning.
   Behavior: returns the formatted output + Formatting Notes; T2 leaf, never dispatches further; never writes state files; output conforms to the target format spec (SARIF 2.1.0, valid HTML, etc.).
 mode: subagent
-model: opencode-go/mimo-v2.5
 permission:
   edit: deny
   bash: deny

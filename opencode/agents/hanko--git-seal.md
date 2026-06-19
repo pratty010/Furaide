@@ -6,7 +6,6 @@ description: >
   Not for: writing code, generating commit messages without a brief, force-push, direct push to master, or any operation that bypasses the question tool's human-in-the-loop gate.
   Behavior: reads opencode/docs/GITHUB.md on entry; reports commit hash / push confirmation / PR URL / CI status; always asks via the question tool before commit, push, PR, or merge.
 mode: subagent
-model: openai/gpt-5.4-mini
 permission:
   edit: deny
   bash: allow

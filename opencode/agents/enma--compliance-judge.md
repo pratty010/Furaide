@@ -6,7 +6,6 @@ description: >
   Not for: financial regulation math (daikoku--finance-steward); code security, OWASP, or CVE analysis (fudo--security-guardian); single-source regulatory lookups (primary uses webfetch inline).
   Behavior: every output carries a "not legal advice" caveat and is not a substitute for counsel; all regulated claims require primary-source citations; routes full contract reads to mikoshi--code-pathfinder to leverage 1M context.
 mode: all
-model: opencode-go/qwen3.6-plus
 temperature: 0.5
 permission:
   edit: allow

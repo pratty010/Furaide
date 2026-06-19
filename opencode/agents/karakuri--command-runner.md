@@ -6,7 +6,6 @@ description: >
   Not for: shell-less workflows, repo exploration without execution (mikoshi--code-pathfinder), reasoning about failures (bakeneko--bug-hunter), or applying code edits.
   Behavior: returns an ExecutionPacket with stdout, stderr, exit_code, and artifact presence; runs exactly what is briefed, never retries without instruction, never writes state files.
 mode: subagent
-model: opencode-go/mimo-v2.5
 permission:
   edit: deny
   bash: allow

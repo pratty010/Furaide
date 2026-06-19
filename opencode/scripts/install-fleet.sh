@@ -10,6 +10,8 @@
 #   --project           Pre-select project scope (./.opencode/) for all components
 #   --custom <dir>      Pre-select a custom absolute directory for all components
 #   --link              Symlink mode: ln -sfn instead of cp (keep repo as source; no substitution)
+#   --no-common-skills  Skip shared skills prompt (B6)
+#   -y, --yes           Auto-confirm model mapping changes (non-interactive safe)
 #   -h, --help          Show this help
 
 set -euo pipefail
@@ -40,6 +42,9 @@ INSTALL_ALL=0
 LINK_MODE=0
 FORCE_SCOPE=""   # 'global' | 'project' | 'custom'
 CUSTOM_DIR=""
+NO_COMMON_SKILLS=0
+AUTO_CONFIRM=0
+INSTALL_TIMESTAMP="$(date -u +%Y%m%dT%H%M%SZ)"
 
 # ── Parse args ────────────────────────────────────────────────────────────────
 while [[ $# -gt 0 ]]; do
@@ -60,6 +65,12 @@ while [[ $# -gt 0 ]]; do
       ;;
     --link)
       LINK_MODE=1
+      ;;
+    --no-common-skills)
+      NO_COMMON_SKILLS=1
+      ;;
+    -y|--yes)
+      AUTO_CONFIRM=1
       ;;
     -h|--help)
       sed -n '2,20p' "${BASH_SOURCE[0]}" | sed 's/^# \?//'
@@ -82,6 +93,61 @@ fi
 if [[ ! -f "$MANIFEST" ]]; then
   _err "Manifest not found: $MANIFEST"
   exit 1
+fi
+
+if ! command -v bun &>/dev/null; then
+  _err "bun is required for model resolution. Install via: curl -fsSL https://bun.sh/install | bash"
+  exit 1
+fi
+
+# ── Model resolution ───────────────────────────────────────────────────────────
+MODEL_RESOLVER="$FLEET_ROOT/scripts/model-resolve.mjs"
+if [[ ! -f "$MODEL_RESOLVER" ]]; then
+  _err "Model resolver not found: $MODEL_RESOLVER"
+  exit 1
+fi
+
+_info "Resolving model mappings..."
+RESOLVER_OUTPUT=$(bun "$MODEL_RESOLVER")
+if [[ $? -ne 0 ]]; then
+  _err "Model resolver failed"
+  exit 1
+fi
+
+ALL_AVAILABLE=$(echo "$RESOLVER_OUTPUT" | jq -r '.allAvailable')
+CHANGES_JSON=$(echo "$RESOLVER_OUTPUT" | jq -c '.changes')
+MODEL_MAP_JSON=$(echo "$RESOLVER_OUTPUT" | jq -c '.modelMap')
+RESOLVED_ROUTING_JSON=$(echo "$RESOLVER_OUTPUT" | jq -c '.resolvedManifest')
+
+# Check if resolver produced valid output
+if [[ "$ALL_AVAILABLE" == "null" || "$MODEL_MAP_JSON" == "null" || "$RESOLVED_ROUTING_JSON" == "null" ]]; then
+  _err "Model resolver produced invalid output"
+  exit 1
+fi
+
+# Show model change summary and confirm if changes
+CHANGE_COUNT=$(echo "$CHANGES_JSON" | jq 'length')
+if [[ "$CHANGE_COUNT" -gt 0 ]]; then
+  _bold "\nModel Mapping Changes Required:"
+  echo "$RESOLVER_OUTPUT" | jq -r '.changes[] | "  \(.agent).\(.field): \(.from) -> \(.to // "none") (\(.reason))"'
+  if [[ "$AUTO_CONFIRM" -eq 1 ]]; then
+    _info "Auto-confirming model mappings (--yes flag)."
+  elif [[ -t 0 ]]; then
+    printf '\nApply these model mappings? [Y/n] '
+    read -r confirm
+    confirm="${confirm:-Y}"
+    if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
+      _info "Install cancelled by user."
+      exit 0
+    fi
+  else
+    _err "Model mapping changes required but running in non-interactive mode."
+    _err "Re-run with --yes to auto-confirm, or run interactively."
+    exit 1
+  fi
+  _ok "Model mappings confirmed."
+else
+  _ok "All desired models available. No changes needed."
 fi
 
 # ── Load manifest ─────────────────────────────────────────────────────────────
@@ -123,6 +189,65 @@ resolve_scope_dir() {
 # ── Conflict detection ────────────────────────────────────────────────────────
 # Stores: component_id -> array of resolved absolute paths
 declare -A COMP_TARGETS   # id -> space-separated absolute dirs
+declare -A TARGET_COMPONENTS
+declare -A TARGET_INSTALLED_FILES
+declare -A TARGET_BACKUP_ROOTS
+declare -A TARGET_BACKUP_CREATED
+
+ACTIVE_TARGET_DIR=""
+ACTIVE_COMPONENT_ID=""
+
+ensure_backup_root() {
+  local target_dir="$1"
+  local root="${TARGET_BACKUP_ROOTS[$target_dir]:-}"
+  if [[ -n "$root" ]]; then
+    printf '%s\n' "$root"
+    return
+  fi
+  root="$target_dir/kura_backup/$INSTALL_TIMESTAMP"
+  TARGET_BACKUP_ROOTS["$target_dir"]="$root"
+  printf '%s\n' "$root"
+}
+
+record_installed_file() {
+  local dst="$1"
+  [[ -n "$ACTIVE_TARGET_DIR" ]] || return 0
+  case "$dst" in
+    "$ACTIVE_TARGET_DIR"/*)
+      local rel="${dst#"$ACTIVE_TARGET_DIR"/}"
+      TARGET_INSTALLED_FILES["$ACTIVE_TARGET_DIR"]+="$rel"$'\n'
+      ;;
+  esac
+}
+
+backup_existing_file() {
+  local dst="$1"
+  [[ -e "$dst" || -L "$dst" ]] || return 0
+  [[ -n "$ACTIVE_TARGET_DIR" ]] || return 0
+
+  local root rel backup_path
+  root="$(ensure_backup_root "$ACTIVE_TARGET_DIR")"
+  case "$dst" in
+    "$ACTIVE_TARGET_DIR"/*) rel="${dst#"$ACTIVE_TARGET_DIR"/}" ;;
+    *) return 0 ;;
+  esac
+  backup_path="$root/$rel"
+
+  if [[ "$DRY_RUN" -eq 1 ]]; then
+    printf '  %b[dry-run]%b Backup would be created: %s -> %s\n' "$DIM" "$RST" "$dst" "$backup_path"
+    TARGET_BACKUP_CREATED["$ACTIVE_TARGET_DIR"]=1
+    return 0
+  fi
+
+  if [[ -e "$backup_path" || -L "$backup_path" ]]; then
+    return 0
+  fi
+
+  mkdir -p "$(dirname "$backup_path")"
+  cp -P "$dst" "$backup_path"
+  TARGET_BACKUP_CREATED["$ACTIVE_TARGET_DIR"]=1
+  _warn "Backup created: $backup_path"
+}
 
 detect_conflict() {
   local id="$1" dir="$2"
@@ -139,9 +264,11 @@ detect_conflict() {
 # ── File operations ───────────────────────────────────────────────────────────
 do_copy() {
   local src="$1" dst="$2"
+  backup_existing_file "$dst"
   if [[ "$DRY_RUN" -eq 1 ]]; then
     local verb="cp"; [[ "$LINK_MODE" -eq 1 ]] && verb="ln -sfn"
     printf '  %b[dry-run]%b %s %s -> %s\n' "$DIM" "$RST" "$verb" "$src" "$dst"
+    record_installed_file "$dst"
     return
   fi
   mkdir -p "$(dirname "$dst")"
@@ -150,6 +277,7 @@ do_copy() {
   else
     cp "$src" "$dst"
   fi
+  record_installed_file "$dst"
 }
 
 do_copy_glob() {
@@ -195,6 +323,8 @@ merge_config() {
   local target_dir="$1"
   local plugins_to_add=("${!2}")  # nameref array
   local has_rules="${3:-0}"
+  local has_agents_source="${4:-0}"  # 1 if agents-core was installed at this target
+  local resolved_model_map_json="${5:-}"  # JSON string of resolved model map
 
   # Prefer .json; fall back to .jsonc
   local cfg_json="$target_dir/opencode.json"
@@ -210,6 +340,9 @@ merge_config() {
       local mjs_args=()
       for p in "${plugins_to_add[@]}"; do mjs_args+=("$(basename "$p")"); done
       [[ "$has_rules" -eq 1 ]] && mjs_args+=("--rules")
+      if [[ "$has_agents_source" -eq 1 && -n "$resolved_model_map_json" ]]; then
+        mjs_args+=("--agents-json" "$resolved_model_map_json")
+      fi
       if [[ "$DRY_RUN" -eq 0 ]]; then
         bun "$FLEET_ROOT/scripts/merge-config.mjs" "$cfg" "${mjs_args[@]}" && _ok "Config merged (jsonc): $cfg" && return
         _warn "merge-config.mjs failed; falling back to manual instructions."
@@ -225,6 +358,9 @@ merge_config() {
     done
     if [[ "$has_rules" -eq 1 ]]; then
       printf '    %b"./rules/*.md"%b\n' "$YLW" "$RST"
+    fi
+    if [[ "$has_agents_source" -eq 1 ]]; then
+      _warn "Also merge agent model mappings from resolved model map into $cfg."
     fi
     return
   else
@@ -243,10 +379,13 @@ merge_config() {
     if [[ "$has_rules" -eq 1 ]]; then
       printf '    add instructions: ./rules/*.md\n'
     fi
+    if [[ "$has_agents_source" -eq 1 ]]; then
+      printf '    add agent model mappings from resolved model map\n'
+    fi
     return
   fi
 
-  # Build jq filter to add plugins (dedup)
+  # Build jq filter to add plugins (dedup) and (optionally) agent model mappings
   local jq_expr='. '
   for p in "${plugins_to_add[@]}"; do
     local rel="./plugins/$(basename "$p")"
@@ -258,8 +397,99 @@ merge_config() {
 
   local tmp
   tmp=$(mktemp)
-  jq "$jq_expr" "$cfg" > "$tmp" && mv "$tmp" "$cfg"
+  backup_existing_file "$cfg"
+  if [[ "$has_agents_source" -eq 1 && -n "$resolved_model_map_json" ]]; then
+    # Merge each agent from the resolved model map into the target's agent key.
+    # Fleet entries win on conflict (.agent = target + fleet, jq object-merge
+    # right-side wins), so model upgrades land and user agents not in the
+    # source fleet are preserved.
+    local fleet_agents_tmp
+    fleet_agents_tmp=$(mktemp)
+    echo "$resolved_model_map_json" | jq 'with_entries(.value = { model: .value }) | {agent: .}' > "$fleet_agents_tmp"
+    jq --slurpfile fleet_agents "$fleet_agents_tmp" \
+      "$jq_expr | .agent = (.agent // {}) + \$fleet_agents[0].agent" \
+      "$cfg" > "$tmp" && mv "$tmp" "$cfg"
+    rm -f "$fleet_agents_tmp"
+  else
+    jq "$jq_expr" "$cfg" > "$tmp" && mv "$tmp" "$cfg"
+  fi
   _ok "Config merged: $cfg"
+}
+
+write_install_receipt() {
+  local target_dir="$1"
+  local receipt_path="$target_dir/.furaide-install-receipt.json"
+  local components_raw="${TARGET_COMPONENTS[$target_dir]:-}"
+  local files_raw="${TARGET_INSTALLED_FILES[$target_dir]:-}"
+  local plugins_raw="${TARGET_PLUGINS[$target_dir]:-}"
+  local has_rules="${TARGET_HAS_RULES[$target_dir]:-0}"
+  local has_agents="${TARGET_HAS_AGENTS[$target_dir]:-0}"
+  local backup_root="${TARGET_BACKUP_ROOTS[$target_dir]:-}"
+  local backup_created="${TARGET_BACKUP_CREATED[$target_dir]:-0}"
+
+  if [[ "$DRY_RUN" -eq 1 ]]; then
+    printf '  %b[dry-run]%b write install receipt -> %s\n' "$DIM" "$RST" "$receipt_path"
+    return
+  fi
+
+  local tmp receipt_plugins_json receipt_agent_keys_json receipt_components_json receipt_files_json
+  tmp=$(mktemp)
+  receipt_components_json=$(printf '%s' "$components_raw" | awk 'NF' | sort -u | jq -R . | jq -s .)
+  receipt_files_json=$(printf '%s' "$files_raw" | awk 'NF' | sort -u | jq -R . | jq -s .)
+  receipt_plugins_json=$(printf '%s' "$plugins_raw" | tr ' ' '\n' | awk 'NF' | sed 's|.*/||' | sed 's|^|./plugins/|' | sort -u | jq -R . | jq -s .)
+  if [[ "$has_agents" -eq 1 ]]; then
+    receipt_agent_keys_json=$(echo "$MODEL_MAP_JSON" | jq 'keys')
+  else
+    receipt_agent_keys_json='[]'
+  fi
+
+  jq -n \
+    --arg timestamp "$INSTALL_TIMESTAMP" \
+    --arg sourceRoot "$FLEET_ROOT" \
+    --arg targetDir "$target_dir" \
+    --arg backupRoot "$backup_root" \
+    --argjson backupCreated "$backup_created" \
+    --argjson selectedComponents "$receipt_components_json" \
+    --argjson installedFiles "$receipt_files_json" \
+    --argjson mergedPlugins "$receipt_plugins_json" \
+    --argjson mergedRules "$([[ "$has_rules" -eq 1 ]] && printf 'true' || printf 'false')" \
+    --argjson agentKeys "$receipt_agent_keys_json" \
+    --argjson modelMapSummary "$MODEL_MAP_JSON" \
+    '{
+      timestamp: $timestamp,
+      sourceRoot: $sourceRoot,
+      targetDir: $targetDir,
+      selectedComponents: $selectedComponents,
+      installedFiles: $installedFiles,
+      mergedConfig: {
+        plugins: $mergedPlugins,
+        rules: $mergedRules,
+        agentKeys: $agentKeys
+      },
+      backup: {
+        created: $backupCreated,
+        root: (if $backupRoot == "" then null else $backupRoot end)
+      },
+      modelMapSummary: $modelMapSummary
+    }' > "$tmp"
+  mv "$tmp" "$receipt_path"
+  _ok "Install receipt written: $receipt_path"
+}
+
+# ── Write resolved routing manifest ────────────────────────────────────────────
+write_resolved_routing() {
+  local target_dir="$1"
+  local resolved_routing_json="$2"
+  local dst="$target_dir/docs/routing-manifest.json"
+
+  if [[ "$DRY_RUN" -eq 1 ]]; then
+    printf '  %b[dry-run]%b write resolved routing-manifest.json -> %s\n' "$DIM" "$RST" "$dst"
+    return
+  fi
+
+  mkdir -p "$(dirname "$dst")"
+  echo "$resolved_routing_json" | jq '.' > "$dst"
+  _ok "Resolved routing manifest written: $dst"
 }
 
 # ── Interactive scope selection ───────────────────────────────────────────────
@@ -337,6 +567,7 @@ fi
 # Tracks which plugins go to which target dir, for config merge
 declare -A TARGET_PLUGINS   # target_dir -> space-separated plugin basenames
 declare -A TARGET_HAS_RULES # target_dir -> 1 if rules selected
+declare -A TARGET_HAS_AGENTS # target_dir -> 1 if agents-core or brand-builder selected
 
 for i in $(seq 0 $((COMPONENT_COUNT - 1))); do
   id=$(jq -r       ".components[$i].id"           "$MANIFEST")
@@ -381,6 +612,9 @@ for i in $(seq 0 $((COMPONENT_COUNT - 1))); do
 
     target_dir=$(resolve_scope_dir "$scope" "$local_custom")
     detect_conflict "$id" "$target_dir"
+    TARGET_COMPONENTS["$target_dir"]+="$id"$'\n'
+    ACTIVE_TARGET_DIR="$target_dir"
+    ACTIVE_COMPONENT_ID="$id"
 
     _info "Installing $label -> $target_dir"
 
@@ -427,6 +661,11 @@ for i in $(seq 0 $((COMPONENT_COUNT - 1))); do
     if [[ "$id" == "rules" ]]; then
       TARGET_HAS_RULES["$target_dir"]=1
     fi
+    # agents-core and brand-builder both contribute fleet agent files;
+    # their model mappings come from $FLEET_ROOT/opencode.jsonc.
+    if [[ "$id" == "agents-core" || "$id" == "brand-builder" ]]; then
+      TARGET_HAS_AGENTS["$target_dir"]=1
+    fi
 
     _ok "Done: $label -> $target_dir"
   done
@@ -434,9 +673,15 @@ done
 
 # ── Config merge for each target dir ─────────────────────────────────────────
 _bold "\nWiring configs...\n"
-for target_dir in "${!TARGET_PLUGINS[@]}"; do
-  plugins_str="${TARGET_PLUGINS[$target_dir]}"
+# Build the union of all target dirs that need config wiring
+declare -A WIRED_TARGETS
+for target_dir in "${!TARGET_PLUGINS[@]}" "${!TARGET_HAS_RULES[@]}" "${!TARGET_HAS_AGENTS[@]}"; do
+  WIRED_TARGETS["$target_dir"]=1
+done
+for target_dir in "${!WIRED_TARGETS[@]}"; do
+  plugins_str="${TARGET_PLUGINS[$target_dir]:-}"
   has_rules="${TARGET_HAS_RULES[$target_dir]:-0}"
+  has_agents="${TARGET_HAS_AGENTS[$target_dir]:-0}"
   # Convert space-separated string to array
   IFS=' ' read -ra plugins_arr <<< "$plugins_str"
   # Remove empty entries
@@ -444,15 +689,10 @@ for target_dir in "${!TARGET_PLUGINS[@]}"; do
   for p in "${plugins_arr[@]}"; do
     [[ -n "$p" ]] && filtered+=("$p")
   done
-  merge_config "$target_dir" filtered[@] "$has_rules"
-done
-
-# Also wire configs for dirs that only got rules (no plugins)
-for target_dir in "${!TARGET_HAS_RULES[@]}"; do
-  if [[ -z "${TARGET_PLUGINS[$target_dir]:-}" ]]; then
-    empty_arr=()
-    merge_config "$target_dir" empty_arr[@] "1"
-  fi
+  merge_config "$target_dir" filtered[@] "$has_rules" "$has_agents" "$MODEL_MAP_JSON"
+  # Write resolved routing manifest to targets that have failover component
+  write_resolved_routing "$target_dir" "$RESOLVED_ROUTING_JSON"
+  write_install_receipt "$target_dir"
 done
 
 # ── Post-install notes ────────────────────────────────────────────────────────
@@ -488,24 +728,37 @@ if [[ "$DRY_RUN" -eq 1 ]]; then
 fi
 
 # ── Common skills (B6) ────────────────────────────────────────────────────────
-COMMON_DIR="$(cd "$FLEET_ROOT/../common" 2>/dev/null && pwd)" || COMMON_DIR=""
-if [[ -n "$COMMON_DIR" && -f "$COMMON_DIR/install-common.sh" ]]; then
-  printf '\n'
-  _bold "Shared skills (bx, html-preview, brave-search, plan)"
-  printf 'Install to [g]lobal ~/.agents/skills, [p]roject, or [s]kip? [g/p/s] '
-  read -r _skill_scope </dev/tty || _skill_scope=s
-  case "$_skill_scope" in
-    g|G)
-      if [[ "$DRY_RUN" -eq 0 ]]; then bash "$COMMON_DIR/install-common.sh" --global
-      else printf '  [dry-run] bash common/install-common.sh --global\n'; fi ;;
-    p|P)
-      if [[ "$DRY_RUN" -eq 0 ]]; then bash "$COMMON_DIR/install-common.sh" --project "$PWD"
-      else printf '  [dry-run] bash common/install-common.sh --project %s\n' "$PWD"; fi ;;
-    *) _info "Common skills skipped." ;;
-  esac
-  printf 'Install other opencode skills from manifest (superpowers, tavily-*, …)? [y/N] '
-  read -r _extra_skills </dev/tty || _extra_skills=n
-  if [[ "$_extra_skills" =~ ^[Yy] && "$DRY_RUN" -eq 0 ]]; then
-    bash "$COMMON_DIR/install-skills.sh" --ecosystem opencode
+if [[ "$NO_COMMON_SKILLS" -eq 0 ]]; then
+  COMMON_DIR="$(cd "$FLEET_ROOT/../common" 2>/dev/null && pwd)" || COMMON_DIR=""
+  if [[ -n "$COMMON_DIR" && -f "$COMMON_DIR/install-common.sh" ]]; then
+    printf '\n'
+    _bold "Shared skills (bx, html-preview, brave-search, plan)"
+    if [[ -t 0 ]]; then
+      printf 'Install to [g]lobal ~/.agents/skills, [p]roject, or [s]kip? [g/p/s] '
+      read -r _skill_scope
+      _skill_scope="${_skill_scope:-s}"
+    else
+      _info "Non-interactive mode: skipping shared skills prompt (use --no-common-skills to suppress)."
+      _skill_scope="s"
+    fi
+    case "$_skill_scope" in
+      g|G)
+        if [[ "$DRY_RUN" -eq 0 ]]; then bash "$COMMON_DIR/install-common.sh" --global
+        else printf '  [dry-run] bash common/install-common.sh --global\n'; fi ;;
+      p|P)
+        if [[ "$DRY_RUN" -eq 0 ]]; then bash "$COMMON_DIR/install-common.sh" --project "$PWD"
+        else printf '  [dry-run] bash common/install-common.sh --project %s\n' "$PWD"; fi ;;
+      *) _info "Common skills skipped." ;;
+    esac
+    if [[ -t 0 ]]; then
+      printf 'Install other opencode skills from manifest (superpowers, tavily-*, …)? [y/N] '
+      read -r _extra_skills
+      _extra_skills="${_extra_skills:-n}"
+    else
+      _extra_skills="n"
+    fi
+    if [[ "$_extra_skills" =~ ^[Yy] && "$DRY_RUN" -eq 0 ]]; then
+      bash "$COMMON_DIR/install-skills.sh" --ecosystem opencode
+    fi
   fi
 fi

@@ -6,7 +6,6 @@ description: >
   Not for: auto-selecting repos the user did not name, generating code or commit messages, evaluating LinkedIn or resume (migaki--profile-polisher), general repo exploration (mikoshi--code-pathfinder).
   Behavior: returns BB-RESULT with per-repo disposition (Highlight / Improve soon / Keep but de-emphasize / Do not surface), proof gaps, improvements, next-project ideas; locked order portfolio value → proof quality → engineering quality; anti-voice gate via bb_record_review.
 mode: subagent
-model: openai/gpt-5.2
 permission:
   edit: deny
   bash: deny

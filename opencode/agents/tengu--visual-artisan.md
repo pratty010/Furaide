@@ -6,7 +6,6 @@ description: >
   Not for: application logic, gathering data, factual writing, or web-app code (no JS/CSS frameworks, only rendered artifacts).
   Behavior: returns a Visual Artifact (SVG/HTML/Mermaid) + Design Notes; tag heavy:true on the brief to route to gemini-3.1-pro for complex multimodal work; standard path uses gemini-3.5-flash; temperature 1.0 required.
 mode: subagent
-model: google-vertex/gemini-3.5-flash
 temperature: 1.0
 permission:
   edit: deny

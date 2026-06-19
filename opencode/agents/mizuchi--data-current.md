@@ -6,7 +6,6 @@ description: >
   Not for: numeric computation over supplied data (soroban--number-sage), code writing (tsukumogami--code-forgemaster), general architecture (sojobo--system-strategist).
   Behavior: returns entity-relationship summary + annotated DDL + dbt layer map + pipeline stages + trade-off table; produced schemas go to docs/schemas/<slug>.sql; dispatched by soroban--number-sage when work shifts from computation to schema.
 mode: subagent
-model: opencode-go/deepseek-v4-flash
 temperature: 0.5
 permission:
   edit: deny

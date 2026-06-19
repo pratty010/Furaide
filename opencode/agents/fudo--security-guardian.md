@@ -6,7 +6,6 @@ description: >
   Not for: DevOps or infra changes (daidarabotchi--infra-shaper); general correctness review (oni--red-team-reviewer); compliance documentation (enma--compliance-judge); single-file syntax fix (build mode).
   Behavior: refuses to proceed without a user-supplied threat model; all PoC execution requires two-layer action-allowlist gate before karakuri--command-runner; severity labels come from security-severity.mjs script output and are never assigned inline.
 mode: all
-model: opencode-go/kimi-k2.6
 temperature: 0.3
 permission:
   edit: deny

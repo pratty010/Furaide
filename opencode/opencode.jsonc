@@ -6,10 +6,50 @@
     "./plugins/nio.js",
     "./plugins/nurikabe.js",
     "./plugins/komainu.js",
-    "./plugins/migawari.js",
-    "./plugins/omokage.js"
+    "./plugins/migawari.js"
   ],
   "instructions": [
     "./rules/*.md"
-  ]
+  ],
+  "agent": {
+    "tsuchigumo--research-weaver": { "model": "opencode-go/kimi-k2.6" },
+    "daikoku--finance-steward": { "model": "opencode-go/qwen3.7-max" },
+    "enma--compliance-judge": { "model": "opencode-go/qwen3.6-plus" },
+    "fudo--security-guardian": { "model": "opencode-go/kimi-k2.6" },
+    "tsukumogami--code-forgemaster": { "model": "opencode-go/kimi-k2.6" },
+    "daidarabotchi--infra-shaper": { "model": "opencode-go/kimi-k2.6" },
+    "tsukuyomi--spec-oracle": { "model": "opencode-go/qwen3.6-plus" },
+    "yumemi--story-smith": { "model": "opencode-go/glm-5.1" },
+    "mujina--brand-shapeshifter": { "model": "openai/gpt-5.4" },
+    "sojobo--system-strategist": { "model": "opencode-go/kimi-k2.6" },
+    "shiranui--migration-guide": { "model": "opencode-go/kimi-k2.6" },
+    "chizu--implementation-planner": { "model": "opencode-go/kimi-k2.6" },
+    "kitsune--brand-orchestrator": { "model": "openai/gpt-5.4" },
+    "yamabiko--source-echo": { "model": "opencode-go/minimax-m2.7" },
+    "kagami--truth-mirror": { "model": "openai/gpt-5.4-mini" },
+    "soroban--number-sage": { "model": "opencode-go/deepseek-v4-flash" },
+    "karakuri--command-runner": { "model": "opencode-go/mimo-v2.5" },
+    "mikoshi--code-pathfinder": { "model": "opencode-go/qwen3.6-plus" },
+    "oni--red-team-reviewer": { "model": "openai/gpt-5.5" },
+    "kotodama--prose-polisher": { "model": "google-vertex/gemini-3.1-pro-preview" },
+    "jorogumo--synthesis-weaver": { "model": "opencode-go/glm-5.2" },
+    "tengu--visual-artisan": { "model": "google-vertex/gemini-3.5-flash" },
+    "bakeneko--bug-hunter": { "model": "opencode-go/deepseek-v4-pro" },
+    "makimono--docs-scribe": { "model": "opencode-go/glm-5.2" },
+    "azukiarai--data-sifter": { "model": "opencode-go/minimax-m2.7" },
+    "henge--format-shifter": { "model": "opencode-go/mimo-v2.5" },
+    "tanuki--general-trickster": { "model": "opencode/big-pickle" },
+    "karasutengu--docs-scout": { "model": "opencode/big-pickle" },
+    "hanko--git-seal": { "model": "openai/gpt-5.4-mini" },
+    "mizuchi--data-current": { "model": "opencode-go/deepseek-v4-flash" },
+    "tanuki--codemod-runner": { "model": "opencode-go/mimo-v2.5" },
+    "kodama--growth-echo": { "model": "opencode-go/qwen3.6-plus" },
+    "kudagitsune--fit-diviner": { "model": "openai/gpt-5.4-mini" },
+    "akashi--proof-keeper": { "model": "openai/gpt-5.4-mini" },
+    "amanojaku--voice-contrarian": { "model": "openai/gpt-5.4-mini" },
+    "hyakume--ats-watchman": { "model": "openai/gpt-5.4-mini" },
+    "kataribe--narrative-teller": { "model": "opencode-go/kimi-k2.6" },
+    "kurabokko--knowledge-keeper": { "model": "openai/gpt-5.4-mini" },
+    "migaki--profile-polisher": { "model": "opencode-go/kimi-k2.6" }
+  }
 }

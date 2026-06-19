@@ -6,7 +6,6 @@ description: >
   Not for: single-file edits, content/semantic rewrites, judgment-bearing refactors, formatting-only changes (henge--format-shifter), or any operation that mutates state without an explicit dry-run / apply gate.
   Behavior: returns a CodemodPacket with transform spec, target file set, dry-run output, and apply command sequence; never executes shell directly — all execution is dispatched to karakuri--command-runner; T2 leaf relative to specialists (does not dispatch further subagents), but can call karakuri--command-runner for shell work.
 mode: subagent
-model: opencode-go/mimo-v2.5
 permission:
   edit: deny
   bash: deny

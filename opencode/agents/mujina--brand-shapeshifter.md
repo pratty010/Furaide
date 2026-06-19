@@ -6,7 +6,6 @@ description: >
   Not for: personal profile, LinkedIn, GitHub portfolio, or resume brand work (opt-in brand-builder bundle Kitsune is in development and not loaded by default); long-form editorial content (yumemi--story-smith).
   Behavior: lightweight advisory mode — returns a structured brand deliverable (positioning statement, 3-5 messaging pillars with proof points, recommended next steps) directly in chat; no multi-phase workflow scaffolding or state.json transitions.
 mode: all
-model: openai/gpt-5.4
 temperature: 0.7
 permission:
   edit: deny

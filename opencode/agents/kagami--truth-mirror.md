@@ -6,7 +6,6 @@ description: >
   Not for: source retrieval (yamabiko--source-echo), synthesis (jorogumo--synthesis-weaver), or upgrading confidence without a citation.
   Behavior: returns Verdict Table (supported/unsupported/unverified × high/medium/low confidence) + summary counts; never extrapolates from training data; never fabricates citations.
 mode: subagent
-model: openai/gpt-5.4-mini
 permission:
   edit: deny
   bash: deny

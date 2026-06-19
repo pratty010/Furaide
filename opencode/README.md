@@ -1,8 +1,8 @@
 # Furaidē's Fleet: OpenCode Setup
 
-> *"Twenty-nine spirits. Four gate-guardians. The fleet is ready."*
+> *"Thirty spirits. Four gate-guardians. The fleet is ready."*
 
-Furaidē's [OpenCode](https://opencode.ai) configuration: a 29-agent fleet of named shikigami specialists, four gate plugins enforcing workflow integrity, and Kitsune's brand-builder domain (opt-in, in development). Part of the [F.R.I.D.A.Y.](https://github.com/pratty010/Furaide) collection.
+Furaidē's [OpenCode](https://opencode.ai) configuration: a 30-agent fleet of named shikigami specialists, four gate plugins enforcing workflow integrity, and Kitsune's brand-builder domain (opt-in, in development). Part of the [F.R.I.D.A.Y.](https://github.com/pratty010/Furaide) collection.
 
 There is no marketplace: the installer is the distribution. One command clones and installs:
 
@@ -16,29 +16,31 @@ Or if you already have the repo:
 bash opencode/scripts/install-fleet.sh
 ```
 
-The installer presents an interactive, independent-choice flow:
+The installer now runs as an interactive wizard with one model-resolution checkpoint before writes:
 
-1. **Component selection** — each component (9 total) toggled independently; core bundle defaults on, Brand Builder defaults **off**.
-2. **Scope per component** — global (`~/.config/opencode/`), project (`./.opencode/`), or custom absolute path; chosen independently per component.
-3. **Mode** — copy (default; writable, self-contained) or link (`ln -sfn` from repo; useful for development).
-4. **Model resolution** — installer reads `docs/routing-manifest.json`, resolves provider whitelist and per-agent models, presents **one confirmation** showing resolved models before writing `opencode.jsonc`.
-5. **Backup** — existing files at target paths are moved to `~/.local/share/opencode/kura_backup/<timestamp>/` by default; nothing silently overwritten.
-6. **Preflight summary** — resolved paths, file counts, mode, per-component coupling, and model summary printed; explicit confirmation required before any write.
-7. **Install receipt** — JSON written to `~/.local/share/opencode/install-receipts/<timestamp>.json` with component list, target paths, file counts, mode, and timestamp.
-8. **Config merge** — plugins added to `opencode.jsonc` via `merge-config.mjs` (preserves `.jsonc` comments); rules glob wired via `instructions`.
-9. **Post-install notes** — `bun install` command for Brand Builder if selected; `OPENCODE_CONFIG_DIR` export reminder for custom scopes.
+1. **Core bundle** (always default on): workflow gates, model failover, security gate, specialist agents, agent support scripts, rules, and reference docs.
+2. **Brand Builder / Kitsune** (optional, default **No**): the opt-in 9-agent brand domain. Skip unless you want it.
+3. **Location** (independent choice): global (`~/.config/opencode/`), project (`./.opencode/`), or a custom absolute path.
+4. **Mode** (independent choice): copy (default; writable, self-contained) or link (`ln -sfn` from the repo; useful for development).
+5. **Model resolution**: the installer runs `opencode models --refresh` (falls back to `opencode models`), compares local availability to the fleet routing manifest, and only asks once if any model remap is required.
+6. **Preflight summary**: before any write, the installer prints the resolved paths, file counts, mode, and per-component coupling.
+7. **Conflict handling**: existing files at the target path are backed up to `kura_backup/<timestamp>/` before overwrite, so nothing is silently overwritten.
+8. **Install receipt**: every target root gets `.furaide-install-receipt.json`, which records selected components, merged config keys, and model-map summary for later uninstall or rollback.
+
+After install, edit runtime models in the installed `opencode.json` or `opencode.jsonc` under `agent.<name>.model`. Fallback chains remain in `docs/routing-manifest.json`.
 
 ### Flags
 
 | Flag | Effect |
 |------|--------|
 | `--list` | Print all components with descriptions and coupling. No writes. |
-| `--dry-run` | Show planned copy + config-merge actions + model resolution preview. No writes. |
-| `--all` | Install all **default-on** components without prompting (Brand Builder still skipped unless explicitly selected). |
+| `--dry-run` | Show planned copy + config-merge actions. No writes. |
+| `--all` | Install all default-on components without prompting. |
 | `--global` | Pre-select `~/.config/opencode/` for all components. |
 | `--project` | Pre-select `./.opencode/` for all components. |
 | `--custom <dir>` | Pre-select an absolute path for all components. |
 | `--link` | Symlink mode: `ln -sfn` instead of `cp`; keeps the repo as source, skips `__FLEET_ROOT__` substitution. Useful for development. |
+| `--no-common-skills` | Skip the optional shared-skills prompt at the end of install. Useful for automation and tests. |
 | `-h` | Show help. |
 
 ### Scopes
@@ -58,12 +60,11 @@ The installer presents an interactive, independent-choice flow:
 | 1 | Workflow Gates | yes | on | Nio + Nurikabe gate plugins + workflow state engine. Tightly coupled; cannot be split. |
 | 2 | Model Failover | yes | on | Migawari plugin + routing manifest. Tightly coupled; cannot be split. |
 | 3 | Security Gate | no | on | Komainu plugin: 35+ dangerous-pattern checks on every Edit/Write. Standalone. |
-| 4 | Session Vault | yes | on | Global session vault command, close-hook plugin, helper, and tests. |
-| 5 | Specialist Agents | no | on | 29 core shikigami: 12 domain specialists + 2 general agents + 15 shared subagents. |
-| 6 | Agent Support Scripts | no | on | Verification and safety scripts called by agents via Karakuri. |
-| 7 | Rules | no | on | Memory contract and other rules wired via `instructions` glob. |
-| 8 | Reference Docs | no | off | OPERATOR guide, architecture overview, manifest schema, model family guides. |
-| 9 | Brand Builder / Kitsune | yes | off | Opt-in; in development. 9 brand agents + plugin + commands + skills. Needs `bun install`. |
+| 4 | Specialist Agents | no | on | 30 core shikigami: 12 domain specialists + 2 general agents + 16 shared subagents. |
+| 5 | Agent Support Scripts | no | on | Verification and safety scripts called by agents via Karakuri. |
+| 6 | Rules | no | on | Memory contract and other rules wired via `instructions` glob. |
+| 7 | Reference Docs | no | off | OPERATOR guide, architecture overview, manifest schema, model family guides. |
+| 8 | Brand Builder / Kitsune | yes | off | Opt-in; in development. 9 brand agents + plugin + commands + skills. Needs `bun install`. |
 
 Run `bash opencode/scripts/install-fleet.sh --list` for the full machine-readable view.
 
@@ -97,7 +98,7 @@ Run `bash opencode/scripts/install-fleet.sh --list` for the full machine-readabl
 | Tanuki(General) | Cost-aware generalist for tasks that fit no specialist |
 | Karasu-tengu(Scout) | Library and dependency lookup; ctx7 protocol baked in |
 
-### 15 Shared Subagents
+### 16 Shared Subagents
 
 | Shikigami | Role |
 |-----------|------|
@@ -116,6 +117,7 @@ Run `bash opencode/scripts/install-fleet.sh --list` for the full machine-readabl
 | Hanko(GitHub Workflow) | Git commits, pushes, PR creation, and CI monitoring with human-in-the-loop approval |
 | Planner(Implementation Planner) | Turns a goal into an executor-ready plan with exact file paths and verification commands |
 | Shiranui(Migrator) | Migration and codemod orchestrator for dependency upgrades and large-scale refactors |
+| Tanuki(Codemod Runner) | Bulk code transforms via jscodeshift, ast-grep, sed; dispatches shell to Karakuri |
 
 ### 4 Gate Shikigami (always active)
 
@@ -129,6 +131,8 @@ Run `bash opencode/scripts/install-fleet.sh --list` for the full machine-readabl
 ### Brand Builder / Kitsune Domain (opt-in, in development)
 
 Install with `scripts/install-fleet.sh` (brand-builder component). Not loaded by default.
+
+Brand Builder remains opt-in only. The installer does not enable it unless you explicitly select it.
 
 | Shikigami | Role |
 |-----------|------|
@@ -152,22 +156,11 @@ bun test scripts/tests/
 
 ---
 
-## Where to Edit Models After Install
-
-Model configuration lives in two places:
-
-| What | File | Purpose |
-|------|------|---------|
-| Per-agent overrides | `~/.config/opencode/opencode.jsonc` (under `agent.*.model`) | Override primary model for a specific agent |
-| Fallback chains & variants | `~/.config/opencode/docs/routing-manifest.json` | Source of truth for fallback chains, heavy/simple/canary variants, tier assignments |
-
-The installer writes both from `docs/routing-manifest.json` in the repo. After install, edit `opencode.jsonc` for quick per-agent changes; edit `routing-manifest.json` for structural changes to fallback chains.
-
----
-
 ## Uninstall
 
 The OpenCode uninstaller removes OpenCode-owned shikigami files, gate plugins, and configs. It can also clean up shared `common/` skills used across harnesses.
+
+If `.furaide-install-receipt.json` is present, uninstall uses it first to decide which components and config keys to remove. If the receipt is absent, it falls back to manifest-driven cleanup.
 
 ```bash
 bash opencode/scripts/uninstall-fleet.sh

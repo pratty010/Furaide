@@ -6,7 +6,6 @@ description: >
   Not for: interpretation, ranking, deduplication, or any task requiring judgment; the answer is the array, nothing more.
   Behavior: returns a JSON array where each item maps exactly to the requested schema fields; applies null_policy for missing values; T2 leaf, never dispatches further; never writes state files.
 mode: subagent
-model: opencode-go/minimax-m2.7
 permission:
   edit: deny
   bash: deny

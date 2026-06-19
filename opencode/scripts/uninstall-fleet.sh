@@ -168,6 +168,8 @@ unwire_config() {
   local target_dir="$1"
   local plugins_to_remove=("${!2}")  # array reference
   local has_rules="${3:-0}"
+  local has_agents_source="${4:-0}"
+  local agents_source_override="${5:-}"
 
   local cfg_json="$target_dir/opencode.json"
   local cfg_jsonc="$target_dir/opencode.jsonc"
@@ -184,11 +186,16 @@ unwire_config() {
   local unwire_args=()
   for p in "${plugins_to_remove[@]}"; do unwire_args+=("$(basename "$p")"); done
   [[ "$has_rules" -eq 1 ]] && unwire_args+=("--rules")
+  if [[ "$has_agents_source" -eq 1 && -n "$agents_source_override" && -f "$agents_source_override" ]]; then
+    unwire_args+=("--agents-source" "$agents_source_override")
+  elif [[ "$has_agents_source" -eq 1 && -f "$FLEET_ROOT/opencode.jsonc" ]]; then
+    unwire_args+=("--agents-source" "$FLEET_ROOT/opencode.jsonc")
+  fi
 
   if command -v bun &>/dev/null || command -v node &>/dev/null; then
     local runner="node"
     command -v bun &>/dev/null && runner="bun"
-    
+
     if [[ "$DRY_RUN" -eq 0 ]]; then
       $runner "$SCRIPT_DIR/unmerge-config.mjs" "$cfg" "${unwire_args[@]}" && _ok "Config cleaned: $cfg" && return
       _warn "unmerge-config.mjs failed; falling back to manual config instructions."
@@ -205,6 +212,9 @@ unwire_config() {
   done
   if [[ "$has_rules" -eq 1 ]]; then
     printf '    "./rules/*.md"\n'
+  fi
+  if [[ "$has_agents_source" -eq 1 ]]; then
+    _warn "Also remove the 'agent' keys listed in $FLEET_ROOT/opencode.jsonc from $cfg."
   fi
 }
 
@@ -278,6 +288,16 @@ fi
 # We'll track target dirs to unwire configs for
 declare -A TARGET_PLUGINS
 declare -A TARGET_HAS_RULES
+declare -A TARGET_HAS_AGENTS
+declare -A TARGET_AGENT_SOURCE_OVERRIDE
+
+build_receipt_agent_source() {
+  local receipt_path="$1"
+  local tmp
+  tmp=$(mktemp)
+  jq '{agent: (.mergedConfig.agentKeys // [] | reduce .[] as $key ({}; .[$key] = {}))}' "$receipt_path" > "$tmp"
+  printf '%s\n' "$tmp"
+}
 
 for scope_spec in "${selected_scopes[@]}"; do
   local_custom=""
@@ -290,10 +310,25 @@ for scope_spec in "${selected_scopes[@]}"; do
   target_dir=$(resolve_scope_dir "$scope" "$local_custom")
   _bold "\nCleaning scope: $target_dir\n"
 
+  receipt_path="$target_dir/.furaide-install-receipt.json"
+  use_receipt=0
+  if [[ -f "$receipt_path" ]]; then
+    use_receipt=1
+    if jq -e '.mergedConfig.agentKeys | length > 0' "$receipt_path" >/dev/null 2>&1; then
+      TARGET_AGENT_SOURCE_OVERRIDE["$target_dir"]="$(build_receipt_agent_source "$receipt_path")"
+    fi
+  fi
+
   # Loop components backwards to remove leaf nodes first
   for i in $(seq $((COMPONENT_COUNT - 1)) -1 0); do
     id=$(jq -r ".components[$i].id" "$MANIFEST")
     label=$(jq -r ".components[$i].label" "$MANIFEST")
+
+    if [[ "$use_receipt" -eq 1 ]]; then
+      if ! jq -e --arg id "$id" '.selectedComponents | index($id)' "$receipt_path" >/dev/null 2>&1; then
+        continue
+      fi
+    fi
     
     _info "Cleaning component: $label"
 
@@ -317,7 +352,7 @@ for scope_spec in "${selected_scopes[@]}"; do
       do_uninstall_glob "$g" "$target_dir"
     done
 
-    # Track plugins and rules for unwiring config
+    # Track plugins, rules, and agents for unwiring config
     for rel in "${files[@]}"; do
       if [[ "$rel" == plugins/*.js ]]; then
         TARGET_PLUGINS["$target_dir"]+=" $rel"
@@ -326,41 +361,53 @@ for scope_spec in "${selected_scopes[@]}"; do
     if [[ "$id" == "rules" ]]; then
       TARGET_HAS_RULES["$target_dir"]=1
     fi
+    if [[ "$id" == "agents-core" || "$id" == "brand-builder" ]]; then
+      TARGET_HAS_AGENTS["$target_dir"]=1
+    fi
   done
 done
 
 # ── Config unwiring ───────────────────────────────────────────────────────────
 _bold "\nUnwiring configs...\n"
-for target_dir in "${!TARGET_PLUGINS[@]}"; do
-  plugins_str="${TARGET_PLUGINS[$target_dir]}"
+# Union of all target dirs needing config unwire
+declare -A UNWIRE_TARGETS
+for target_dir in "${!TARGET_PLUGINS[@]}" "${!TARGET_HAS_RULES[@]}" "${!TARGET_HAS_AGENTS[@]}"; do
+  UNWIRE_TARGETS["$target_dir"]=1
+done
+for target_dir in "${!UNWIRE_TARGETS[@]}"; do
+  plugins_str="${TARGET_PLUGINS[$target_dir]:-}"
   has_rules="${TARGET_HAS_RULES[$target_dir]:-0}"
+  has_agents="${TARGET_HAS_AGENTS[$target_dir]:-0}"
   IFS=' ' read -ra plugins_arr <<< "$plugins_str"
   filtered=()
   for p in "${plugins_arr[@]}"; do
     [[ -n "$p" ]] && filtered+=("$p")
   done
-  unwire_config "$target_dir" filtered[@] "$has_rules"
-done
-
-# Also unwire rules-only targets
-for target_dir in "${!TARGET_HAS_RULES[@]}"; do
-  if [[ -z "${TARGET_PLUGINS[$target_dir]:-}" ]]; then
-    empty_arr=()
-    unwire_config "$target_dir" empty_arr[@] "1"
+  unwire_config "$target_dir" filtered[@] "$has_rules" "$has_agents" "${TARGET_AGENT_SOURCE_OVERRIDE[$target_dir]:-}"
+  receipt_path="$target_dir/.furaide-install-receipt.json"
+  if [[ -f "$receipt_path" ]]; then
+    if [[ "$DRY_RUN" -eq 1 ]]; then
+      printf '  %b[dry-run]%b rm %s\n' "$DIM" "$RST" "$receipt_path"
+    else
+      rm -f "$receipt_path"
+      _ok "Removed receipt $receipt_path"
+    fi
+  fi
+  if [[ -n "${TARGET_AGENT_SOURCE_OVERRIDE[$target_dir]:-}" ]]; then
+    rm -f "${TARGET_AGENT_SOURCE_OVERRIDE[$target_dir]}"
   fi
 done
 
 # ── Clean up shared common skills ─────────────────────────────────────────────
 clean_shared_skills() {
-  local scope_dir="$1"
-  local skills_dir="$scope_dir/skills"
-  local agents_skills_dir="$scope_dir/skills"
+  local target_dir="$1"
+  local agents_skills_dir="$target_dir/skills"
   local claude_skills_dir=""
-  
-  if [[ "$scope_dir" == "$GLOBAL_SCOPE" ]]; then
+
+  if [[ "$target_dir" == "$GLOBAL_SCOPE" ]]; then
     agents_skills_dir="$HOME/.agents/skills"
     claude_skills_dir="$HOME/.claude/skills"
-  elif [[ "$scope_dir" == "$PROJECT_SCOPE" ]]; then
+  elif [[ "$target_dir" == "$PROJECT_SCOPE" ]]; then
     agents_skills_dir="$target_dir/.agents/skills"
     claude_skills_dir="$target_dir/.claude/skills"
   fi

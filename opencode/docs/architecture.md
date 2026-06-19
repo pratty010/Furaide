@@ -8,16 +8,16 @@ Not auto-loaded. Pull when editing fleet wiring, scripts, or file relationships.
 
 | File | Role | Synced with |
 |---|---|---|
-| `agents/<name>.md` | Agent definition (frontmatter + body) | `permission.task` must match manifest `permitted_subagents`; `model:` frontmatter is not the runtime source |
-| `docs/routing-manifest.json` | Canonical model routing (fallback chains, heavy/simple/canary variants, tier assignments) | Single source of truth for routing; read by `migawari.js` at runtime |
-| `opencode.jsonc` | Runtime model config (provider whitelist + per-agent overrides under `agent.*.model`) + plugin list + permissions | Plugin array must include all 4 plugins; provider whitelists must not include `gemini-2.5-*`; per-agent overrides take precedence over manifest primary |
+| `agents/<name>.md` | Agent definition (frontmatter + body) | `permission.task` must match manifest `permitted_subagents`; no `model:` field — model lives in `opencode.jsonc` |
+| `docs/routing-manifest.json` | Canonical model routing (primary + fallback chains) | Routing + fallback source of truth; installer may write a resolved copy into the target install |
 | `docs/OPERATOR.md` | Tier discipline, model budget, reserve justification | `routing-manifest.json` should respect tier assignments here |
+| `opencode.jsonc` | Provider whitelist + plugin list + permissions + `agent` model mappings | Plugin array must include all 4 gate plugins; provider whitelists must not include `gemini-2.5-*`; `agent.<name>.model` is the runtime assignment |
 | `plugins/*.js` | Runtime gates (fail-closed on load error) | `migawari.js` reads `routing-manifest.json` at runtime |
 | `scripts/workflow-state.mjs` | Sole writer of `state.json` | Specialists call at phase boundaries; never write state directly |
 | `scripts/lib/state-lock.mjs` | File-based locking for workflow state | Used by `workflow-state.mjs` for CAS safety |
 | `docs/manifest-schema.md` | Schema for agent frontmatter manifest fields | `permission.task` allow-list is generated from `permitted_subagents` |
 
-**After editing an agent file:** run `bun test` to verify model consistency against `routing-manifest.json` and `opencode.jsonc`.
+**After editing routing or runtime model config:** run `bun test` to verify model consistency.
 
 ---
 
