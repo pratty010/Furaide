@@ -8,7 +8,7 @@ import { DirectoryRow, getSessionDetail, listDirectories, listSessions, SessionD
 export type UiSession = SessionRow;
 export type Viewport = { height: number; width: number };
 type InputMode = null | "search" | "directory" | "filter";
-type PendingAction = "delete" | "archive" | "restore" | "export_sanitized" | "export_raw" | "continue" | "continue_fork" | null;
+type PendingAction = "delete" | "archive" | "restore" | "export_sanitized" | "continue" | "continue_fork" | "archive_and_export" | null;
 
 type ThemeDoc = {
   name: string;
@@ -79,8 +79,15 @@ export function getVisibleRows(state: UiState): Array<DirectoryRow | UiSession> 
   const visibleSessions = state.directory
     ? state.sessions.filter(s => s.directory === state.directory)
     : state.sessions;
+  
+  // When at root (no directory drilled), show pure session list for the tab
+  if (!state.directory) {
+    return visibleSessions;
+  }
+  
+  // When drilled into a directory, show folder tree
   for (const folder of state.folders) {
-    if (state.directory && folder.directory !== state.directory) continue;
+    if (folder.directory !== state.directory) continue;
     rows.push(folder);
     if (state.expandedFolders.has(folder.directory)) {
       const folderSessions = visibleSessions.filter(s => s.directory === folder.directory);
@@ -96,7 +103,7 @@ export function currentSession(state: UiState): UiSession | undefined {
   return undefined;
 }
 
-function reloadState(state: UiState): UiState {
+export function reloadState(state: UiState): UiState {
   const baseCwd = cwd();
   let folders = sortFolders(listDirectories({ prefix: state.query }), baseCwd);
   if (state.inputMode === "search" && state.query) {
@@ -157,7 +164,7 @@ function actionContext(state: UiState): { isFolder: boolean; isSession: boolean;
   return { isFolder: !!isFolder, isSession: !!isSession, isArchived, hasStack };
 }
 
-function clampCursor(state: UiState): UiState {
+export function clampCursor(state: UiState): UiState {
   const total = getVisibleRows(state).length;
   const max = Math.max(0, total - 1);
   const cursor = Math.max(0, Math.min(state.cursor, max));
@@ -199,11 +206,27 @@ function executePendingAction(state: UiState): UiState {
   const selected = currentSession(state);
   if (!selected || !state.pendingAction) return { ...state, pendingAction: null, status: "cancelled" };
 
-  if (state.pendingAction === "archive") archiveSession(selected.id);
-  if (state.pendingAction === "restore") restoreSession(selected.id);
-  if (state.pendingAction === "delete") deleteSession(selected.id);
-  if (state.pendingAction === "export_sanitized") exportSession(selected.id, false);
-  if (state.pendingAction === "export_raw") exportSession(selected.id, true);
+  if (state.pendingAction === "archive") {
+    archiveSession(selected.id);
+    return clampCursor(reloadState({ ...state, pendingAction: null, status: `archived ${selected.id}` }));
+  }
+  if (state.pendingAction === "restore") {
+    restoreSession(selected.id);
+    return clampCursor(reloadState({ ...state, pendingAction: null, status: `restored ${selected.id}` }));
+  }
+  if (state.pendingAction === "delete") {
+    deleteSession(selected.id);
+    return clampCursor(reloadState({ ...state, pendingAction: null, status: `deleted ${selected.id}` }));
+  }
+  if (state.pendingAction === "archive_and_export") {
+    archiveSession(selected.id);
+    exportSession(selected.id, false);
+    return clampCursor(reloadState({ ...state, pendingAction: null, status: `archived + exported ${selected.id}` }));
+  }
+  if (state.pendingAction === "export_sanitized") {
+    exportSession(selected.id, false);
+    return clampCursor(reloadState({ ...state, pendingAction: null, status: `exported ${selected.id}` }));
+  }
   if (state.pendingAction === "continue") {
     continueRequest = { id: selected.id, fork: false };
     return { ...state, pendingAction: null, status: `continuing ${selected.id}` };
@@ -225,10 +248,16 @@ export function applyKey(state: UiState, key: string): UiState {
     const query = key.slice("type:".length);
     return clampCursor(reloadState({ ...state, query, cursor: 0, listScroll: 0, status: `${state.inputMode || "input"}:${query}` }));
   }
-  if (key === "Escape" || key === "Esc") return clampCursor(reloadState({ ...state, inputMode: null, query: "", searchSelected: 0, status: "ready", pendingAction: null }));
-  
-  if (state.pendingAction && key === "y") return executePendingAction(state);
-  if (state.pendingAction && key === "n") return { ...state, status: "cancelled", pendingAction: null };
+
+  if (state.pendingAction && (key === "y" || key === "Enter")) return executePendingAction(state);
+  if (state.pendingAction && (key === "n" || key === "Escape" || key === "Esc")) return { ...state, status: "cancelled", pendingAction: null };
+
+  if (key === "Escape" || key === "Esc") {
+    if (!state.inputMode && !state.pendingAction && state.stack.length > 0) {
+      return popStack(state);
+    }
+    return clampCursor(reloadState({ ...state, inputMode: null, query: "", searchSelected: 0, status: "ready", pendingAction: null }));
+  }
 
   if (key === "j" || key === "ArrowDown") return clampCursor({ ...state, cursor: state.cursor + 1 });
   if (key === "k" || key === "ArrowUp") return clampCursor({ ...state, cursor: state.cursor - 1 });
@@ -237,9 +266,7 @@ export function applyKey(state: UiState, key: string): UiState {
   if (key === "Ctrl+D" || key === "PageDown") return clampCursor({ ...state, cursor: state.cursor + Math.floor(leftRowsCount(state) / 2) });
   if (key === "Ctrl+U" || key === "PageUp") return clampCursor({ ...state, cursor: state.cursor - Math.floor(leftRowsCount(state) / 2) });
   if (key === "Tab") return clampCursor(reloadState({ ...state, tab: tabs[(tabs.indexOf(state.tab) + 1) % tabs.length], cursor: 0, listScroll: 0 }));
-  if (!state.inputMode && key === "b") return popStack(state);
   if (key === "B") return clampCursor(reloadState({ ...state, directory: undefined, query: "", inputMode: null, stack: [], cursor: 0, listScroll: 0, status: "reset" }));
-  if (!state.inputMode && key === "m") return { ...state, messagesExpanded: !state.messagesExpanded };
   if (!state.inputMode && key === "o") {
     const allExpanded = state.folders.every(f => state.expandedFolders.has(f.directory));
     const nextSet = new Set<string>();
@@ -267,14 +294,14 @@ export function applyKey(state: UiState, key: string): UiState {
   }
 
   // Navigation and universal keys are always allowed
-  if (["j", "k", "ArrowDown", "ArrowUp", "G", "gg", "Ctrl+D", "PageDown", "Ctrl+U", "PageUp", "Tab", "b", "B", "m", "o"].includes(key)) {
+  if (["j", "k", "ArrowDown", "ArrowUp", "G", "gg", "Ctrl+D", "PageDown", "Ctrl+U", "PageUp", "Tab", "B", "o"].includes(key)) {
     return state;
   }
 
   if (ctx.isFolder) {
-    // Folder rows: only navigation, Enter, o, /, \, Tab, b, B are valid (already handled above)
-    // Invalid actions on folder: a, r, d, e, E, c, C, m
-    if (["a", "r", "d", "e", "E", "c", "C"].includes(key)) {
+    // Folder rows: only navigation, Enter, o, /, \, Tab, B are valid (already handled above)
+    // Invalid actions on folder: a, r, d, e
+    if (["a", "r", "d", "e"].includes(key)) {
       return { ...state, status: "actions only apply to sessions" };
     }
     return state;
@@ -282,23 +309,26 @@ export function applyKey(state: UiState, key: string): UiState {
 
   if (ctx.isSession) {
     if (ctx.isArchived) {
-      // Archived session: valid: Enter/c (continue), C (fork), r (restore), d (delete), e, E, m, tabs, nav
+      // Archived session: valid: Enter (continue), r (restore), d (hard delete), e (export), tabs, nav
       // Invalid: a (archive)
       if (key === "a") return { ...state, status: "archive only applies to active sessions" };
       if (key === "r") return session ? { ...state, status: `confirm restore ${session.id}`, pendingAction: "restore" } : state;
     } else {
-      // Active session: valid: Enter/c (continue), C (fork), a (archive), d (delete), e, E, m, tabs, nav
+      // Active session: valid: Enter (continue), a (archive), d (archive + export sanitized), e (export), tabs, nav
       // Invalid: r (restore)
       if (key === "r") return { ...state, status: "restore only applies to archived sessions" };
       if (key === "a") return session ? { ...state, status: `confirm archive ${session.id}`, pendingAction: "archive" } : state;
     }
 
     // Common actions for both active and archived
-    if (key === "d") return session ? { ...state, status: `confirm delete ${session.id}`, pendingAction: "delete" } : state;
-    if (key === "e") return session ? { ...state, status: `confirm export sanitized ${session.id}`, pendingAction: "export_sanitized" } : state;
-    if (key === "E") return session ? { ...state, status: `confirm export raw ${session.id}`, pendingAction: "export_raw" } : state;
-    if (key === "c") return session ? { ...state, status: `confirm continue ${session.id}`, pendingAction: "continue" } : state;
-    if (key === "C") return session ? { ...state, status: `confirm continue fork ${session.id}`, pendingAction: "continue_fork" } : state;
+    if (key === "d") {
+      if (ctx.isArchived) {
+        return session ? { ...state, status: `confirm delete ${session.id} (permanent)`, pendingAction: "delete" } : state;
+      } else {
+        return session ? { ...state, status: `confirm delete ${session.id} (archive + export)`, pendingAction: "archive_and_export" } : state;
+      }
+    }
+    if (key === "e") return session ? { ...state, status: `confirm export ${session.id}`, pendingAction: "export_sanitized" } : state;
 
     return state;
   }
@@ -353,9 +383,11 @@ function overlayLines(state: UiState, width: number, height: number): Array<{ ro
       ? "This moves the session into Archived."
       : state.pendingAction === "restore"
         ? "This restores the session to Active."
-        : state.pendingAction === "continue" || state.pendingAction === "continue_fork"
-          ? "This opens the session in OpenCode."
-          : "This action will run now.";
+        : state.pendingAction === "archive_and_export"
+          ? "This archives the session and exports a sanitized copy."
+          : state.pendingAction === "continue" || state.pendingAction === "continue_fork"
+            ? "This opens the session in OpenCode."
+            : "This action will run now.";
   const boxWidth = Math.min(64, Math.max(38, width - 8));
   const start = Math.max(1, Math.min(Math.floor((height - 7) / 2), Math.max(1, height - 6)));
   const left = Math.max(0, Math.floor((width - boxWidth) / 2));
@@ -363,7 +395,7 @@ function overlayLines(state: UiState, width: number, height: number): Array<{ ro
   const title = `${" ".repeat(left)}│ ${clip(action, boxWidth - 4).padEnd(boxWidth - 4)} │`;
   const targetLine = `${" ".repeat(left)}│ ${clip(target, boxWidth - 4).padEnd(boxWidth - 4)} │`;
   const bodyLine = `${" ".repeat(left)}│ ${clip(body, boxWidth - 4).padEnd(boxWidth - 4)} │`;
-  const buttons = `${" ".repeat(left)}│ ${clip("[y] confirm   [n] cancel   [Esc] dismiss", boxWidth - 4).padEnd(boxWidth - 4)} │`;
+  const buttons = `${" ".repeat(left)}│ ${clip("[y/Enter] confirm   [n/Esc] cancel", boxWidth - 4).padEnd(boxWidth - 4)} │`;
   const bottom = `${" ".repeat(left)}└${"─".repeat(boxWidth - 2)}┘`;
   return [
     { row: start, text: top },
@@ -428,7 +460,7 @@ export function renderRows(state: UiState): string[] {
     lines.push(pad(clip(left, leftWidth), leftWidth) + " │ " + pad(clip(right, rightWidth), rightWidth));
   }
 
-  lines.push(pad(clip(`q quit · / search · o toggle all · m msgs · Tab tabs · Enter open/toggle · b back · e export · a archive · d delete · c continue`, state.viewport.width), state.viewport.width));
+  lines.push(pad(clip(`q quit · / search · o toggle all · Tab tabs · Enter open · Esc back · e export · a archive · d archive+export`, state.viewport.width), state.viewport.width));
 
   const overlay = overlayLines(state, state.viewport.width, lines.length);
   for (const item of overlay) {
@@ -438,10 +470,13 @@ export function renderRows(state: UiState): string[] {
   return lines;
 }
 
-function buildLeftContent(state: UiState): StyledText {
+export function buildLeftContent(state: UiState): StyledText {
   const chunks: TextChunk[] = [];
   const visible = getVisibleRows(state);
-  const header = `Folders & Sessions ${state.cursor + 1} / ${Math.max(visible.length, 1)} [${state.tab}]`;
+  const isDrilled = !!state.directory;
+  const header = isDrilled
+    ? `Folders & Sessions ${state.cursor + 1} / ${Math.max(visible.length, 1)} [${state.tab}]`
+    : `Sessions (${state.tab}) ${state.cursor + 1} / ${Math.max(visible.length, 1)}`;
   chunks.push({ text: header + "\n", fg: tone("text"), bg: tone("surfaceAlt"), bold: true });
 
   const visibleSlice = visible.slice(state.listScroll, state.listScroll + leftRowsCount(state));
@@ -471,7 +506,7 @@ function buildLeftContent(state: UiState): StyledText {
   return new StyledText(chunks);
 }
 
-function buildRightContent(state: UiState): StyledText {
+export function buildRightContent(state: UiState): StyledText {
   const chunks: TextChunk[] = [];
   const selected = currentSession(state);
   const detail = selected ? getSessionDetail({ id: selected.id, cwd: cwd() }) : null;
@@ -519,7 +554,7 @@ function buildRightContent(state: UiState): StyledText {
   chunks.push({ text: (detail.diffPath ? `${detail.diffPath} (${detail.diffBytes || 0} bytes)` : "-") + "\n", fg: valueColor });
 
   // Recent messages
-  chunks.push({ text: "\nRecent Messages (m to toggle)\n", fg: labelColor, bold: true });
+  chunks.push({ text: "\nRecent Messages\n", fg: labelColor, bold: true });
   const recentLimit = state.messagesExpanded ? 10 : 4;
   for (const item of detail.recentText.slice(0, recentLimit)) {
     const roleColor = item.role === "user" ? tone("cyan") : tone("text");
@@ -541,7 +576,7 @@ function buildRightContent(state: UiState): StyledText {
   return new StyledText(chunks);
 }
 
-function buildSearchOverlay(state: UiState): StyledText {
+export function buildSearchOverlay(state: UiState): StyledText {
   const width = Math.floor(state.viewport.width * 0.7);
   const boxWidth = Math.max(40, Math.min(width, state.viewport.width - 4));
   const innerWidth = boxWidth - 4;
@@ -590,7 +625,7 @@ function buildSearchOverlay(state: UiState): StyledText {
   chunks.push({ text: "├" + "─".repeat(boxWidth - 2) + "┤\n", fg: tone("modalBorder"), bg: tone("modalBg") });
 
   // Footer
-  const footer = "↑↓ navigate · Enter select · Esc cancel";
+  const footer = "↑↓ navigate · Enter open · Esc cancel";
   const footerLine = `│ ${clip(footer, innerWidth)}${" ".repeat(Math.max(0, innerWidth - footer.length))} │`;
   chunks.push({ text: footerLine + "\n", fg: tone("dim"), bg: tone("modalBg") });
 
@@ -615,9 +650,11 @@ function buildConfirmOverlay(state: UiState): StyledText {
       ? "This moves the session into Archived."
       : state.pendingAction === "restore"
         ? "This restores the session to Active."
-        : state.pendingAction === "continue" || state.pendingAction === "continue_fork"
-          ? "This opens the session in OpenCode."
-          : "This action will run now.";
+        : state.pendingAction === "archive_and_export"
+          ? "This archives the session and exports a sanitized copy."
+          : state.pendingAction === "continue" || state.pendingAction === "continue_fork"
+            ? "This opens the session in OpenCode."
+            : "This action will run now.";
 
   chunks.push({ text: "┌" + "─".repeat(boxWidth - 2) + "┐\n", fg: tone("modalBorder") });
   const titleLine = `│ ${clip(action, innerWidth).padEnd(innerWidth)} │`;
@@ -626,23 +663,23 @@ function buildConfirmOverlay(state: UiState): StyledText {
   chunks.push({ text: targetLine + "\n", fg: tone("detailValue"), bg: tone("modalBg") });
   const bodyLine = `│ ${clip(body, innerWidth).padEnd(innerWidth)} │`;
   chunks.push({ text: bodyLine + "\n", fg: tone("warning"), bg: tone("modalBg") });
-  const buttonLine = `│ ${clip("[y] confirm   [n] cancel   [Esc] dismiss", innerWidth).padEnd(innerWidth)} │`;
+  const buttonLine = `│ ${clip("[y/Enter] confirm   [n/Esc] cancel", innerWidth).padEnd(innerWidth)} │`;
   chunks.push({ text: buttonLine + "\n", fg: tone("dim"), bg: tone("modalBg") });
   chunks.push({ text: "└" + "─".repeat(boxWidth - 2) + "┘\n", fg: tone("modalBorder") });
   return new StyledText(chunks);
 }
 
-function contextHints(state: UiState): string {
-  if (state.pendingAction) return "[y] confirm · [n] cancel · [Esc] dismiss";
-  if (state.inputMode === "search") return "↑↓ navigate · Enter select · Esc cancel";
+export function contextHints(state: UiState): string {
+  if (state.pendingAction) return "[y/Enter] confirm · [n/Esc] cancel";
+  if (state.inputMode === "search") return "↑↓ navigate · Enter open · Esc cancel";
   const row = getVisibleRows(state)[state.cursor];
   if (!row) return "q quit";
-  if (!("id" in row)) return "Enter expand/collapse · o toggle all · / search · \\ folders · Tab tabs · b back · q quit";
+  if (!("id" in row)) return "Enter expand/collapse · o toggle all · / search · \\ folders · Tab tabs · Esc back · q quit";
   const session = row as UiSession;
   if (session.timeArchived != null) {
-    return "Enter continue · r restore · d delete · e export · E raw · c continue · C fork · m msgs · b back · q quit";
+    return "Enter continue · r restore · d delete · e export · Esc back · q quit";
   }
-  return "Enter continue · a archive · d delete · e export · E raw · c continue · C fork · m msgs · b back · q quit";
+  return "Enter continue · a archive · d archive+export · e export · Esc back · q quit";
 }
 
 export function errorMessage(error: unknown): string {
@@ -678,28 +715,9 @@ function appendTyped(state: UiState, value: string): UiState | null {
   return null;
 }
 
-export async function startInteractiveTui(): Promise<void> {
-  const renderer = await createCliRenderer({
-    exitOnCtrlC: true,
-    targetFps: 30,
-    useMouse: true,
-    onDestroy: () => {
-      if (continueRequest && quitRequestCode === null) {
-        const req = continueRequest;
-        continueRequest = null;
-        const child = spawn(opencodeBin(), ["--session", req.id, ...(req.fork ? ["--fork"] : [])], { stdio: "inherit" });
-        child.on("exit", (code) => process.exit(code ?? 0));
-        child.on("error", () => process.exit(1));
-        return;
-      }
-      if (quitRequestCode !== null) {
-        const code = quitRequestCode;
-        quitRequestCode = null;
-        process.exit(code);
-      }
-    },
-  });
-  let state = createInitialState(listSessions({ tab: "active", cwd: cwd() }), { height: process.stdout.rows || 24, width: process.stdout.columns || 100 });
+async function runTuiLoop(renderer: Awaited<ReturnType<typeof createCliRenderer>>, initialState: UiState): Promise<UiState | null> {
+  let state = initialState;
+  let pendingG = false;
 
   // Create left and right panes with Box layout
   const leftPane = new TextRenderable(renderer, {
@@ -756,9 +774,7 @@ export async function startInteractiveTui(): Promise<void> {
   });
   renderer.root.add(confirmOverlay);
 
-  let pendingG = false;
-
-  process.stdout.on("resize", () => {
+  const resizeHandler = () => {
     state = { ...state, viewport: { height: process.stdout.rows || 24, width: process.stdout.columns || 100 } };
     leftPane.content = buildLeftContent(state);
     rightPane.content = buildRightContent(state);
@@ -766,120 +782,144 @@ export async function startInteractiveTui(): Promise<void> {
     if (searchOverlay.visible) searchOverlay.content = buildSearchOverlay(state);
     if (confirmOverlay.visible) confirmOverlay.content = buildConfirmOverlay(state);
     renderer.requestRender();
-  });
+  };
 
-  renderer.keyInput.on("keypress", (key: any) => {
-    const mapped = mapKey(key);
+  process.stdout.on("resize", resizeHandler);
 
-    // Global quit
-    if (mapped === "q") {
-      quitRequestCode = 0;
-      renderer.destroy();
-      return;
-    }
+  let shouldRestart = false;
+  let shouldQuit = false;
+  let quitCode = 0;
 
-    const hasPendingAction = !!state.pendingAction;
-    const isSearchMode = state.inputMode === "search";
-    const isDirectoryMode = state.inputMode === "directory";
-    const isFilterMode = state.inputMode === "filter";
-    const hasOverlay = hasPendingAction || isSearchMode || isDirectoryMode || isFilterMode;
+  await new Promise<void>((resolve) => {
+    renderer.keyInput.on("keypress", (key: any) => {
+      const mapped = mapKey(key);
 
-    // Handle 'gg' double-tap
-    if (mapped === "g") {
-      if (pendingG) {
-        state = applyKey(state, "gg");
-        pendingG = false;
-      } else {
-        pendingG = true;
+      // Global quit
+      if (mapped === "q") {
+        shouldQuit = true;
+        quitCode = 0;
+        renderer.destroy();
+        resolve();
         return;
       }
-    } else {
-      pendingG = false;
-    }
 
-    // Overlay-first routing
-    if (hasPendingAction) {
-      // Only y, n, Escape are handled
-      if (mapped === "y" || mapped === "n" || mapped === "Escape" || mapped === "Esc") {
-        state = applyKey(state, mapped);
-      }
-      // All other keys ignored
-    } else if (isSearchMode) {
-      // Search mode: handle navigation, selection, typing
-      if (mapped === "ArrowUp" || mapped === "k") {
-        const results = searchResultsFor(state);
-        state = { ...state, searchSelected: Math.max(0, state.searchSelected - 1) };
-      } else if (mapped === "ArrowDown" || mapped === "j") {
-        const results = searchResultsFor(state);
-        state = { ...state, searchSelected: Math.min(results.length - 1, state.searchSelected + 1) };
-      } else if (mapped === "Enter") {
-        const results = searchResultsFor(state);
-        const selected = results[state.searchSelected];
-        if (selected) {
-          // Ensure folder is expanded
-          const nextExpanded = new Set(state.expandedFolders);
-          nextExpanded.add(selected.directory);
-          const refreshed = reloadState({ ...state, expandedFolders: nextExpanded });
-          // Find the row index in visible rows
-          const visible = getVisibleRows(refreshed);
-          const rowIndex = visible.findIndex(r => "id" in r && r.id === selected.id);
-          if (rowIndex >= 0) {
-            state = {
-              ...refreshed,
-              expandedFolders: nextExpanded,
-              cursor: rowIndex,
-              listScroll: Math.max(0, rowIndex - Math.floor(leftRowsCount(refreshed) / 2)),
-              inputMode: null,
-              query: "",
-              searchSelected: 0,
-              status: `selected ${selected.id}`
-            };
-          }
+      const hasPendingAction = !!state.pendingAction;
+      const isSearchMode = state.inputMode === "search";
+      const isDirectoryMode = state.inputMode === "directory";
+      const isFilterMode = state.inputMode === "filter";
+
+      // Handle 'gg' double-tap
+      if (mapped === "g") {
+        if (pendingG) {
+          state = applyKey(state, "gg");
+          pendingG = false;
+        } else {
+          pendingG = true;
+          return;
         }
-      } else if (mapped === "Escape" || mapped === "Esc") {
-        state = applyKey(state, "Escape");
       } else {
-        // Handle typing and backspace
-        const typed = appendTyped(state, mapped);
-        if (typed !== null) state = { ...typed, searchSelected: 0 };
+        pendingG = false;
       }
-    } else if (isDirectoryMode || isFilterMode) {
-      // Directory/Filter mode: only typing, backspace, escape
-      if (mapped === "Escape" || mapped === "Esc") {
-        state = applyKey(state, "Escape");
+
+      // Overlay-first routing
+      if (hasPendingAction) {
+        if (mapped === "y" || mapped === "n" || mapped === "Escape" || mapped === "Esc" || mapped === "Enter") {
+          state = applyKey(state, mapped);
+        }
+      } else if (isSearchMode) {
+        if (mapped === "ArrowUp" || mapped === "k") {
+          const results = searchResultsFor(state);
+          state = { ...state, searchSelected: Math.max(0, state.searchSelected - 1) };
+        } else if (mapped === "ArrowDown" || mapped === "j") {
+          const results = searchResultsFor(state);
+          state = { ...state, searchSelected: Math.min(results.length - 1, state.searchSelected + 1) };
+        } else if (mapped === "Enter") {
+          const results = searchResultsFor(state);
+          const selected = results[state.searchSelected];
+          if (selected) {
+            continueRequest = { id: selected.id, fork: false };
+            shouldRestart = true;
+            renderer.destroy();
+            resolve();
+            return;
+          }
+        } else if (mapped === "Escape" || mapped === "Esc") {
+          state = applyKey(state, "Escape");
+        } else {
+          const typed = appendTyped(state, mapped);
+          if (typed !== null) state = { ...typed, searchSelected: 0 };
+        }
+      } else if (isDirectoryMode || isFilterMode) {
+        if (mapped === "Escape" || mapped === "Esc") {
+          state = applyKey(state, "Escape");
+        } else {
+          const typed = appendTyped(state, mapped);
+          if (typed !== null) state = typed;
+        }
       } else {
         const typed = appendTyped(state, mapped);
-        if (typed !== null) state = typed;
+        state = typed !== null ? typed : applyKey(state, mapped);
       }
-    } else {
-      // No overlay active: normal navigation and actions
-      const typed = appendTyped(state, mapped);
-      state = typed !== null ? typed : applyKey(state, mapped);
-    }
 
-    // Update panes
-    leftPane.content = buildLeftContent(state);
-    rightPane.content = buildRightContent(state);
-    statusBar.content = new StyledText([{ text: contextHints(state), fg: tone("statusFg"), bg: tone("statusBg") }]);
+      leftPane.content = buildLeftContent(state);
+      rightPane.content = buildRightContent(state);
+      statusBar.content = new StyledText([{ text: contextHints(state), fg: tone("statusFg"), bg: tone("statusBg") }]);
 
-    // Toggle search overlay visibility
-    searchOverlay.visible = state.inputMode === "search";
-    if (searchOverlay.visible) {
-      searchOverlay.content = buildSearchOverlay(state);
-    }
+      searchOverlay.visible = state.inputMode === "search";
+      if (searchOverlay.visible) {
+        searchOverlay.content = buildSearchOverlay(state);
+      }
 
-    confirmOverlay.visible = !!state.pendingAction;
-    if (confirmOverlay.visible) {
-      confirmOverlay.content = buildConfirmOverlay(state);
-    }
+      confirmOverlay.visible = !!state.pendingAction;
+      if (confirmOverlay.visible) {
+        confirmOverlay.content = buildConfirmOverlay(state);
+      }
 
-    if (continueRequest) {
-      renderer.destroy();
-      return;
-    }
+      if (continueRequest) {
+        shouldRestart = true;
+        renderer.destroy();
+        resolve();
+        return;
+      }
 
-    renderer.requestRender();
+      renderer.requestRender();
+    });
   });
+
+  process.stdout.off("resize", resizeHandler);
+
+  if (shouldQuit) {
+    process.exit(quitCode);
+  }
+
+  if (shouldRestart && continueRequest) {
+    const req = continueRequest;
+    continueRequest = null;
+    const child = spawn(opencodeBin(), ["--session", req.id, ...(req.fork ? ["--fork"] : [])], { stdio: "inherit" });
+    await new Promise<void>((resolve) => {
+      child.on("exit", () => resolve());
+      child.on("error", () => resolve());
+    });
+    return state;
+  }
+
+  return null;
+}
+
+export async function startInteractiveTui(): Promise<void> {
+  let state = createInitialState(listSessions({ tab: "active", cwd: cwd() }), { height: process.stdout.rows || 24, width: process.stdout.columns || 100 });
+
+  while (true) {
+    const renderer = await createCliRenderer({
+      exitOnCtrlC: true,
+      targetFps: 30,
+      useMouse: true,
+    });
+
+    const nextState = await runTuiLoop(renderer, state);
+    if (nextState === null) break;
+    state = reloadState({ ...nextState, pendingAction: null, status: "returned from opencode" });
+  }
 }
 
 function dataDir(): string {
