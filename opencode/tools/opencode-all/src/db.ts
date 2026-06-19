@@ -1,9 +1,88 @@
-import { existsSync, statSync } from "node:fs";
+import { existsSync, readFileSync, statSync, unlinkSync } from "node:fs";
+import { spawnSync } from "node:child_process";
 import { join } from "node:path";
 import { Database } from "bun:sqlite";
 import { capText, hasControlBytes, renderSafe } from "./sanitize.ts";
 
-export type Tab = "active" | "archived" | "all";
+export type Tab = "active" | "archived";
+
+export type ArchivedMessageRow = {
+  role: "user" | "assistant" | "system";
+  time: number;
+  text: string;
+};
+
+export function defaultArchivePath(id: string): string {
+  const base = process.env.XDG_DATA_HOME || join(process.env.HOME || ".", ".local", "share");
+  return join(base, "opencode", "tools", "opencode-all", "exports", `${id}.json`);
+}
+
+function opencodeBin(): string {
+  return process.env.OPENCODE_ALL_OPENCODE_BIN || "opencode";
+}
+
+export function exportSessionToFile(id: string, raw = false): { ok: boolean; code: number; stderr: string } {
+  const file = defaultArchivePath(id);
+  const args = ["session", "export", id, ...(raw ? [] : ["--sanitize"]), file];
+  const result = spawnSync(opencodeBin(), args, { stdio: "pipe" });
+  return { ok: result.status === 0, code: result.status ?? 1, stderr: (result.stderr || "").toString() };
+}
+
+export function importSessionFromFile(id: string): { ok: boolean; code: number; stderr: string } {
+  const file = defaultArchivePath(id);
+  if (!existsSync(file)) {
+    return { ok: false, code: -1, stderr: `archive file not found at ${file}` };
+  }
+  const result = spawnSync(opencodeBin(), ["session", "import", file], { stdio: "pipe" });
+  return { ok: result.status === 0, code: result.status ?? 1, stderr: (result.stderr || "").toString() };
+}
+
+export function deleteSessionById(id: string): { ok: boolean; code: number; stderr: string } {
+  const result = spawnSync(opencodeBin(), ["session", "delete", id], { stdio: "pipe" });
+  return { ok: result.status === 0, code: result.status ?? 1, stderr: (result.stderr || "").toString() };
+}
+
+export function removeArchiveFile(id: string): { ok: boolean; err?: string } {
+  const file = defaultArchivePath(id);
+  if (!existsSync(file)) return { ok: true };
+  try {
+    unlinkSync(file);
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, err: (err as Error).message };
+  }
+}
+
+export function readArchivedMessages(id: string, maxMessages = 200): ArchivedMessageRow[] {
+  const file = defaultArchivePath(id);
+  if (!existsSync(file)) return [];
+  try {
+    const raw = JSON.parse(readFileSync(file, "utf8"));
+    const messages = Array.isArray(raw?.messages) ? raw.messages : [];
+    const rows: ArchivedMessageRow[] = [];
+    for (const m of messages) {
+      if (rows.length >= maxMessages) break;
+      const role = m?.info?.role;
+      if (role !== "user" && role !== "assistant") continue;
+      const time = Number(m?.info?.time?.created ?? 0);
+      const parts = Array.isArray(m?.parts) ? m.parts : [];
+      const textPart = parts.find((p: any) => p?.type === "text");
+      const text = String(textPart?.text ?? "");
+      rows.push({ role, time, text });
+    }
+    return rows;
+  } catch {
+    return [];
+  }
+}
+
+export function listActiveSessionsInDir(directory: string): SessionRow[] {
+  return listSessions({ tab: "active", cwd: process.cwd(), directory });
+}
+
+export function listArchivedSessionsInDir(directory: string): SessionRow[] {
+  return listSessions({ tab: "archived", cwd: process.cwd(), directory });
+}
 
 export type SessionRow = {
   id: string;

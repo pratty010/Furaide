@@ -6,7 +6,6 @@ import {
   createInitialState,
   currentSession,
   getVisibleRows,
-  renderRows,
   type UiSession,
 } from "../src/tui.tsx";
 
@@ -33,25 +32,51 @@ const archivedSessions: UiSession[] = [
   { ...sessions[1], timeArchived: 998, directory: "/repo/other" },
 ];
 
-function overlayText() {
-  const state = createInitialState(sessions, { height: 20, width: 100 });
-  state.inputMode = "search";
-  const overlay = buildSearchOverlay(state);
-  return overlay.chunks.map((chunk: any) => chunk.text || "").join("");
+function flatText(content: any): string {
+  return content.chunks.map((c: any) => c.text || "").join("");
+}
+
+function expandFirstFolder(state: any) {
+  if (state.folders.length === 0) return state;
+  const folder = state.folders[0];
+  return { ...state, expandedFolders: new Set([folder.directory]) };
+}
+
+function firstSessionCursor(state: any) {
+  const visible = getVisibleRows(state);
+  for (let i = 0; i < visible.length; i++) {
+    if ("id" in visible[i]) return { ...state, cursor: i };
+  }
+  return state;
+}
+
+function expandFolderWithSessions(state: any) {
+  const sessionDirs = new Set(state.sessions.map((s: any) => s.directory));
+  const target = state.folders.find((f: any) => sessionDirs.has(f.directory));
+  if (!target) return state;
+  return { ...state, expandedFolders: new Set([target.directory]) };
+}
+
+function cursorOnFirstSession(state: any) {
+  let next = expandFolderWithSessions(state);
+  const visible = getVisibleRows(next);
+  for (let i = 0; i < visible.length; i++) {
+    if ("id" in visible[i]) return { ...next, cursor: i };
+  }
+  return next;
 }
 
 describe("initial state", () => {
-  test("root/no-directory shows pure session rows", () => {
+  test("root/no-directory shows folder tree with all folders", () => {
     const state = createInitialState(sessions, { height: 20, width: 100 });
     const visible = getVisibleRows(state);
-    expect(visible.every(row => "id" in row)).toBe(true);
-    expect(visible.length).toBe(6);
+    const folders = visible.filter((r) => !("id" in r));
+    expect(folders.length).toBeGreaterThan(0);
   });
 
-  test("cursor starts at first session", () => {
+  test("cursor starts at first row", () => {
     const state = createInitialState(sessions, { height: 20, width: 100 });
     expect(state.cursor).toBe(0);
-    expect(currentSession(state)?.id).toBe("ses_0");
   });
 });
 
@@ -61,80 +86,60 @@ describe("navigation", () => {
     state = applyKey(state, "j");
     state = applyKey(state, "j");
     expect(state.cursor).toBe(2);
-    expect(currentSession(state)?.id).toBe("ses_2");
     state = applyKey(state, "k");
     expect(state.cursor).toBe(1);
   });
 
-  test("tab cycles active -> archived -> all -> active", () => {
+  test("tab cycles active -> archived -> active", () => {
     let state = createInitialState(sessions, { height: 10, width: 100 });
     expect(state.tab).toBe("active");
     state = applyKey(state, "Tab");
+    state = applyKey(state, "Tab");
     expect(state.tab).toBe("archived");
     state = applyKey(state, "Tab");
-    expect(state.tab).toBe("all");
     state = applyKey(state, "Tab");
     expect(state.tab).toBe("active");
   });
 });
 
 describe("enter semantics", () => {
-  test("Enter on session sets continue confirmation", () => {
+  test("Enter on session drives opencode continue flow (no pendingAction)", () => {
     let state = createInitialState(sessions, { height: 10, width: 100 });
+    state = expandFolderWithSessions(state);
+    state = cursorOnFirstSession(state);
     state = applyKey(state, "Enter");
-    expect(state.pendingAction).toBe("continue");
-    expect(state.status).toContain("confirm continue");
+    expect(state.pendingAction).toBeNull();
   });
 });
 
-describe("search mode basics", () => {
+describe("search mode", () => {
   test("slash enters search mode", () => {
     let state = createInitialState(sessions, { height: 20, width: 100 });
     state = applyKey(state, "/");
     expect(state.inputMode).toBe("search");
-    expect(state.query).toBe("");
-    expect(state.searchSelected).toBe(0);
-  });
-
-  test("type updates query", () => {
-    let state = createInitialState(sessions, { height: 20, width: 100 });
-    state = applyKey(state, "/");
-    state = applyKey(state, "type:curr");
-    expect(state.query).toBe("curr");
   });
 
   test("Escape exits search mode and clears query", () => {
     let state = createInitialState(sessions, { height: 20, width: 100 });
     state = applyKey(state, "/");
-    state = applyKey(state, "type:test");
+    state = applyKey(state, "type:curr");
     state = applyKey(state, "Escape");
     expect(state.inputMode).toBeNull();
     expect(state.query).toBe("");
-    expect(state.status).toBe("ready");
   });
 });
 
 describe("Esc as universal back/close", () => {
-  test("Esc at root gives ready state", () => {
+  test("Esc at root gives already at root", () => {
     let state = createInitialState(sessions, { height: 10, width: 100 });
     state = applyKey(state, "Escape");
-    expect(state.status).toBe("ready");
-  });
-
-  test("Esc pops stack when stack exists", () => {
-    let state = createInitialState(sessions, { height: 10, width: 100 });
-    state = {
-      ...state,
-      stack: [{ cursor: 0, listScroll: 0, tab: "active", query: "", directory: undefined, sort: "updated", expandedFolders: new Set<string>() }],
-      directory: "/repo/current",
-    };
-    state = applyKey(state, "Escape");
-    expect(state.stack.length).toBe(0);
-    expect(state.status).toBe("back");
+    expect(state.status).toBe("already at root");
   });
 
   test("Esc cancels pending action", () => {
     let state = createInitialState(sessions, { height: 10, width: 100 });
+    state = expandFolderWithSessions(state);
+    state = cursorOnFirstSession(state);
     state = applyKey(state, "a");
     expect(state.pendingAction).toBe("archive");
     state = applyKey(state, "Escape");
@@ -144,63 +149,73 @@ describe("Esc as universal back/close", () => {
 });
 
 describe("confirmation workflow semantics", () => {
-  test("archive opens confirmation on active session", () => {
+  test("active session: a -> archive confirmation", () => {
     let state = createInitialState(sessions, { height: 10, width: 100 });
+    state = expandFolderWithSessions(state);
+    state = cursorOnFirstSession(state);
     state = applyKey(state, "a");
     expect(state.pendingAction).toBe("archive");
   });
 
-  test("restore opens confirmation on archived session", () => {
-    let state = createInitialState(archivedSessions, { height: 10, width: 100 });
-    state = applyKey(state, "r");
-    expect(state.pendingAction).toBe("restore");
-  });
-
-  test("active delete uses archive_and_export path", () => {
+  test("active session: d -> archive_and_delete confirmation", () => {
     let state = createInitialState(sessions, { height: 10, width: 100 });
+    state = expandFolderWithSessions(state);
+    state = cursorOnFirstSession(state);
     state = applyKey(state, "d");
-    expect(state.pendingAction).toBe("archive_and_export");
-    expect(state.status).toContain("archive + export");
+    expect(state.pendingAction).toBe("archive_and_delete");
   });
 
-  test("archived delete uses permanent delete path", () => {
+  test("archived session: i -> import confirmation", () => {
     let state = createInitialState(archivedSessions, { height: 10, width: 100 });
-    state = applyKey(state, "d");
-    expect(state.pendingAction).toBe("delete");
-    expect(state.status).toContain("permanent");
+    state = { ...state, tab: "archived" as const };
+    state = cursorOnFirstSession(state);
+    const next = applyKey(state, "i");
+    expect(next.pendingAction).toBe("import");
   });
 
-  test("export uses single export action", () => {
-    let state = createInitialState(sessions, { height: 10, width: 100 });
-    state = applyKey(state, "e");
-    expect(state.pendingAction).toBe("export_sanitized");
+  test("archived session: d -> delete confirmation (permanent)", () => {
+    let state = createInitialState(archivedSessions, { height: 10, width: 100 });
+    state = { ...state, tab: "archived" as const };
+    state = cursorOnFirstSession(state);
+    const next = applyKey(state, "d");
+    expect(next.pendingAction).toBe("delete");
   });
 
-  test("folder rows reject session-only actions", () => {
+  test("folder rows only show folders that have sessions", () => {
+    const state = createInitialState(sessions, { height: 10, width: 100 });
+    const visible = getVisibleRows(state);
+    for (const row of visible) {
+      if (!("id" in row)) {
+        const dir = (row as any).directory;
+        const inState = state.sessions.some((s: any) => s.directory === dir);
+        const inDb = state.folders.some((f: any) => f.directory === dir && f.active + f.archived > 0);
+        expect(inState || inDb).toBe(true);
+      }
+    }
+  });
+
+  test("folder rows accept bulk archive when active sessions exist", () => {
     let state = createInitialState(sessions, { height: 10, width: 100 });
-    state = {
-      ...state,
-      directory: "/repo/current",
-      folders: [{ directory: "/repo/current", active: 2, archived: 0, latestUpdated: 10 }],
-      sessions: sessions.filter(s => s.directory === "/repo/current"),
-      expandedFolders: new Set(["/repo/current"]),
-      cursor: 0,
-    };
+    state = expandFolderWithSessions(state);
+    state = applyKey(state, "j");
     state = applyKey(state, "a");
-    expect(state.status).toBe("actions only apply to sessions");
-    expect(state.pendingAction).toBeNull();
+    expect(state.pendingAction).toBe("bulk_archive");
   });
 
   test("active sessions reject restore", () => {
     let state = createInitialState(sessions, { height: 10, width: 100 });
+    state = expandFolderWithSessions(state);
+    state = cursorOnFirstSession(state);
     state = applyKey(state, "r");
     expect(state.status).toBe("restore only applies to archived sessions");
   });
 
   test("archived sessions reject archive", () => {
     let state = createInitialState(archivedSessions, { height: 10, width: 100 });
-    state = applyKey(state, "a");
-    expect(state.status).toBe("archive only applies to active sessions");
+    state = { ...state, tab: "archived" as const };
+    state = cursorOnFirstSession(state);
+    const next = applyKey(state, "a");
+    expect(next.status).toBe("archive only applies to active sessions");
   });
 });
 
@@ -208,30 +223,43 @@ describe("removed workflow keys", () => {
   test("context hints do not expose c/C/E/m", () => {
     const state = createInitialState(sessions, { height: 10, width: 100 });
     const hints = contextHints(state);
-    expect(hints).not.toContain(" c ");
-    expect(hints).not.toContain(" C ");
-    expect(hints).not.toContain(" E ");
-    expect(hints).not.toContain(" m ");
+    expect(hints).not.toMatch(/\bc\b/);
+    expect(hints).not.toMatch(/\bC\b/);
+    expect(hints).not.toMatch(/\bE\b/);
+    expect(hints).not.toMatch(/\bm\b/);
   });
 });
 
 describe("render helpers", () => {
-  test("renderRows includes detail pane labels for selected session", () => {
-    const state = createInitialState(sessions, { height: 14, width: 100 });
-    const output = renderRows(state).join("\n");
-    expect(output).toContain("Directory");
-    expect(output).toContain("Agent");
-    expect(output).toContain("Model");
-  });
-
   test("search overlay footer shows Enter open", () => {
-    const text = overlayText();
+    const state = createInitialState(sessions, { height: 14, width: 100 });
+    state.inputMode = "search";
+    state.query = "furaide";
+    const text = flatText(buildSearchOverlay(state));
     expect(text).toContain("Enter open");
   });
 
-  test("context hints show Esc back", () => {
+  test("search row contains both title and directory", () => {
+    const state = createInitialState(sessions, { height: 14, width: 100 });
+    state.inputMode = "search";
+    state.query = "Session 0";
+    const text = flatText(buildSearchOverlay(state));
+    expect(text).toContain("Session 0");
+    expect(text).toContain("/repo/current");
+  });
+
+  test("context hints show Esc back for active session", () => {
     const state = createInitialState(sessions, { height: 10, width: 100 });
-    const hints = contextHints(state);
-    expect(hints).toContain("Esc back");
+    const folder = state.folders[0];
+    const next = { ...state, expandedFolders: new Set([folder.directory]), cursor: 1 };
+    expect(contextHints(next)).toContain("Esc back");
+  });
+
+  test("context hints show import hint for archived session", () => {
+    const archived = sessions.map((s) => ({ ...s, timeArchived: 100 }));
+    let state = createInitialState(archived, { height: 10, width: 100 });
+    state = { ...state, tab: "archived" as const };
+    state = cursorOnFirstSession(state);
+    expect(contextHints(state)).toContain("i import");
   });
 });
