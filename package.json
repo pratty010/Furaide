@@ -8,5 +8,8 @@
   },
   "devDependencies": {
     "lefthook": "2.1.9"
+  },
+  "dependencies": {
+    "yaml": "^2.9.0"
   }
 }

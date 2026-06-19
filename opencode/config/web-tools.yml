@@ -1,0 +1,15 @@
+webSearch:
+  defaultProvider: brave
+  primaryFallbackOrder: [brave, tavily, gemini]
+  reserveFallbackOrder: []
+  count: 5
+  freshness: pm
+  rawContent: false
+fetchContent:
+  defaultProvider: gemini
+  primaryFallbackOrder: [gemini, tavily]
+  reserveFallbackOrder: []
+  format: markdown
+mapsSearch:
+  defaultProvider: gemini
+  count: 5
