@@ -1,5 +1,23 @@
+interface CachedSearchResult {
+  results: Array<{
+    title: string;
+    url: string;
+    snippet: string;
+    published?: string;
+    score?: number;
+    content?: string;
+  }>;
+}
+
 export class InMemoryCache {
   private store = new Map<string, { value: unknown; expiresAt: number }>();
+  private webSearchTtlMs: number;
+  private fetchContentTtlMs: number;
+
+  constructor(opts?: { webSearchTtlMs?: number; fetchContentTtlMs?: number }) {
+    this.webSearchTtlMs = opts?.webSearchTtlMs ?? 3_600_000;
+    this.fetchContentTtlMs = opts?.fetchContentTtlMs ?? 86_400_000;
+  }
 
   get<T>(key: string): T | undefined {
     const entry = this.store.get(key);
@@ -13,6 +31,22 @@ export class InMemoryCache {
 
   set<T>(key: string, value: T, ttlMs: number): void {
     this.store.set(key, { value, expiresAt: Date.now() + ttlMs });
+  }
+
+  getWebSearch(key: string): CachedSearchResult | undefined {
+    return this.get<CachedSearchResult>(key);
+  }
+
+  setWebSearch(key: string, value: CachedSearchResult): void {
+    this.set(key, value, this.webSearchTtlMs);
+  }
+
+  getFetchContent(key: string): unknown {
+    return this.get(key);
+  }
+
+  setFetchContent(key: string, value: unknown): void {
+    this.set(key, value, this.fetchContentTtlMs);
   }
 
   clear(): void {

@@ -1,4 +1,6 @@
 import { Database } from "bun:sqlite";
+import { hashString } from "./util/hash.ts";
+import { normalizeUrl } from "./util/normalize-url.ts";
 
 export function openTestDb(): Database {
   const db = new Database(":memory:");
@@ -71,4 +73,52 @@ export function createTables(db: Database): void {
       primary key (url_hash, provider, mode)
     )
   `);
+}
+
+interface NormalizedSearchRequest {
+  query: string;
+  count: number;
+  freshness: string;
+  rawContent: boolean;
+}
+
+interface WebSearchRecordResult {
+  results: Array<{ title: string; url: string; snippet: string; published?: string; score?: number; content?: string }>;
+  metadata: { provider: string };
+}
+
+export function recordWebSearch(
+  db: Database,
+  request: NormalizedSearchRequest,
+  result: WebSearchRecordResult,
+): void {
+  const stmt = db.prepare(`
+    insert into web_search_results (url_hash, provider, normalized_url, title, snippet, published, score, content, seen_count, first_seen, last_seen, last_query_hash)
+    values (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, 1, datetime('now'), datetime('now'), ?9)
+    on conflict (url_hash, provider) do update set
+      seen_count = seen_count + 1,
+      last_seen = datetime('now'),
+      title = excluded.title,
+      snippet = excluded.snippet,
+      published = excluded.published,
+      score = excluded.score,
+      content = excluded.content
+  `);
+
+  const queryHash = hashString(request.query);
+
+  for (const r of result.results) {
+    const urlHash = hashString(normalizeUrl(r.url));
+    stmt.run(
+      urlHash,
+      result.metadata.provider,
+      normalizeUrl(r.url),
+      r.title ?? null,
+      r.snippet ?? null,
+      r.published ?? null,
+      r.score ?? null,
+      r.content ?? null,
+      queryHash,
+    );
+  }
 }
