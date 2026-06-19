@@ -39,7 +39,7 @@ This is the opencode config dir (`~/.config/opencode/`) for a 12-specialist + 16
 - Use `bun`/`bunx` for JS/TS; `uv run` for Python scripts.
 - Check `~/.local/share/opencode/memory/<cwd-slug>/MEMORY.md` before project-specific recommendations. Full contract: `rules/memory.md`.
 - Read `docs/models/<active-family>.md` before the first non-readonly call in a specialist session.
-- Keep `opencode.jsonc` `agent.<name>.model` in sync with `routing-manifest.json`. Agent `.md` files no longer carry a `model:` field. Run `bun test` after any agent or routing-manifest edit.
+- Keep installed `opencode.json(c)` `agent.<name>.model` in sync with `docs/routing-manifest.json`. Agent `.md` files no longer carry a runtime `model:` field. Run `bun test` after any runtime model or routing-manifest edit.
 - Align in text first; build once, never build to discover requirements.
 - Approve per phase, not at the end.
 - If a plan exceeds the output window, chunk it (Part 1/N, confirm). Never compress to fit.

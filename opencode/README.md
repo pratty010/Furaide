@@ -16,14 +16,18 @@ Or if you already have the repo:
 bash opencode/scripts/install-fleet.sh
 ```
 
-The installer presents a redesigned, independent-choice flow:
+The installer now runs as an interactive wizard with one model-resolution checkpoint before writes:
 
 1. **Core bundle** (always default on): workflow gates, model failover, security gate, specialist agents, agent support scripts, rules, and reference docs.
 2. **Brand Builder / Kitsune** (optional, default **No**): the opt-in 9-agent brand domain. Skip unless you want it.
 3. **Location** (independent choice): global (`~/.config/opencode/`), project (`./.opencode/`), or a custom absolute path.
 4. **Mode** (independent choice): copy (default; writable, self-contained) or link (`ln -sfn` from the repo; useful for development).
-5. **Preflight summary**: before any write, the installer prints the resolved paths, file counts, mode, and per-component coupling. Confirm to proceed.
-6. **Conflict handling**: existing files at the target path are moved to `kura_backup/<timestamp>/` by default, so nothing is silently overwritten.
+5. **Model resolution**: the installer runs `opencode models --refresh` (falls back to `opencode models`), compares local availability to the fleet routing manifest, and only asks once if any model remap is required.
+6. **Preflight summary**: before any write, the installer prints the resolved paths, file counts, mode, and per-component coupling.
+7. **Conflict handling**: existing files at the target path are backed up to `kura_backup/<timestamp>/` before overwrite, so nothing is silently overwritten.
+8. **Install receipt**: every target root gets `.furaide-install-receipt.json`, which records selected components, merged config keys, and model-map summary for later uninstall or rollback.
+
+After install, edit runtime models in the installed `opencode.json` or `opencode.jsonc` under `agent.<name>.model`. Fallback chains remain in `docs/routing-manifest.json`.
 
 ### Flags
 
@@ -36,6 +40,7 @@ The installer presents a redesigned, independent-choice flow:
 | `--project` | Pre-select `./.opencode/` for all components. |
 | `--custom <dir>` | Pre-select an absolute path for all components. |
 | `--link` | Symlink mode: `ln -sfn` instead of `cp`; keeps the repo as source, skips `__FLEET_ROOT__` substitution. Useful for development. |
+| `--no-common-skills` | Skip the optional shared-skills prompt at the end of install. Useful for automation and tests. |
 | `-h` | Show help. |
 
 ### Scopes
@@ -127,6 +132,8 @@ Run `bash opencode/scripts/install-fleet.sh --list` for the full machine-readabl
 
 Install with `scripts/install-fleet.sh` (brand-builder component). Not loaded by default.
 
+Brand Builder remains opt-in only. The installer does not enable it unless you explicitly select it.
+
 | Shikigami | Role |
 |-----------|------|
 | Kitsune(Brand Builder) | Brand-builder orchestrator |
@@ -152,6 +159,8 @@ bun test scripts/tests/
 ## Uninstall
 
 The OpenCode uninstaller removes OpenCode-owned shikigami files, gate plugins, and configs. It can also clean up shared `common/` skills used across harnesses.
+
+If `.furaide-install-receipt.json` is present, uninstall uses it first to decide which components and config keys to remove. If the receipt is absent, it falls back to manifest-driven cleanup.
 
 ```bash
 bash opencode/scripts/uninstall-fleet.sh

@@ -23,7 +23,7 @@ description: >
 ## Parameter Review Rules
 
 - `mode` must be `primary`, `subagent`, or `all`.
-- `model` must stay in sync with `docs/routing-manifest.json` unless an approved structural change updates both.
+- Agent `.md` files no longer carry runtime `model:` frontmatter. Runtime model assignment lives in `opencode.json(c)` under `agent.<name>.model`, and routing/fallback logic lives in `docs/routing-manifest.json`.
 - `temperature` range 0.0-1.0. Lower = focused/deterministic, higher = creative/varied. Default varies by model (0 for most, 0.55 for Qwen).
 - `top_p` range 0.0-1.0. Alternative to temperature for controlling randomness.
 - `steps` controls max agentic iterations before forced text-only response. Set when cost/loop control needed.

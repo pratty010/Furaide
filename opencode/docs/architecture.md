@@ -9,15 +9,15 @@ Not auto-loaded. Pull when editing fleet wiring, scripts, or file relationships.
 | File | Role | Synced with |
 |---|---|---|
 | `agents/<name>.md` | Agent definition (frontmatter + body) | `permission.task` must match manifest `permitted_subagents`; no `model:` field — model lives in `opencode.jsonc` |
-| `docs/routing-manifest.json` | Canonical model routing (primary + fallback chains) | Single source of truth for all model assignments; `opencode.jsonc` `agent` block must mirror it |
+| `docs/routing-manifest.json` | Canonical model routing (primary + fallback chains) | Routing + fallback source of truth; installer may write a resolved copy into the target install |
 | `docs/OPERATOR.md` | Tier discipline, model budget, reserve justification | `routing-manifest.json` should respect tier assignments here |
 | `opencode.jsonc` | Provider whitelist + plugin list + permissions + `agent` model mappings | Plugin array must include all 4 plugins; provider whitelists must not include `gemini-2.5-*`; `agent.<name>.model` is the runtime assignment |
-| `plugins/*.js` | Runtime gates (fail-closed on load error) | `model-failover.js` reads `routing-manifest.json` at runtime |
+| `plugins/*.js` | Runtime gates (fail-closed on load error) | `migawari.js` reads `routing-manifest.json` at runtime |
 | `scripts/workflow-state.mjs` | Sole writer of `state.json` | Specialists call at phase boundaries; never write state directly |
 | `scripts/lib/state-lock.mjs` | File-based locking for workflow state | Used by `workflow-state.mjs` for CAS safety |
 | `docs/manifest-schema.md` | Schema for agent frontmatter manifest fields | `permission.task` allow-list is generated from `permitted_subagents` |
 
-**After editing an agent file:** run `bun test` to verify model consistency.
+**After editing routing or runtime model config:** run `bun test` to verify model consistency.
 
 ---
 

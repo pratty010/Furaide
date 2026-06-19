@@ -6,7 +6,7 @@ Not auto-loaded. Pull this when adjusting model assignments, tier discipline, or
 
 ## Model Map
 
-Generated from `docs/routing-manifest.json` v9.1. **Do not edit manually** — run `bun test scripts/tests/agents-match-manifest.test.mjs` after any agent model change to validate.
+Derived from `docs/routing-manifest.json` and the fleet `opencode.jsonc` `agent` block. **Do not edit manually** — run `bun test scripts/tests/agents-match-manifest.test.mjs` after any agent model change to validate.
 
 ### Specialists
 
@@ -74,8 +74,8 @@ Canonical check after any agent model edit:
 # Model-manifest consistency (expect all pass)
 bun test scripts/tests/agents-match-manifest.test.mjs
 
-# No Gemini 2.x in any agent model mapping (expect empty — 2.x removed from whitelist entirely)
-grep -r 'model.*gemini-2\.5' ~/.config/opencode/opencode.json ~/.config/opencode/opencode.jsonc
+# No Gemini 2.x in any installed runtime agent model mapping (expect empty — 2.x removed from whitelist entirely)
+grep -r '"model".*gemini-2\.5' ~/.config/opencode/opencode.json ~/.config/opencode/opencode.jsonc
 
 # No gemini-2.5 in opencode.jsonc whitelist (expect empty)
 grep 'gemini-2\.5' ~/.config/opencode/opencode.jsonc
@@ -103,4 +103,4 @@ Three pools with distinct billing types:
 
 ### Failover policy
 
-On retryable provider errors (429/5xx/timeout/model_not_found): `plugins/model-failover.js` walks the fallback chain from `routing-manifest.json` cross-vendor. Each transition is logged to `~/.local/share/opencode/state/<slug>/failover.ndjson`. Run `scripts/budget-report.mjs` after 7 days to check pool burn rate.
+On retryable provider errors (429/5xx/timeout/model_not_found): `plugins/migawari.js` walks the fallback chain from `routing-manifest.json` cross-vendor. Each transition is logged to `~/.local/share/opencode/state/<slug>/failover.ndjson`. Run `scripts/budget-report.mjs` after 7 days to check pool burn rate.
