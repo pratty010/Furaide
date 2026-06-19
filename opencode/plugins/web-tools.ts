@@ -1,17 +1,19 @@
 import { type Plugin, tool } from "@opencode-ai/plugin";
 import { loadWebToolsConfig } from "./web-tools/config.ts";
+import type { WebToolsConfig } from "./web-tools/types.ts";
 import { InMemoryCache } from "./web-tools/cache.ts";
-import { createTables } from "./web-tools/db.ts";
+import { createTables, recordWebSearch, recordFetchContent } from "./web-tools/db.ts";
 import { createUsageTracker } from "./web-tools/provider-usage.ts";
 import { executeWebSearchTool } from "./web-tools/tools/web-search.ts";
-import type { WebSearchArgs } from "./web-tools/tools/web-search.ts";
+import type { WebSearchArgs, NormalizedWebSearchRequest, SearchProviderResult as WebSearchProviderResult } from "./web-tools/tools/web-search.ts";
 import { executeFetchContentTool } from "./web-tools/tools/fetch-content.ts";
-import type { FetchContentArgs } from "./web-tools/tools/fetch-content.ts";
+import type { FetchContentArgs, NormalizedFetchContentRequest, FetchProviderResult } from "./web-tools/tools/fetch-content.ts";
 import { executeMapsSearchTool } from "./web-tools/tools/maps-search.ts";
 import type { MapsSearchArgs } from "./web-tools/tools/maps-search.ts";
 import * as gemini from "./web-tools/providers/gemini.ts";
 import * as brave from "./web-tools/providers/brave.ts";
 import * as tavily from "./web-tools/providers/tavily.ts";
+import { effectiveOrder } from "./web-tools/order.ts";
 import { Database } from "bun:sqlite";
 import { join } from "node:path";
 import { homedir } from "node:os";
@@ -34,31 +36,57 @@ async function createWebToolsRuntime(ctx: { directory: string }) {
 
   const usage = createUsageTracker(db);
 
+  const runtimeDb = {
+    async recordWebSearch(request: NormalizedWebSearchRequest, result: WebSearchProviderResult) {
+      recordWebSearch(db, request, result);
+    },
+    async recordFetchContent(request: NormalizedFetchContentRequest, result: FetchProviderResult) {
+      recordFetchContent(db, request, result);
+    },
+  };
+
   const providers = {
-    async searchWithFallback(request: Parameters<typeof brave.searchWeb>[0]) {
-      try {
-        return await brave.searchWeb(request);
-      } catch {
+    async searchWithFallback(request: NormalizedWebSearchRequest) {
+      const order = effectiveOrder(
+        config.webSearch.defaultProvider,
+        config.webSearch.primaryFallbackOrder,
+        config.webSearch.reserveFallbackOrder,
+      );
+      const errors: string[] = [];
+      for (const p of order) {
         try {
-          return await tavily.searchWeb(request);
-        } catch {
-          return await gemini.searchWeb(request);
+          if (p === "brave") return await brave.searchWeb(request);
+          if (p === "tavily") return await tavily.searchWeb(request);
+          if (p === "gemini") return await gemini.searchWeb(request);
+        } catch (e: any) {
+          errors.push(`${p}: ${e.message}`);
         }
       }
+      throw new Error(`searchWithFallback: all providers failed — ${errors.join("; ")}`);
     },
-    async fetchWithFallback(request: Parameters<typeof gemini.fetchContent>[0]) {
-      try {
-        return await gemini.fetchContent(request);
-      } catch {
-        return await tavily.fetchContent(request);
+    async fetchWithFallback(request: NormalizedFetchContentRequest) {
+      const order = effectiveOrder(
+        config.fetchContent.defaultProvider,
+        config.fetchContent.primaryFallbackOrder,
+        config.fetchContent.reserveFallbackOrder,
+      );
+      const errors: string[] = [];
+      for (const p of order) {
+        try {
+          if (p === "gemini") return await gemini.fetchContent(request);
+          if (p === "tavily") return await tavily.fetchContent(request);
+        } catch (e: any) {
+          errors.push(`${p}: ${e.message}`);
+        }
       }
+      throw new Error(`fetchWithFallback: all providers failed — ${errors.join("; ")}`);
     },
     async searchMaps(request: Parameters<typeof gemini.searchMaps>[0]) {
       return await gemini.searchMaps(request);
     },
   };
 
-  return { config, cache, db, usage, providers };
+  return { config, cache, db: runtimeDb, usage, providers };
 }
 
 export const WebToolsPlugin: Plugin = async (ctx) => {

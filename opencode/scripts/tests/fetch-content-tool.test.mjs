@@ -1,12 +1,9 @@
 import { test, expect } from "bun:test";
 
-test("fetch_content returns content in extract mode by default", async () => {
+test("fetch_content tool executes with mock runtime", async () => {
   const { executeFetchContentTool } = await import("../../plugins/web-tools/tools/fetch-content.ts");
-  const { InMemoryCache } = await import("../../plugins/web-tools/cache.ts");
 
-  const cache = new InMemoryCache({ fetchContentTtlMs: 60_000 });
-
-  const testRuntime = {
+  const mockRuntime = {
     config: {
       fetchContent: {
         defaultProvider: "gemini",
@@ -15,77 +12,120 @@ test("fetch_content returns content in extract mode by default", async () => {
         format: "markdown",
       },
     },
-    cache,
-    db: { recordFetchContent: async () => {} },
-    usage: { recordFromFetch: async () => {} },
+    cache: {
+      getFetchContent: () => undefined,
+      setFetchContent: () => {},
+    },
+    db: {
+      recordFetchContent: async () => {},
+    },
+    usage: {
+      recordFromFetch: async () => {},
+    },
     providers: {
       fetchWithFallback: async () => ({
-        results: [
-          { url: "https://opencode.ai/docs/plugins", title: "OpenCode Plugins", content: "# OpenCode Plugins\n\nDocumentation..." },
-        ],
-        metadata: { provider: "gemini", latencyMs: 200 },
+        results: [{ url: "https://example.com", title: "Example", content: "# Hello" }],
+        metadata: { provider: "gemini", latencyMs: 100 },
       }),
     },
   };
 
-  const result = await executeFetchContentTool({ urls: ["https://opencode.ai/docs/plugins"] }, testRuntime);
-
+  const result = await executeFetchContentTool(
+    { urls: ["https://example.com"] },
+    mockRuntime,
+  );
   expect(result.results).toHaveLength(1);
-  expect(result.results[0]).toEqual({
-    url: "https://opencode.ai/docs/plugins",
-    title: "OpenCode Plugins",
-    content: expect.any(String),
-  });
+  expect(result.results[0].url).toBe("https://example.com");
+  expect(result.results[0].title).toBe("Example");
+  expect(result.results[0].content).toBe("# Hello");
 });
 
 test("fetch_content omits content in map mode", async () => {
   const { executeFetchContentTool } = await import("../../plugins/web-tools/tools/fetch-content.ts");
-  const { InMemoryCache } = await import("../../plugins/web-tools/cache.ts");
 
-  const cache = new InMemoryCache({ fetchContentTtlMs: 60_000 });
-
-  const testRuntime = {
+  const mockRuntime = {
     config: {
       fetchContent: {
-        defaultProvider: "gemini",
-        primaryFallbackOrder: ["gemini", "tavily"],
+        defaultProvider: "tavily",
+        primaryFallbackOrder: ["tavily"],
         reserveFallbackOrder: [],
         format: "markdown",
       },
     },
-    cache,
+    cache: { getFetchContent: () => undefined, setFetchContent: () => {} },
     db: { recordFetchContent: async () => {} },
     usage: { recordFromFetch: async () => {} },
     providers: {
       fetchWithFallback: async () => ({
         results: [
-          { url: "https://opencode.ai/docs/plugins", title: "OpenCode Plugins", content: "# OpenCode Plugins\n\nDocumentation..." },
+          { url: "https://example.com", title: "Example", content: "hidden" },
+          { url: "https://other.com", title: "Other", content: "hidden" },
         ],
-        metadata: { provider: "gemini", latencyMs: 200 },
+        metadata: { provider: "tavily", latencyMs: 50 },
       }),
     },
   };
 
-  const result = await executeFetchContentTool({ urls: ["https://opencode.ai/docs/plugins"], mode: "map" }, testRuntime);
-
-  expect(result.results[0]).toEqual({
-    url: "https://opencode.ai/docs/plugins",
-    title: expect.any(String),
-  });
+  const result = await executeFetchContentTool(
+    { urls: ["https://example.com"], mode: "map" },
+    mockRuntime,
+  );
+  expect(result.results).toHaveLength(2);
+  expect(result.results[0].url).toBe("https://example.com");
+  expect(result.results[0].title).toBe("Example");
   expect(result.results[0].content).toBeUndefined();
+  expect(result.results[1].content).toBeUndefined();
 });
 
-test("fetch_content applies config defaults when args omitted", async () => {
+test("fetch_content caches identical requests", async () => {
+  const { executeFetchContentTool } = await import("../../plugins/web-tools/tools/fetch-content.ts");
+
+  let callCount = 0;
+  const mockRuntime = {
+    config: {
+      fetchContent: {
+        defaultProvider: "gemini",
+        primaryFallbackOrder: ["gemini"],
+        reserveFallbackOrder: [],
+        format: "text",
+      },
+    },
+    cache: {
+      _store: {},
+      getFetchContent(key) { return this._store[key]; },
+      setFetchContent(key, value) { this._store[key] = value; },
+    },
+    db: { recordFetchContent: async () => {} },
+    usage: { recordFromFetch: async () => {} },
+    providers: {
+      fetchWithFallback: async () => {
+        callCount++;
+        return {
+          results: [{ url: "https://cached.com", title: "Cached", content: "data" }],
+          metadata: { provider: "gemini", latencyMs: 30 },
+        };
+      },
+    },
+  };
+
+  const r1 = await executeFetchContentTool({ urls: ["https://cached.com"] }, mockRuntime);
+  expect(r1.results).toHaveLength(1);
+  const r2 = await executeFetchContentTool({ urls: ["https://cached.com"] }, mockRuntime);
+  expect(r2.results).toHaveLength(1);
+  expect(callCount).toBe(1);
+});
+
+test("fetch_content NormalizedFetchContentRequest defaults", async () => {
   const { normalizeFetchContentArgs } = await import("../../plugins/web-tools/tools/fetch-content.ts");
 
   const config = {
     defaultProvider: "gemini",
-    primaryFallbackOrder: ["gemini", "tavily"],
+    primaryFallbackOrder: ["gemini"],
     reserveFallbackOrder: [],
-    format: "text",
+    format: "markdown",
   };
 
-  const normalized = normalizeFetchContentArgs({ urls: ["https://example.com"] }, config);
-  expect(normalized.format).toBe("text");
+  const normalized = normalizeFetchContentArgs({ urls: ["https://a.com"] }, config);
   expect(normalized.mode).toBe("extract");
+  expect(normalized.format).toBe("markdown");
 });

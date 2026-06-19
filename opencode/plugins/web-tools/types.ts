@@ -48,6 +48,8 @@ export interface UsageRecord {
   unitsUsed: number;
   estimatedCostUsd: number;
   month: string;
+  tokensInput?: number;
+  tokensOutput?: number;
 }
 
 export interface UsageSnapshot {

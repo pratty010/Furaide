@@ -1,53 +1,63 @@
 import { test, expect } from "bun:test";
 
-test("maps_search returns gemini-backed lean results with optional placeId", async () => {
+test("maps_search tool executes with mock runtime", async () => {
   const { executeMapsSearchTool } = await import("../../plugins/web-tools/tools/maps-search.ts");
 
-  const testRuntime = {
+  const mockRuntime = {
     config: {
       mapsSearch: {
         defaultProvider: "gemini",
-        count: 5,
+        count: 3,
       },
     },
     providers: {
       searchMaps: async () => ({
         results: [
-          { title: "Cafe de Flore", uri: "https://maps.google.com/?cid=123", placeId: "ChIJ123" },
-          { title: "Blue Bottle Coffee", uri: "https://maps.google.com/?cid=456" },
+          { title: "Starbucks Shibuya", uri: "https://maps.google.com/?cid=123", placeId: "123" },
+          { title: "Tully's Coffee", uri: "https://maps.google.com/?cid=456" },
         ],
-        metadata: { provider: "gemini", latencyMs: 300 },
+        metadata: { provider: "gemini", latencyMs: 200 },
       }),
     },
   };
 
-  const result = await executeMapsSearchTool({ query: "coffee near Shibuya", count: 3 }, testRuntime);
-
+  const result = await executeMapsSearchTool({ query: "coffee near Shibuya", count: 3 }, mockRuntime);
   expect(result.results).toHaveLength(2);
-  expect(result.results[0]).toEqual({
-    title: "Cafe de Flore",
-    uri: expect.stringContaining("http"),
-    placeId: "ChIJ123",
-  });
-  expect(result.results[1]).toEqual({
-    title: "Blue Bottle Coffee",
-    uri: expect.stringContaining("http"),
-  });
-
-  const resultJson = JSON.stringify(result);
-  expect(resultJson).not.toContain("provider");
-  expect(resultJson).not.toContain("latencyMs");
+  expect(result.results[0].title).toBe("Starbucks Shibuya");
+  expect(result.results[0].uri).toContain("http");
+  expect(result.results[0].placeId).toBe("123");
+  expect(result.results[1].placeId).toBeUndefined();
 });
 
-test("maps_search applies config defaults when args omitted", async () => {
-  const { normalizeMapsSearchArgs } = await import("../../plugins/web-tools/tools/maps-search.ts");
+test("maps_search returns lean fields only", async () => {
+  const { executeMapsSearchTool } = await import("../../plugins/web-tools/tools/maps-search.ts");
 
-  const config = {
-    defaultProvider: "gemini",
-    count: 10,
+  const mockRuntime = {
+    config: {
+      mapsSearch: { defaultProvider: "gemini", count: 5 },
+    },
+    providers: {
+      searchMaps: async () => ({
+        results: [{ title: "Place", uri: "https://maps.google.com/" }],
+        metadata: { provider: "gemini", latencyMs: 100, unitsUsed: 1 },
+      }),
+    },
   };
 
-  const normalized = normalizeMapsSearchArgs({ query: "restaurants in Tokyo" }, config);
-  expect(normalized.count).toBe(10);
-  expect(normalized.query).toBe("restaurants in Tokyo");
+  const result = await executeMapsSearchTool({ query: "test" }, mockRuntime);
+  const serialized = JSON.stringify(result);
+  expect(serialized).not.toContain("provider");
+  expect(serialized).not.toContain("latencyMs");
+  expect(serialized).not.toContain("unitsUsed");
+});
+
+test("maps_search applies default count from config", async () => {
+  const { normalizeMapsSearchArgs } = await import("../../plugins/web-tools/tools/maps-search.ts");
+
+  const config = { defaultProvider: "gemini", count: 7 };
+  const normalized = normalizeMapsSearchArgs({ query: "sushi" }, config);
+  expect(normalized.count).toBe(7);
+
+  const withOverride = normalizeMapsSearchArgs({ query: "ramen", count: 3 }, config);
+  expect(withOverride.count).toBe(3);
 });

@@ -1,3 +1,4 @@
+import { spawnSync } from "node:child_process";
 import type { WebProvider } from "../types.ts";
 
 export interface SearchResult {
@@ -43,10 +44,69 @@ export interface TavilyFetchContentArgs {
 
 export async function searchWeb(args: TavilySearchWebArgs): Promise<SearchProviderResult> {
   const start = performance.now();
-  throw new Error("Tavily search not yet implemented");
+  const tvlyArgs = ["search", args.query, "--json", "--max-results", String(args.count ?? 5)];
+  if (args.freshness) tvlyArgs.push("--time-range", args.freshness);
+
+  const result = spawnSync("tvly", tvlyArgs, {
+    encoding: "utf8",
+    timeout: 30_000,
+    maxBuffer: 10 * 1024 * 1024,
+  });
+
+  if (result.error || result.status !== 0) {
+    const msg = result.error?.message ?? `exit code ${result.status}`;
+    throw new Error(`Tavily search failed: ${msg}`);
+  }
+
+  const data = JSON.parse(result.stdout);
+  const raw = data?.results ?? [];
+
+  return {
+    results: raw.slice(0, 20).map((r: any) => ({
+      title: r.title ?? "",
+      url: r.url ?? "",
+      snippet: (r.content ?? r.snippet ?? "").slice(0, 500),
+      published: r.published_date,
+      score: r.score,
+    })),
+    metadata: {
+      provider: "tavily" as WebProvider,
+      latencyMs: Math.round(performance.now() - start),
+      unitsUsed: 1,
+    },
+  };
 }
 
 export async function fetchContent(args: TavilyFetchContentArgs): Promise<FetchContentResult> {
   const start = performance.now();
-  throw new Error("Tavily fetch_content not yet implemented");
+  const mode = args.mode ?? "extract";
+
+  const tvlyArgs = [mode, ...args.urls, "--json", "--format", args.format ?? "markdown"];
+
+  const result = spawnSync("tvly", tvlyArgs, {
+    encoding: "utf8",
+    timeout: 30_000,
+    maxBuffer: 10 * 1024 * 1024,
+  });
+
+  if (result.error || result.status !== 0) {
+    const msg = result.error?.message ?? `exit code ${result.status}`;
+    throw new Error(`Tavily ${mode} failed: ${msg}`);
+  }
+
+  const data = JSON.parse(result.stdout);
+  const raw = data?.results ?? [];
+
+  return {
+    results: raw.map((r: any) => ({
+      url: r.url ?? "",
+      title: r.title,
+      content: r.raw_content ?? r.content,
+    })),
+    metadata: {
+      provider: "tavily" as WebProvider,
+      latencyMs: Math.round(performance.now() - start),
+      unitsUsed: 1,
+    },
+  };
 }
