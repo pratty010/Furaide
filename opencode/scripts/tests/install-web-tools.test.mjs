@@ -27,51 +27,14 @@ function stubbedEnv(binDir) {
   return { ...process.env, PATH: path };
 }
 
-test("install-web-tools.sh errors when bx is missing", () => {
+test("install-web-tools.sh succeeds with no bx/tvly stubs (CLI trust chain removed)", () => {
   const dir = mkdtempSync(join(tmpdir(), "wt-install-"));
   try {
     const binDir = join(dir, "bin");
     mkdirSync(binDir, { recursive: true });
-    writeFileSync(join(binDir, "tvly"), "#!/usr/bin/env bash\nexit 0\n", { mode: 0o755 });
-
-    expect(() => {
-      execFileSync("bash", [INSTALLER, dir], {
-        encoding: "utf8",
-        stdio: "pipe",
-        env: stubbedEnv(binDir),
-      });
-    }).toThrow();
-  } finally {
-    rmSync(dir, { recursive: true, force: true });
-  }
-});
-
-test("install-web-tools.sh errors when tvly is missing", () => {
-  const dir = mkdtempSync(join(tmpdir(), "wt-install-"));
-  try {
-    const binDir = join(dir, "bin");
-    mkdirSync(binDir, { recursive: true });
-    writeFileSync(join(binDir, "bx"), "#!/usr/bin/env bash\necho 'bx 0.1.0'\n", { mode: 0o755 });
-
-    expect(() => {
-      execFileSync("bash", [INSTALLER, dir], {
-        encoding: "utf8",
-        stdio: "pipe",
-        env: stubbedEnv(binDir),
-      });
-    }).toThrow();
-  } finally {
-    rmSync(dir, { recursive: true, force: true });
-  }
-});
-
-test("install-web-tools.sh succeeds with stubbed bx/tvly", () => {
-  const dir = mkdtempSync(join(tmpdir(), "wt-install-"));
-  try {
-    const binDir = join(dir, "bin");
-    mkdirSync(binDir, { recursive: true });
-    writeFileSync(join(binDir, "bx"), "#!/usr/bin/env bash\necho 'bx 0.1.0'\n", { mode: 0o755 });
-    writeFileSync(join(binDir, "tvly"), "#!/usr/bin/env bash\necho 'tvly 0.1.0'\n", { mode: 0o755 });
+    // Note: bx/tvly are intentionally NOT created here. The installer must
+    // not require them, because the web-tools plugin now uses direct HTTPS
+    // calls to the Brave and Tavily REST APIs.
 
     const out = execFileSync("bash", [INSTALLER, dir], {
       encoding: "utf8",
@@ -86,6 +49,31 @@ test("install-web-tools.sh succeeds with stubbed bx/tvly", () => {
   }
 });
 
+test("install-web-tools.sh warns about missing API keys but does not fail", () => {
+  const dir = mkdtempSync(join(tmpdir(), "wt-install-"));
+  try {
+    const binDir = join(dir, "bin");
+    mkdirSync(binDir, { recursive: true });
+
+    const envNoKeys = { ...stubbedEnv(binDir) };
+    delete envNoKeys.BRAVE_API_KEY;
+    delete envNoKeys.TAVILY_API_KEY;
+    delete envNoKeys.GEMINI_API_KEY;
+
+    const out = execFileSync("bash", [INSTALLER, dir], {
+      encoding: "utf8",
+      stdio: "pipe",
+      env: envNoKeys,
+    });
+    expect(out).toContain("BRAVE_API_KEY");
+    expect(out).toContain("TAVILY_API_KEY");
+    expect(out).toContain("GEMINI_API_KEY");
+    expect(out).toContain("complete");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test("install-web-tools.sh fails when bun install fails", () => {
   // Adversarial-review blocker regression guard: the previous installer masked
   // `bun install` failures with `|| _warn ...`, hiding broken installs as success.
@@ -94,8 +82,6 @@ test("install-web-tools.sh fails when bun install fails", () => {
   try {
     const binDir = join(dir, "bin");
     mkdirSync(binDir, { recursive: true });
-    writeFileSync(join(binDir, "bx"), "#!/usr/bin/env bash\necho 'bx 0.1.0'\n", { mode: 0o755 });
-    writeFileSync(join(binDir, "tvly"), "#!/usr/bin/env bash\necho 'tvly 0.1.0'\n", { mode: 0o755 });
     // Stub bun: report a version on `bun --version`, fail on `bun install`.
     writeFileSync(
       join(binDir, "bun"),

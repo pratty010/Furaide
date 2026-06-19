@@ -18,23 +18,17 @@ _info()  { printf '%b\n' "${GRN}[info]${RST}  $*"; }
 _warn()  { printf '%b\n' "${YLW}[warn]${RST}  $*"; }
 _err()   { printf '%b\n' "${RED}[error]${RST} $*" >&2; }
 
-_info "Verifying bx CLI..."
-if ! command -v bx &>/dev/null; then
-  _err "bx is not installed or not in PATH."
-  _err "See: https://opencode.ai/docs/bx"
-  exit 1
-fi
-_info "bx found: $(command -v bx)"
-
-_info "Verifying tvly CLI..."
-if ! command -v tvly &>/dev/null; then
-  _err "tvly is not installed or not in PATH."
-  _err "See: https://tavily.com"
-  exit 1
-fi
-_info "tvly found: $(command -v tvly)"
-
 _info "Copying web-tools.yml..."
+
+if [[ -z "${BRAVE_API_KEY:-}" ]]; then
+  _warn "BRAVE_API_KEY is not set. Brave web_search will fail at runtime until configured."
+fi
+if [[ -z "${TAVILY_API_KEY:-}" ]]; then
+  _warn "TAVILY_API_KEY is not set. Tavily web_search/fetch_content will fail at runtime until configured."
+fi
+if [[ -z "${GEMINI_API_KEY:-}" ]]; then
+  _warn "GEMINI_API_KEY is not set. Gemini web_search/fetch_content/maps_search will fail at runtime until configured."
+fi
 mkdir -p "$TARGET_DIR"
 cp "$FLEET_ROOT/config/web-tools.yml" "$TARGET_DIR/web-tools.yml"
 _info "web-tools.yml copied."

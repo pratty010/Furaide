@@ -34,8 +34,8 @@ function stubbedEnv(binDir) {
 function runInstaller(dir) {
   const binDir = join(dir, 'bin');
   mkdirSync(binDir, { recursive: true });
-  writeFileSync(join(binDir, 'bx'), '#!/usr/bin/env bash\necho "bx 0.1.0"\n', { mode: 0o755 });
-  writeFileSync(join(binDir, 'tvly'), '#!/usr/bin/env bash\necho "tvly 0.1.0"\n', { mode: 0o755 });
+  // bx/tvly CLI stubs are intentionally not created here; the web-tools
+  // plugin no longer depends on those binaries.
   try {
     execFileSync('bash', [INSTALLER, '--all', '--custom', dir, '--no-common-skills'], {
       encoding: 'utf8',

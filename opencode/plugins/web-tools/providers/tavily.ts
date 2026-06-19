@@ -1,5 +1,4 @@
-import { spawnSync } from "node:child_process";
-import { assertSafeArgv, isSafePublicUrl, sanitizeArgvValues } from "../util/validate.ts";
+import { isSafePublicUrl, truncateErrorBody, validateQuery } from "../util/validate.ts";
 import type { WebProvider } from "../types.ts";
 
 export interface SearchResult {
@@ -43,9 +42,18 @@ export interface TavilyFetchContentArgs {
   format?: "markdown" | "text";
 }
 
+const TAVILY_BASE_URL = "https://api.tavily.com";
 const TAVILY_TIMEOUT_MS = 30_000;
-const TAVILY_MAX_BUFFER = 10 * 1024 * 1024;
 const TAVILY_CLAMP_MAX = 20;
+const TAVILY_MAX_URLS = 5;
+const SNIPPET_MAX = 500;
+
+const FRESHNESS_TO_TAVILY_DAYS: Record<"pd" | "pw" | "pm" | "py", number> = {
+  pd: 1,
+  pw: 7,
+  pm: 30,
+  py: 365,
+};
 
 function clampCount(value: number | undefined, fallback: number): number {
   if (value === undefined || value === null || !Number.isFinite(value)) return fallback;
@@ -55,43 +63,97 @@ function clampCount(value: number | undefined, fallback: number): number {
   return n;
 }
 
-function sanitizeError(message: string): string {
-  return message.length > 200 ? message.slice(0, 200) + "…[truncated]" : message;
+function buildHeaders(apiKey: string): Headers {
+  const headers = new Headers();
+  headers.set("Content-Type", "application/json");
+  headers.set("Accept", "application/json");
+  headers.set("Authorization", `Bearer ${apiKey}`);
+  return headers;
 }
 
-export async function searchWeb(args: TavilySearchWebArgs): Promise<SearchProviderResult> {
-  const start = performance.now();
-  const safeQuery = assertSafeArgv(args.query, "query");
-  const count = clampCount(args.count, 5);
-  const tvlyArgs = ["search", safeQuery, "--json", "--max-results", String(count)];
-  if (args.freshness) {
-    tvlyArgs.push("--time-range", sanitizeArgvValues([args.freshness], "freshness")[0]);
+interface TavilyErrorPayload {
+  status: number;
+  bodyPreview: string;
+}
+
+async function safeReadErrorPayload(res: Response): Promise<TavilyErrorPayload> {
+  let body = "";
+  try {
+    body = await res.text();
+  } catch {
+    body = "";
+  }
+  return { status: res.status, bodyPreview: truncateErrorBody(body) };
+}
+
+function validateUrls(urls: unknown): string[] {
+  if (!Array.isArray(urls)) throw new Error("Tavily fetchContent requires urls to be an array");
+  if (urls.length === 0) throw new Error("Tavily fetchContent requires at least one URL");
+  if (urls.length > TAVILY_MAX_URLS) {
+    throw new Error(`Tavily fetchContent accepts at most ${TAVILY_MAX_URLS} URLs (got ${urls.length})`);
+  }
+  const validated: string[] = [];
+  for (let i = 0; i < urls.length; i++) {
+    const safe = isSafePublicUrl(String(urls[i] ?? ""));
+    if (!safe.ok) throw new Error(`Tavily URL[${i}] rejected: ${safe.reason}`);
+    validated.push(safe.url.toString());
+  }
+  return validated;
+}
+
+async function tavilyPost(apiKey: string, path: string, body: unknown): Promise<any> {
+  let res: Response;
+  try {
+    res = await fetch(`${TAVILY_BASE_URL}${path}`, {
+      method: "POST",
+      headers: buildHeaders(apiKey),
+      signal: AbortSignal.timeout(TAVILY_TIMEOUT_MS),
+      body: JSON.stringify(body),
+    });
+  } catch (e: any) {
+    throw new Error(`Tavily ${path} network error: ${truncateErrorBody(e?.message ?? String(e))}`);
   }
 
-  const result = spawnSync("tvly", tvlyArgs, {
-    encoding: "utf8",
-    timeout: TAVILY_TIMEOUT_MS,
-    maxBuffer: TAVILY_MAX_BUFFER,
-  });
-
-  if (result.error || result.status !== 0) {
-    const msg = result.error?.message ?? `exit code ${result.status}`;
-    throw new Error(`Tavily search failed: ${sanitizeError(msg)}`);
+  if (!res.ok) {
+    const { status, bodyPreview } = await safeReadErrorPayload(res);
+    throw new Error(`Tavily ${path} ${status}: ${bodyPreview}`);
   }
 
   let data: any;
   try {
-    data = JSON.parse(result.stdout);
+    data = await res.json();
   } catch {
-    throw new Error("Tavily search failed: malformed JSON response");
+    throw new Error(`Tavily ${path} failed: malformed JSON response`);
   }
+  return data;
+}
+
+export async function searchWeb(args: TavilySearchWebArgs): Promise<SearchProviderResult> {
+  const start = performance.now();
+  const safeQuery = validateQuery(args.query);
+  const count = clampCount(args.count, 5);
+
+  const apiKey = process.env.TAVILY_API_KEY;
+  if (!apiKey) throw new Error("Tavily web_search requires TAVILY_API_KEY");
+
+  const body: Record<string, unknown> = {
+    query: safeQuery,
+    max_results: count,
+    topic: "general",
+    include_answer: false,
+  };
+  if (args.freshness) {
+    body.days = FRESHNESS_TO_TAVILY_DAYS[args.freshness];
+  }
+
+  const data = await tavilyPost(apiKey, "/search", body);
   const raw = data?.results ?? [];
 
   return {
     results: raw.slice(0, TAVILY_CLAMP_MAX).map((r: any) => ({
       title: r.title ?? "",
       url: r.url ?? "",
-      snippet: (r.content ?? r.snippet ?? "").slice(0, 500),
+      snippet: (r.content ?? r.snippet ?? "").slice(0, SNIPPET_MAX),
       published: r.published_date,
       score: r.score,
     })),
@@ -106,33 +168,31 @@ export async function searchWeb(args: TavilySearchWebArgs): Promise<SearchProvid
 export async function fetchContent(args: TavilyFetchContentArgs): Promise<FetchContentResult> {
   const start = performance.now();
   const mode = args.mode ?? "extract";
+  const validatedUrls = validateUrls(args.urls);
 
-  const validatedUrls: string[] = [];
-  for (const u of args.urls) {
-    const safe = isSafePublicUrl(String(u ?? ""));
-    if (!safe.ok) throw new Error(`Tavily URL rejected: ${safe.reason}`);
-    validatedUrls.push(safe.url.toString());
-  }
-
-  const tvlyArgs = [mode, ...sanitizeArgvValues(validatedUrls, "url"), "--json", "--format", args.format ?? "markdown"];
-
-  const result = spawnSync("tvly", tvlyArgs, {
-    encoding: "utf8",
-    timeout: TAVILY_TIMEOUT_MS,
-    maxBuffer: TAVILY_MAX_BUFFER,
-  });
-
-  if (result.error || result.status !== 0) {
-    const msg = result.error?.message ?? `exit code ${result.status}`;
-    throw new Error(`Tavily ${mode} failed: ${sanitizeError(msg)}`);
-  }
+  const apiKey = process.env.TAVILY_API_KEY;
+  if (!apiKey) throw new Error(`Tavily ${mode} requires TAVILY_API_KEY`);
 
   let data: any;
-  try {
-    data = JSON.parse(result.stdout);
-  } catch {
-    throw new Error(`Tavily ${mode} failed: malformed JSON response`);
+  if (mode === "extract") {
+    data = await tavilyPost(apiKey, "/extract", {
+      urls: validatedUrls,
+      format: args.format ?? "markdown",
+    });
+  } else if (mode === "crawl") {
+    data = await tavilyPost(apiKey, "/crawl", {
+      url: validatedUrls[0],
+      max_depth: 2,
+      format: args.format ?? "markdown",
+    });
+  } else if (mode === "map") {
+    data = await tavilyPost(apiKey, "/map", {
+      url: validatedUrls[0],
+    });
+  } else {
+    throw new Error(`Tavily fetchContent does not support mode '${mode}'`);
   }
+
   const raw = data?.results ?? [];
 
   return {

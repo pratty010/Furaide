@@ -1,5 +1,4 @@
-import { spawnSync } from "node:child_process";
-import { assertSafeArgv, sanitizeArgvValues } from "../util/validate.ts";
+import { isSafePublicUrl, truncateErrorBody, validateQuery } from "../util/validate.ts";
 import type { WebProvider } from "../types.ts";
 
 export interface SearchResult {
@@ -32,9 +31,10 @@ export interface BraveSearchWebArgs {
   rawContent?: boolean;
 }
 
+const BRAVE_BASE_URL = "https://api.search.brave.com/res/v1/web/search";
 const BRAVE_TIMEOUT_MS = 15_000;
-const BRAVE_MAX_BUFFER = 10 * 1024 * 1024;
 const BRAVE_CLAMP_MAX = 20;
+const SNIPPET_MAX = 500;
 
 function clampCount(value: number | undefined, fallback: number): number {
   if (value === undefined || value === null || !Number.isFinite(value)) return fallback;
@@ -44,43 +44,73 @@ function clampCount(value: number | undefined, fallback: number): number {
   return n;
 }
 
-function sanitizeError(message: string): string {
-  return message.length > 200 ? message.slice(0, 200) + "…[truncated]" : message;
+function buildHeaders(apiKey: string): Headers {
+  const headers = new Headers();
+  headers.set("Accept", "application/json");
+  headers.set("X-Subscription-Token", apiKey);
+  return headers;
+}
+
+interface BraveErrorPayload {
+  status: number;
+  bodyPreview: string;
+}
+
+async function safeReadErrorPayload(res: Response): Promise<BraveErrorPayload> {
+  let body = "";
+  try {
+    body = await res.text();
+  } catch {
+    body = "";
+  }
+  return { status: res.status, bodyPreview: truncateErrorBody(body) };
 }
 
 export async function searchWeb(args: BraveSearchWebArgs): Promise<SearchProviderResult> {
   const start = performance.now();
-  const safeQuery = assertSafeArgv(args.query, "query");
+  const safeQuery = validateQuery(args.query);
   const count = clampCount(args.count, 5);
-  const bxArgs = ["search", safeQuery, "--count", String(count)];
+
+  const apiKey = process.env.BRAVE_API_KEY;
+  if (!apiKey) throw new Error("Brave web_search requires BRAVE_API_KEY");
+
+  const url = new URL(BRAVE_BASE_URL);
+  url.searchParams.set("q", safeQuery);
+  url.searchParams.set("count", String(count));
   if (args.freshness) {
-    bxArgs.push("--freshness", sanitizeArgvValues([args.freshness], "freshness")[0]);
+    url.searchParams.set("freshness", args.freshness);
   }
 
-  const result = spawnSync("bx", bxArgs, {
-    encoding: "utf8",
-    timeout: BRAVE_TIMEOUT_MS,
-    maxBuffer: BRAVE_MAX_BUFFER,
-  });
+  let res: Response;
+  try {
+    res = await fetch(url.toString(), {
+      method: "GET",
+      headers: buildHeaders(apiKey),
+      signal: AbortSignal.timeout(BRAVE_TIMEOUT_MS),
+    });
+  } catch (e: any) {
+    throw new Error(`Brave search network error: ${truncateErrorBody(e?.message ?? String(e))}`);
+  }
 
-  if (result.error || result.status !== 0) {
-    const msg = result.error?.message ?? `exit code ${result.status}`;
-    throw new Error(`Brave search failed: ${sanitizeError(msg)}`);
+  if (!res.ok) {
+    const { status, bodyPreview } = await safeReadErrorPayload(res);
+    throw new Error(`Brave search ${status}: ${bodyPreview}`);
   }
 
   let data: any;
   try {
-    data = JSON.parse(result.stdout);
+    data = await res.json();
   } catch {
     throw new Error("Brave search failed: malformed JSON response");
   }
+
   const raw = data?.web?.results ?? data?.results ?? [];
 
   return {
     results: raw.slice(0, BRAVE_CLAMP_MAX).map((r: any) => ({
       title: r.title ?? "",
       url: r.url ?? "",
-      snippet: (r.description ?? r.snippet ?? "").slice(0, 500),
+      snippet: (r.description ?? r.snippet ?? "").slice(0, SNIPPET_MAX),
       published: r.age ?? r.page_age,
       score: r.score,
     })),

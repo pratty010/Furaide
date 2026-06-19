@@ -674,16 +674,6 @@ done
 # ── Package fragment merge ─────────────────────────────────────────────────────
 web_tools_targets="${COMP_TARGETS[web-tools]:-}"
 if [[ -n "$web_tools_targets" ]]; then
-  _info "Verifying web-tools CLI dependencies..."
-  if ! command -v bx &>/dev/null; then
-    _err "bx CLI is required for web-tools. Install from: https://opencode.ai/docs/bx"
-    exit 1
-  fi
-  if ! command -v tvly &>/dev/null; then
-    _err "tvly CLI is required for web-tools. Install from: https://tavily.com"
-    exit 1
-  fi
-  _ok "bx and tvly CLI verified."
   for target_dir in $web_tools_targets; do
     do_copy "$FLEET_ROOT/config/web-tools.yml" "$target_dir/web-tools.yml"
     pkg_fragment="$FLEET_ROOT/config/package.web-tools.json"
@@ -700,6 +690,12 @@ if [[ -n "$web_tools_targets" ]]; then
           (cd "$target_dir" && bun install 2>&1) && _ok "bun install for web-tools complete" || _warn "bun install failed (may need manual install)"
         fi
       fi
+    fi
+    if [[ -z "${BRAVE_API_KEY:-}" ]]; then
+      _warn "BRAVE_API_KEY is not set; web_search via Brave will fail at runtime until configured."
+    fi
+    if [[ -z "${TAVILY_API_KEY:-}" ]]; then
+      _warn "TAVILY_API_KEY is not set; web_search/fetch_content via Tavily will fail at runtime until configured."
     fi
   done
 fi
