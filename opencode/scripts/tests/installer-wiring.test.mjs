@@ -1,8 +1,9 @@
 import { test, expect } from 'bun:test';
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, writeFileSync, readFileSync, rmSync } from 'node:fs';
-import { join } from 'node:path';
+import { mkdtempSync, writeFileSync, readFileSync, rmSync, mkdirSync } from 'node:fs';
+import { join, delimiter, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
+import { execPath } from 'node:process';
 
 const SCRIPTS_DIR = join(import.meta.dir, '..');
 const INSTALLER = join(SCRIPTS_DIR, 'install-fleet.sh');
@@ -20,16 +21,27 @@ function writeJson(path, obj) {
   writeFileSync(path, JSON.stringify(obj, null, 2) + '\n');
 }
 
+function stubbedEnv(binDir) {
+  const bunDir = dirname(execPath);
+  const path = [binDir, bunDir, '/usr/bin', '/bin'].join(delimiter);
+  return { ...process.env, PATH: path };
+}
+
 // Run install-fleet.sh against a temp target and capture its exit code.
 // The installer may write to /dev/tty for the optional common-skills prompt
 // even on success; we surface that as stderr but only treat a non-zero
 // exit code as a real failure.
 function runInstaller(dir) {
+  const binDir = join(dir, 'bin');
+  mkdirSync(binDir, { recursive: true });
+  writeFileSync(join(binDir, 'bx'), '#!/usr/bin/env bash\necho "bx 0.1.0"\n', { mode: 0o755 });
+  writeFileSync(join(binDir, 'tvly'), '#!/usr/bin/env bash\necho "tvly 0.1.0"\n', { mode: 0o755 });
   try {
     execFileSync('bash', [INSTALLER, '--all', '--custom', dir, '--no-common-skills'], {
       encoding: 'utf8',
       stdio: 'pipe',
       timeout: 120000,
+      env: stubbedEnv(binDir),
     });
   } catch (e) {
     if (typeof e.status === 'number' && e.status !== 0) {

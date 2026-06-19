@@ -674,6 +674,16 @@ done
 # ── Package fragment merge ─────────────────────────────────────────────────────
 web_tools_targets="${COMP_TARGETS[web-tools]:-}"
 if [[ -n "$web_tools_targets" ]]; then
+  _info "Verifying web-tools CLI dependencies..."
+  if ! command -v bx &>/dev/null; then
+    _err "bx CLI is required for web-tools. Install from: https://opencode.ai/docs/bx"
+    exit 1
+  fi
+  if ! command -v tvly &>/dev/null; then
+    _err "tvly CLI is required for web-tools. Install from: https://tavily.com"
+    exit 1
+  fi
+  _ok "bx and tvly CLI verified."
   for target_dir in $web_tools_targets; do
     pkg_fragment="$FLEET_ROOT/config/package.web-tools.json"
     target_pkg="$target_dir/package.json"

@@ -46,9 +46,11 @@ export function checkBudget(budgets: BudgetConfig | null, snapshot: UsageSnapsho
     return { blocked: false, warningLevel: "none", preamble: null };
   }
 
+  if (used >= limit) {
+    return { blocked: true, warningLevel: "exceeded", preamble: `[Budget exceeded] ${provider}: ${used} of ${limit} units used. Tool calls blocked until reset.` };
+  }
   if (used >= limit * 0.9) {
-    const blocked = provider !== "gemini" && used >= limit;
-    return { blocked, warningLevel: "warn90", preamble: `[Budget warning] ${provider}: ${used} of ${limit} units used (90%+).${blocked ? " Tool calls blocked." : ""}` };
+    return { blocked: false, warningLevel: "warn90", preamble: `[Budget warning] ${provider}: ${used} of ${limit} units used (90%+). Calls will be blocked at ${limit}.` };
   }
   if (used >= limit * 0.8) return { blocked: false, warningLevel: "warn80", preamble: `[Budget warning] ${provider}: ${used} of ${limit} units used (80%+).` };
   return { blocked: false, warningLevel: "none", preamble: null };

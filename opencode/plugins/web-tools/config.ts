@@ -24,7 +24,6 @@ export const DEFAULT_WEB_TOOLS_CONFIG: WebToolsConfig = {
     count: 5,
   },
   cache: {
-    syncIntervalMs: 300_000,
     ttl: {
       webSearchMs: 3_600_000,
       fetchContentMs: 86_400_000,

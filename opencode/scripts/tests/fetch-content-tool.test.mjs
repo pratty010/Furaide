@@ -1,4 +1,4 @@
-import { test, expect } from "bun:test";
+import { test, expect, describe } from "bun:test";
 
 test("fetch_content tool executes with mock runtime", async () => {
   const { executeFetchContentTool } = await import("../../plugins/web-tools/tools/fetch-content.ts");
@@ -131,4 +131,41 @@ test("fetch_content NormalizedFetchContentRequest defaults", async () => {
   const normalized = normalizeFetchContentArgs({ urls: ["https://a.com"] }, config);
   expect(normalized.mode).toBe("extract");
   expect(normalized.format).toBe("markdown");
+});
+
+describe("Gemini fetchContent mode validation", () => {
+  test("rejects crawl mode before API key check", async () => {
+    const gemini = await import("../../plugins/web-tools/providers/gemini.ts");
+
+    await expect(gemini.fetchContent({
+      urls: ["https://example.com"],
+      mode: "crawl",
+    })).rejects.toThrow("does not support mode 'crawl'");
+  });
+
+  test("rejects map mode before API key check", async () => {
+    const gemini = await import("../../plugins/web-tools/providers/gemini.ts");
+
+    await expect(gemini.fetchContent({
+      urls: ["https://example.com"],
+      mode: "map",
+    })).rejects.toThrow("does not support mode 'map'");
+  });
+
+  test("accepts extract mode (fails on API key, not mode)", async () => {
+    const gemini = await import("../../plugins/web-tools/providers/gemini.ts");
+
+    await expect(gemini.fetchContent({
+      urls: ["https://example.com"],
+      mode: "extract",
+    })).rejects.toThrow("requires GEMINI_API_KEY");
+  });
+
+  test("defaults to extract mode when no mode given", async () => {
+    const gemini = await import("../../plugins/web-tools/providers/gemini.ts");
+
+    await expect(gemini.fetchContent({
+      urls: ["https://example.com"],
+    })).rejects.toThrow("requires GEMINI_API_KEY");
+  });
 });

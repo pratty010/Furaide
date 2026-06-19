@@ -395,51 +395,43 @@ describe("Warning preamble behavior", () => {
   });
 });
 
-// ── Cache syncIntervalMs abstraction ────────────────────────────────
+// ── InMemoryCache basic operations ──────────────────────────────────
 
-describe("Cache syncIntervalMs abstraction", () => {
-  test("startSync and stopSync manage interval lifecycle", async () => {
-    const { InMemoryCache, NOOP_SYNC_ADAPTER } = await import("../../plugins/web-tools/cache.ts");
-
-    let flushCount = 0;
-    const adapter = { flush: async () => { flushCount++; } };
-    const cache = new InMemoryCache({ syncIntervalMs: 50, syncAdapter: adapter });
-
-    cache.startSync();
-    await new Promise((r) => setTimeout(r, 120));
-    cache.stopSync();
-
-    expect(flushCount).toBeGreaterThanOrEqual(2);
-  });
-
-  test("NOOP_SYNC_ADAPTER does nothing", async () => {
-    const { NOOP_SYNC_ADAPTER } = await import("../../plugins/web-tools/cache.ts");
-
-    await NOOP_SYNC_ADAPTER.flush([{ key: "test", value: "data" }]);
-    // no error = pass
-  });
-
-  test("sync only flushes non-expired entries", async () => {
+describe("InMemoryCache basic operations", () => {
+  test("get/set and TTL expiration", async () => {
     const { InMemoryCache } = await import("../../plugins/web-tools/cache.ts");
 
-    let flushed = [];
-    let resolveFlush;
-    const flushDone = new Promise((r) => { resolveFlush = r; });
-    const adapter = {
-      flush: async (entries) => {
-        flushed = entries;
-        resolveFlush();
-      },
-    };
+    const cache = new InMemoryCache();
+    cache.set("key1", "value1", 5000);
+    expect(cache.get("key1")).toBe("value1");
 
-    const cache = new InMemoryCache({ syncIntervalMs: 50, syncAdapter: adapter });
-    cache.set("fresh", "value1", 5000);
-    cache.set("stale", "value2", -1);
-    cache.startSync();
-    await flushDone;
-    cache.stopSync();
+    cache.set("expired", "gone", -1);
+    expect(cache.get("expired")).toBeUndefined();
+  });
 
-    expect(flushed.length).toBe(1);
-    expect(flushed[0].key).toBe("fresh");
+  test("size and clear", async () => {
+    const { InMemoryCache } = await import("../../plugins/web-tools/cache.ts");
+
+    const cache = new InMemoryCache();
+    expect(cache.size).toBe(0);
+    cache.set("a", 1, 5000);
+    cache.set("b", 2, 5000);
+    expect(cache.size).toBe(2);
+    cache.clear();
+    expect(cache.size).toBe(0);
+  });
+
+  test("get/set typed wrappers (webSearch/fetchContent)", async () => {
+    const { InMemoryCache } = await import("../../plugins/web-tools/cache.ts");
+
+    const cache = new InMemoryCache();
+    const searchData = { results: [{ title: "Test", url: "https://example.com", snippet: "desc" }] };
+    const fetchData = { results: [{ url: "https://example.com", title: "Page", content: "content" }] };
+
+    cache.setWebSearch("q1", searchData);
+    expect(cache.getWebSearch("q1")).toEqual(searchData);
+
+    cache.setFetchContent("f1", fetchData);
+    expect(cache.getFetchContent("f1")).toEqual(fetchData);
   });
 });

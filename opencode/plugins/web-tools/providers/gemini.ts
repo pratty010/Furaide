@@ -1,4 +1,4 @@
-import type { WebProvider } from "../types.ts";
+import type { WebProvider, ResultMetadata } from "../types.ts";
 import type { PricingHelper } from "../pricing.ts";
 
 export interface SearchResult {
@@ -10,29 +10,19 @@ export interface SearchResult {
   content?: string;
 }
 
-export interface SearchProviderMetadata {
-  provider: WebProvider;
-  latencyMs: number;
-  raw?: unknown;
-  unitsUsed?: number;
-  tokensInput?: number;
-  tokensOutput?: number;
-  estimatedCostUsd?: number;
-}
-
 export interface SearchProviderResult {
   results: SearchResult[];
-  metadata: SearchProviderMetadata;
+  metadata: ResultMetadata;
 }
 
 export interface FetchContentResult {
   results: Array<{ url: string; title?: string; content?: string }>;
-  metadata: SearchProviderMetadata;
+  metadata: ResultMetadata;
 }
 
 export interface MapsResult {
   results: Array<{ title: string; uri: string; placeId?: string }>;
-  metadata: SearchProviderMetadata;
+  metadata: ResultMetadata;
 }
 
 export interface GeminiSearchWebArgs {
@@ -119,6 +109,11 @@ export async function searchWeb(args: GeminiSearchWebArgs): Promise<SearchProvid
 }
 
 export async function fetchContent(args: GeminiFetchContentArgs): Promise<FetchContentResult> {
+  const mode = args.mode ?? "extract";
+  if (mode !== "extract") {
+    throw new Error(`Gemini fetch_content does not support mode '${mode}'. Only 'extract' is supported. Use Tavily for '${mode}' mode.`);
+  }
+
   const start = performance.now();
   const key = process.env.GEMINI_API_KEY;
   if (!key) throw new Error("Gemini fetch_content requires GEMINI_API_KEY");
@@ -183,7 +178,7 @@ export async function searchMaps(args: GeminiSearchMapsArgs): Promise<MapsResult
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        contents: [{ role: "user", parts: [{ text: args.query }] }],
+        contents: [{ role: "user", parts: [{ text: args.lat !== undefined && args.lng !== undefined ? `${args.query} (near ${args.lat.toFixed(4)}, ${args.lng.toFixed(4)})` : args.query }] }],
         tools: [{ googleMaps: {} }],
       }),
     },

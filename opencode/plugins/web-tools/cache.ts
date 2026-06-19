@@ -1,63 +1,11 @@
-import { errorSink } from "./util/error-sink.ts";
-
-interface CachedSearchResult {
-  results: Array<{
-    title: string;
-    url: string;
-    snippet: string;
-    published?: string;
-    score?: number;
-    content?: string;
-  }>;
-}
-
-interface CachedFetchResult {
-  results: Array<{
-    url: string;
-    title?: string;
-    content?: string;
-  }>;
-}
-
-export interface CacheSyncAdapter {
-  flush(entries: Array<{ key: string; value: unknown }>): Promise<void>;
-}
-
-export const NOOP_SYNC_ADAPTER: CacheSyncAdapter = { async flush() {} };
-
 export class InMemoryCache {
   private store = new Map<string, { value: unknown; expiresAt: number }>();
   private webSearchTtlMs: number;
   private fetchContentTtlMs: number;
-  private syncIntervalMs: number;
-  private syncAdapter: CacheSyncAdapter;
-  private syncTimer: ReturnType<typeof setInterval> | null = null;
 
-  constructor(opts?: { webSearchTtlMs?: number; fetchContentTtlMs?: number; syncIntervalMs?: number; syncAdapter?: CacheSyncAdapter }) {
+  constructor(opts?: { webSearchTtlMs?: number; fetchContentTtlMs?: number }) {
     this.webSearchTtlMs = opts?.webSearchTtlMs ?? 3_600_000;
     this.fetchContentTtlMs = opts?.fetchContentTtlMs ?? 86_400_000;
-    this.syncIntervalMs = opts?.syncIntervalMs ?? 300_000;
-    this.syncAdapter = opts?.syncAdapter ?? NOOP_SYNC_ADAPTER;
-  }
-
-  startSync(): void {
-    if (this.syncTimer) return;
-    this.syncTimer = setInterval(() => {
-      const entries: Array<{ key: string; value: unknown }> = [];
-      for (const [key, entry] of this.store) {
-        if (Date.now() <= entry.expiresAt) {
-          entries.push({ key, value: entry.value });
-        }
-      }
-      this.syncAdapter.flush(entries).catch(errorSink("cache sync"));
-    }, this.syncIntervalMs);
-  }
-
-  stopSync(): void {
-    if (this.syncTimer) {
-      clearInterval(this.syncTimer);
-      this.syncTimer = null;
-    }
   }
 
   get<T>(key: string): T | undefined {

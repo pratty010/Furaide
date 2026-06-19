@@ -1,16 +1,13 @@
 import { type Plugin, tool } from "@opencode-ai/plugin";
 import { loadWebToolsConfig } from "./web-tools/config.ts";
-import type { WebToolsConfig } from "./web-tools/types.ts";
+import type { WebToolsConfig, WebProvider } from "./web-tools/types.ts";
 import { InMemoryCache } from "./web-tools/cache.ts";
 import { createTables, recordWebSearch, recordFetchContent } from "./web-tools/db.ts";
 import { createUsageTracker } from "./web-tools/provider-usage.ts";
 import type { BudgetConfig } from "./web-tools/types.ts";
-import { executeWebSearchTool } from "./web-tools/tools/web-search.ts";
-import type { WebSearchArgs, NormalizedWebSearchRequest, SearchProviderResult as WebSearchProviderResult } from "./web-tools/tools/web-search.ts";
-import { executeFetchContentTool } from "./web-tools/tools/fetch-content.ts";
-import type { FetchContentArgs, NormalizedFetchContentRequest, FetchProviderResult } from "./web-tools/tools/fetch-content.ts";
-import { executeMapsSearchTool } from "./web-tools/tools/maps-search.ts";
-import type { MapsSearchArgs } from "./web-tools/tools/maps-search.ts";
+import { executeWebSearchTool, type WebSearchArgs, type NormalizedWebSearchRequest, type WebSearchRuntime, type SearchProviderResult as WebSearchProviderResult } from "./web-tools/tools/web-search.ts";
+import { executeFetchContentTool, type FetchContentArgs, type NormalizedFetchContentRequest, type FetchContentRuntime, type FetchProviderResult } from "./web-tools/tools/fetch-content.ts";
+import { executeMapsSearchTool, type MapsSearchArgs, type MapsSearchRuntime } from "./web-tools/tools/maps-search.ts";
 import * as gemini from "./web-tools/providers/gemini.ts";
 import * as brave from "./web-tools/providers/brave.ts";
 import * as tavily from "./web-tools/providers/tavily.ts";
@@ -20,12 +17,11 @@ import { join } from "node:path";
 import { homedir } from "node:os";
 import { loadPricingHelper } from "./web-tools/pricing.ts";
 
-async function createWebToolsRuntime(ctx: { directory: string }) {
+async function createWebToolsRuntime(ctx: { directory: string }): Promise<WebSearchRuntime & FetchContentRuntime & MapsSearchRuntime> {
   const config = await loadWebToolsConfig({ configDir: ctx.directory });
   const cache = new InMemoryCache({
     webSearchTtlMs: config.cache.ttl.webSearchMs,
     fetchContentTtlMs: config.cache.ttl.fetchContentMs,
-    syncIntervalMs: config.cache.syncIntervalMs,
   });
 
   const dataDir = join(homedir(), ".local", "share", "opencode", "web-tools");
@@ -113,9 +109,9 @@ async function createWebToolsRuntime(ctx: { directory: string }) {
     },
   };
 
-  async function recordWithBudget(provider: "gemini" | "brave" | "tavily", metadata: { unitsUsed?: number; tokensInput?: number; tokensOutput?: number; estimatedCostUsd?: number }): Promise<string | null> {
+  async function recordWithBudget(provider: string, metadata: { unitsUsed?: number; tokensInput?: number; tokensOutput?: number; estimatedCostUsd?: number }): Promise<string | null> {
     const { snapshot, budget } = await usage.checkAndRecord({
-      provider,
+      provider: provider as WebProvider,
       unitsUsed: metadata.unitsUsed,
       tokensInput: metadata.tokensInput,
       tokensOutput: metadata.tokensOutput,
@@ -141,7 +137,7 @@ export const WebToolsPlugin: Plugin = async (ctx) => {
           raw_content: tool.schema.boolean().optional().describe("Return full content instead of snippets"),
         },
         async execute(args: WebSearchArgs) {
-          const result = await executeWebSearchTool(args, runtime as any);
+          const result = await executeWebSearchTool(args, runtime);
           return result;
         },
       }),
@@ -153,7 +149,7 @@ export const WebToolsPlugin: Plugin = async (ctx) => {
           format: tool.schema.enum(["markdown", "text"]).optional().describe("Output format"),
         },
         async execute(args: FetchContentArgs) {
-          const result = await executeFetchContentTool(args, runtime as any);
+          const result = await executeFetchContentTool(args, runtime);
           return result;
         },
       }),
@@ -166,7 +162,7 @@ export const WebToolsPlugin: Plugin = async (ctx) => {
           count: tool.schema.number().optional().describe("Number of results to return"),
         },
         async execute(args: MapsSearchArgs) {
-          const result = await executeMapsSearchTool(args, runtime as any);
+          const result = await executeMapsSearchTool(args, runtime);
           return result;
         },
       }),

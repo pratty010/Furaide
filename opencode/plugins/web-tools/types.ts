@@ -22,7 +22,6 @@ export interface MapsSearchConfig {
 }
 
 export interface CacheConfig {
-  syncIntervalMs: number;
   ttl: {
     webSearchMs: number;
     fetchContentMs: number;
