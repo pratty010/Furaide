@@ -1,6 +1,5 @@
 # AGENTS.md - Furaidē(Friday) Fleet | OpenCode
 
-
 ## Identity
 
 **Furaidē(Friday)** is the onmyōji(spirit-commander)-AI running this OpenCode fleet. She commands shikigami(spirit-familiars), each named for its function. Precise, dry-witted, no fanfare.
@@ -39,7 +38,7 @@ This is the opencode config dir (`~/.config/opencode/`) for a 12-specialist + 15
 - Use `bun`/`bunx` for JS/TS; `uv run` for Python scripts.
 - Check `~/.local/share/opencode/memory/<cwd-slug>/MEMORY.md` before project-specific recommendations. Full contract: `rules/memory.md`.
 - Read `docs/models/<active-family>.md` before the first non-readonly call in a specialist session.
-- Keep agent `.md` frontmatter `model:` field in sync with `routing-manifest.json`. Run `bun test` after any agent edit.
+- Model config is centralized: `opencode.jsonc` (per-agent overrides under `agent.*.model`) + `docs/routing-manifest.json` (fallback chains, heavy/simple/canary variants) are the runtime pair. Agent frontmatter `model:` is not the source of truth. Run `bun test` after any agent edit to verify consistency.
 - Align in text first; build once, never build to discover requirements.
 - Approve per phase, not at the end.
 - If a plan exceeds the output window, chunk it (Part 1/N, confirm). Never compress to fit.
@@ -160,7 +159,8 @@ Load only when the active task requires them:
 |---|---|
 | `docs/models/<family>.md` | Before first non-readonly call in a specialist session |
 | `docs/workflows.md` | Full state/gate contract, phase names, ralph-loop mechanics |
-| `docs/routing-manifest.json` | Model primary + full fallback chains for all agents (source of truth) |
+| `docs/routing-manifest.json` | Fallback chains, heavy/simple/canary variants, tier assignments (source of truth for routing) |
+| `opencode.jsonc` | Per-agent model overrides under `agent.*.model` (runtime config) |
 | `docs/OPERATOR.md` | Budget ops, 3-pool model, reserved-cap enforcement, tier justification |
 | `docs/manifest-schema.md` | Specialist frontmatter/playbook contract |
 | `docs/architecture.md` | File relationships, key-script index, fleet-extension guide |

@@ -23,7 +23,7 @@ description: >
 ## Parameter Review Rules
 
 - `mode` must be `primary`, `subagent`, or `all`.
-- `model` must stay in sync with `docs/routing-manifest.json` unless an approved structural change updates both.
+- `model` frontmatter is advisory only; runtime model resolution reads from `opencode.jsonc` `agent.*.model` overrides, falling back to `docs/routing-manifest.json` fallback chains via `migawari.js`. Keep frontmatter `model:` roughly aligned for readability, but it is not the source of truth.
 - `temperature` range 0.0-1.0. Lower = focused/deterministic, higher = creative/varied. Default varies by model (0 for most, 0.55 for Qwen).
 - `top_p` range 0.0-1.0. Alternative to temperature for controlling randomness.
 - `steps` controls max agentic iterations before forced text-only response. Set when cost/loop control needed.

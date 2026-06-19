@@ -16,22 +16,25 @@ Or if you already have the repo:
 bash opencode/scripts/install-fleet.sh
 ```
 
-The installer presents a redesigned, independent-choice flow:
+The installer presents an interactive, independent-choice flow:
 
-1. **Core bundle** (always default on): workflow gates, model failover, security gate, session vault, specialist agents, agent support scripts, rules, and reference docs.
-2. **Brand Builder / Kitsune** (optional, default **No**): the opt-in 9-agent brand domain. Skip unless you want it.
-3. **Location** (independent choice): global (`~/.config/opencode/`), project (`./.opencode/`), or a custom absolute path.
-4. **Mode** (independent choice): copy (default; writable, self-contained) or link (`ln -sfn` from the repo; useful for development).
-5. **Preflight summary**: before any write, the installer prints the resolved paths, file counts, mode, and per-component coupling. Confirm to proceed.
-6. **Conflict handling**: existing files at the target path are moved to `kura_backup/<timestamp>/` by default, so nothing is silently overwritten.
+1. **Component selection** — each component (9 total) toggled independently; core bundle defaults on, Brand Builder defaults **off**.
+2. **Scope per component** — global (`~/.config/opencode/`), project (`./.opencode/`), or custom absolute path; chosen independently per component.
+3. **Mode** — copy (default; writable, self-contained) or link (`ln -sfn` from repo; useful for development).
+4. **Model resolution** — installer reads `docs/routing-manifest.json`, resolves provider whitelist and per-agent models, presents **one confirmation** showing resolved models before writing `opencode.jsonc`.
+5. **Backup** — existing files at target paths are moved to `~/.local/share/opencode/kura_backup/<timestamp>/` by default; nothing silently overwritten.
+6. **Preflight summary** — resolved paths, file counts, mode, per-component coupling, and model summary printed; explicit confirmation required before any write.
+7. **Install receipt** — JSON written to `~/.local/share/opencode/install-receipts/<timestamp>.json` with component list, target paths, file counts, mode, and timestamp.
+8. **Config merge** — plugins added to `opencode.jsonc` via `merge-config.mjs` (preserves `.jsonc` comments); rules glob wired via `instructions`.
+9. **Post-install notes** — `bun install` command for Brand Builder if selected; `OPENCODE_CONFIG_DIR` export reminder for custom scopes.
 
 ### Flags
 
 | Flag | Effect |
 |------|--------|
 | `--list` | Print all components with descriptions and coupling. No writes. |
-| `--dry-run` | Show planned copy + config-merge actions. No writes. |
-| `--all` | Install all default-on components without prompting. |
+| `--dry-run` | Show planned copy + config-merge actions + model resolution preview. No writes. |
+| `--all` | Install all **default-on** components without prompting (Brand Builder still skipped unless explicitly selected). |
 | `--global` | Pre-select `~/.config/opencode/` for all components. |
 | `--project` | Pre-select `./.opencode/` for all components. |
 | `--custom <dir>` | Pre-select an absolute path for all components. |
@@ -146,6 +149,19 @@ Install with `scripts/install-fleet.sh` (brand-builder component). Not loaded by
 ```bash
 bun test scripts/tests/
 ```
+
+---
+
+## Where to Edit Models After Install
+
+Model configuration lives in two places:
+
+| What | File | Purpose |
+|------|------|---------|
+| Per-agent overrides | `~/.config/opencode/opencode.jsonc` (under `agent.*.model`) | Override primary model for a specific agent |
+| Fallback chains & variants | `~/.config/opencode/docs/routing-manifest.json` | Source of truth for fallback chains, heavy/simple/canary variants, tier assignments |
+
+The installer writes both from `docs/routing-manifest.json` in the repo. After install, edit `opencode.jsonc` for quick per-agent changes; edit `routing-manifest.json` for structural changes to fallback chains.
 
 ---
 
