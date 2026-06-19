@@ -181,6 +181,24 @@
       ]
     },
     {
+      "id": "web-tools",
+      "label": "Web Tools",
+      "description": "Lean web-search/fetch/maps plugin with provider budgets and interactive config.",
+      "atomic": true,
+      "requires_bun": true,
+      "default_on": true,
+      "target_subdirs": ["plugins", "config", "command", "docs", "scripts"],
+      "files": [
+        "plugins/web-tools.ts",
+        "config/web-tools.yml",
+        "config/package.web-tools.json",
+        "command/tools-config.md",
+        "docs/models/gemini-tool-fees.yml",
+        "scripts/install-web-tools.sh"
+      ],
+      "globs": ["plugins/web-tools/**"]
+    },
+    {
       "id": "brand-builder",
       "label": "Brand Builder / Kitsune (opt-in)",
       "description": "Kitsune's full domain: 9 brand agents, brand plugin, commands, and skills. Requires bun install. Opens a per-project SQLite DB on init.",
