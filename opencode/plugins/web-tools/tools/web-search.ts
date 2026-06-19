@@ -1,6 +1,7 @@
 import type { WebSearchConfig, ResultMetadata } from "../types.ts";
 import { hashRequest } from "../util/hash.ts";
 import { errorSink } from "../util/error-sink.ts";
+import { clampCount, markUntrusted, validateQuery } from "../util/validate.ts";
 
 export interface WebSearchArgs {
   query: string;
@@ -23,6 +24,7 @@ export interface SearchResultItem {
   published?: string;
   score?: number;
   content?: string;
+  _untrusted?: true;
 }
 
 export interface SearchProviderResult {
@@ -53,9 +55,10 @@ export interface WebSearchRuntime {
 }
 
 export function normalizeWebSearchArgs(args: WebSearchArgs, config: WebSearchConfig): NormalizedWebSearchRequest {
+  const query = validateQuery(args.query);
   return {
-    query: args.query,
-    count: args.count ?? config.count,
+    query,
+    count: clampCount(args.count, config.count),
     freshness: args.freshness ?? config.freshness,
     rawContent: args.raw_content ?? config.rawContent,
   };
@@ -71,11 +74,11 @@ export function hashWebSearchRequest(request: NormalizedWebSearchRequest): strin
 }
 
 export function toPublicSearchResult(r: SearchResultItem): SearchResultItem {
-  const result: SearchResultItem = { title: r.title, url: r.url, snippet: r.snippet };
-  if (r.published !== undefined) result.published = r.published;
-  if (r.score !== undefined) result.score = r.score;
-  if (r.content !== undefined) result.content = r.content;
-  return result;
+  const base: SearchResultItem = { title: r.title, url: r.url, snippet: r.snippet };
+  if (r.published !== undefined) base.published = r.published;
+  if (r.score !== undefined) base.score = r.score;
+  if (r.content !== undefined) base.content = r.content;
+  return markUntrusted(base, ["content", "snippet"]);
 }
 
 export async function executeWebSearchTool(args: WebSearchArgs, runtime: WebSearchRuntime): Promise<WebSearchPublicResult> {

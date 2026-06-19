@@ -685,6 +685,7 @@ if [[ -n "$web_tools_targets" ]]; then
   fi
   _ok "bx and tvly CLI verified."
   for target_dir in $web_tools_targets; do
+    do_copy "$FLEET_ROOT/config/web-tools.yml" "$target_dir/web-tools.yml"
     pkg_fragment="$FLEET_ROOT/config/package.web-tools.json"
     target_pkg="$target_dir/package.json"
     if [[ -f "$pkg_fragment" ]]; then

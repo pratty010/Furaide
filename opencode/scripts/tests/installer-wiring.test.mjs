@@ -85,6 +85,7 @@ test('install-fleet.sh: --all --custom <tmp> wires agent model mappings into tar
     expect(out.agent['yumemi--story-smith']).toEqual({ model: 'opencode-go/glm-5.1' });
     // Fleet rules added
     expect(out.instructions).toContain('./rules/*.md');
+    expect(readFileSync(join(dir, 'web-tools.yml'), 'utf8')).toContain('webSearch:');
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

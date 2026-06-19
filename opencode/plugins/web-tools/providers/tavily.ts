@@ -1,4 +1,5 @@
 import { spawnSync } from "node:child_process";
+import { assertSafeArgv, isSafePublicUrl, sanitizeArgvValues } from "../util/validate.ts";
 import type { WebProvider } from "../types.ts";
 
 export interface SearchResult {
@@ -42,27 +43,52 @@ export interface TavilyFetchContentArgs {
   format?: "markdown" | "text";
 }
 
+const TAVILY_TIMEOUT_MS = 30_000;
+const TAVILY_MAX_BUFFER = 10 * 1024 * 1024;
+const TAVILY_CLAMP_MAX = 20;
+
+function clampCount(value: number | undefined, fallback: number): number {
+  if (value === undefined || value === null || !Number.isFinite(value)) return fallback;
+  const n = Math.trunc(value);
+  if (n < 1) return 1;
+  if (n > TAVILY_CLAMP_MAX) return TAVILY_CLAMP_MAX;
+  return n;
+}
+
+function sanitizeError(message: string): string {
+  return message.length > 200 ? message.slice(0, 200) + "…[truncated]" : message;
+}
+
 export async function searchWeb(args: TavilySearchWebArgs): Promise<SearchProviderResult> {
   const start = performance.now();
-  const tvlyArgs = ["search", args.query, "--json", "--max-results", String(args.count ?? 5)];
-  if (args.freshness) tvlyArgs.push("--time-range", args.freshness);
+  const safeQuery = assertSafeArgv(args.query, "query");
+  const count = clampCount(args.count, 5);
+  const tvlyArgs = ["search", safeQuery, "--json", "--max-results", String(count)];
+  if (args.freshness) {
+    tvlyArgs.push("--time-range", sanitizeArgvValues([args.freshness], "freshness")[0]);
+  }
 
   const result = spawnSync("tvly", tvlyArgs, {
     encoding: "utf8",
-    timeout: 30_000,
-    maxBuffer: 10 * 1024 * 1024,
+    timeout: TAVILY_TIMEOUT_MS,
+    maxBuffer: TAVILY_MAX_BUFFER,
   });
 
   if (result.error || result.status !== 0) {
     const msg = result.error?.message ?? `exit code ${result.status}`;
-    throw new Error(`Tavily search failed: ${msg}`);
+    throw new Error(`Tavily search failed: ${sanitizeError(msg)}`);
   }
 
-  const data = JSON.parse(result.stdout);
+  let data: any;
+  try {
+    data = JSON.parse(result.stdout);
+  } catch {
+    throw new Error("Tavily search failed: malformed JSON response");
+  }
   const raw = data?.results ?? [];
 
   return {
-    results: raw.slice(0, 20).map((r: any) => ({
+    results: raw.slice(0, TAVILY_CLAMP_MAX).map((r: any) => ({
       title: r.title ?? "",
       url: r.url ?? "",
       snippet: (r.content ?? r.snippet ?? "").slice(0, 500),
@@ -81,20 +107,32 @@ export async function fetchContent(args: TavilyFetchContentArgs): Promise<FetchC
   const start = performance.now();
   const mode = args.mode ?? "extract";
 
-  const tvlyArgs = [mode, ...args.urls, "--json", "--format", args.format ?? "markdown"];
+  const validatedUrls: string[] = [];
+  for (const u of args.urls) {
+    const safe = isSafePublicUrl(String(u ?? ""));
+    if (!safe.ok) throw new Error(`Tavily URL rejected: ${safe.reason}`);
+    validatedUrls.push(safe.url.toString());
+  }
+
+  const tvlyArgs = [mode, ...sanitizeArgvValues(validatedUrls, "url"), "--json", "--format", args.format ?? "markdown"];
 
   const result = spawnSync("tvly", tvlyArgs, {
     encoding: "utf8",
-    timeout: 30_000,
-    maxBuffer: 10 * 1024 * 1024,
+    timeout: TAVILY_TIMEOUT_MS,
+    maxBuffer: TAVILY_MAX_BUFFER,
   });
 
   if (result.error || result.status !== 0) {
     const msg = result.error?.message ?? `exit code ${result.status}`;
-    throw new Error(`Tavily ${mode} failed: ${msg}`);
+    throw new Error(`Tavily ${mode} failed: ${sanitizeError(msg)}`);
   }
 
-  const data = JSON.parse(result.stdout);
+  let data: any;
+  try {
+    data = JSON.parse(result.stdout);
+  } catch {
+    throw new Error(`Tavily ${mode} failed: malformed JSON response`);
+  }
   const raw = data?.results ?? [];
 
   return {

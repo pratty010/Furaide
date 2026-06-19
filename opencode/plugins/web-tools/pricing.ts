@@ -1,6 +1,5 @@
 import { readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
-import { homedir } from "node:os";
 import { parse } from "yaml";
 
 export interface LiteLLMPriceEntry {
@@ -76,7 +75,7 @@ function loadToolFeesSync(docsDir: string): Record<string, Record<string, number
 }
 
 function loadLitellmCacheSync(configDir: string): Record<string, LiteLLMPriceEntry> | null {
-  const path = join(homedir(), ".local", "share", "opencode", "web-tools", "pricing-cache.json");
+  const path = join(configDir, "web-tools-pricing-cache.json");
   if (!existsSync(path)) return null;
   try {
     const raw = JSON.parse(readFileSync(path, "utf8"));

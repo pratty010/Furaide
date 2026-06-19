@@ -26,6 +26,7 @@ export interface CacheConfig {
     webSearchMs: number;
     fetchContentMs: number;
   };
+  maxEntries?: number;
 }
 
 export interface BudgetConfig {

@@ -164,12 +164,12 @@ describe("Budget enforcement", () => {
     expect(result.warningLevel).toBe("warn80");
   });
 
-  test("brave warn90 at 90% requests", async () => {
+  test("brave blocks at 90% requests", async () => {
     const { checkBudget } = await import("../../plugins/web-tools/provider-usage.ts");
 
     const result = checkBudget(budgets, makeSnapshot({ units_used: 1800 }), "brave");
-    expect(result.blocked).toBe(false);
-    expect(result.warningLevel).toBe("warn90");
+    expect(result.blocked).toBe(true);
+    expect(result.warningLevel).toBe("exceeded");
   });
 
   test("tavily warn80 at 80% credits", async () => {

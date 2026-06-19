@@ -1,4 +1,5 @@
 import type { MapsSearchConfig, ResultMetadata } from "../types.ts";
+import { clampCount, validateLatLng, validateQuery } from "../util/validate.ts";
 
 export interface MapsSearchArgs {
   query: string;
@@ -16,6 +17,7 @@ export interface MapsSearchResultItem {
   title: string;
   uri: string;
   placeId?: string;
+  _untrusted?: true;
 }
 
 export interface MapsProviderResult {
@@ -39,25 +41,31 @@ export interface MapsSearchRuntime {
 }
 
 export function normalizeMapsSearchArgs(args: MapsSearchArgs, config: MapsSearchConfig): NormalizedMapsSearchRequest {
+  const query = validateQuery(args.query);
   return {
-    query: args.query,
-    count: args.count ?? config.count,
+    query,
+    count: clampCount(args.count, config.count),
   };
 }
 
+export function validateMapsSearchLatLng(args: MapsSearchArgs): { lat?: number; lng?: number } {
+  return validateLatLng(args.lat, args.lng);
+}
+
 export function toPublicMapsResult(item: MapsSearchResultItem): MapsSearchResultItem {
-  const result: MapsSearchResultItem = { title: item.title, uri: item.uri };
+  const result: MapsSearchResultItem = { title: item.title, uri: item.uri, _untrusted: true };
   if (item.placeId !== undefined) result.placeId = item.placeId;
   return result;
 }
 
 export async function executeMapsSearchTool(args: MapsSearchArgs, runtime: MapsSearchRuntime): Promise<MapsSearchPublicResult> {
   const request = normalizeMapsSearchArgs(args, runtime.config.mapsSearch);
+  const coords = validateMapsSearchLatLng(args);
   const result = await runtime.providers.searchMaps({
     query: request.query,
     count: request.count,
-    lat: args.lat,
-    lng: args.lng,
+    lat: coords.lat,
+    lng: coords.lng,
   });
   const preamble = await runtime.recordWithBudget(result.metadata.provider, result.metadata);
   const publicResult: MapsSearchPublicResult = {

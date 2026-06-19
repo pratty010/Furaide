@@ -1,6 +1,7 @@
 import type { FetchContentConfig, ResultMetadata } from "../types.ts";
 import { hashRequest } from "../util/hash.ts";
 import { errorSink } from "../util/error-sink.ts";
+import { markUntrusted, validateUrls } from "../util/validate.ts";
 
 export interface FetchContentArgs {
   urls: string[];
@@ -18,6 +19,7 @@ export interface FetchContentItem {
   url: string;
   title?: string;
   content?: string;
+  _untrusted?: true;
 }
 
 export interface FetchProviderResult {
@@ -48,8 +50,9 @@ export interface FetchContentRuntime {
 }
 
 export function normalizeFetchContentArgs(args: FetchContentArgs, config: FetchContentConfig): NormalizedFetchContentRequest {
+  const urls = validateUrls(args.urls);
   return {
-    urls: args.urls,
+    urls,
     mode: args.mode ?? "extract",
     format: args.format ?? config.format,
   };
@@ -65,9 +68,9 @@ export function hashFetchContentRequest(request: NormalizedFetchContentRequest):
 
 export function toPublicFetchContentItem(item: FetchContentItem, mode: "extract" | "crawl" | "map"): FetchContentItem {
   if (mode === "map") {
-    return { url: item.url, title: item.title };
+    return markUntrusted({ url: item.url, title: item.title }, []);
   }
-  return { url: item.url, title: item.title, content: item.content };
+  return markUntrusted({ url: item.url, title: item.title, content: item.content }, ["content"]);
 }
 
 export async function executeFetchContentTool(args: FetchContentArgs, runtime: FetchContentRuntime): Promise<FetchContentPublicResult> {

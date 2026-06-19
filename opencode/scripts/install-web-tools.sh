@@ -35,8 +35,8 @@ fi
 _info "tvly found: $(command -v tvly)"
 
 _info "Copying web-tools.yml..."
-mkdir -p "$TARGET_DIR/config"
-cp "$FLEET_ROOT/config/web-tools.yml" "$TARGET_DIR/config/web-tools.yml"
+mkdir -p "$TARGET_DIR"
+cp "$FLEET_ROOT/config/web-tools.yml" "$TARGET_DIR/web-tools.yml"
 _info "web-tools.yml copied."
 
 _info "Copying gemini-tool-fees.yml..."

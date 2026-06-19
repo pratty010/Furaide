@@ -13,26 +13,39 @@ import * as brave from "./web-tools/providers/brave.ts";
 import * as tavily from "./web-tools/providers/tavily.ts";
 import { effectiveOrder } from "./web-tools/order.ts";
 import { Database } from "bun:sqlite";
-import { mkdirSync } from "node:fs";
+import { mkdirSync, chmodSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { homedir } from "node:os";
 import { loadPricingHelper } from "./web-tools/pricing.ts";
+
+function tightenPermissions(path: string, mode: number): void {
+  try {
+    const stats = statSync(path);
+    if (!stats.isFile() && !stats.isDirectory()) return;
+    chmodSync(path, mode);
+  } catch (e: any) {
+    if (e && (e.code === "EPERM" || e.code === "ENOTSUP")) return;
+  }
+}
 
 async function createWebToolsRuntime(ctx: { directory: string }): Promise<WebSearchRuntime & FetchContentRuntime & MapsSearchRuntime> {
   const config = await loadWebToolsConfig({ configDir: ctx.directory });
   const cache = new InMemoryCache({
     webSearchTtlMs: config.cache.ttl.webSearchMs,
     fetchContentTtlMs: config.cache.ttl.fetchContentMs,
+    maxEntries: config.cache.maxEntries,
   });
 
   const dataDir = join(homedir(), ".local", "share", "opencode", "web-tools");
-  mkdirSync(dataDir, { recursive: true });
+  mkdirSync(dataDir, { recursive: true, mode: 0o700 });
+  tightenPermissions(dataDir, 0o700);
   let db: Database;
   try {
     db = new Database(join(dataDir, "data.db"), { create: true });
   } catch {
     db = new Database(":memory:");
   }
+  tightenPermissions(join(dataDir, "data.db"), 0o600);
   createTables(db);
 
   const budgets: BudgetConfig = {

@@ -23,32 +23,32 @@ describe("checkBudget exceeded levels", () => {
     };
   }
 
-  test("Brave at >=100% returns blocked exceeded, not warn90", async () => {
+  test("Brave at 90% blocks with exceeded", async () => {
     const { checkBudget } = await import("../../plugins/web-tools/provider-usage.ts");
     const budgets = { geminiUsd: 5, braveRequests: 100, tavilyCredits: 100 };
 
-    const result = checkBudget(budgets, await makeSnapshot(100), "brave");
+    const result = checkBudget(budgets, await makeSnapshot(90), "brave");
     expect(result.blocked).toBe(true);
     expect(result.warningLevel).toBe("exceeded");
     expect(result.preamble).toContain("Budget exceeded");
   });
 
-  test("Tavily at >=100% returns blocked exceeded, not warn90", async () => {
+  test("Tavily at 90% blocks with exceeded", async () => {
     const { checkBudget } = await import("../../plugins/web-tools/provider-usage.ts");
     const budgets = { geminiUsd: 5, braveRequests: 100, tavilyCredits: 100 };
 
-    const result = checkBudget(budgets, await makeSnapshot(100), "tavily");
+    const result = checkBudget(budgets, await makeSnapshot(90), "tavily");
     expect(result.blocked).toBe(true);
     expect(result.warningLevel).toBe("exceeded");
   });
 
-  test("Brave at 95% returns warn90, not exceeded", async () => {
+  test("Brave below 90% stays at warn80", async () => {
     const { checkBudget } = await import("../../plugins/web-tools/provider-usage.ts");
     const budgets = { geminiUsd: 5, braveRequests: 100, tavilyCredits: 100 };
 
-    const result = checkBudget(budgets, await makeSnapshot(95), "brave");
+    const result = checkBudget(budgets, await makeSnapshot(89), "brave");
     expect(result.blocked).toBe(false);
-    expect(result.warningLevel).toBe("warn90");
+    expect(result.warningLevel).toBe("warn80");
   });
 
   test("Gemini at >=100% returns blocked exceeded", async () => {

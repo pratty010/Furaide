@@ -1,4 +1,5 @@
 import { spawnSync } from "node:child_process";
+import { assertSafeArgv, sanitizeArgvValues } from "../util/validate.ts";
 import type { WebProvider } from "../types.ts";
 
 export interface SearchResult {
@@ -31,27 +32,52 @@ export interface BraveSearchWebArgs {
   rawContent?: boolean;
 }
 
+const BRAVE_TIMEOUT_MS = 15_000;
+const BRAVE_MAX_BUFFER = 10 * 1024 * 1024;
+const BRAVE_CLAMP_MAX = 20;
+
+function clampCount(value: number | undefined, fallback: number): number {
+  if (value === undefined || value === null || !Number.isFinite(value)) return fallback;
+  const n = Math.trunc(value);
+  if (n < 1) return 1;
+  if (n > BRAVE_CLAMP_MAX) return BRAVE_CLAMP_MAX;
+  return n;
+}
+
+function sanitizeError(message: string): string {
+  return message.length > 200 ? message.slice(0, 200) + "…[truncated]" : message;
+}
+
 export async function searchWeb(args: BraveSearchWebArgs): Promise<SearchProviderResult> {
   const start = performance.now();
-  const bxArgs = ["search", args.query, "--count", String(args.count ?? 5)];
-  if (args.freshness) bxArgs.push("--freshness", args.freshness);
+  const safeQuery = assertSafeArgv(args.query, "query");
+  const count = clampCount(args.count, 5);
+  const bxArgs = ["search", safeQuery, "--count", String(count)];
+  if (args.freshness) {
+    bxArgs.push("--freshness", sanitizeArgvValues([args.freshness], "freshness")[0]);
+  }
 
   const result = spawnSync("bx", bxArgs, {
     encoding: "utf8",
-    timeout: 15_000,
-    maxBuffer: 10 * 1024 * 1024,
+    timeout: BRAVE_TIMEOUT_MS,
+    maxBuffer: BRAVE_MAX_BUFFER,
   });
 
   if (result.error || result.status !== 0) {
     const msg = result.error?.message ?? `exit code ${result.status}`;
-    throw new Error(`Brave search failed: ${msg}`);
+    throw new Error(`Brave search failed: ${sanitizeError(msg)}`);
   }
 
-  const data = JSON.parse(result.stdout);
+  let data: any;
+  try {
+    data = JSON.parse(result.stdout);
+  } catch {
+    throw new Error("Brave search failed: malformed JSON response");
+  }
   const raw = data?.web?.results ?? data?.results ?? [];
 
   return {
-    results: raw.slice(0, 20).map((r: any) => ({
+    results: raw.slice(0, BRAVE_CLAMP_MAX).map((r: any) => ({
       title: r.title ?? "",
       url: r.url ?? "",
       snippet: (r.description ?? r.snippet ?? "").slice(0, 500),

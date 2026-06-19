@@ -79,6 +79,7 @@ test("install-web-tools.sh succeeds with stubbed bx/tvly", () => {
       env: stubbedEnv(binDir),
     });
     expect(out).toContain("complete");
+    expect(readFileSync(join(dir, "web-tools.yml"), "utf8")).toContain("webSearch:");
     expect(readFileSync(join(dir, "docs/models/gemini-tool-fees.yml"), "utf8")).toContain("google_search");
   } finally {
     rmSync(dir, { recursive: true, force: true });
