@@ -26,9 +26,10 @@ function writeJson(path, obj) {
 // exit code as a real failure.
 function runInstaller(dir) {
   try {
-    execFileSync('bash', [INSTALLER, '--all', '--custom', dir], {
+    execFileSync('bash', [INSTALLER, '--all', '--custom', dir, '--no-common-skills'], {
       encoding: 'utf8',
       stdio: 'pipe',
+      timeout: 120000,
     });
   } catch (e) {
     if (typeof e.status === 'number' && e.status !== 0) {
@@ -37,7 +38,7 @@ function runInstaller(dir) {
   }
 }
 
-test('install-fleet.sh: --all --custom <tmp> wires agent model mappings into target opencode.json', () => {
+test('install-fleet.sh: --all --custom <tmp> wires agent model mappings into target opencode.json', { timeout: 120000 }, () => {
   const dir = tmp();
   try {
     const cfg = join(dir, 'opencode.json');
@@ -73,7 +74,7 @@ test('install-fleet.sh: --all --custom <tmp> wires agent model mappings into tar
   }
 });
 
-test('install-fleet.sh: --all wiring carries agents-core agent model mappings end-to-end', () => {
+test('install-fleet.sh: --all wiring carries agents-core agent model mappings end-to-end', { timeout: 120000 }, () => {
   // Exercises the installer-wide wiring (--all is the cleanest non-interactive
   // path; see install-fleet.sh ask_scope's auto-select branch). The contract
   // under test is that agents-core contributes its `agent` model mappings

@@ -10,6 +10,8 @@
 #   --project           Pre-select project scope (./.opencode/) for all components
 #   --custom <dir>      Pre-select a custom absolute directory for all components
 #   --link              Symlink mode: ln -sfn instead of cp (keep repo as source; no substitution)
+#   --no-common-skills  Skip shared skills prompt (B6)
+#   -y, --yes           Auto-confirm model mapping changes (non-interactive safe)
 #   -h, --help          Show this help
 
 set -euo pipefail
@@ -41,6 +43,7 @@ LINK_MODE=0
 FORCE_SCOPE=""   # 'global' | 'project' | 'custom'
 CUSTOM_DIR=""
 NO_COMMON_SKILLS=0
+AUTO_CONFIRM=0
 INSTALL_TIMESTAMP="$(date -u +%Y%m%dT%H%M%SZ)"
 
 # ── Parse args ────────────────────────────────────────────────────────────────
@@ -65,6 +68,9 @@ while [[ $# -gt 0 ]]; do
       ;;
     --no-common-skills)
       NO_COMMON_SKILLS=1
+      ;;
+    -y|--yes)
+      AUTO_CONFIRM=1
       ;;
     -h|--help)
       sed -n '2,20p' "${BASH_SOURCE[0]}" | sed 's/^# \?//'
@@ -102,7 +108,7 @@ if [[ ! -f "$MODEL_RESOLVER" ]]; then
 fi
 
 _info "Resolving model mappings..."
-RESOLVER_OUTPUT=$(bun "$MODEL_RESOLVER" 2>/dev/null)
+RESOLVER_OUTPUT=$(bun "$MODEL_RESOLVER")
 if [[ $? -ne 0 ]]; then
   _err "Model resolver failed"
   exit 1
@@ -124,12 +130,20 @@ CHANGE_COUNT=$(echo "$CHANGES_JSON" | jq 'length')
 if [[ "$CHANGE_COUNT" -gt 0 ]]; then
   _bold "\nModel Mapping Changes Required:"
   echo "$RESOLVER_OUTPUT" | jq -r '.changes[] | "  \(.agent).\(.field): \(.from) -> \(.to // "none") (\(.reason))"'
-  printf '\nApply these model mappings? [Y/n] '
-  read -r confirm
-  confirm="${confirm:-Y}"
-  if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
-    _info "Install cancelled by user."
-    exit 0
+  if [[ "$AUTO_CONFIRM" -eq 1 ]]; then
+    _info "Auto-confirming model mappings (--yes flag)."
+  elif [[ -t 0 ]]; then
+    printf '\nApply these model mappings? [Y/n] '
+    read -r confirm
+    confirm="${confirm:-Y}"
+    if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
+      _info "Install cancelled by user."
+      exit 0
+    fi
+  else
+    _err "Model mapping changes required but running in non-interactive mode."
+    _err "Re-run with --yes to auto-confirm, or run interactively."
+    exit 1
   fi
   _ok "Model mappings confirmed."
 else
@@ -719,8 +733,14 @@ if [[ "$NO_COMMON_SKILLS" -eq 0 ]]; then
   if [[ -n "$COMMON_DIR" && -f "$COMMON_DIR/install-common.sh" ]]; then
     printf '\n'
     _bold "Shared skills (bx, html-preview, brave-search, plan)"
-    printf 'Install to [g]lobal ~/.agents/skills, [p]roject, or [s]kip? [g/p/s] '
-    read -r _skill_scope </dev/tty || _skill_scope=s
+    if [[ -t 0 ]]; then
+      printf 'Install to [g]lobal ~/.agents/skills, [p]roject, or [s]kip? [g/p/s] '
+      read -r _skill_scope
+      _skill_scope="${_skill_scope:-s}"
+    else
+      _info "Non-interactive mode: skipping shared skills prompt (use --no-common-skills to suppress)."
+      _skill_scope="s"
+    fi
     case "$_skill_scope" in
       g|G)
         if [[ "$DRY_RUN" -eq 0 ]]; then bash "$COMMON_DIR/install-common.sh" --global
@@ -730,8 +750,13 @@ if [[ "$NO_COMMON_SKILLS" -eq 0 ]]; then
         else printf '  [dry-run] bash common/install-common.sh --project %s\n' "$PWD"; fi ;;
       *) _info "Common skills skipped." ;;
     esac
-    printf 'Install other opencode skills from manifest (superpowers, tavily-*, …)? [y/N] '
-    read -r _extra_skills </dev/tty || _extra_skills=n
+    if [[ -t 0 ]]; then
+      printf 'Install other opencode skills from manifest (superpowers, tavily-*, …)? [y/N] '
+      read -r _extra_skills
+      _extra_skills="${_extra_skills:-n}"
+    else
+      _extra_skills="n"
+    fi
     if [[ "$_extra_skills" =~ ^[Yy] && "$DRY_RUN" -eq 0 ]]; then
       bash "$COMMON_DIR/install-skills.sh" --ecosystem opencode
     fi

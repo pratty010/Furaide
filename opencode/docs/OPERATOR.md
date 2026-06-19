@@ -103,4 +103,4 @@ Three pools with distinct billing types:
 
 ### Failover policy
 
-On retryable provider errors (429/5xx/timeout/model_not_found): `plugins/migawari.js` walks the fallback chain from `routing-manifest.json` cross-vendor. Each transition is logged to `~/.local/share/opencode/state/<slug>/failover.ndjson`. Run `scripts/budget-report.mjs` after 7 days to check pool burn rate.
+On retryable provider errors (429/5xx/timeout/model_not_found): `plugins/migawari.js` walks the fallback chain from `routing-manifest.json` cross-vendor. Each transition is logged to `~/.local/share/opencode/state/<slug>/failover.ndjson`. Audit pool burn rate via `bun test scripts/tests/` after 7 days.

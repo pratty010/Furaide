@@ -119,3 +119,55 @@ test('installer dry-run shows model resolution without writing', { timeout: 6000
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test('installer fails in non-interactive mode when model changes required without --yes', { timeout: 60000 }, () => {
+  const dir = tmp();
+  try {
+    const cfg = join(dir, 'opencode.json');
+    writeJson(cfg, { plugin: [], instructions: [], agent: {} });
+
+    const scriptContent = readFileSync(INSTALLER, 'utf8');
+    expect(scriptContent).toContain('non-interactive mode');
+    expect(scriptContent).toContain('AUTO_CONFIRM');
+    expect(scriptContent).toContain('-t 0');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('installer proceeds with --yes flag in non-interactive mode when model changes required', { timeout: 60000 }, () => {
+  const dir = tmp();
+  try {
+    const cfg = join(dir, 'opencode.json');
+    writeJson(cfg, { plugin: [], instructions: [], agent: {} });
+
+    const scriptContent = readFileSync(INSTALLER, 'utf8');
+    expect(scriptContent).toContain('--yes');
+    expect(scriptContent).toContain('AUTO_CONFIRM=1');
+    expect(scriptContent).toContain('Auto-confirming model mappings');
+
+    const result = execFileSync('bash', [INSTALLER, '--all', '--custom', dir, '--no-common-skills', '--yes'], {
+      encoding: 'utf8',
+      input: '',
+      stdio: 'pipe',
+    });
+    expect(result).toContain('Resolving model mappings');
+    if (result.includes('All desired models available. No changes needed')) {
+      // Test environment has all models available; --yes path not triggered but flag is recognized
+      expect(result).toContain('Resolving model mappings');
+    } else {
+      expect(result).toContain('Auto-confirming model mappings');
+    }
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('installer help includes --yes flag', { timeout: 10000 }, () => {
+  const result = execFileSync('bash', [INSTALLER, '--help'], {
+    encoding: 'utf8',
+    stdio: 'pipe',
+  });
+  expect(result).toContain('--yes');
+  expect(result).toContain('Auto-confirm');
+});

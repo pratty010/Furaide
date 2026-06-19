@@ -227,7 +227,11 @@ function resolveModels() {
 
   const invariantErrors = validateInvariants(resolved);
   if (invariantErrors.length > 0) {
-    console.error('Invariant violations after resolution:', invariantErrors);
+    console.error('Invariant violations after resolution:');
+    for (const err of invariantErrors) {
+      console.error('  -', err);
+    }
+    process.exit(1);
   }
 
   const modelMap = {};
