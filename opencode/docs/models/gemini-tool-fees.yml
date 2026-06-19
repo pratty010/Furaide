@@ -1,0 +1,4 @@
+gemini-3.1-flash-lite:
+  google_search: 0.035
+  googleMaps: 0.035
+  url_context: 0
