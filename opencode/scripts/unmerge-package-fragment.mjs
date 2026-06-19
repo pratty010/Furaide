@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 import { readFileSync, writeFileSync, renameSync, existsSync } from "fs";
-import { tmpdir } from "os";
-import { join } from "path";
+import { join, dirname } from "path";
 
 const [, , targetPath, fragmentPath] = process.argv;
+const targetDir = dirname(targetPath);
 
 if (!targetPath || !fragmentPath) {
   console.error("Usage: unmerge-package-fragment.mjs <target-package.json> <fragment-package.json>");
@@ -49,6 +49,6 @@ for (const section of depSections) {
 }
 
 const out = JSON.stringify(target, null, 2) + "\n";
-const tmpFile = join(tmpdir(), `unmerge-pkg-${Date.now()}-${process.pid}.json`);
+const tmpFile = join(targetDir, `.unmerge-pkg-${Date.now()}-${process.pid}.json`);
 writeFileSync(tmpFile, out, "utf8");
 renameSync(tmpFile, targetPath);

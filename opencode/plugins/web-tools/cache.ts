@@ -1,3 +1,5 @@
+import { errorSink } from "./util/error-sink.ts";
+
 interface CachedSearchResult {
   results: Array<{
     title: string;
@@ -47,7 +49,7 @@ export class InMemoryCache {
           entries.push({ key, value: entry.value });
         }
       }
-      void this.syncAdapter.flush(entries);
+      this.syncAdapter.flush(entries).catch(errorSink("cache sync"));
     }, this.syncIntervalMs);
   }
 

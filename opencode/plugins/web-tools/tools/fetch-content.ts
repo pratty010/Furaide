@@ -1,5 +1,6 @@
 import type { FetchContentConfig } from "../types.ts";
 import { hashRequest } from "../util/hash.ts";
+import { errorSink } from "../util/error-sink.ts";
 
 export interface FetchContentArgs {
   urls: string[];
@@ -88,7 +89,7 @@ export async function executeFetchContentTool(args: FetchContentArgs, runtime: F
   };
 
   runtime.cache.setFetchContent(cacheKey, publicResult);
-  void runtime.db.recordFetchContent(request, result);
+  runtime.db.recordFetchContent(request, result).catch(errorSink("fetch_content record"));
   const preamble = await runtime.recordWithBudget(result.metadata.provider, result.metadata);
 
   if (preamble) (publicResult as Record<string, unknown>)._warning = preamble;

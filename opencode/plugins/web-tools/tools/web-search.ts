@@ -1,5 +1,6 @@
 import type { WebSearchConfig } from "../types.ts";
 import { hashRequest } from "../util/hash.ts";
+import { errorSink } from "../util/error-sink.ts";
 
 export interface WebSearchArgs {
   query: string;
@@ -96,7 +97,7 @@ export async function executeWebSearchTool(args: WebSearchArgs, runtime: WebSear
   };
 
   runtime.cache.setWebSearch(cacheKey, publicResult);
-  void runtime.db.recordWebSearch(request, result);
+  runtime.db.recordWebSearch(request, result).catch(errorSink("web_search record"));
   const preamble = await runtime.recordWithBudget(result.metadata.provider, result.metadata);
 
   if (preamble) (publicResult as Record<string, unknown>)._warning = preamble;

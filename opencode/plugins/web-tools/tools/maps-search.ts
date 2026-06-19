@@ -1,4 +1,5 @@
 import type { MapsSearchConfig } from "../types.ts";
+import { errorSink } from "../util/error-sink.ts";
 
 export interface MapsSearchArgs {
   query: string;
@@ -66,7 +67,7 @@ export async function executeMapsSearchTool(args: MapsSearchArgs, runtime: MapsS
     lat: args.lat,
     lng: args.lng,
   });
-  void runtime.usage.recordFromSearch(result.metadata);
+  runtime.usage.recordFromSearch(result.metadata).catch(errorSink("maps_search record"));
   const preamble = await runtime.recordWithBudget(result.metadata.provider, result.metadata);
   const publicResult: MapsSearchPublicResult = {
     results: result.results.map(toPublicMapsResult),

@@ -28,6 +28,7 @@ test("fetch_content tool executes with mock runtime", async () => {
         metadata: { provider: "gemini", latencyMs: 100 },
       }),
     },
+    recordWithBudget: async () => null,
   };
 
   const result = await executeFetchContentTool(
@@ -64,6 +65,7 @@ test("fetch_content omits content in map mode", async () => {
         metadata: { provider: "tavily", latencyMs: 50 },
       }),
     },
+    recordWithBudget: async () => null,
   };
 
   const result = await executeFetchContentTool(
@@ -106,6 +108,7 @@ test("fetch_content caches identical requests", async () => {
         };
       },
     },
+    recordWithBudget: async () => null,
   };
 
   const r1 = await executeFetchContentTool({ urls: ["https://cached.com"] }, mockRuntime);
