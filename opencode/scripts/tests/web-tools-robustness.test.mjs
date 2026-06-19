@@ -145,14 +145,23 @@ test("fetch_content .catch is reachable when recordFetchContent rejects", async 
 });
 
 test("maps_search .catch is reachable when recordFromSearch rejects", async () => {
+  // The previous implementation called BOTH `usage.recordFromSearch` (with a
+  // fire-and-forget .catch) AND `recordWithBudget`, double-counting usage.
+  // After the fix, `recordFromSearch` is no longer called, so this scenario
+  // is unreachable. This test now pins the new contract: a rejecting
+  // `recordFromSearch` is silently ignored because it is never invoked.
   const { executeMapsSearchTool } = await import("../../plugins/web-tools/tools/maps-search.ts");
   const spy = spyOn(console, "error").mockImplementation(() => {});
 
   try {
+    let recordFromSearchCalls = 0;
     const result = await executeMapsSearchTool({ query: "test" }, {
       config: { mapsSearch: { defaultProvider: "gemini", count: 3 } },
       usage: {
-        recordFromSearch: async () => { throw new Error("usage record failed"); },
+        recordFromSearch: async () => {
+          recordFromSearchCalls += 1;
+          throw new Error("usage record failed");
+        },
       },
       providers: {
         searchMaps: async () => ({
@@ -165,7 +174,8 @@ test("maps_search .catch is reachable when recordFromSearch rejects", async () =
 
     expect(result.results).toHaveLength(1);
     await new Promise((r) => setTimeout(r, 0));
-    expect(spy).toHaveBeenCalledWith("[web-tools] maps_search record: usage record failed");
+    expect(recordFromSearchCalls).toBe(0);
+    expect(spy).not.toHaveBeenCalled();
   } finally {
     spy.mockRestore();
   }

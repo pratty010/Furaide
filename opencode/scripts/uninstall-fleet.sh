@@ -368,7 +368,7 @@ for scope_spec in "${selected_scopes[@]}"; do
 
     # Track plugins, rules, and agents for unwiring config
     for rel in "${files[@]}"; do
-      if [[ "$rel" == plugins/*.js ]]; then
+      if [[ "$rel" == plugins/*.js || "$rel" == plugins/*.ts ]]; then
         TARGET_PLUGINS["$target_dir"]+=" $rel"
       fi
     done

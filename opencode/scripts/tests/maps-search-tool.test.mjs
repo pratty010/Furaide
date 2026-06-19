@@ -119,3 +119,38 @@ describe("maps_search lat/lng propagation", () => {
     expect(receivedLng).toBeUndefined();
   });
 });
+
+test("maps_search records usage exactly once per call (no double-count)", async () => {
+  // Adversarial-review blocker regression guard. The previous implementation
+  // called BOTH usage.recordFromSearch AND recordWithBudget, doubling the
+  // recorded units/cost per call. recordWithBudget already records via
+  // checkAndRecord, so only one path may run.
+  const { executeMapsSearchTool } = await import("../../plugins/web-tools/tools/maps-search.ts");
+
+  let recordFromSearchCalls = 0;
+  let recordWithBudgetCalls = 0;
+
+  const mockRuntime = {
+    config: { mapsSearch: { defaultProvider: "gemini", count: 3 } },
+    usage: {
+      recordFromSearch: async () => {
+        recordFromSearchCalls += 1;
+      },
+    },
+    providers: {
+      searchMaps: async () => ({
+        results: [{ title: "Place", uri: "https://maps.google.com/" }],
+        metadata: { provider: "gemini", latencyMs: 100, unitsUsed: 1, estimatedCostUsd: 0.001 },
+      }),
+    },
+    recordWithBudget: async () => {
+      recordWithBudgetCalls += 1;
+      return null;
+    },
+  };
+
+  await executeMapsSearchTool({ query: "cafe" }, mockRuntime);
+
+  expect(recordWithBudgetCalls).toBe(1);
+  expect(recordFromSearchCalls).toBe(0);
+});

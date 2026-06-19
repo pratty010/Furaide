@@ -84,3 +84,38 @@ test("install-web-tools.sh succeeds with stubbed bx/tvly", () => {
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test("install-web-tools.sh fails when bun install fails", () => {
+  // Adversarial-review blocker regression guard: the previous installer masked
+  // `bun install` failures with `|| _warn ...`, hiding broken installs as success.
+  // The fix must propagate the failure (exit non-zero).
+  const dir = mkdtempSync(join(tmpdir(), "wt-install-"));
+  try {
+    const binDir = join(dir, "bin");
+    mkdirSync(binDir, { recursive: true });
+    writeFileSync(join(binDir, "bx"), "#!/usr/bin/env bash\necho 'bx 0.1.0'\n", { mode: 0o755 });
+    writeFileSync(join(binDir, "tvly"), "#!/usr/bin/env bash\necho 'tvly 0.1.0'\n", { mode: 0o755 });
+    // Stub bun: report a version on `bun --version`, fail on `bun install`.
+    writeFileSync(
+      join(binDir, "bun"),
+      "#!/usr/bin/env bash\nif [[ \"$1\" == \"--version\" ]]; then echo '1.1.0'; exit 0; fi\necho 'stub bun: simulated install failure' >&2\nexit 1\n",
+      { mode: 0o755 },
+    );
+
+    let status = 0;
+    let stderr = "";
+    try {
+      execFileSync("bash", [INSTALLER, dir], {
+        encoding: "utf8",
+        stdio: "pipe",
+        env: stubbedEnv(binDir),
+      });
+    } catch (e) {
+      status = typeof e.status === "number" ? e.status : 1;
+      stderr = (e.stderr || "") + (e.stdout || "");
+    }
+    expect(status, `installer should exit non-zero when bun install fails; stderr=\n${stderr}`).not.toBe(0);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});

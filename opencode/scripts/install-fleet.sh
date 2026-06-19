@@ -639,14 +639,14 @@ for i in $(seq 0 $((COMPONENT_COUNT - 1))); do
     # Substitute __FLEET_ROOT__ in installed plugins
     if [[ "$DRY_RUN" -eq 0 ]]; then
       for rel in "${files[@]}"; do
-        if [[ "$rel" == plugins/*.js ]]; then
+        if [[ "$rel" == plugins/*.js || "$rel" == plugins/*.ts ]]; then
           installed="$target_dir/$rel"
           [[ -f "$installed" ]] && substitute_fleet_root "$installed" "$target_dir"
         fi
       done
     else
       for rel in "${files[@]}"; do
-        if [[ "$rel" == plugins/*.js ]]; then
+        if [[ "$rel" == plugins/*.js || "$rel" == plugins/*.ts ]]; then
           printf '  %b[dry-run]%b substitute __FLEET_ROOT__ -> %s in %s\n' "$DIM" "$RST" "$target_dir" "$target_dir/$rel"
         fi
       done
@@ -654,7 +654,7 @@ for i in $(seq 0 $((COMPONENT_COUNT - 1))); do
 
     # Track plugins and rules for config merge
     for rel in "${files[@]}"; do
-      if [[ "$rel" == plugins/*.js ]]; then
+      if [[ "$rel" == plugins/*.js || "$rel" == plugins/*.ts ]]; then
         TARGET_PLUGINS["$target_dir"]+=" $rel"
       fi
     done

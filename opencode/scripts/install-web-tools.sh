@@ -52,7 +52,7 @@ echo "$MERGE_OUT"
 
 if echo "$MERGE_OUT" | grep -q "CHANGED"; then
   _info "Dependencies changed. Running bun install..."
-  (cd "$TARGET_DIR" && bun install 2>&1) || _warn "bun install failed (may need manual install)"
+  (cd "$TARGET_DIR" && bun install 2>&1) || { _err "bun install failed in $TARGET_DIR"; exit 1; }
 else
   _info "Dependencies already up to date."
 fi

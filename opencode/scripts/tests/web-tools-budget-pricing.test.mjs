@@ -273,15 +273,19 @@ describe("Warning state updates in DB", () => {
 // ── Maps usage tracking ─────────────────────────────────────────────
 
 describe("Maps usage tracking", () => {
-  test("executeMapsSearchTool records usage", async () => {
+  test("executeMapsSearchTool records usage exactly once via recordWithBudget", async () => {
+    // Single-source-of-truth contract: recordWithBudget is the only path that
+    // records usage for maps_search. recordFromSearch must not be called
+    // (calling both would double-count units/cost).
     const { executeMapsSearchTool } = await import("../../plugins/web-tools/tools/maps-search.ts");
 
+    let recordFromSearchCalls = 0;
     let recordedMetadata = null;
     const mockRuntime = {
       config: { mapsSearch: { defaultProvider: "gemini", count: 3 } },
       usage: {
-        recordFromSearch: async (metadata) => {
-          recordedMetadata = metadata;
+        recordFromSearch: async () => {
+          recordFromSearchCalls += 1;
         },
       },
       providers: {
@@ -290,7 +294,10 @@ describe("Maps usage tracking", () => {
           metadata: { provider: "gemini", latencyMs: 50, unitsUsed: 1, tokensInput: 100, tokensOutput: 50 },
         }),
       },
-      recordWithBudget: async () => null,
+      recordWithBudget: async (provider, metadata) => {
+        recordedMetadata = { provider, ...metadata };
+        return null;
+      },
     };
 
     await executeMapsSearchTool({ query: "test" }, mockRuntime);
@@ -299,6 +306,7 @@ describe("Maps usage tracking", () => {
     expect(recordedMetadata.unitsUsed).toBe(1);
     expect(recordedMetadata.tokensInput).toBe(100);
     expect(recordedMetadata.tokensOutput).toBe(50);
+    expect(recordFromSearchCalls).toBe(0);
   });
 
   test("executeMapsSearchTool includes _warning when recordWithBudget returns preamble", async () => {
