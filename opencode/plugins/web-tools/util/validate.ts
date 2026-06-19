@@ -144,21 +144,6 @@ export function validateLatLng(lat: unknown, lng: unknown): { lat?: number; lng?
   return out;
 }
 
-const LEADING_DASH = /^-/;
-
-export function assertSafeArgv(value: string, label: string): string {
-  if (typeof value !== "string") throw new ValidationError(`${label} must be a string`);
-  if (value.length === 0) throw new ValidationError(`${label} must not be empty`);
-  if (LEADING_DASH.test(value)) {
-    throw new ValidationError(`${label} must not start with '-' (would be interpreted as a flag)`);
-  }
-  return value;
-}
-
-export function sanitizeArgvValues(values: string[], label: string): string[] {
-  return values.map((v, i) => assertSafeArgv(String(v ?? ""), `${label}[${i}]`));
-}
-
 const ERROR_BODY_MAX = 500;
 
 export function truncateErrorBody(text: string): string {

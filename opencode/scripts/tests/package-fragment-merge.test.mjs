@@ -180,13 +180,16 @@ test('merge handles devDependencies and peerDependencies', () => {
 test('web-tools fragment uses installable @opencode-ai/plugin version', () => {
   // Adversarial-review blocker regression guard.
   // semver ^0.0.0 expands to ">=0.0.0 <0.0.0" — unsatisfiable by any version.
+  // An exact pin (e.g. "1.15.10") or a caret range with major >= 1 is installable.
   const fragment = readJson(FRAGMENT);
   const version = fragment.dependencies['@opencode-ai/plugin'];
   expect(version, '@opencode-ai/plugin dep missing from web-tools fragment').toBeTruthy();
   expect(version).not.toBe('^0.0.0');
-  // Caret range with major >= 1 is the installable form:
-  //   ^X.Y.Z  =>  >=X.Y.Z <(X+1).0.0
-  const m = version.match(/^\^(\d+)/);
-  expect(m, `version "${version}" is not a caret range with a major version`).not.toBeNull();
-  expect(Number(m[1])).toBeGreaterThan(0);
+  // Caret range: ^X.Y.Z  =>  >=X.Y.Z <(X+1).0.0  — major must be >= 1.
+  const caret = version.match(/^\^(\d+)\./);
+  // Exact pin: X.Y.Z with major >= 1.
+  const exact = version.match(/^(\d+)\.\d+\.\d+$/);
+  expect(caret || exact, `version "${version}" is neither a caret range nor an exact pin`).toBeTruthy();
+  const major = Number((caret ?? exact)[1]);
+  expect(major).toBeGreaterThan(0);
 });

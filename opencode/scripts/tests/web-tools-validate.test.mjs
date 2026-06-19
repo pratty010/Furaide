@@ -5,8 +5,6 @@ import {
   validateUrls,
   validateLatLng,
   clampCount,
-  assertSafeArgv,
-  sanitizeArgvValues,
   isSafePublicUrl,
   isPrivateOrUnsafeHost,
   truncateErrorBody,
@@ -217,26 +215,6 @@ describe("validateLatLng", () => {
 
   test("accepts string number", () => {
     expect(validateLatLng("35.5", "139.7")).toEqual({ lat: 35.5, lng: 139.7 });
-  });
-});
-
-describe("argv safety", () => {
-  test("accepts normal value", () => {
-    expect(assertSafeArgv("hello", "x")).toBe("hello");
-  });
-
-  test("rejects leading dash", () => {
-    expect(() => assertSafeArgv("--evil", "x")).toThrow(ValidationError);
-    expect(() => assertSafeArgv("-rf", "x")).toThrow(ValidationError);
-  });
-
-  test("rejects empty", () => {
-    expect(() => assertSafeArgv("", "x")).toThrow(ValidationError);
-  });
-
-  test("sanitizeArgvValues checks each element", () => {
-    expect(sanitizeArgvValues(["a", "b"], "x")).toEqual(["a", "b"]);
-    expect(() => sanitizeArgvValues(["a", "--evil"], "x")).toThrow(ValidationError);
   });
 });
 

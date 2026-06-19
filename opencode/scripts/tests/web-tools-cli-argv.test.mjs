@@ -37,6 +37,16 @@ function captureFetch(response, capture) {
   };
 }
 
+function captureFetchSequence(responses, capture) {
+  let i = 0;
+  return async (url, init) => {
+    capture.calls.push({ url: String(url), body: init && init.body, headers: init && init.headers });
+    const r = responses[i] ?? responses[responses.length - 1];
+    i++;
+    return typeof r === "function" ? r() : r;
+  };
+}
+
 function okJson(payload) {
   return new Response(JSON.stringify(payload), {
     status: 200,
@@ -280,41 +290,68 @@ describe("tavily direct HTTPS contract", () => {
     }
   });
 
-  test("fetchContent crawl mode posts to /crawl with single seed url", async () => {
-    const cap = {};
-    globalThis.fetch = captureFetch(okJson({
-      results: [{ url: "https://seed.com/page1", title: "P1", raw_content: "x" }],
-    }), cap);
+  test("fetchContent crawl mode processes every url and flattens results", async () => {
+    const cap = { calls: [] };
+    globalThis.fetch = captureFetchSequence([
+      okJson({ results: [{ url: "https://seed.com/page1", title: "P1", raw_content: "x" }] }),
+      okJson({ results: [{ url: "https://other.com/page2", title: "P2", raw_content: "y" }] }),
+    ], cap);
     try {
       const tavily = await import("../../plugins/web-tools/providers/tavily.ts");
       const r = await tavily.fetchContent({ urls: ["https://seed.com", "https://other.com"], mode: "crawl" });
-      expect(cap.url).toContain("/crawl");
-      const body = JSON.parse(cap.body);
-      expect(body.url).toBe("https://seed.com/");
+      expect(cap.calls).toHaveLength(2);
+      for (const call of cap.calls) expect(call.url).toContain("/crawl");
+      const bodies = cap.calls.map((c) => JSON.parse(c.body));
+      expect(bodies[0].url).toBe("https://seed.com/");
+      expect(bodies[1].url).toBe("https://other.com/");
+      expect(bodies[0].max_depth).toBe(2);
+      expect(bodies[1].max_depth).toBe(2);
+      expect(r.results).toHaveLength(2);
       expect(r.results[0].url).toBe("https://seed.com/page1");
+      expect(r.results[0].content).toBe("x");
+      expect(r.results[1].url).toBe("https://other.com/page2");
+      expect(r.results[1].content).toBe("y");
+      expect(r.metadata.unitsUsed).toBe(2);
     } finally {
       globalThis.fetch = originalFetch;
     }
   });
 
-  test("fetchContent map mode posts to /map and normalizes results without content", async () => {
-    const cap = {};
-    globalThis.fetch = captureFetch(okJson({
-      results: [
-        { url: "https://seed.com/p1" },
-        { url: "https://seed.com/p2", title: "P2" },
-      ],
-    }), cap);
+  test("fetchContent map mode processes every url and flattens results", async () => {
+    const cap = { calls: [] };
+    globalThis.fetch = captureFetchSequence([
+      okJson({ results: [{ url: "https://seed.com/p1" }, { url: "https://seed.com/p2", title: "P2" }] }),
+      okJson({ results: [{ url: "https://other.com/q1", title: "Q1" }] }),
+    ], cap);
     try {
       const tavily = await import("../../plugins/web-tools/providers/tavily.ts");
-      const r = await tavily.fetchContent({ urls: ["https://seed.com"], mode: "map" });
-      expect(cap.url).toContain("/map");
-      const body = JSON.parse(cap.body);
-      expect(body.url).toBe("https://seed.com/");
-      expect(r.results).toHaveLength(2);
+      const r = await tavily.fetchContent({ urls: ["https://seed.com", "https://other.com"], mode: "map" });
+      expect(cap.calls).toHaveLength(2);
+      for (const call of cap.calls) expect(call.url).toContain("/map");
+      const bodies = cap.calls.map((c) => JSON.parse(c.body));
+      expect(bodies[0].url).toBe("https://seed.com/");
+      expect(bodies[1].url).toBe("https://other.com/");
+      expect(r.results).toHaveLength(3);
       expect(r.results[0].url).toBe("https://seed.com/p1");
       expect(r.results[0].content).toBeUndefined();
       expect(r.results[1].title).toBe("P2");
+      expect(r.results[2].url).toBe("https://other.com/q1");
+      expect(r.metadata.unitsUsed).toBe(2);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  test("fetchContent crawl propagates failure on second url", async () => {
+    const cap = { calls: [] };
+    globalThis.fetch = captureFetchSequence([
+      okJson({ results: [{ url: "https://seed.com/page1", title: "P1", raw_content: "x" }] }),
+      new Response("upstream error body", { status: 502, statusText: "Bad Gateway" }),
+    ], cap);
+    try {
+      const tavily = await import("../../plugins/web-tools/providers/tavily.ts");
+      await expect(tavily.fetchContent({ urls: ["https://seed.com", "https://other.com"], mode: "crawl" })).rejects.toThrow(/Tavily \/crawl 502/);
+      expect(cap.calls).toHaveLength(2);
     } finally {
       globalThis.fetch = originalFetch;
     }

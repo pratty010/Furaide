@@ -173,38 +173,72 @@ export async function fetchContent(args: TavilyFetchContentArgs): Promise<FetchC
   const apiKey = process.env.TAVILY_API_KEY;
   if (!apiKey) throw new Error(`Tavily ${mode} requires TAVILY_API_KEY`);
 
-  let data: any;
   if (mode === "extract") {
-    data = await tavilyPost(apiKey, "/extract", {
+    const data = await tavilyPost(apiKey, "/extract", {
       urls: validatedUrls,
       format: args.format ?? "markdown",
     });
-  } else if (mode === "crawl") {
-    data = await tavilyPost(apiKey, "/crawl", {
-      url: validatedUrls[0],
-      max_depth: 2,
-      format: args.format ?? "markdown",
-    });
-  } else if (mode === "map") {
-    data = await tavilyPost(apiKey, "/map", {
-      url: validatedUrls[0],
-    });
-  } else {
-    throw new Error(`Tavily fetchContent does not support mode '${mode}'`);
+    const raw = data?.results ?? [];
+    return {
+      results: raw.map((r: any) => ({
+        url: r.url ?? "",
+        title: r.title,
+        content: r.raw_content ?? r.content,
+      })),
+      metadata: {
+        provider: "tavily" as WebProvider,
+        latencyMs: Math.round(performance.now() - start),
+        unitsUsed: 1,
+      },
+    };
   }
 
-  const raw = data?.results ?? [];
+  if (mode === "crawl") {
+    const format = args.format ?? "markdown";
+    const merged: Array<{ url: string; title?: string; content?: string }> = [];
+    for (const seedUrl of validatedUrls) {
+      const data = await tavilyPost(apiKey, "/crawl", {
+        url: seedUrl,
+        max_depth: 2,
+        format,
+      });
+      const raw = data?.results ?? [];
+      for (const r of raw) {
+        merged.push({
+          url: r.url ?? "",
+          title: r.title,
+          content: r.raw_content ?? r.content,
+        });
+      }
+    }
+    return {
+      results: merged,
+      metadata: {
+        provider: "tavily" as WebProvider,
+        latencyMs: Math.round(performance.now() - start),
+        unitsUsed: validatedUrls.length,
+      },
+    };
+  }
 
-  return {
-    results: raw.map((r: any) => ({
-      url: r.url ?? "",
-      title: r.title,
-      content: r.raw_content ?? r.content,
-    })),
-    metadata: {
-      provider: "tavily" as WebProvider,
-      latencyMs: Math.round(performance.now() - start),
-      unitsUsed: 1,
-    },
-  };
+  if (mode === "map") {
+    const merged: Array<{ url: string; title?: string; content?: string }> = [];
+    for (const seedUrl of validatedUrls) {
+      const data = await tavilyPost(apiKey, "/map", { url: seedUrl });
+      const raw = data?.results ?? [];
+      for (const r of raw) {
+        merged.push({ url: r.url ?? "", title: r.title });
+      }
+    }
+    return {
+      results: merged,
+      metadata: {
+        provider: "tavily" as WebProvider,
+        latencyMs: Math.round(performance.now() - start),
+        unitsUsed: validatedUrls.length,
+      },
+    };
+  }
+
+  throw new Error(`Tavily fetchContent does not support mode '${mode}'`);
 }
