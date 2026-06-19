@@ -4,6 +4,7 @@ import {
   validateQuery,
   validateUrls,
   validateLatLng,
+  validateUrlsAsync,
   clampCount,
   isSafePublicUrl,
   isPrivateOrUnsafeHost,
@@ -101,6 +102,62 @@ describe("isPrivateOrUnsafeHost", () => {
     expect(isPrivateOrUnsafeHost("fe80::1")).toBe(true);
   });
 
+  test("blocks ULA IPv6 (fc00::/7)", () => {
+    expect(isPrivateOrUnsafeHost("fc00::1")).toBe(true);
+    expect(isPrivateOrUnsafeHost("fd12:3456:789a::1")).toBe(true);
+  });
+
+  test("blocks multicast IPv6 (ff00::/8)", () => {
+    expect(isPrivateOrUnsafeHost("ff02::1")).toBe(true);
+    expect(isPrivateOrUnsafeHost("ff05::1:3")).toBe(true);
+  });
+
+  test("blocks IPv4-mapped IPv6 (::ffff:0:0/96)", () => {
+    expect(isPrivateOrUnsafeHost("::ffff:10.0.0.1")).toBe(true);
+    expect(isPrivateOrUnsafeHost("::ffff:127.0.0.1")).toBe(true);
+    expect(isPrivateOrUnsafeHost("::ffff:192.168.1.1")).toBe(true);
+    expect(isPrivateOrUnsafeHost("::ffff:c0a8:0101")).toBe(true);
+  });
+
+  test("blocks 6to4 IPv6 (2002::/16) with private embedded IPv4", () => {
+    expect(isPrivateOrUnsafeHost("2002:0a00:0001::1")).toBe(true);
+    expect(isPrivateOrUnsafeHost("2002:7f00:0001::1")).toBe(true);
+    expect(isPrivateOrUnsafeHost("2002:c0a8:0101::1")).toBe(true);
+  });
+
+  test("blocks NAT64 IPv6 (64:ff9b::/96) with private embedded IPv4", () => {
+    expect(isPrivateOrUnsafeHost("64:ff9b::0a00:0001")).toBe(true);
+    expect(isPrivateOrUnsafeHost("64:ff9b::7f00:0001")).toBe(true);
+  });
+
+  test("blocks IPv6 literal with brackets from URL.hostname", () => {
+    expect(isPrivateOrUnsafeHost("[::1]")).toBe(true);
+    expect(isPrivateOrUnsafeHost("[fe80::1]")).toBe(true);
+    expect(isPrivateOrUnsafeHost("[::ffff:10.0.0.1]")).toBe(true);
+  });
+
+  test("blocks IPv6 with zone ID", () => {
+    expect(isPrivateOrUnsafeHost("fe80::1%eth0")).toBe(true);
+    expect(isPrivateOrUnsafeHost("::1%lo0")).toBe(true);
+  });
+
+  test("allows public IPv6 (does not false-positive on public addresses)", () => {
+    expect(isPrivateOrUnsafeHost("2001:db8::1")).toBe(false);
+    expect(isPrivateOrUnsafeHost("2606:4700:4700::1111")).toBe(false);
+  });
+
+  test("does not false-positive on fc*.com / fca.com / ffd.com domains", () => {
+    expect(isPrivateOrUnsafeHost("fc.example.com")).toBe(false);
+    expect(isPrivateOrUnsafeHost("fca.com")).toBe(false);
+    expect(isPrivateOrUnsafeHost("ffd.com")).toBe(false);
+    expect(isPrivateOrUnsafeHost("fc123.com")).toBe(false);
+    expect(isPrivateOrUnsafeHost("fca-1.example.org")).toBe(false);
+  });
+
+  test("does not false-positive on ff*.com domains", () => {
+    expect(isPrivateOrUnsafeHost("ff.example.com")).toBe(false);
+  });
+
   test("blocks metadata.google.internal", () => {
     expect(isPrivateOrUnsafeHost("metadata.google.internal")).toBe(true);
   });
@@ -162,6 +219,32 @@ describe("isSafePublicUrl", () => {
   test("rejects metadata service URL", () => {
     const r = isSafePublicUrl("http://metadata.google.internal/computeMetadata/v1/");
     expect(r.ok).toBe(false);
+  });
+
+  test("rejects bracketed IPv6 loopback URL", () => {
+    const r = isSafePublicUrl("http://[::1]/");
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.reason).toMatch(/loopback|private|internal/);
+  });
+
+  test("rejects IPv4-mapped IPv6 URL", () => {
+    const r = isSafePublicUrl("https://[::ffff:10.0.0.1]/");
+    expect(r.ok).toBe(false);
+  });
+
+  test("rejects 6to4 IPv6 URL with private embedded IPv4", () => {
+    const r = isSafePublicUrl("https://[2002:0a00:0001::1]/");
+    expect(r.ok).toBe(false);
+  });
+
+  test("accepts public IPv6 URL", () => {
+    const r = isSafePublicUrl("https://[2606:4700:4700::1111]/");
+    expect(r.ok).toBe(true);
+  });
+
+  test("accepts domain starting with fc* (not falsely flagged as ULA)", () => {
+    const r = isSafePublicUrl("https://fc.example.com/");
+    expect(r.ok).toBe(true);
   });
 });
 
@@ -252,5 +335,108 @@ describe("markUntrusted", () => {
     expect(result.b).toBe("x");
     expect(result.c).toBe(true);
     expect(result._untrusted).toBe(true);
+  });
+});
+
+describe("validateUrlsAsync (DNS rebinding check)", () => {
+  test("accepts domain resolving to public IP", async () => {
+    const urls = await validateUrlsAsync(["https://example.com/"], {
+      resolveHost: async () => ["93.184.216.34"],
+    });
+    expect(urls).toEqual(["https://example.com/"]);
+  });
+
+  test("rejects domain resolving to private IPv4", async () => {
+    await expect(
+      validateUrlsAsync(["https://evil.example/"], {
+        resolveHost: async () => ["10.0.0.1"],
+      }),
+    ).rejects.toThrow(/resolves to private\/unsafe/);
+  });
+
+  test("rejects domain resolving to loopback", async () => {
+    await expect(
+      validateUrlsAsync(["https://evil.example/"], {
+        resolveHost: async () => ["127.0.0.1"],
+      }),
+    ).rejects.toThrow(/resolves to private\/unsafe/);
+  });
+
+  test("rejects domain resolving to link-local metadata service", async () => {
+    await expect(
+      validateUrlsAsync(["https://attacker.example/"], {
+        resolveHost: async () => ["169.254.169.254"],
+      }),
+    ).rejects.toThrow(/resolves to private\/unsafe/);
+  });
+
+  test("rejects domain resolving to IPv6 ULA", async () => {
+    await expect(
+      validateUrlsAsync(["https://attacker.example/"], {
+        resolveHost: async () => ["fc00::1"],
+      }),
+    ).rejects.toThrow(/resolves to private\/unsafe/);
+  });
+
+  test("rejects domain resolving to IPv4-mapped IPv6 of private IPv4", async () => {
+    await expect(
+      validateUrlsAsync(["https://attacker.example/"], {
+        resolveHost: async () => ["::ffff:10.0.0.1"],
+      }),
+    ).rejects.toThrow(/resolves to private\/unsafe/);
+  });
+
+  test("rejects domain with any one private address in mixed resolution", async () => {
+    // DNS rebinding scenario: hostname resolves to BOTH public and private.
+    // The first reply is the public IP (used for connect-back), then
+    // resolves again to the private IP for the actual fetch.
+    await expect(
+      validateUrlsAsync(["https://attacker.example/"], {
+        resolveHost: async () => ["8.8.8.8", "10.0.0.1"],
+      }),
+    ).rejects.toThrow(/resolves to private\/unsafe/);
+  });
+
+  test("rejects unresolvable host by default", async () => {
+    await expect(
+      validateUrlsAsync(["https://nonexistent.example/"], {
+        resolveHost: async () => [],
+      }),
+    ).rejects.toThrow(/could not be resolved/);
+  });
+
+  test("accepts unresolvable host when allowUnresolvable is set", async () => {
+    const urls = await validateUrlsAsync(
+      ["https://nonexistent.example/"],
+      { resolveHost: async () => [], allowUnresolvable: true },
+    );
+    expect(urls).toEqual(["https://nonexistent.example/"]);
+  });
+
+  test("skips DNS check for literal IPv6 public URL", async () => {
+    let resolveCalls = 0;
+    const urls = await validateUrlsAsync(["https://[2606:4700:4700::1111]/"], {
+      resolveHost: async () => { resolveCalls++; return ["10.0.0.1"]; },
+    });
+    expect(urls).toEqual(["https://[2606:4700:4700::1111]/"]);
+    expect(resolveCalls).toBe(0);
+  });
+
+  test("skips DNS check for literal IPv4 public URL", async () => {
+    let resolveCalls = 0;
+    const urls = await validateUrlsAsync(["https://8.8.8.8/"], {
+      resolveHost: async () => { resolveCalls++; return ["10.0.0.1"]; },
+    });
+    expect(urls).toEqual(["https://8.8.8.8/"]);
+    expect(resolveCalls).toBe(0);
+  });
+
+  test("rejects domain in second position while accepting the first", async () => {
+    await expect(
+      validateUrlsAsync(
+        ["https://example.com/", "https://attacker.example/"],
+        { resolveHost: async (h) => (h === "example.com" ? ["93.184.216.34"] : ["10.0.0.1"]) },
+      ),
+    ).rejects.toThrow(/urls\[1\]: host 'attacker\.example' resolves to private/);
   });
 });

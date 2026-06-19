@@ -13,20 +13,11 @@ import * as brave from "./web-tools/providers/brave.ts";
 import * as tavily from "./web-tools/providers/tavily.ts";
 import { effectiveOrder } from "./web-tools/order.ts";
 import { Database } from "bun:sqlite";
-import { mkdirSync, chmodSync, statSync } from "node:fs";
+import { mkdirSync } from "node:fs";
 import { join } from "node:path";
-import { homedir } from "node:os";
+import { lookup as dnsLookup } from "node:dns/promises";
 import { loadPricingHelper } from "./web-tools/pricing.ts";
-
-function tightenPermissions(path: string, mode: number): void {
-  try {
-    const stats = statSync(path);
-    if (!stats.isFile() && !stats.isDirectory()) return;
-    chmodSync(path, mode);
-  } catch (e: any) {
-    if (e && (e.code === "EPERM" || e.code === "ENOTSUP")) return;
-  }
-}
+import { tightenPermissions, resolveDataDir } from "./web-tools/util/runtime-helpers.ts";
 
 async function createWebToolsRuntime(ctx: { directory: string }): Promise<WebSearchRuntime & FetchContentRuntime & MapsSearchRuntime> {
   const config = await loadWebToolsConfig({ configDir: ctx.directory });
@@ -36,8 +27,12 @@ async function createWebToolsRuntime(ctx: { directory: string }): Promise<WebSea
     maxEntries: config.cache.maxEntries,
   });
 
-  const dataDir = join(homedir(), ".local", "share", "opencode", "web-tools");
-  mkdirSync(dataDir, { recursive: true, mode: 0o700 });
+  const dataDir = resolveDataDir();
+  try {
+    mkdirSync(dataDir, { recursive: true, mode: 0o700 });
+  } catch (e: any) {
+    console.error(`[web-tools] failed to create data dir ${dataDir}: ${e?.message ?? e}; falling back to memory mode`);
+  }
   tightenPermissions(dataDir, 0o700);
   let db: Database;
   try {
@@ -139,7 +134,14 @@ async function createWebToolsRuntime(ctx: { directory: string }): Promise<WebSea
     return budget.preamble;
   }
 
-  return { config, cache, db: runtimeDb, usage, providers, recordWithBudget };
+  return { config, cache, db: runtimeDb, usage, providers, recordWithBudget, resolveHost: async (hostname: string) => {
+    try {
+      const addrs = await dnsLookup(hostname, { all: true });
+      return addrs.map((a) => a.address);
+    } catch {
+      return [];
+    }
+  } };
 }
 
 export const WebToolsPlugin: Plugin = async (ctx) => {

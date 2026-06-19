@@ -1,3 +1,6 @@
+import { BlockList, isIP } from "node:net";
+import { lookup as dnsLookup } from "node:dns/promises";
+
 export class ValidationError extends Error {
   constructor(message: string) {
     super(message);
@@ -18,31 +21,31 @@ export const LNG_MAX = 180;
 const LOOPBACK_HOSTS = new Set(["localhost", "ip6-localhost", "ip6-loopback"]);
 const BLOCKED_HOST_SUFFIXES = [".internal", ".local", ".localhost", ".localdomain"];
 
-function isAsnPrivateV4(octets: number[]): boolean {
-  if (octets.length !== 4) return false;
-  const [a, b] = octets;
-  if (a === 10) return true;
-  if (a === 127) return true;
-  if (a === 0) return true;
-  if (a === 169 && b === 254) return true;
-  if (a === 172 && b >= 16 && b <= 31) return true;
-  if (a === 192 && b === 168) return true;
-  if (a === 100 && b >= 64 && b <= 127) return true;
-  if (a === 198 && (b === 18 || b === 19)) return true;
-  if (a >= 224) return true;
-  return false;
-}
+const PRIVATE_V4_BLOCKLIST = new BlockList();
+PRIVATE_V4_BLOCKLIST.addSubnet("0.0.0.0", 8, "ipv4");
+PRIVATE_V4_BLOCKLIST.addSubnet("10.0.0.0", 8, "ipv4");
+PRIVATE_V4_BLOCKLIST.addSubnet("100.64.0.0", 10, "ipv4");
+PRIVATE_V4_BLOCKLIST.addSubnet("127.0.0.0", 8, "ipv4");
+PRIVATE_V4_BLOCKLIST.addSubnet("169.254.0.0", 16, "ipv4");
+PRIVATE_V4_BLOCKLIST.addSubnet("172.16.0.0", 12, "ipv4");
+PRIVATE_V4_BLOCKLIST.addSubnet("192.0.0.0", 24, "ipv4");
+PRIVATE_V4_BLOCKLIST.addSubnet("192.168.0.0", 16, "ipv4");
+PRIVATE_V4_BLOCKLIST.addSubnet("198.18.0.0", 15, "ipv4");
+PRIVATE_V4_BLOCKLIST.addSubnet("224.0.0.0", 4, "ipv4");
 
-function isPrivateV6(hostname: string): boolean {
-  const lower = hostname.toLowerCase();
-  if (lower === "::1" || lower === "::") return true;
-  if (lower.startsWith("fe80:") || lower.startsWith("fe80::")) return true;
-  if (lower.startsWith("fc") || lower.startsWith("fd")) return true;
-  if (lower.startsWith("ff")) return true;
-  return false;
-}
+const PRIVATE_V6_BLOCKLIST = new BlockList();
+PRIVATE_V6_BLOCKLIST.addSubnet("::", 128, "ipv6");
+PRIVATE_V6_BLOCKLIST.addSubnet("::1", 128, "ipv6");
+PRIVATE_V6_BLOCKLIST.addSubnet("fe80::", 10, "ipv6");
+PRIVATE_V6_BLOCKLIST.addSubnet("fc00::", 7, "ipv6");
+PRIVATE_V6_BLOCKLIST.addSubnet("ff00::", 8, "ipv6");
+PRIVATE_V6_BLOCKLIST.addSubnet("100::", 64, "ipv6");
+PRIVATE_V6_BLOCKLIST.addSubnet("::ffff:0:0", 96, "ipv6");
+PRIVATE_V6_BLOCKLIST.addSubnet("64:ff9b::", 96, "ipv6");
+PRIVATE_V6_BLOCKLIST.addSubnet("2002::", 16, "ipv6");
 
 function isBlockedHostname(hostname: string): boolean {
+  if (!hostname) return true;
   const lower = hostname.toLowerCase().split(":")[0];
   if (LOOPBACK_HOSTS.has(lower)) return true;
   if (lower.endsWith(".internal")) return true;
@@ -53,14 +56,100 @@ function isBlockedHostname(hostname: string): boolean {
   return false;
 }
 
+function stripHostLiteral(host: string): string {
+  return host.replace(/^\[|\]$/g, "").split("%")[0].toLowerCase();
+}
+
+function privateV4String(ip: string): boolean {
+  const parts = ip.split(".");
+  if (parts.length !== 4) return false;
+  const octets: number[] = [];
+  for (const p of parts) {
+    if (!/^\d+$/.test(p)) return false;
+    const n = Number.parseInt(p, 10);
+    if (n < 0 || n > 255) return false;
+    octets.push(n);
+  }
+  const [a, b] = octets;
+  if (a === 10) return true;
+  if (a === 127) return true;
+  if (a === 0) return true;
+  if (a === 169 && b === 254) return true;
+  if (a === 172 && b >= 16 && b <= 31) return true;
+  if (a === 192 && b === 168) return true;
+  if (a === 100 && b >= 64 && b <= 127) return true;
+  if (a === 198 && (b === 18 || b === 19)) return true;
+  if (a >= 224) return true;
+  if (a === 192 && b === 0 && octets[2] === 0) return true;
+  return false;
+}
+
+function privateV6WithEmbeddedV4(addr: string): boolean {
+  const stripped = stripHostLiteral(addr);
+  if (isIP(stripped) !== 6) return false;
+
+  if (PRIVATE_V6_BLOCKLIST.check(stripped, "ipv6")) return true;
+
+  if (stripped.startsWith("::ffff:")) {
+    const tail = stripped.slice(7);
+    if (tail.includes(".")) {
+      return privateV4String(tail);
+    }
+    const m = tail.match(/^([0-9a-f]{1,4}):([0-9a-f]{1,4})$/);
+    if (m) {
+      const hi = parseInt(m[1], 16);
+      const lo = parseInt(m[2], 16);
+      return privateV4String(`${(hi >> 8) & 0xff}.${hi & 0xff}.${(lo >> 8) & 0xff}.${lo & 0xff}`);
+    }
+    return false;
+  }
+
+  if (stripped.startsWith("2002:")) {
+    const tail = stripped.slice(5);
+    const m = tail.match(/^([0-9a-f]{1,4}):([0-9a-f]{1,4})/);
+    if (m) {
+      const hi = parseInt(m[1], 16);
+      const lo = parseInt(m[2], 16);
+      return privateV4String(`${(hi >> 8) & 0xff}.${hi & 0xff}.${(lo >> 8) & 0xff}.${lo & 0xff}`);
+    }
+    return false;
+  }
+
+  if (stripped.startsWith("64:ff9b:")) {
+    const tail = stripped.slice("64:ff9b:".length);
+    if (tail.includes(".")) {
+      return privateV4String(tail);
+    }
+    const groups = tail.split(":");
+    if (groups.length >= 4) {
+      const last4 = groups.slice(-4);
+      const a = parseInt(last4[0], 16);
+      const b = parseInt(last4[1], 16);
+      const c = parseInt(last4[2], 16);
+      const d = parseInt(last4[3], 16);
+      if ([a, b, c, d].every((n) => Number.isFinite(n))) {
+        return privateV4String(`${a}.${b}.${c}.${d}`);
+      }
+    }
+    return false;
+  }
+
+  return false;
+}
+
 export function isPrivateOrUnsafeHost(hostname: string): boolean {
   if (!hostname) return true;
   if (isBlockedHostname(hostname)) return true;
-  if (isPrivateV6(hostname)) return true;
 
-  const v4 = hostname.split(".").map((p) => Number.parseInt(p, 10));
-  if (v4.length === 4 && v4.every((n) => Number.isFinite(n) && n >= 0 && n <= 255)) {
-    return isAsnPrivateV4(v4);
+  const stripped = stripHostLiteral(hostname);
+  if (!stripped) return true;
+
+  const version = isIP(stripped);
+  if (version === 4) {
+    return privateV4String(stripped);
+  }
+  if (version === 6) {
+    return privateV6WithEmbeddedV4(stripped);
   }
   return false;
 }
@@ -125,6 +214,54 @@ export function validateUrls(urls: unknown): string[] {
     if (!result.ok) throw new ValidationError(`urls[${i}]: ${result.reason}`);
   }
   return urls.map((u) => String(u));
+}
+
+export type ResolveHostFn = (hostname: string) => Promise<string[]>;
+
+export interface ValidateUrlsAsyncOptions {
+  resolveHost?: ResolveHostFn;
+  allowUnresolvable?: boolean;
+}
+
+async function defaultResolveHost(hostname: string): Promise<string[]> {
+  try {
+    const addrs = await dnsLookup(hostname, { all: true });
+    return addrs.map((a) => a.address);
+  } catch {
+    return [];
+  }
+}
+
+export async function validateUrlsAsync(
+  urls: unknown,
+  opts: ValidateUrlsAsyncOptions = {},
+): Promise<string[]> {
+  const validated = validateUrls(urls);
+  const resolve = opts.resolveHost ?? defaultResolveHost;
+  const allowUnresolvable = opts.allowUnresolvable ?? false;
+  for (let i = 0; i < validated.length; i++) {
+    let parsed: URL;
+    try {
+      parsed = new URL(validated[i]);
+    } catch {
+      continue;
+    }
+    const stripped = stripHostLiteral(parsed.hostname);
+    if (isIP(stripped) !== 0) continue;
+    const resolved = await resolve(stripped);
+    if (resolved.length === 0) {
+      if (allowUnresolvable) continue;
+      throw new ValidationError(`urls[${i}]: host '${stripped}' could not be resolved`);
+    }
+    for (const ip of resolved) {
+      if (isPrivateOrUnsafeHost(ip)) {
+        throw new ValidationError(
+          `urls[${i}]: host '${stripped}' resolves to private/unsafe address '${ip}'`,
+        );
+      }
+    }
+  }
+  return validated;
 }
 
 export function validateLatLng(lat: unknown, lng: unknown): { lat?: number; lng?: number } {

@@ -79,7 +79,15 @@ function loadLitellmCacheSync(configDir: string): Record<string, LiteLLMPriceEnt
   if (!existsSync(path)) return null;
   try {
     const raw = JSON.parse(readFileSync(path, "utf8"));
-    if (raw && typeof raw.fetchedAt === "number" && Date.now() - raw.fetchedAt < 86_400_000 && raw.prices) {
+    const now = Date.now();
+    if (
+      raw &&
+      typeof raw.fetchedAt === "number" &&
+      Number.isFinite(raw.fetchedAt) &&
+      raw.fetchedAt <= now &&
+      now - raw.fetchedAt < 86_400_000 &&
+      raw.prices
+    ) {
       return raw.prices as Record<string, LiteLLMPriceEntry>;
     }
   } catch {}

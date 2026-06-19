@@ -133,6 +133,52 @@ test("fetch_content NormalizedFetchContentRequest defaults", async () => {
   expect(normalized.format).toBe("markdown");
 });
 
+describe("fetch_content DNS rebinding integration", () => {
+  test("rejects URL when runtime.resolveHost maps to private IP", async () => {
+    const { executeFetchContentTool } = await import("../../plugins/web-tools/tools/fetch-content.ts");
+
+    const mockRuntime = {
+      config: {
+        fetchContent: { defaultProvider: "gemini", primaryFallbackOrder: ["gemini"], reserveFallbackOrder: [], format: "markdown" },
+      },
+      cache: { getFetchContent: () => undefined, setFetchContent: () => {} },
+      db: { recordFetchContent: async () => {} },
+      usage: { recordFromFetch: async () => {} },
+      providers: { fetchWithFallback: async () => { throw new Error("should not be called"); } },
+      recordWithBudget: async () => null,
+      resolveHost: async (h) => (h === "evil.example" ? ["10.0.0.1"] : ["93.184.216.34"]),
+    };
+
+    await expect(
+      executeFetchContentTool({ urls: ["https://evil.example/"] }, mockRuntime),
+    ).rejects.toThrow(/resolves to private\/unsafe/);
+  });
+
+  test("accepts URL when runtime.resolveHost maps to public IP", async () => {
+    const { executeFetchContentTool } = await import("../../plugins/web-tools/tools/fetch-content.ts");
+
+    const mockRuntime = {
+      config: {
+        fetchContent: { defaultProvider: "gemini", primaryFallbackOrder: ["gemini"], reserveFallbackOrder: [], format: "markdown" },
+      },
+      cache: { getFetchContent: () => undefined, setFetchContent: () => {} },
+      db: { recordFetchContent: async () => {} },
+      usage: { recordFromFetch: async () => {} },
+      providers: {
+        fetchWithFallback: async () => ({
+          results: [{ url: "https://example.com/", title: "Example", content: "x" }],
+          metadata: { provider: "gemini", latencyMs: 10 },
+        }),
+      },
+      recordWithBudget: async () => null,
+      resolveHost: async () => ["93.184.216.34"],
+    };
+
+    const result = await executeFetchContentTool({ urls: ["https://example.com/"] }, mockRuntime);
+    expect(result.results[0].url).toBe("https://example.com/");
+  });
+});
+
 describe("Gemini fetchContent mode validation", () => {
   test("rejects crawl mode before API key check", async () => {
     const gemini = await import("../../plugins/web-tools/providers/gemini.ts");

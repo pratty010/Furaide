@@ -1,7 +1,7 @@
 import type { FetchContentConfig, ResultMetadata } from "../types.ts";
 import { hashRequest } from "../util/hash.ts";
 import { errorSink } from "../util/error-sink.ts";
-import { markUntrusted, validateUrls } from "../util/validate.ts";
+import { markUntrusted, validateUrls, validateUrlsAsync, type ResolveHostFn } from "../util/validate.ts";
 
 export interface FetchContentArgs {
   urls: string[];
@@ -47,6 +47,7 @@ export interface FetchContentRuntime {
     fetchWithFallback(request: NormalizedFetchContentRequest): Promise<FetchProviderResult>;
   };
   recordWithBudget(provider: string, metadata: { unitsUsed?: number; tokensInput?: number; tokensOutput?: number; estimatedCostUsd?: number }): Promise<string | null>;
+  resolveHost?: ResolveHostFn;
 }
 
 export function normalizeFetchContentArgs(args: FetchContentArgs, config: FetchContentConfig): NormalizedFetchContentRequest {
@@ -68,13 +69,16 @@ export function hashFetchContentRequest(request: NormalizedFetchContentRequest):
 
 export function toPublicFetchContentItem(item: FetchContentItem, mode: "extract" | "crawl" | "map"): FetchContentItem {
   if (mode === "map") {
-    return markUntrusted({ url: item.url, title: item.title }, []);
+    return markUntrusted({ url: item.url, title: item.title });
   }
-  return markUntrusted({ url: item.url, title: item.title, content: item.content }, ["content"]);
+  return markUntrusted({ url: item.url, title: item.title, content: item.content });
 }
 
 export async function executeFetchContentTool(args: FetchContentArgs, runtime: FetchContentRuntime): Promise<FetchContentPublicResult> {
   const request = normalizeFetchContentArgs(args, runtime.config.fetchContent);
+  if (runtime.resolveHost) {
+    await validateUrlsAsync(request.urls, { resolveHost: runtime.resolveHost });
+  }
   const cacheKey = hashFetchContentRequest(request);
   const cached = runtime.cache.getFetchContent(cacheKey);
   if (cached) return cached;

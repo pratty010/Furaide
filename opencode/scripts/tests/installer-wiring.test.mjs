@@ -120,3 +120,40 @@ test('install-fleet.sh: ships opencode.jsonc in agents-core component (manifest 
   expect(agentsCore, 'agents-core component missing from manifest').toBeDefined();
   expect(agentsCore.files).toContain('opencode.jsonc');
 });
+
+test('install-fleet.sh: web-tools package-fragment path fails non-zero when bun install fails', { timeout: 120000 }, () => {
+  // Adversarial: the previous installer masked `bun install` failures with
+  // `|| _warn ...`, hiding broken installs as success. The web-tools path
+  // must now exit non-zero when `bun install` fails so CI catches the breakage.
+  const dir = tmp();
+  try {
+    const binDir = join(dir, 'bin');
+    mkdirSync(binDir, { recursive: true });
+    // Pre-seed a target package.json so merge-package-fragment reports CHANGED
+    // and the installer takes the bun install branch.
+    writeJson(join(dir, 'package.json'), { name: 'target', version: '0.0.0', dependencies: {} });
+    // Stub bun: report a version on `bun --version`, fail on `bun install`.
+    writeFileSync(
+      join(binDir, 'bun'),
+      "#!/usr/bin/env bash\nif [[ \"$1\" == \"--version\" ]]; then echo '1.1.0'; exit 0; fi\necho 'stub bun: simulated install failure' >&2\nexit 1\n",
+      { mode: 0o755 },
+    );
+
+    let status = 0;
+    let stderr = '';
+    try {
+      execFileSync('bash', [INSTALLER, '--all', '--custom', dir, '--no-common-skills'], {
+        encoding: 'utf8',
+        stdio: 'pipe',
+        timeout: 120000,
+        env: stubbedEnv(binDir),
+      });
+    } catch (e) {
+      status = typeof e.status === 'number' ? e.status : 1;
+      stderr = (e.stderr || '') + (e.stdout || '');
+    }
+    expect(status, `installer should exit non-zero when bun install fails during web-tools fragment install; output=\n${stderr}`).not.toBe(0);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});

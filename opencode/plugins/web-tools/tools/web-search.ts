@@ -78,7 +78,7 @@ export function toPublicSearchResult(r: SearchResultItem): SearchResultItem {
   if (r.published !== undefined) base.published = r.published;
   if (r.score !== undefined) base.score = r.score;
   if (r.content !== undefined) base.content = r.content;
-  return markUntrusted(base, ["content", "snippet"]);
+  return markUntrusted(base);
 }
 
 export async function executeWebSearchTool(args: WebSearchArgs, runtime: WebSearchRuntime): Promise<WebSearchPublicResult> {

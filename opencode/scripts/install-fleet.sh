@@ -687,7 +687,7 @@ if [[ -n "$web_tools_targets" ]]; then
         echo "$merge_out"
         if echo "$merge_out" | grep -q "CHANGED"; then
           _info "Web Tools dependencies changed. Running bun install..."
-          (cd "$target_dir" && bun install 2>&1) && _ok "bun install for web-tools complete" || _warn "bun install failed (may need manual install)"
+          (cd "$target_dir" && bun install 2>&1) && _ok "bun install for web-tools complete" || { _err "bun install failed in $target_dir (see output above)"; exit 1; }
         fi
       fi
     fi
