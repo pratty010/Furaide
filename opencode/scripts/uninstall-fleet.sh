@@ -332,6 +332,20 @@ for scope_spec in "${selected_scopes[@]}"; do
     
     _info "Cleaning component: $label"
 
+    # Pre-uninstall: unmerge package fragment before files removed
+    if [[ "$id" == "web-tools" ]]; then
+      pkg_fragment="$FLEET_ROOT/config/package.web-tools.json"
+      target_pkg="$target_dir/package.json"
+      if [[ -f "$pkg_fragment" && ( -f "$target_pkg" || "$DRY_RUN" -eq 1 ) ]]; then
+        if [[ "$DRY_RUN" -eq 1 ]]; then
+          printf '  %b[dry-run]%b unmerge-package-fragment %s %s\n' "$DIM" "$RST" "$target_pkg" "$pkg_fragment"
+        else
+          _info "Removing web-tools package entries from $target_pkg"
+          bun "$FLEET_ROOT/scripts/unmerge-package-fragment.mjs" "$target_pkg" "$pkg_fragment" || true
+        fi
+      fi
+    fi
+
     # Files
     mapfile -t files < <(jq -r ".components[$i].files[]" "$MANIFEST")
     for rel in "${files[@]}"; do

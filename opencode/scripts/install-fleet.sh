@@ -671,6 +671,28 @@ for i in $(seq 0 $((COMPONENT_COUNT - 1))); do
   done
 done
 
+# ── Package fragment merge ─────────────────────────────────────────────────────
+web_tools_targets="${COMP_TARGETS[web-tools]:-}"
+if [[ -n "$web_tools_targets" ]]; then
+  for target_dir in $web_tools_targets; do
+    pkg_fragment="$FLEET_ROOT/config/package.web-tools.json"
+    target_pkg="$target_dir/package.json"
+    if [[ -f "$pkg_fragment" ]]; then
+      _info "Merging web-tools package fragment into $target_pkg"
+      if [[ "$DRY_RUN" -eq 1 ]]; then
+        printf '  %b[dry-run]%b merge-package-fragment %s %s\n' "$DIM" "$RST" "$target_pkg" "$pkg_fragment"
+      else
+        merge_out=$(bun "$FLEET_ROOT/scripts/merge-package-fragment.mjs" "$target_pkg" "$pkg_fragment" 2>&1)
+        echo "$merge_out"
+        if echo "$merge_out" | grep -q "CHANGED"; then
+          _info "Web Tools dependencies changed. Running bun install..."
+          (cd "$target_dir" && bun install 2>&1) && _ok "bun install for web-tools complete" || _warn "bun install failed (may need manual install)"
+        fi
+      fi
+    fi
+  done
+fi
+
 # ── Config merge for each target dir ─────────────────────────────────────────
 _bold "\nWiring configs...\n"
 # Build the union of all target dirs that need config wiring
