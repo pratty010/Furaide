@@ -95,7 +95,7 @@ export async function searchWeb(args: GeminiSearchWebArgs): Promise<SearchProvid
     results: chunks.slice(0, args.count ?? 5).map((c: any) => ({
       title: c.web?.title ?? "",
       url: c.web?.uri ?? "",
-      snippet: (c.web?.title ?? "").slice(0, 500),
+      snippet: "",
     })),
     metadata: {
       provider: "gemini" as WebProvider,

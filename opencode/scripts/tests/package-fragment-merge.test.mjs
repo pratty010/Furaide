@@ -29,7 +29,7 @@ function runUnmerge(target, fragment) {
   return execFileSync('bun', [UNMERGE, target, fragment], { encoding: 'utf8' });
 }
 
-test('merge-package-fragment adds @opencode-ai/plugin without dropping user deps', () => {
+test('merge-package-fragment adds @opencode-ai/plugin and yaml without dropping user deps', () => {
   const dir = tmp();
   try {
     const pkg = join(dir, 'package.json');
@@ -38,6 +38,7 @@ test('merge-package-fragment adds @opencode-ai/plugin without dropping user deps
     const result = readJson(pkg);
     expect(result.dependencies.leftpad).toBe('1.0.0');
     expect(result.dependencies['@opencode-ai/plugin']).toBeTruthy();
+    expect(result.dependencies.yaml).toBeTruthy();
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

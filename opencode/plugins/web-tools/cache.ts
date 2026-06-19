@@ -1,3 +1,6 @@
+import type { WebSearchPublicResult } from "./tools/web-search.ts";
+import type { FetchContentPublicResult } from "./tools/fetch-content.ts";
+
 export class InMemoryCache {
   private store = new Map<string, { value: unknown; expiresAt: number }>();
   private webSearchTtlMs: number;
@@ -22,19 +25,19 @@ export class InMemoryCache {
     this.store.set(key, { value, expiresAt: Date.now() + ttlMs });
   }
 
-  getWebSearch(key: string): CachedSearchResult | undefined {
-    return this.get<CachedSearchResult>(key);
+  getWebSearch(key: string): WebSearchPublicResult | undefined {
+    return this.get<WebSearchPublicResult>(key);
   }
 
-  setWebSearch(key: string, value: CachedSearchResult): void {
+  setWebSearch(key: string, value: WebSearchPublicResult): void {
     this.set(key, value, this.webSearchTtlMs);
   }
 
-  getFetchContent(key: string): CachedFetchResult | undefined {
-    return this.get<CachedFetchResult>(key);
+  getFetchContent(key: string): FetchContentPublicResult | undefined {
+    return this.get<FetchContentPublicResult>(key);
   }
 
-  setFetchContent(key: string, value: CachedFetchResult): void {
+  setFetchContent(key: string, value: FetchContentPublicResult): void {
     this.set(key, value, this.fetchContentTtlMs);
   }
 

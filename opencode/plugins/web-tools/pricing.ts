@@ -1,5 +1,6 @@
-import { readFile, existsSync } from "node:fs";
+import { readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
+import { homedir } from "node:os";
 import { parse } from "yaml";
 
 export interface LiteLLMPriceEntry {
@@ -67,7 +68,7 @@ function loadToolFeesSync(docsDir: string): Record<string, Record<string, number
   const path = join(docsDir, "models", "gemini-tool-fees.yml");
   if (!existsSync(path)) return DEFAULT_TOOL_FEES;
   try {
-    const raw = parse(readFile(path, "utf8"));
+    const raw = parse(readFileSync(path, "utf8"));
     return raw as Record<string, Record<string, number>>;
   } catch {
     return DEFAULT_TOOL_FEES;
@@ -78,15 +79,13 @@ function loadLitellmCacheSync(configDir: string): Record<string, LiteLLMPriceEnt
   const path = join(homedir(), ".local", "share", "opencode", "web-tools", "pricing-cache.json");
   if (!existsSync(path)) return null;
   try {
-    const raw = JSON.parse(readFile(path, "utf8"));
+    const raw = JSON.parse(readFileSync(path, "utf8"));
     if (raw && typeof raw.fetchedAt === "number" && Date.now() - raw.fetchedAt < 86_400_000 && raw.prices) {
       return raw.prices as Record<string, LiteLLMPriceEntry>;
     }
   } catch {}
   return null;
 }
-
-import { homedir } from "node:os";
 
 export function loadPricingHelper(opts: LoadPricingOptions): PricingHelper {
   const litellm = loadLitellmCacheSync(opts.configDir) ?? DEFAULT_LITELLM_PRICES;

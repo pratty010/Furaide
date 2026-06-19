@@ -90,4 +90,21 @@ describe("Plugin runtime assembly", () => {
     const order = effectiveOrder("brave", ["brave", "tavily", "gemini"], ["brave", "gemini"]);
     expect(order).toEqual(["brave", "tavily", "gemini"]);
   });
+
+  test("searchMaps provider respects budget pre-check", async () => {
+    const { openTestDb } = await import("../../plugins/web-tools/db.ts");
+    const { createUsageTracker } = await import("../../plugins/web-tools/provider-usage.ts");
+    const { checkBudget } = await import("../../plugins/web-tools/provider-usage.ts");
+
+    const db = openTestDb();
+    const budgets = { geminiUsd: 0.05, braveRequests: 2000, tavilyCredits: 1000 };
+    const usage = createUsageTracker(db, budgets);
+
+    await usage.record({ provider: "gemini", unitsUsed: 1, estimatedCostUsd: 0.05, month: "2026-06" });
+    const snapshot = await usage.getMonth("gemini", "2026-06");
+    const result = checkBudget(budgets, snapshot, "gemini");
+
+    expect(result.blocked).toBe(true);
+    expect(result.preamble).toContain("Budget exceeded");
+  });
 });

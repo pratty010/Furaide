@@ -39,6 +39,11 @@ mkdir -p "$TARGET_DIR/config"
 cp "$FLEET_ROOT/config/web-tools.yml" "$TARGET_DIR/config/web-tools.yml"
 _info "web-tools.yml copied."
 
+_info "Copying gemini-tool-fees.yml..."
+mkdir -p "$TARGET_DIR/docs/models"
+cp "$FLEET_ROOT/docs/models/gemini-tool-fees.yml" "$TARGET_DIR/docs/models/gemini-tool-fees.yml"
+_info "gemini-tool-fees.yml copied."
+
 _info "Merging package fragment..."
 MERGE_OUT=$(bun "$FLEET_ROOT/scripts/merge-package-fragment.mjs" \
   "$TARGET_DIR/package.json" \

@@ -13,6 +13,7 @@ import * as brave from "./web-tools/providers/brave.ts";
 import * as tavily from "./web-tools/providers/tavily.ts";
 import { effectiveOrder } from "./web-tools/order.ts";
 import { Database } from "bun:sqlite";
+import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { homedir } from "node:os";
 import { loadPricingHelper } from "./web-tools/pricing.ts";
@@ -25,6 +26,7 @@ async function createWebToolsRuntime(ctx: { directory: string }): Promise<WebSea
   });
 
   const dataDir = join(homedir(), ".local", "share", "opencode", "web-tools");
+  mkdirSync(dataDir, { recursive: true });
   let db: Database;
   try {
     db = new Database(join(dataDir, "data.db"), { create: true });
@@ -105,6 +107,10 @@ async function createWebToolsRuntime(ctx: { directory: string }): Promise<WebSea
       throw new Error(`fetchWithFallback: all providers failed — ${errors.join("; ")}`);
     },
     async searchMaps(request: Parameters<typeof gemini.searchMaps>[0]) {
+      const blockReason = await checkProviderBudget("gemini");
+      if (blockReason) {
+        throw new Error(`gemini: budget exceeded`);
+      }
       return await gemini.searchMaps({ ...request, pricing });
     },
   };
