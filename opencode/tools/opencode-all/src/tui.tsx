@@ -4,7 +4,7 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { Box, BoxRenderable, ScrollBoxRenderable, TextRenderable, createCliRenderer, type CliRenderer } from "@opentui/core";
 import type { StyledText } from "@opentui/core";
-import { listSessions } from "./db.ts";
+import { buildSessionIndex } from "./dashboard/session-index.ts";
 import { createInitialState, cwd, reloadState, type UiState } from "./dashboard/state.ts";
 import { applyKey } from "./dashboard/actions.ts";
 import { dashboardLayout } from "./dashboard/layout.ts";
@@ -16,6 +16,7 @@ import {
   buildMessagesContent,
   buildActionBarContent,
   buildSearchOverlay,
+  buildChoiceOverlay,
   buildConfirmOverlay,
   tone,
 } from "./dashboard/render.ts";
@@ -57,7 +58,7 @@ function opencodeBin(): string {
 
 export async function startInteractiveTui(): Promise<void> {
   const renderer = await createCliRenderer({ exitOnCtrlC: true, targetFps: 30, useMouse: true });
-  let state = createInitialState(listSessions({ tab: "active", cwd: cwd() }), { height: process.stdout.rows || 24, width: process.stdout.columns || 100 });
+  let state = createInitialState(buildSessionIndex({ cwd: cwd() }), { height: process.stdout.rows || 24, width: process.stdout.columns || 100 });
   state = reloadState(state);
   let layout = dashboardLayout(state.viewport.width, state.viewport.height);
 
@@ -66,8 +67,9 @@ export async function startInteractiveTui(): Promise<void> {
     id: string,
     content: StyledText,
     focus: "messages" | "metadata" | "sessions",
+    wrapMode: "none" | "word" = "word",
   ) {
-    const text = new TextRenderable(paneRenderer, { id: `${id}-text`, wrapMode: "word", content });
+    const text = new TextRenderable(paneRenderer, { id: `${id}-text`, wrapMode, truncate: wrapMode === "none", content });
     const scrollBox = new ScrollBoxRenderable(paneRenderer, {
       id: `${id}-scroll`,
       flexGrow: 1,
@@ -99,7 +101,7 @@ export async function startInteractiveTui(): Promise<void> {
     return { scrollBox, text };
   }
 
-  const { scrollBox: messagesScroll, text: messagesText } = makeScrollPane(renderer, "messages", buildMessagesContent(state), "messages");
+  const { scrollBox: messagesScroll, text: messagesText } = makeScrollPane(renderer, "messages", buildMessagesContent(state), "messages", "none");
   const { scrollBox: metadataScroll, text: metadataText } = makeScrollPane(renderer, "metadata", buildMetadataContent(state), "metadata");
 
   let exitTui: (() => void) = () => {};
@@ -132,12 +134,17 @@ export async function startInteractiveTui(): Promise<void> {
     id: "confirm-overlay", position: "absolute", top: "35%", left: "15%", right: "15%", height: "30%", zIndex: 110, visible: false,
     content: buildConfirmOverlay(state),
   });
+  const choiceOverlay = new TextRenderable(renderer, {
+    id: "choice-overlay", position: "absolute", top: "32%", left: "15%", right: "15%", height: "36%", zIndex: 105, visible: false,
+    content: buildChoiceOverlay(state),
+  });
 
   const bodyArea = new BoxRenderable(renderer, { id: "body-area", flexDirection: "column", flexGrow: 1 });
   const rootColumn = Box({ flexDirection: "column", width: "100%", height: "100%" }, bodyArea, actionBar);
   renderer.root.add(rootColumn);
   renderer.root.add(searchOverlay);
   renderer.root.add(confirmOverlay);
+  renderer.root.add(choiceOverlay);
 
   function rebuildLayout() {
     layout = dashboardLayout(state.viewport.width, state.viewport.height);
@@ -151,11 +158,11 @@ export async function startInteractiveTui(): Promise<void> {
       const title = state.focus === "messages" ? "Messages" : state.focus === "metadata" ? "Metadata" : "Sessions";
       bodyArea.add(Box({ flexDirection: "column", flexGrow: 1, border: true, borderColor: tone("listBorderFocus"), backgroundColor: tone("surface"), title } as any, focusPane));
     } else {
-      const topRow = Box({ flexDirection: "row", flexGrow: layout.topPercent },
+      const topRow = Box({ flexDirection: "row", flexGrow: layout.topPercent, maxHeight: layout.topMaxHeight },
         Box({ flexDirection: "column", flexGrow: 1, border: true, borderColor: tone(state.focus === "messages" ? "listBorderFocus" : "listBorder"), backgroundColor: tone("surface"), title: "Messages" } as any, messagesScroll),
         Box({ flexDirection: "column", flexGrow: 1, border: true, borderColor: tone(state.focus === "metadata" ? "listBorderFocus" : "detailBorder"), backgroundColor: tone("surface"), title: "Metadata" } as any, metadataScroll),
       );
-      const sRow = Box({ flexDirection: "column", flexGrow: layout.sessionsPercent, border: true, borderColor: tone(state.focus === "sessions" ? "listBorderFocus" : "listBorder"), backgroundColor: tone("surface"), title: "Sessions" } as any, sessionsScroll);
+      const sRow = Box({ flexDirection: "column", flexGrow: layout.sessionsPercent, minHeight: layout.sessionsMinHeight, border: true, borderColor: tone(state.focus === "sessions" ? "listBorderFocus" : "listBorder"), backgroundColor: tone("surface"), title: "Sessions" } as any, sessionsScroll);
       bodyArea.add(topRow);
       bodyArea.add(sRow);
     }
@@ -168,8 +175,10 @@ export async function startInteractiveTui(): Promise<void> {
     actionBar.content = buildActionBarContent(state);
     searchOverlay.content = buildSearchOverlay(state);
     confirmOverlay.content = buildConfirmOverlay(state);
+    choiceOverlay.content = buildChoiceOverlay(state);
     searchOverlay.visible = state.inputMode === "search";
     confirmOverlay.visible = !!state.pendingAction;
+    choiceOverlay.visible = !!state.pendingChoice;
   };
 
   function onResize() {
@@ -191,6 +200,12 @@ export async function startInteractiveTui(): Promise<void> {
         quitRequestCode = 0;
         renderer.destroy();
         resolve();
+        return;
+      }
+      if (mapped === "R" && !state.inputMode && !state.pendingAction && !state.pendingChoice) {
+        state = reloadState({ ...state, index: buildSessionIndex({ cwd: cwd() }), status: "index refreshed", cursor: 0, listScroll: 0 });
+        refreshPanes();
+        renderer.requestRender();
         return;
       }
       const prevFocus = state.focus;
@@ -232,7 +247,8 @@ function audit(action: string, sessionId: string, status: string): void {
 }
 
 function printFallbackList(): void {
-  const rows = listSessions({ tab: "active", cwd: cwd() });
+  const index = buildSessionIndex({ cwd: cwd() });
+  const rows = [...index.active.values()].sort((a, b) => b.timeUpdated - a.timeUpdated);
   for (const row of rows) console.log(`${row.id}\t${row.title}\t${row.directory}`);
 }
 
@@ -245,7 +261,7 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
     await startInteractiveTui();
     return;
   }
-  const state = createInitialState(listSessions({ tab: "active", cwd: cwd() }), { height: process.stdout.rows || 24, width: process.stdout.columns || 100 });
+  const state = createInitialState(buildSessionIndex({ cwd: cwd() }), { height: process.stdout.rows || 24, width: process.stdout.columns || 100 });
   const sessions = buildSessionsContent(state);
   for (const chunk of sessions.chunks) {
     if (chunk.text) process.stdout.write(String(chunk.text));

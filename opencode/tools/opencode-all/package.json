@@ -11,6 +11,7 @@
     "test:sanitize": "bun test tests/sanitize.test.ts",
     "test:db": "bun test tests/db.test.ts",
     "test:tui": "bun test tests/tui.test.tsx",
+    "test:index": "bun test tests/session-index.test.ts",
     "install:local": "bash scripts/install.sh"
   },
   "dependencies": {

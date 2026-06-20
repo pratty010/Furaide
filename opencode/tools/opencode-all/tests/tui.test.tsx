@@ -1,10 +1,14 @@
-import { describe, expect, test } from "bun:test";
+import { beforeAll, afterAll, describe, expect, test } from "bun:test";
+import { mkdirSync } from "node:fs";
+import { join } from "node:path";
+import { Database } from "bun:sqlite";
 import { applyKey, buildSearchOverlay } from "../src/tui.tsx";
-import { createInitialState, currentSession, getVisibleRows, type UiSession } from "../src/dashboard/state.ts";
+import { addActiveToIndex, addArchivedToIndex, type SessionIndex } from "../src/dashboard/session-index.ts";
+import { createInitialState, currentSession, getVisibleRows, reloadState, type UiSession } from "../src/dashboard/state.ts";
 import { actionChips } from "../src/dashboard/actions.ts";
 import { Box, BoxRenderable, ScrollBoxRenderable, TextRenderable } from "@opentui/core";
 import { createTestRenderer } from "@opentui/core/testing";
-import { buildMessagesContent, buildMetadataContent, buildSessionsContent, buildActionBarContent } from "../src/dashboard/render.ts";
+import { buildMessagesContent, buildMetadataContent, buildSessionsContent, buildChoiceOverlay, buildActionBarContent } from "../src/dashboard/render.ts";
 import { dashboardLayout } from "../src/dashboard/layout.ts";
 
 const sessions: UiSession[] = Array.from({ length: 6 }, (_, index) => ({
@@ -30,9 +34,40 @@ const archivedSessions: UiSession[] = [
   { ...sessions[1], timeArchived: 998, directory: "/repo/other" },
 ];
 
+const fakeDbDir = join(import.meta.dir, ".no-db");
+const fakeDbPath = join(fakeDbDir, "empty.db");
+
 function flatText(content: any): string {
   return content.chunks.map((c: any) => c.text || "").join("");
 }
+
+const savedDbPath = process.env.OPENCODE_ALL_DB_PATH;
+beforeAll(() => {
+  try { mkdirSync(fakeDbDir, { recursive: true }); } catch {}
+  const db = new Database(fakeDbPath);
+  db.run(`CREATE TABLE IF NOT EXISTS session (
+    id text PRIMARY KEY, project_id text NOT NULL, parent_id text,
+    slug text NOT NULL, directory text NOT NULL, title text NOT NULL,
+    version text NOT NULL, share_url text, summary_additions integer,
+    summary_deletions integer, summary_files integer, summary_diffs text,
+    time_created integer NOT NULL, time_updated integer NOT NULL,
+    time_archived integer, workspace_id text, path text, agent text,
+    model text, cost real DEFAULT 0 NOT NULL, tokens_input integer DEFAULT 0 NOT NULL,
+    tokens_output integer DEFAULT 0 NOT NULL, tokens_reasoning integer DEFAULT 0 NOT NULL,
+    tokens_cache_read integer DEFAULT 0 NOT NULL, tokens_cache_write integer DEFAULT 0 NOT NULL
+  )`);
+  db.run(`CREATE TABLE IF NOT EXISTS message (
+    id text PRIMARY KEY, session_id text NOT NULL,
+    time_created integer NOT NULL, time_updated integer NOT NULL, data text NOT NULL
+  )`);
+  db.run(`CREATE TABLE IF NOT EXISTS part (
+    id text PRIMARY KEY, message_id text NOT NULL, session_id text NOT NULL,
+    time_created integer NOT NULL, time_updated integer NOT NULL, data text NOT NULL
+  )`);
+  db.close();
+  process.env.OPENCODE_ALL_DB_PATH = fakeDbPath;
+});
+afterAll(() => { process.env.OPENCODE_ALL_DB_PATH = savedDbPath; if (!savedDbPath) delete process.env.OPENCODE_ALL_DB_PATH; });
 
 function expandFirstFolder(state: any) {
   if (state.folders.length === 0) return state;
@@ -64,23 +99,33 @@ function cursorOnFirstSession(state: any) {
   return next;
 }
 
+function makeIndex(rows: UiSession[]): SessionIndex {
+  const index: SessionIndex = { active: new Map(), archived: new Map(), activeByDir: new Map(), archivedByDir: new Map() };
+  for (const row of rows) {
+    if (row.timeArchived != null) addArchivedToIndex(index, row);
+    else addActiveToIndex(index, row);
+  }
+  return index;
+}
+
 describe("initial state", () => {
   test("root/no-directory shows folder tree with all folders", () => {
-    const state = createInitialState(sessions, { height: 20, width: 100 });
+    const state = createInitialState(makeIndex(sessions), { height: 20, width: 100 });
     const visible = getVisibleRows(state);
     const folders = visible.filter((r) => !("id" in r));
     expect(folders.length).toBeGreaterThan(0);
   });
 
   test("cursor starts at first row", () => {
-    const state = createInitialState(sessions, { height: 20, width: 100 });
+    const state = createInitialState(makeIndex(sessions), { height: 20, width: 100 });
     expect(state.cursor).toBe(0);
   });
 });
 
 describe("navigation", () => {
   test("moves selection with j/k", () => {
-    let state = createInitialState(sessions, { height: 10, width: 100 });
+    let state = createInitialState(makeIndex(sessions), { height: 10, width: 100 });
+    state = expandFolderWithSessions(state);
     state = applyKey(state, "j");
     state = applyKey(state, "j");
     expect(state.cursor).toBe(2);
@@ -88,41 +133,32 @@ describe("navigation", () => {
     expect(state.cursor).toBe(1);
   });
 
-  test("tab cycles focus: sessions -> messages -> metadata -> sessions", () => {
-    let state = createInitialState(sessions, { height: 10, width: 100 });
-    expect(state.focus).toBe("sessions");
-    state = applyKey(state, "Tab");
-    expect(state.focus).toBe("messages");
-    state = applyKey(state, "Tab");
-    expect(state.focus).toBe("metadata");
-    state = applyKey(state, "Tab");
-    expect(state.focus).toBe("sessions");
-    state = applyKey(state, "Tab");
-    expect(state.focus).toBe("messages");
-  });
-
-  test("S-Tab cycles focus in reverse", () => {
-    let state = createInitialState(sessions, { height: 10, width: 100 });
-    expect(state.focus).toBe("sessions");
-    state = applyKey(state, "S-Tab");
-    expect(state.focus).toBe("metadata");
-    state = applyKey(state, "S-Tab");
-    expect(state.focus).toBe("messages");
-    state = applyKey(state, "S-Tab");
-    expect(state.focus).toBe("sessions");
-  });
-
-  test("'t' key toggles active/archived tab", () => {
-    let state = createInitialState(sessions, { height: 10, width: 100 });
+  test("Tab switches active/archived tab, focus stays sessions", () => {
+    let state = createInitialState(makeIndex(sessions), { height: 10, width: 100 });
     expect(state.tab).toBe("active");
-    state = applyKey(state, "t");
+    expect(state.focus).toBe("sessions");
+    state = applyKey(state, "Tab");
     expect(state.tab).toBe("archived");
-    state = applyKey(state, "t");
+    expect(state.focus).toBe("sessions");
+    expect(state.status).toBe("archived tab");
+    state = applyKey(state, "Tab");
     expect(state.tab).toBe("active");
   });
 
-  test("Tab in search input mode does not cycle focus", () => {
-    let state = createInitialState(sessions, { height: 10, width: 100 });
+  test("S-Tab does nothing", () => {
+    const state = createInitialState(makeIndex(sessions), { height: 10, width: 100 });
+    const result = applyKey(state, "S-Tab");
+    expect(result).toBe(state);
+  });
+
+  test("'t' returns hint status", () => {
+    let state = createInitialState(makeIndex(sessions), { height: 10, width: 100 });
+    state = applyKey(state, "t");
+    expect(state.status).toBe("use Tab to switch Active/Archive");
+  });
+
+  test("Tab in search input mode does not change tab", () => {
+    let state = createInitialState(makeIndex(sessions), { height: 10, width: 100 });
     state = applyKey(state, "/");
     expect(state.inputMode).toBe("search");
     const before = state;
@@ -130,19 +166,18 @@ describe("navigation", () => {
     expect(after).toBe(before);
   });
 
-  test("focused mode: Tab cycles focus, layout re-renders to show focused pane", () => {
-    const state = createInitialState(sessions, { height: 20, width: 100 });
+  test("focused mode: Tab switches tab, focus stays sessions", () => {
+    const state = createInitialState(makeIndex(sessions), { height: 20, width: 100 });
     expect(dashboardLayout(100, 20).mode).toBe("focused");
     const s1 = applyKey(state, "Tab");
-    expect(s1.focus).toBe("messages");
+    expect(s1.tab).toBe("archived");
+    expect(s1.focus).toBe("sessions");
     const s2 = applyKey(s1, "Tab");
-    expect(s2.focus).toBe("metadata");
-    const s3 = applyKey(s2, "Tab");
-    expect(s3.focus).toBe("sessions");
+    expect(s2.tab).toBe("active");
   });
 
   test("sessions focus: j/k move cursor, not scroll", () => {
-    let state = createInitialState(sessions, { height: 10, width: 100 });
+    let state = createInitialState(makeIndex(sessions), { height: 10, width: 100 });
     state = expandFolderWithSessions(state);
     state = cursorOnFirstSession(state);
     expect(state.focus).toBe("sessions");
@@ -155,7 +190,7 @@ describe("navigation", () => {
   });
 
   test("messages focus: j/k scroll messageScroll fallback state", () => {
-    let state = createInitialState(sessions, { height: 10, width: 100 });
+    let state = createInitialState(makeIndex(sessions), { height: 10, width: 100 });
     state = expandFolderWithSessions(state);
     state = cursorOnFirstSession(state);
     state = { ...state, focus: "messages" as const, messageRows: [
@@ -174,7 +209,7 @@ describe("navigation", () => {
   });
 
   test("metadata focus: j/k scroll detailScroll fallback state", () => {
-    let state = createInitialState(sessions, { height: 10, width: 100 });
+    let state = createInitialState(makeIndex(sessions), { height: 10, width: 100 });
     state = { ...state, focus: "metadata" as const };
     const beforeCursor = state.cursor;
     state = applyKey(state, "j");
@@ -187,7 +222,7 @@ describe("navigation", () => {
   });
 
   test("messages focus: G jumps messageScroll to last row", () => {
-    let state = createInitialState(sessions, { height: 10, width: 100 });
+    let state = createInitialState(makeIndex(sessions), { height: 10, width: 100 });
     state = { ...state, focus: "messages" as const, messageRows: [
       { role: "user", time: 1, text: "a" },
       { role: "user", time: 2, text: "b" },
@@ -198,14 +233,14 @@ describe("navigation", () => {
   });
 
   test("metadata focus: G jumps detailScroll to end", () => {
-    let state = createInitialState(sessions, { height: 10, width: 100 });
+    let state = createInitialState(makeIndex(sessions), { height: 10, width: 100 });
     state = { ...state, focus: "metadata" as const };
     state = applyKey(state, "G");
     expect(state.detailScroll).toBeGreaterThan(0);
   });
 
   test("messages focus: Ctrl+D/PageDown bumps messageScroll by 5", () => {
-    let state = createInitialState(sessions, { height: 10, width: 100 });
+    let state = createInitialState(makeIndex(sessions), { height: 10, width: 100 });
     state = { ...state, focus: "messages" as const, messageRows: [
       { role: "user", time: 1, text: "a" },
       { role: "user", time: 2, text: "b" },
@@ -218,7 +253,7 @@ describe("navigation", () => {
   });
 
   test("metadata focus: Ctrl+U/PageUp decrements detailScroll with floor 0", () => {
-    let state = createInitialState(sessions, { height: 10, width: 100 });
+    let state = createInitialState(makeIndex(sessions), { height: 10, width: 100 });
     state = { ...state, focus: "metadata" as const, detailScroll: 1 };
     state = applyKey(state, "Ctrl+U");
     expect(state.detailScroll).toBe(0);
@@ -229,7 +264,7 @@ describe("navigation", () => {
 
 describe("enter semantics", () => {
   test("Enter on session drives opencode continue flow (no pendingAction)", () => {
-    let state = createInitialState(sessions, { height: 10, width: 100 });
+    let state = createInitialState(makeIndex(sessions), { height: 10, width: 100 });
     state = expandFolderWithSessions(state);
     state = cursorOnFirstSession(state);
     state = applyKey(state, "Enter");
@@ -239,13 +274,13 @@ describe("enter semantics", () => {
 
 describe("search mode", () => {
   test("slash enters search mode", () => {
-    let state = createInitialState(sessions, { height: 20, width: 100 });
+    let state = createInitialState(makeIndex(sessions), { height: 20, width: 100 });
     state = applyKey(state, "/");
     expect(state.inputMode).toBe("search");
   });
 
   test("Escape exits search mode and clears query", () => {
-    let state = createInitialState(sessions, { height: 20, width: 100 });
+    let state = createInitialState(makeIndex(sessions), { height: 20, width: 100 });
     state = applyKey(state, "/");
     state = applyKey(state, "type:curr");
     state = applyKey(state, "Escape");
@@ -254,7 +289,7 @@ describe("search mode", () => {
   });
 
   test("j/k in search mode update searchSelected, k decrements at top", () => {
-    let state = createInitialState(sessions, { height: 20, width: 100 });
+    let state = createInitialState(makeIndex(sessions), { height: 20, width: 100 });
     state = applyKey(state, "/");
     state = applyKey(state, "j");
     state = applyKey(state, "j");
@@ -274,7 +309,7 @@ describe("search mode", () => {
       title: `Session ${i}`,
       directory: `/repo/${i}`,
     }));
-    let state = createInitialState(many, { height: 14, width: 100 });
+    let state = createInitialState(makeIndex(many), { height: 14, width: 100 });
     state = applyKey(state, "/");
     for (let i = 0; i < 12; i++) state = applyKey(state, "j");
     expect(state.searchSelected).toBe(12);
@@ -284,13 +319,13 @@ describe("search mode", () => {
 
 describe("Esc as universal back/close", () => {
   test("Esc at root gives already at root", () => {
-    let state = createInitialState(sessions, { height: 10, width: 100 });
+    let state = createInitialState(makeIndex(sessions), { height: 10, width: 100 });
     state = applyKey(state, "Escape");
     expect(state.status).toBe("already at root");
   });
 
   test("Esc cancels pending action", () => {
-    let state = createInitialState(sessions, { height: 10, width: 100 });
+    let state = createInitialState(makeIndex(sessions), { height: 10, width: 100 });
     state = expandFolderWithSessions(state);
     state = cursorOnFirstSession(state);
     state = applyKey(state, "a");
@@ -303,39 +338,39 @@ describe("Esc as universal back/close", () => {
 
 describe("confirmation workflow semantics", () => {
   test("active session: a -> archive confirmation", () => {
-    let state = createInitialState(sessions, { height: 10, width: 100 });
+    let state = createInitialState(makeIndex(sessions), { height: 10, width: 100 });
     state = expandFolderWithSessions(state);
     state = cursorOnFirstSession(state);
     state = applyKey(state, "a");
     expect(state.pendingAction).toBe("archive");
   });
 
-  test("active session: d -> permanent delete confirmation", () => {
-    let state = createInitialState(sessions, { height: 10, width: 100 });
+  test("active session: D/D/Delete sets pendingChoice archive_or_delete", () => {
+    let state = createInitialState(makeIndex(sessions), { height: 10, width: 100 });
     state = expandFolderWithSessions(state);
     state = cursorOnFirstSession(state);
-    state = applyKey(state, "d");
-    expect(state.pendingAction).toBe("delete");
+    state = applyKey(state, "D");
+    expect(state.pendingChoice).toBe("archive_or_delete");
   });
 
   test("archived session: r -> restore confirmation", () => {
-    let state = createInitialState(archivedSessions, { height: 10, width: 100 });
-    state = { ...state, tab: "archived" as const };
+    let state = createInitialState(makeIndex(archivedSessions), { height: 10, width: 100 });
+    state = reloadState({ ...state, tab: "archived" as const });
     state = cursorOnFirstSession(state);
     const next = applyKey(state, "r");
     expect(next.pendingAction).toBe("restore");
   });
 
-  test("archived session: d -> delete confirmation (permanent)", () => {
-    let state = createInitialState(archivedSessions, { height: 10, width: 100 });
-    state = { ...state, tab: "archived" as const };
+  test("archived session: D sets pendingChoice delete_or_import", () => {
+    let state = createInitialState(makeIndex(archivedSessions), { height: 10, width: 100 });
+    state = reloadState({ ...state, tab: "archived" as const });
     state = cursorOnFirstSession(state);
-    const next = applyKey(state, "d");
-    expect(next.pendingAction).toBe("delete");
+    const next = applyKey(state, "D");
+    expect(next.pendingChoice).toBe("delete_or_import");
   });
 
   test("folder rows only show folders that have sessions", () => {
-    const state = createInitialState(sessions, { height: 10, width: 100 });
+    const state = createInitialState(makeIndex(sessions), { height: 10, width: 100 });
     const visible = getVisibleRows(state);
     for (const row of visible) {
       if (!("id" in row)) {
@@ -348,24 +383,24 @@ describe("confirmation workflow semantics", () => {
   });
 
   test("folder rows accept bulk archive when active sessions exist", () => {
-    let state = createInitialState(sessions, { height: 10, width: 100 });
+    let state = createInitialState(makeIndex(sessions), { height: 10, width: 100 });
     state = expandFolderWithSessions(state);
-    state = applyKey(state, "j");
+    state = { ...state, pendingChoice: "archive_or_delete", pendingDirectory: "/repo/current", pendingCount: 3 };
     state = applyKey(state, "a");
     expect(state.pendingAction).toBe("bulk_archive");
   });
 
   test("active sessions reject restore", () => {
-    let state = createInitialState(sessions, { height: 10, width: 100 });
+    let state = createInitialState(makeIndex(sessions), { height: 10, width: 100 });
     state = expandFolderWithSessions(state);
     state = cursorOnFirstSession(state);
     state = applyKey(state, "r");
-    expect(state.status).toBe("restore only applies to archived sessions");
+    expect(state.status).toBe("import only applies to archived sessions");
   });
 
   test("archived sessions reject archive", () => {
-    let state = createInitialState(archivedSessions, { height: 10, width: 100 });
-    state = { ...state, tab: "archived" as const };
+    let state = createInitialState(makeIndex(archivedSessions), { height: 10, width: 100 });
+    state = reloadState({ ...state, tab: "archived" as const });
     state = cursorOnFirstSession(state);
     const next = applyKey(state, "a");
     expect(next.status).toBe("archive only applies to active sessions");
@@ -374,7 +409,7 @@ describe("confirmation workflow semantics", () => {
 
 describe("removed workflow keys", () => {
   test("action chips do not expose c/C/E/m keys", () => {
-    const state = createInitialState(sessions, { height: 10, width: 100 });
+    const state = createInitialState(makeIndex(sessions), { height: 10, width: 100 });
     const chips = actionChips(state);
     const allKeys = chips.flatMap(c => (c.key || "").split("|")).filter(Boolean);
     for (const banned of ["c", "C", "E", "m"]) {
@@ -385,7 +420,7 @@ describe("removed workflow keys", () => {
 
 describe("render helpers", () => {
   test("search overlay footer shows Enter open", () => {
-    const state = createInitialState(sessions, { height: 14, width: 100 });
+    const state = createInitialState(makeIndex(sessions), { height: 14, width: 100 });
     state.inputMode = "search";
     state.query = "furaide";
     const text = flatText(buildSearchOverlay(state));
@@ -393,7 +428,7 @@ describe("render helpers", () => {
   });
 
   test("search row contains both title and directory", () => {
-    const state = createInitialState(sessions, { height: 14, width: 100 });
+    const state = createInitialState(makeIndex(sessions), { height: 14, width: 100 });
     state.inputMode = "search";
     state.query = "Session 0";
     const text = flatText(buildSearchOverlay(state));
@@ -402,20 +437,20 @@ describe("render helpers", () => {
   });
 
   test("action chips show Esc back for active session", () => {
-    const state = createInitialState(sessions, { height: 10, width: 100 });
+    const state = createInitialState(makeIndex(sessions), { height: 10, width: 100 });
     const folder = state.folders[0];
     const next = { ...state, expandedFolders: new Set([folder.directory]), cursor: 1 };
     const labels = actionChips(next).map(c => c.label);
     expect(labels).toContain("Esc back");
   });
 
-  test("action chips show restore hint for archived session", () => {
+  test("action chips show import hint for archived session", () => {
     const archived = sessions.map((s) => ({ ...s, timeArchived: 100 }));
-    let state = createInitialState(archived, { height: 10, width: 100 });
-    state = { ...state, tab: "archived" as const };
+    let state = createInitialState(makeIndex(archived), { height: 10, width: 100 });
+    state = reloadState({ ...state, tab: "archived" as const });
     state = cursorOnFirstSession(state);
     const labels = actionChips(state).map(c => c.label);
-    expect(labels).toContain("r restore");
+    expect(labels).toContain("I import");
   });
 
   test("search overlay shows position indicator when more results than visible window", () => {
@@ -425,7 +460,7 @@ describe("render helpers", () => {
       title: `Session ${i}`,
       directory: `/repo/${i}`,
     }));
-    const state = createInitialState(many, { height: 14, width: 100 });
+    const state = createInitialState(makeIndex(many), { height: 14, width: 100 });
     state.inputMode = "search";
     state.query = "Session";
     state.searchSelected = 15;
@@ -443,13 +478,34 @@ describe("render helpers", () => {
       title: `Session ${i}`,
       directory: `/repo/${i}`,
     }));
-    const state = createInitialState(many, { height: 14, width: 100 });
+    const state = createInitialState(makeIndex(many), { height: 14, width: 100 });
     state.inputMode = "search";
     state.query = "Session";
     state.searchSelected = 0;
     state.searchScroll = 0;
     const text = flatText(buildSearchOverlay(state));
     expect(text).toContain("Session 0");
+  });
+
+  test("choice overlay renders and toggles visibility based on pendingChoice", () => {
+    const state = createInitialState(makeIndex(sessions), { height: 20, width: 100 });
+    const overlay = buildChoiceOverlay(state);
+    const text = String(overlay.chunks.map(c => c.text || "").join(""));
+    expect(text).toBe("");
+
+    const withChoice = { ...state, pendingChoice: "archive_or_delete" as const };
+    const overlay2 = buildChoiceOverlay(withChoice);
+    const text2 = String(overlay2.chunks.map(c => c.text || "").join(""));
+    expect(text2).toContain("Archive or Delete");
+    expect(text2).toContain("[A]");
+    expect(text2).toContain("[D]");
+
+    const withChoice2 = { ...state, pendingChoice: "delete_or_import" as const };
+    const overlay3 = buildChoiceOverlay(withChoice2);
+    const text3 = String(overlay3.chunks.map(c => c.text || "").join(""));
+    expect(text3).toContain("Delete or Import");
+    expect(text3).toContain("[I]");
+    expect(text3).toContain("[D]");
   });
 
   test("search overlay with scroll advanced shows higher-numbered title", () => {
@@ -459,7 +515,7 @@ describe("render helpers", () => {
       title: `Session ${i}`,
       directory: `/repo/${i}`,
     }));
-    const state = createInitialState(many, { height: 14, width: 100 });
+    const state = createInitialState(makeIndex(many), { height: 14, width: 100 });
     state.inputMode = "search";
     state.query = "Session";
     state.searchSelected = 12;
@@ -475,11 +531,11 @@ describe("scrollable layout tree (ScrollBoxRenderable)", () => {
     const setup = await createTestRenderer({ width: 120, height: 30 });
     try {
       const { renderer } = setup;
-      const state = createInitialState(sessions, { width: 120, height: 30 });
+      const state = createInitialState(makeIndex(sessions), { width: 120, height: 30 });
       const layout = dashboardLayout(120, 30);
       expect(layout.mode).toBe("wide");
 
-      const messagesText = new TextRenderable(renderer, { id: "messages-text", wrapMode: "word", content: buildMessagesContent(state) });
+      const messagesText = new TextRenderable(renderer, { id: "messages-text", wrapMode: "none", content: buildMessagesContent(state) });
       const messagesScroll = new ScrollBoxRenderable(renderer, { id: "messages-scroll", scrollY: true });
       messagesScroll.add(messagesText);
 
@@ -520,7 +576,7 @@ describe("scrollable layout tree (ScrollBoxRenderable)", () => {
     const setup = await createTestRenderer({ width: 60, height: 20 });
     try {
       const { renderer } = setup;
-      const state: any = { ...createInitialState(sessions, { width: 60, height: 20 }), focus: "metadata" };
+      const state: any = { ...createInitialState(makeIndex(sessions), { width: 60, height: 20 }), focus: "metadata" };
       const layout = dashboardLayout(60, 20);
       expect(layout.mode).toBe("focused");
 
@@ -576,7 +632,7 @@ describe("scrollable layout tree (ScrollBoxRenderable)", () => {
     const setup = await createTestRenderer({ width: 100, height: 30 });
     try {
       const { renderer } = setup;
-      const baseState = createInitialState(sessions, { width: 100, height: 30 });
+      const baseState = createInitialState(makeIndex(sessions), { width: 100, height: 30 });
       const withCursor = cursorOnFirstSession(baseState);
       const text = new TextRenderable(renderer, { id: "messages-text", wrapMode: "word", content: buildMessagesContent(withCursor) });
       const initial = String(text.content.chunks.map(c => c.text || "").join(""));

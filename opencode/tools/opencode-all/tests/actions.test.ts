@@ -1,11 +1,17 @@
 import { describe, expect, test } from "bun:test";
-import { createInitialState, getVisibleRows, type PaneFocus, type UiSession } from "../src/dashboard/state.ts";
+import {
+  addActiveToIndex,
+  addArchivedToIndex,
+  type SessionIndex,
+} from "../src/dashboard/session-index.ts";
+import { createInitialState, getVisibleRows, reloadState, type PaneFocus, type UiSession, type UiState } from "../src/dashboard/state.ts";
 import {
   confirmOverlayText,
   actionContext,
   actionChips,
   applyKey,
   executePendingAction,
+  searchResultsFor,
   type ActionChip,
 } from "../src/dashboard/actions.ts";
 
@@ -33,6 +39,27 @@ const archivedSessions: UiSession[] = [
 ];
 
 const vp = { height: 20, width: 100 };
+
+function makeIndex(rows: UiSession[]): SessionIndex {
+  const index: SessionIndex = {
+    active: new Map(),
+    archived: new Map(),
+    activeByDir: new Map(),
+    archivedByDir: new Map(),
+  };
+  for (const row of rows) {
+    if (row.timeArchived != null) {
+      addArchivedToIndex(index, row);
+    } else {
+      addActiveToIndex(index, row);
+    }
+  }
+  return index;
+}
+
+function makeState(rows: UiSession[] = sessions): UiState {
+  return createInitialState(makeIndex(rows), vp);
+}
 
 function expandFolderWithSessions(state: any): any {
   const sessionDirs = new Set(state.sessions.map((s: any) => s.directory));
@@ -68,51 +95,51 @@ function chipLabels(chips: ActionChip[]): string[] {
 
 describe("confirmOverlayText", () => {
   test("returns empty string when no pending action", () => {
-    const state = createInitialState(sessions, vp);
+    const state = makeState();
     expect(confirmOverlayText(state)).toBe("");
   });
 
   test("archive", () => {
-    const state = cursorOnFirstSession(createInitialState(sessions, vp));
+    const state = cursorOnFirstSession(makeState());
     const text = confirmOverlayText({ ...state, pendingAction: "archive" });
     expect(text).toContain("Archive session");
   });
 
   test("archive_and_delete", () => {
-    const state = cursorOnFirstSession(createInitialState(sessions, vp));
+    const state = cursorOnFirstSession(makeState());
     const text = confirmOverlayText({ ...state, pendingAction: "archive_and_delete" });
     expect(text).toContain("Archive + delete");
   });
 
   test("import", () => {
-    const state = cursorOnFirstSession(createInitialState(archivedSessions, vp));
+    const state = cursorOnFirstSession(makeState(archivedSessions));
     const text = confirmOverlayText({ ...state, pendingAction: "import" });
     expect(text).toContain("Import archived session");
   });
 
   test("delete", () => {
-    const state = cursorOnFirstSession(createInitialState(sessions, vp));
+    const state = cursorOnFirstSession(makeState());
     const text = confirmOverlayText({ ...state, pendingAction: "delete" });
     expect(text).toContain("Delete");
     expect(text).toContain("permanently");
   });
 
   test("bulk_archive", () => {
-    const state = createInitialState(sessions, vp);
+    const state = makeState();
     const text = confirmOverlayText({ ...state, pendingAction: "bulk_archive", pendingDirectory: "/repo", pendingCount: 3 });
     expect(text).toContain("Bulk archive");
     expect(text).toContain("/repo");
   });
 
   test("bulk_restore", () => {
-    const state = createInitialState(sessions, vp);
+    const state = makeState();
     const text = confirmOverlayText({ ...state, pendingAction: "bulk_restore", pendingDirectory: "/repo", pendingCount: 2 });
     expect(text).toContain("Bulk restore");
     expect(text).toContain("/repo");
   });
 
   test("bulk_delete", () => {
-    const state = createInitialState(sessions, vp);
+    const state = makeState();
     const text = confirmOverlayText({ ...state, pendingAction: "bulk_delete", pendingDirectory: "/repo", pendingCount: 5 });
     expect(text).toContain("Bulk delete");
     expect(text).toContain("/repo");
@@ -121,7 +148,7 @@ describe("confirmOverlayText", () => {
 
 describe("actionContext", () => {
   test("folder row returns isFolder", () => {
-    const state = cursorOnFirstFolder(createInitialState(sessions, vp));
+    const state = cursorOnFirstFolder(makeState());
     const ctx = actionContext(state);
     expect(ctx.isFolder).toBe(true);
     expect(ctx.isSession).toBe(false);
@@ -129,7 +156,7 @@ describe("actionContext", () => {
   });
 
   test("active session row returns isSession not isArchived", () => {
-    const state = cursorOnFirstSession(createInitialState(sessions, vp));
+    const state = cursorOnFirstSession(makeState());
     const ctx = actionContext(state);
     expect(ctx.isFolder).toBe(false);
     expect(ctx.isSession).toBe(true);
@@ -137,7 +164,9 @@ describe("actionContext", () => {
   });
 
   test("archived session row returns isSession and isArchived", () => {
-    const state = cursorOnFirstSession(createInitialState(archivedSessions, vp));
+    let state = makeState(archivedSessions);
+    state = reloadState({ ...state, tab: "archived" as const });
+    state = cursorOnFirstSession(state);
     const ctx = actionContext(state);
     expect(ctx.isFolder).toBe(false);
     expect(ctx.isSession).toBe(true);
@@ -147,39 +176,39 @@ describe("actionContext", () => {
 
 describe("actionChips", () => {
   test("pending action returns confirm/cancel chips", () => {
-    const state = { ...createInitialState(sessions, vp), pendingAction: "archive" as const };
+    const state = { ...makeState(), pendingAction: "archive" as const };
     const chips = actionChips(state);
     expect(chipIds(chips)).toEqual(["confirm", "cancel"]);
     expect(chipLabels(chips)).toEqual(["[y/Enter] confirm", "[n/Esc] cancel"]);
   });
 
   test("search mode returns search-only chips", () => {
-    const state = { ...createInitialState(sessions, vp), inputMode: "search" as const, query: "" };
+    const state = { ...makeState(), inputMode: "search" as const, query: "" };
     const chips = actionChips(state);
     expect(chipIds(chips)).toEqual(["open", "wheel", "cancel"]);
     expect(chipLabels(chips)).toEqual(["Enter open", "wheel scroll", "Esc cancel"]);
   });
 
   test("metadata focus returns generic focus chips", () => {
-    const state = { ...createInitialState(sessions, vp), focus: "metadata" as const };
+    const state = { ...makeState(), focus: "metadata" as const };
     const chips = actionChips(state);
-    expect(chipIds(chips)).toEqual(["tab-focus", "back", "quit", "wheel"]);
+    expect(chipIds(chips)).toEqual(["tab-switch", "back", "quit", "wheel"]);
   });
 
   test("messages focus returns generic focus chips", () => {
-    const state = { ...createInitialState(sessions, vp), focus: "messages" as const };
+    const state = { ...makeState(), focus: "messages" as const };
     const chips = actionChips(state);
-    expect(chipIds(chips)).toEqual(["tab-focus", "back", "quit", "wheel"]);
+    expect(chipIds(chips)).toEqual(["tab-switch", "back", "quit", "wheel"]);
   });
 
   test("action chips do not advertise unsupported mouse click actions", () => {
     const contexts = [
-      { ...createInitialState(sessions, vp), pendingAction: "archive" as const },
-      { ...createInitialState(sessions, vp), inputMode: "search" as const },
-      { ...createInitialState(sessions, vp), focus: "metadata" as const },
-      { ...createInitialState(sessions, vp), focus: "messages" as const },
-      cursorOnFirstFolder(createInitialState(sessions, vp)),
-      cursorOnFirstSession(createInitialState(sessions, vp)),
+      { ...makeState(), pendingAction: "archive" as const },
+      { ...makeState(), inputMode: "search" as const },
+      { ...makeState(), focus: "metadata" as const },
+      { ...makeState(), focus: "messages" as const },
+      cursorOnFirstFolder(makeState()),
+      cursorOnFirstSession(makeState()),
     ];
     for (const state of contexts) {
       const labels = chipLabels(actionChips(state));
@@ -188,7 +217,7 @@ describe("actionChips", () => {
   });
 
   test("metadata focus hides all destructive actions (delete, archive, import, restore)", () => {
-    const state = { ...createInitialState(sessions, vp), focus: "metadata" as const };
+    const state = { ...makeState(), focus: "metadata" as const };
     const chips = actionChips(state);
     const ids = chipIds(chips);
     expect(ids).not.toContain("delete");
@@ -200,7 +229,7 @@ describe("actionChips", () => {
   });
 
   test("messages focus hides all destructive actions (delete, archive, import, restore)", () => {
-    const state = { ...createInitialState(sessions, vp), focus: "messages" as const };
+    const state = { ...makeState(), focus: "messages" as const };
     const chips = actionChips(state);
     const ids = chipIds(chips);
     expect(ids).not.toContain("delete");
@@ -212,82 +241,86 @@ describe("actionChips", () => {
   });
 
   test("metadata focus has no danger chips", () => {
-    const state = { ...createInitialState(sessions, vp), focus: "metadata" as const };
+    const state = { ...makeState(), focus: "metadata" as const };
     const chips = actionChips(state);
     expect(chips.some(c => c.danger)).toBe(false);
   });
 
   test("messages focus has no danger chips", () => {
-    const state = { ...createInitialState(sessions, vp), focus: "messages" as const };
+    const state = { ...makeState(), focus: "messages" as const };
     const chips = actionChips(state);
     expect(chips.some(c => c.danger)).toBe(false);
   });
 
-  test("active session in sessions focus exposes the t tab chip", () => {
-    const state = cursorOnFirstSession(createInitialState(sessions, vp));
+  test("active session chips include tab-switch not tab-focus", () => {
+    const state = cursorOnFirstSession(makeState());
     const chips = actionChips(state);
-    expect(chipIds(chips)).toContain("tab");
-    expect(chipLabels(chips).some(l => l.includes("t tab"))).toBe(true);
+    expect(chipIds(chips)).toContain("tab-switch");
+    expect(chipIds(chips)).not.toContain("tab");
   });
 
-  test("archived session in sessions focus exposes the t tab chip", () => {
-    let state = createInitialState(archivedSessions, vp);
-    state = { ...state, tab: "archived" as const };
+  test("archived session chips include tab-switch not tab-focus", () => {
+    let state = makeState(archivedSessions);
+    state = reloadState({ ...state, tab: "archived" as const });
     state = cursorOnFirstSession(state);
     const chips = actionChips(state);
-    expect(chipIds(chips)).toContain("tab");
+    expect(chipIds(chips)).toContain("tab-switch");
+    expect(chipIds(chips)).not.toContain("tab");
   });
 
-  test("folder row in sessions focus exposes the t tab chip", () => {
-    const state = cursorOnFirstFolder(createInitialState(sessions, vp));
+  test("folder row in sessions focus includes tab-switch not tab", () => {
+    const state = cursorOnFirstFolder(makeState());
     const chips = actionChips(state);
-    expect(chipIds(chips)).toContain("tab");
+    expect(chipIds(chips)).toContain("tab-switch");
+    expect(chipIds(chips)).not.toContain("tab");
   });
 
-  test("folder row returns chip set with expand/toggle/archive/restore/delete/search/focus/back/quit", () => {
-    const state = cursorOnFirstFolder(createInitialState(sessions, vp));
+  test("folder row returns chip set with expand/toggle/archive/delete/search/switch/back/quit (active tab)", () => {
+    const state = cursorOnFirstFolder(makeState());
     const chips = actionChips(state);
     expect(chipIds(chips)).toContain("expand");
     expect(chipIds(chips)).toContain("toggle-all");
     expect(chipIds(chips)).toContain("archive");
-    expect(chipIds(chips)).toContain("restore");
+    expect(chipIds(chips)).not.toContain("restore");
     expect(chipIds(chips)).toContain("delete");
     expect(chipIds(chips)).toContain("search");
-    expect(chipIds(chips)).toContain("tab-focus");
+    expect(chipIds(chips)).toContain("tab-switch");
     expect(chipIds(chips)).toContain("back");
     expect(chipIds(chips)).toContain("quit");
   });
 
-  test("active session row returns chip set with open/archive/delete/search/focus/back/quit", () => {
-    const state = cursorOnFirstSession(createInitialState(sessions, vp));
+  test("active session row returns chip set with open/archive/delete/search/switch/back/quit", () => {
+    const state = cursorOnFirstSession(makeState());
     const chips = actionChips(state);
     expect(chipIds(chips)).toContain("open");
     expect(chipIds(chips)).toContain("archive");
     expect(chipIds(chips)).toContain("delete");
     expect(chipIds(chips)).toContain("search");
-    expect(chipIds(chips)).toContain("tab-focus");
+    expect(chipIds(chips)).toContain("tab-switch");
     expect(chipIds(chips)).toContain("back");
     expect(chipIds(chips)).toContain("quit");
     expect(chipIds(chips)).not.toContain("import");
     expect(chipIds(chips)).not.toContain("restore");
   });
 
-  test("archived session row returns chip set with open/restore/delete/search/focus/back/quit", () => {
-    const state = cursorOnFirstSession(createInitialState(archivedSessions, vp));
+  test("archived session row returns chip set with open/import/delete/search/switch/back/quit", () => {
+    let state = makeState(archivedSessions);
+    state = reloadState({ ...state, tab: "archived" as const });
+    state = cursorOnFirstSession(state);
     const chips = actionChips(state);
     expect(chipIds(chips)).toContain("open");
-    expect(chipIds(chips)).toContain("restore");
+    expect(chipIds(chips)).toContain("import");
     expect(chipIds(chips)).toContain("delete");
     expect(chipIds(chips)).toContain("search");
-    expect(chipIds(chips)).toContain("tab-focus");
+    expect(chipIds(chips)).toContain("tab-switch");
     expect(chipIds(chips)).toContain("back");
     expect(chipIds(chips)).toContain("quit");
     expect(chipIds(chips)).not.toContain("archive");
-    expect(chipIds(chips)).not.toContain("import");
+    expect(chipIds(chips)).not.toContain("restore");
   });
 
   test("invalid actions not shown for active session", () => {
-    const state = cursorOnFirstSession(createInitialState(sessions, vp));
+    const state = cursorOnFirstSession(makeState());
     const chips = actionChips(state);
     const ids = chipIds(chips);
     expect(ids).not.toContain("import");
@@ -295,15 +328,15 @@ describe("actionChips", () => {
   });
 
   test("invalid actions not shown for archived session", () => {
-    const state = cursorOnFirstSession(createInitialState(archivedSessions, vp));
+    const state = cursorOnFirstSession(makeState(archivedSessions));
     const chips = actionChips(state);
     const ids = chipIds(chips);
     expect(ids).not.toContain("archive");
-    expect(ids).not.toContain("import");
+    expect(ids).not.toContain("restore");
   });
 
   test("folder row in sessions focus exposes wheel scroll only", () => {
-    const state = cursorOnFirstFolder(createInitialState(sessions, vp));
+    const state = cursorOnFirstFolder(makeState());
     const chips = actionChips(state);
     const ids = chipIds(chips);
     expect(ids).toContain("wheel");
@@ -312,7 +345,7 @@ describe("actionChips", () => {
   });
 
   test("active session row in sessions focus exposes wheel scroll only", () => {
-    const state = cursorOnFirstSession(createInitialState(sessions, vp));
+    const state = cursorOnFirstSession(makeState());
     const chips = actionChips(state);
     const ids = chipIds(chips);
     expect(ids).toContain("wheel");
@@ -321,7 +354,9 @@ describe("actionChips", () => {
   });
 
   test("archived session row in sessions focus exposes wheel scroll only", () => {
-    const state = cursorOnFirstSession(createInitialState(archivedSessions, vp));
+    let state = makeState(archivedSessions);
+    state = reloadState({ ...state, tab: "archived" as const });
+    state = cursorOnFirstSession(state);
     const chips = actionChips(state);
     const ids = chipIds(chips);
     expect(ids).toContain("wheel");
@@ -330,14 +365,14 @@ describe("actionChips", () => {
   });
 
   test("metadata focus exposes wheel scroll without click chips", () => {
-    const state = { ...createInitialState(sessions, vp), focus: "metadata" as const };
+    const state = { ...makeState(), focus: "metadata" as const };
     const chips = actionChips(state);
     expect(chipLabels(chips)).toContain("wheel scroll");
     expect(chipLabels(chips).some(label => label.includes("click"))).toBe(false);
   });
 
   test("messages focus exposes wheel scroll without click chips", () => {
-    const state = { ...createInitialState(sessions, vp), focus: "messages" as const };
+    const state = { ...makeState(), focus: "messages" as const };
     const chips = actionChips(state);
     expect(chipLabels(chips)).toContain("wheel scroll");
     expect(chipLabels(chips).some(label => label.includes("click"))).toBe(false);
@@ -346,7 +381,7 @@ describe("actionChips", () => {
 
 describe("search/confirm action bar focus", () => {
   test("search action bar shows only search actions (no quit, no destructive)", () => {
-    const state = { ...createInitialState(sessions, vp), inputMode: "search" as const, query: "" };
+    const state = { ...makeState(), inputMode: "search" as const, query: "" };
     const chips = actionChips(state);
     const ids = chipIds(chips);
     expect(ids).toContain("open");
@@ -355,25 +390,25 @@ describe("search/confirm action bar focus", () => {
     expect(ids).not.toContain("quit");
     expect(ids).not.toContain("delete");
     expect(ids).not.toContain("archive");
-    expect(ids).not.toContain("tab-focus");
+    expect(ids).not.toContain("tab-switch");
     expect(ids).not.toContain("back");
   });
 
   test("confirm action bar shows only confirm/cancel (no quit, no tab/back)", () => {
-    const state = cursorOnFirstSession(createInitialState(sessions, vp));
+    const state = cursorOnFirstSession(makeState());
     const chips = actionChips({ ...state, pendingAction: "archive" as const });
     const ids = chipIds(chips);
     expect(ids).toEqual(["confirm", "cancel"]);
     expect(ids).not.toContain("quit");
-    expect(ids).not.toContain("tab-focus");
+    expect(ids).not.toContain("tab-switch");
     expect(ids).not.toContain("back");
     expect(ids).not.toContain("delete");
     expect(ids).not.toContain("archive");
   });
 
   test("confirm action bar for delete still shows only confirm/cancel", () => {
-    let state = createInitialState(archivedSessions, vp);
-    state = { ...state, tab: "archived" as const };
+    let state = makeState(archivedSessions);
+    state = reloadState({ ...state, tab: "archived" as const });
     state = cursorOnFirstSession(state);
     const chips = actionChips({ ...state, pendingAction: "delete" as const });
     const ids = chipIds(chips);
@@ -383,21 +418,21 @@ describe("search/confirm action bar focus", () => {
 
 describe("executePendingAction", () => {
   test("no pendingAction returns cancelled with status", () => {
-    const state = createInitialState(sessions, vp);
+    const state = makeState();
     const result = executePendingAction(state);
     expect(result.pendingAction).toBeNull();
     expect(result.status).toBe("cancelled");
   });
 
   test("no selected session returns no session selected", () => {
-    const state = createInitialState(sessions, vp);
+    const state = makeState();
     const result = executePendingAction({ ...state, pendingAction: "delete" as const });
     expect(result.pendingAction).toBeNull();
     expect(result.status).toBe("no session selected");
   });
 
   test("continue calls onContinue callback and clears pendingAction", () => {
-    const state = cursorOnFirstSession(createInitialState(sessions, vp));
+    const state = cursorOnFirstSession(makeState());
     let continueCalled = false;
     let continueId = "";
     const result = executePendingAction(
@@ -411,42 +446,35 @@ describe("executePendingAction", () => {
   });
 });
 
-describe("applyKey: focus and tab cycling", () => {
-  test("Tab cycles focus: sessions -> messages -> metadata -> sessions", () => {
-    let state = createInitialState(sessions, vp);
-    expect(state.focus).toBe("sessions");
-    state = applyKey(state, "Tab");
-    expect(state.focus).toBe("messages");
-    state = applyKey(state, "Tab");
-    expect(state.focus).toBe("metadata");
-    state = applyKey(state, "Tab");
-    expect(state.focus).toBe("sessions");
-  });
-
-  test("S-Tab cycles focus in reverse: sessions -> metadata -> messages -> sessions", () => {
-    let state = createInitialState(sessions, vp);
-    expect(state.focus).toBe("sessions");
-    state = applyKey(state, "S-Tab");
-    expect(state.focus).toBe("metadata");
-    state = applyKey(state, "S-Tab");
-    expect(state.focus).toBe("messages");
-    state = applyKey(state, "S-Tab");
-    expect(state.focus).toBe("sessions");
-  });
-
-  test("'t' key toggles active <-> archived tab and preserves focus on sessions", () => {
-    let state = createInitialState(sessions, vp);
+describe("applyKey: Tab, t, and navigation keys", () => {
+  test("Tab switches active -> archived tab with focus on sessions", () => {
+    let state = makeState();
     expect(state.tab).toBe("active");
     expect(state.focus).toBe("sessions");
-    state = applyKey(state, "t");
+    state = applyKey(state, "Tab");
     expect(state.tab).toBe("archived");
     expect(state.focus).toBe("sessions");
-    state = applyKey(state, "t");
+    expect(state.status).toBe("archived tab");
+    state = applyKey(state, "Tab");
     expect(state.tab).toBe("active");
+    expect(state.focus).toBe("sessions");
+    expect(state.status).toBe("active tab");
   });
 
-  test("Tab in search input mode does not change focus", () => {
-    let state = createInitialState(sessions, vp);
+  test("S-Tab does nothing", () => {
+    const state = makeState();
+    const result = applyKey(state, "S-Tab");
+    expect(result).toBe(state);
+  });
+
+  test("t returns hint status", () => {
+    let state = makeState();
+    state = applyKey(state, "t");
+    expect(state.status).toBe("use Tab to switch Active/Archive");
+  });
+
+  test("Tab in search input mode does not change tab", () => {
+    let state = makeState();
     state = applyKey(state, "/");
     expect(state.inputMode).toBe("search");
     const before = state;
@@ -454,21 +482,75 @@ describe("applyKey: focus and tab cycling", () => {
     expect(after).toBe(before);
   });
 
-  test("Tab in pending action mode does not change focus", () => {
-    let state = createInitialState(sessions, vp);
+  test("Tab in pending action mode does not change state", () => {
+    let state = makeState();
     state = expandFolderWithSessions(state);
     state = cursorOnFirstSession(state);
     state = applyKey(state, "a");
     expect(state.pendingAction).toBe("archive");
-    const beforeFocus = state.focus;
+    const before = state;
     const after = applyKey(state, "Tab");
-    expect(after.focus).toBe(beforeFocus);
+    expect(after).toBe(before);
+  });
+
+  test("E expands all folders", () => {
+    let state = makeState();
+    expect(state.expandedFolders.size).toBe(0);
+    state = applyKey(state, "E");
+    expect(state.expandedFolders.size).toBeGreaterThan(0);
+    expect(state.status).toBe("expanded all");
+  });
+
+  test("D on active session sets pendingChoice archive_or_delete", () => {
+    let state = expandFolderWithSessions(makeState());
+    state = cursorOnFirstSession(state);
+    state = applyKey(state, "D");
+    expect(state.pendingChoice).toBe("archive_or_delete");
+  });
+
+  test("D on archived session sets pendingChoice delete_or_import", () => {
+    let state = makeState(archivedSessions);
+    state = reloadState({ ...state, tab: "archived" as const });
+    state = cursorOnFirstSession(state);
+    state = applyKey(state, "D");
+    expect(state.pendingChoice).toBe("delete_or_import");
+  });
+
+  test("I on archived session sets pendingAction import", () => {
+    let state = makeState(archivedSessions);
+    state = reloadState({ ...state, tab: "archived" as const });
+    state = cursorOnFirstSession(state);
+    state = applyKey(state, "I");
+    expect(state.pendingAction).toBe("import");
+  });
+
+  test("Enter on archived session returns blocked status", () => {
+    let state = makeState(archivedSessions);
+    state = reloadState({ ...state, tab: "archived" as const });
+    state = cursorOnFirstSession(state);
+    state = applyKey(state, "Enter");
+    expect(state.status).toBe("archived session");
+  });
+
+  test("Backspace in normal mode calls back", () => {
+    const state = makeState();
+    const result = applyKey(state, "Backspace");
+    expect(result.status).toBe("already at root");
+  });
+
+  test("Backspace in search mode edits query", () => {
+    let state = makeState();
+    state = applyKey(state, "/");
+    state = applyKey(state, "h");
+    expect(state.query).toBe("h");
+    state = applyKey(state, "Backspace");
+    expect(state.query).toBe("");
   });
 });
 
 describe("applyKey: focus-aware scrolling", () => {
   function makeMessagesState(focus: PaneFocus) {
-    let state = createInitialState(sessions, vp);
+    let state = makeState();
     state = expandFolderWithSessions(state);
     state = cursorOnFirstSession(state);
     return {
@@ -535,5 +617,30 @@ describe("applyKey: focus-aware scrolling", () => {
     expect(state.cursor).toBeGreaterThanOrEqual(0);
     expect(state.messageScroll).toBe(beforeMessage);
     expect(state.detailScroll).toBe(beforeDetail);
+  });
+});
+
+describe("search - unified search results", () => {
+  test("search returns active and archived session metadata matches", () => {
+    const state = makeState(sessions);
+    const searchState = { ...state, inputMode: "search" as const, query: "Session" };
+    const results = searchResultsFor(searchState);
+    const activeResults = results.filter(r => r.tab === "active");
+    const archivedResults = results.filter(r => r.tab === "archived");
+    expect(activeResults.length).toBeGreaterThan(0);
+    expect(archivedResults.length).toBeGreaterThan(0);
+    expect(activeResults.every(r => r.session.timeArchived == null)).toBe(true);
+    expect(archivedResults.every(r => r.session.timeArchived != null)).toBe(true);
+  });
+
+  test("Enter on archived search result is blocked", () => {
+    const state = makeState(sessions);
+    const searchState = { ...state, inputMode: "search" as const, query: "Session" };
+    const results = searchResultsFor(searchState);
+    const archivedIdx = results.findIndex(r => r.tab === "archived");
+    expect(archivedIdx).toBeGreaterThanOrEqual(0);
+    const selState = { ...searchState, searchSelected: archivedIdx, searchScroll: 0 };
+    const result = applyKey(selState, "Enter");
+    expect(result.status).toContain("Archived sessions can't be opened directly");
   });
 });

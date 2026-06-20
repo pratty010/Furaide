@@ -6,6 +6,8 @@ import {
   buildSessionsContent,
   buildActionBarContent,
   buildConfirmOverlay,
+  buildChoiceOverlay,
+  buildSearchOverlay,
   setTheme,
 } from "../src/dashboard/render.ts";
 import { getVisibleRows } from "../src/dashboard/state.ts";
@@ -76,6 +78,8 @@ function baseState(overrides: Partial<UiState> = {}): UiState {
     pendingDirectory: undefined,
     pendingCount: undefined,
     searchSelected: 0,
+    searchScroll: 0,
+    searchResults: [],
     focus: "sessions",
     messageRows: [],
     ...overrides,
@@ -185,12 +189,12 @@ describe("buildSessionsContent", () => {
     expect(text).toContain("Archived");
   });
 
-  test("renders folder rows with directory name and counts", () => {
+  test("renders folder rows with directory name and without counts", () => {
     const state = baseState({ expandedFolders: new Set([mockFolder.directory]) });
     const text = flatText(buildSessionsContent(state));
     expect(text).toContain("/test/proj");
-    expect(text).toContain("1 active");
-    expect(text).toContain("1 archived");
+    expect(text).not.toContain("1 active");
+    expect(text).not.toContain("1 archived");
   });
 
   test("renders session rows with title, updated time, cost, and archive marker", () => {
@@ -226,7 +230,7 @@ describe("buildActionBarContent", () => {
   test("renders metadata focus chips with tab-focus/back/quit", () => {
     const state = baseState({ focus: "metadata" });
     const text = flatText(buildActionBarContent(state));
-    expect(text).toContain("Tab focus");
+    expect(text).toContain("Tab switch tab");
     expect(text).toContain("Esc back");
     expect(text).toContain("q quit");
   });
@@ -279,23 +283,52 @@ describe("buildConfirmOverlay", () => {
   });
 });
 
+describe("buildChoiceOverlay", () => {
+  test("returns empty when no pending choice", () => {
+    const text = flatText(buildChoiceOverlay(baseState()));
+    expect(text).toBe("");
+  });
+
+  test("renders archive/delete choices", () => {
+    const state = baseState({ pendingChoice: "archive_or_delete" });
+    const text = flatText(buildChoiceOverlay(state));
+    expect(text).toContain("Archive or Delete");
+    expect(text).toContain("[A]");
+    expect(text).toContain("[D]");
+    expect(text).toContain("[C]");
+  });
+
+  test("renders import/delete choices", () => {
+    const state = baseState({ pendingChoice: "delete_or_import" });
+    const text = flatText(buildChoiceOverlay(state));
+    expect(text).toContain("Delete or Import");
+    expect(text).toContain("[I]");
+    expect(text).toContain("[D]");
+    expect(text).toContain("[C]");
+  });
+});
+
 describe("dashboardLayout", () => {
-  test("wide layout uses half top split and one-row action bar", () => {
+  test("wide layout uses half top split and two-row action bar", () => {
     const layout = dashboardLayout(110, 30);
     expect(layout.mode).toBe("wide");
-    expect(layout.topPercent).toBe(52);
-    expect(layout.sessionsPercent).toBe(40);
-    expect(layout.actionRows).toBe(1);
+    expect(layout.topPercent).toBe(1);
+    expect(layout.sessionsPercent).toBe(1);
+    expect(layout.actionRows).toBe(2);
     expect(layout.topSplit).toBe("half");
+    expect(layout.topMaxHeight).toBe("55%");
+    expect(layout.sessionsMinHeight).toBe("30%");
   });
 
   test("medium layout keeps half top split and two-row action bar", () => {
     const layout = dashboardLayout(100, 30);
     expect(layout.mode).toBe("medium");
-    expect(layout.topPercent).toBe(48);
-    expect(layout.sessionsPercent).toBe(42);
+    expect(layout.topPercent).toBe(1);
+    expect(layout.sessionsPercent).toBe(1);
     expect(layout.actionRows).toBe(2);
     expect(layout.topSplit).toBe("half");
+    expect(layout.topMaxHeight).toBe("55%");
+    expect(layout.sessionsMinHeight).toBe("30%");
   });
 
   test("focused layout activates below minimum terminal size", () => {
@@ -305,6 +338,8 @@ describe("dashboardLayout", () => {
     expect(narrow.sessionsPercent).toBe(0);
     expect(narrow.topSplit).toBe("focused");
     expect(narrow.actionRows).toBe(1);
+    expect(narrow.topMaxHeight).toBe("55%");
+    expect(narrow.sessionsMinHeight).toBe("30%");
 
     const short = dashboardLayout(100, 21);
     expect(short.mode).toBe("focused");
@@ -312,6 +347,8 @@ describe("dashboardLayout", () => {
     expect(short.sessionsPercent).toBe(0);
     expect(short.topSplit).toBe("focused");
     expect(short.actionRows).toBe(1);
+    expect(short.topMaxHeight).toBe("55%");
+    expect(short.sessionsMinHeight).toBe("30%");
   });
 
   test("layout percentages leave room for action bar", () => {
@@ -339,5 +376,26 @@ describe("dashboardLayout", () => {
     expect(layout.topPercent).toBe(0);
     expect(layout.sessionsPercent).toBe(0);
     expect(layout.topSplit).toBe("focused");
+    expect(layout.topMaxHeight).toBe("55%");
+    expect(layout.sessionsMinHeight).toBe("30%");
+  });
+
+  test("all layout sizes include maxHeight and minHeight constraints", () => {
+    const sizes: [number, number][] = [[40, 10], [100, 30], [120, 30]];
+    for (const [w, h] of sizes) {
+      const layout = dashboardLayout(w, h);
+      expect(layout.topMaxHeight).toBe("55%");
+      expect(layout.sessionsMinHeight).toBe("30%");
+    }
+  });
+});
+
+describe("buildSearchOverlay", () => {
+  test("renders [A]/[a] markers and match type indicators", () => {
+    const state = baseState({ inputMode: "search", query: "" });
+    const text = flatText(buildSearchOverlay(state));
+    expect(text).toContain("[A]");
+    expect(text).toContain("[a]");
+    expect(text).toContain("meta");
   });
 });

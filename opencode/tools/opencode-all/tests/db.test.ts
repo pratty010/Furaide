@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { Database } from "bun:sqlite";
-import { defaultArchivePath, getSessionDetail, isSafeSessionId, listDirectories, listSessions, readArchivedMessages, readRecentMessages, setArchived } from "../src/db.ts";
+import { activeSessionsMatchingText, defaultArchivePath, exportSessionToFile, getSessionDetail, importSessionFromFile, isSafeSessionId, listDirectories, listSessions, readArchivedMessages, readRecentMessages, setArchived } from "../src/db.ts";
 
 const root = join(import.meta.dir, ".tmp-db");
 const dbPath = join(root, "opencode.db");
@@ -177,5 +177,45 @@ describe("archive path and archived messages", () => {
     const rows = readArchivedMessages("ses_a");
     expect(rows[0]).toEqual({ role: "user", time: 123, text: "helloworld" });
     delete process.env.XDG_DATA_HOME;
+  });
+});
+
+describe("hard archive CLI helpers", () => {
+  test("exportSessionToFile calls top-level opencode export and writes stdout to archive file", () => {
+    process.env.XDG_DATA_HOME = root;
+    const bin = join(root, "fake-opencode-export.sh");
+    writeFileSync(bin, `#!/usr/bin/env bash\nif [ "$1" != "export" ]; then echo "bad command: $*" >&2; exit 9; fi\nif [ "$2" != "ses_safe" ]; then echo "bad id: $2" >&2; exit 8; fi\nprintf '{"info":{"id":"ses_safe","title":"Safe","directory":"/repo"},"messages":[]}'\n`, { mode: 0o755 });
+    process.env.OPENCODE_ALL_OPENCODE_BIN = bin;
+
+    const res = exportSessionToFile("ses_safe");
+    expect(res.ok).toBe(true);
+    expect(readFileSync(defaultArchivePath("ses_safe"), "utf8")).toContain('"id":"ses_safe"');
+
+    delete process.env.OPENCODE_ALL_OPENCODE_BIN;
+    delete process.env.XDG_DATA_HOME;
+  });
+
+  test("importSessionFromFile calls top-level opencode import", () => {
+    process.env.XDG_DATA_HOME = root;
+    const file = defaultArchivePath("ses_safe");
+    mkdirSync(join(root, "opencode", "tools", "opencode-all", "exports"), { recursive: true });
+    writeFileSync(file, JSON.stringify({ info: { id: "ses_safe" }, messages: [] }));
+    const bin = join(root, "fake-opencode-import.sh");
+    writeFileSync(bin, `#!/usr/bin/env bash\nif [ "$1" != "import" ]; then echo "bad command: $*" >&2; exit 9; fi\nif [ "$2" != "${file}" ]; then echo "bad file: $2" >&2; exit 8; fi\nexit 0\n`, { mode: 0o755 });
+    process.env.OPENCODE_ALL_OPENCODE_BIN = bin;
+
+    const res = importSessionFromFile("ses_safe");
+    expect(res.ok).toBe(true);
+
+    delete process.env.OPENCODE_ALL_OPENCODE_BIN;
+    delete process.env.XDG_DATA_HOME;
+  });
+});
+
+describe("activeSessionsMatchingText", () => {
+  test("finds sessions by message text", () => {
+    const rows = activeSessionsMatchingText("hello", 50, dbPath, "/repo/current");
+    expect(rows.length).toBeGreaterThan(0);
+    expect(rows.some(r => r.id === "ses_a")).toBe(true);
   });
 });

@@ -3,13 +3,24 @@ import {
   type DirectoryRow,
   type SessionRow,
   type Tab,
-  listDirectories,
-  listSessions,
   readArchivedMessages,
   readRecentMessages,
 } from "../db.ts";
+import {
+  addActiveToIndex,
+  addArchivedToIndex,
+  directoriesForTab,
+  rowsForTab,
+  type SessionIndex,
+} from "./session-index.ts";
 
 export type UiSession = SessionRow;
+export type SearchMatch = "metadata" | "messages";
+export type SearchResult = {
+  session: UiSession;
+  tab: "active" | "archived";
+  matchIn: SearchMatch;
+};
 export type Viewport = { height: number; width: number };
 type InputMode = null | "search" | "directory" | "filter";
 type PendingAction =
@@ -26,7 +37,10 @@ type PendingAction =
   | null;
 export type PaneFocus = "messages" | "metadata" | "sessions" | "search" | "confirm";
 
+type PendingChoice = "archive_or_delete" | "delete_or_import" | null;
+
 export type UiState = {
+  index: SessionIndex;
   folders: DirectoryRow[];
   allSessions: UiSession[];
   sessions: UiSession[];
@@ -44,10 +58,12 @@ export type UiState = {
   viewport: Viewport;
   status: string;
   pendingAction: PendingAction;
+  pendingChoice: PendingChoice;
   pendingDirectory?: string;
   pendingCount?: number;
   searchSelected: number;
   searchScroll: number;
+  searchResults: SearchResult[];
   focus: PaneFocus;
   messageRows: ArchivedMessageRow[];
 };
@@ -99,19 +115,15 @@ export function selectedVisibleSession(state: UiState): UiSession | undefined {
 
 export function reloadState(state: UiState): UiState {
   const baseCwd = cwd();
-  let folders = sortFolders(listDirectories({ prefix: state.query }), baseCwd);
+  let folders = sortFolders(directoriesForTab(state.index, state.tab), baseCwd);
   if (state.inputMode === "search" && state.query) {
     folders = folders.filter(row => row.directory.toLowerCase().includes(state.query.toLowerCase()));
   }
-  const dbSessions = listSessions({ tab: state.tab, cwd: baseCwd, directory: state.directory, query: state.query });
-  const sessions = dbSessions.length > 0
-    ? dbSessions
-    : state.allSessions
-        .filter(row => !state.directory || row.directory === state.directory)
-        .filter(row => !state.query || [row.title, row.directory, row.path, row.agent, row.model, row.shareUrl].some(value => value.toLowerCase().includes(state.query.toLowerCase())));
-  const visible = getVisibleRows({ ...state, folders, sessions });
+  const sessions = rowsForTab(state.index, state.tab, state.directory, state.query);
+  const allSessions = [...state.index.active.values(), ...state.index.archived.values()];
+  const visible = getVisibleRows({ ...state, folders, sessions, allSessions });
   const cursor = Math.min(state.cursor, Math.max(0, visible.length - 1));
-  const nextBase = { ...state, folders, sessions, cursor };
+  const nextBase = { ...state, folders, sessions, allSessions, cursor };
   const selected = selectedVisibleSession(nextBase);
   let messageRows: ArchivedMessageRow[] = [];
   if (selected) {
@@ -119,29 +131,16 @@ export function reloadState(state: UiState): UiState {
       ? readRecentMessages(selected.id)
       : readArchivedMessages(selected.id);
   }
-  return { ...state, folders, sessions, cursor, listScroll: Math.min(state.listScroll, cursor), messageRows, messageScroll: 0 };
+  return { ...state, folders, sessions, allSessions, cursor, listScroll: Math.min(state.listScroll, cursor), messageRows, messageScroll: 0 };
 }
 
-export function createInitialState(sessions: UiSession[], viewport: Viewport): UiState {
-  const realFolders = listDirectories({ prefix: "" });
-  const realDirs = new Set(realFolders.map(f => f.directory));
-  const sessionDirs = new Set(sessions.map(s => s.directory));
-  const syntheticFolders: DirectoryRow[] = [];
-  for (const dir of sessionDirs) {
-    if (!realDirs.has(dir)) {
-      const matching = sessions.filter(s => s.directory === dir);
-      syntheticFolders.push({
-        directory: dir,
-        active: matching.filter(s => s.timeArchived == null).length,
-        archived: matching.filter(s => s.timeArchived != null).length,
-        latestUpdated: matching.reduce((m, s) => Math.max(m, s.timeUpdated), 0),
-      });
-    }
-  }
-  const folders = sortFolders([...realFolders, ...syntheticFolders], cwd());
+export function createInitialState(index: SessionIndex, viewport: Viewport): UiState {
+  const folders = sortFolders(directoriesForTab(index, "active"), cwd());
+  const sessions = rowsForTab(index, "active");
   return {
+    index,
     folders,
-    allSessions: sessions,
+    allSessions: [...index.active.values(), ...index.archived.values()],
     sessions,
     expandedFolders: new Set<string>(),
     cursor: 0,
@@ -156,8 +155,10 @@ export function createInitialState(sessions: UiSession[], viewport: Viewport): U
     viewport,
     status: "ready",
     pendingAction: null,
+    pendingChoice: null,
     searchSelected: 0,
     searchScroll: 0,
+    searchResults: [],
     focus: "sessions",
     messageRows: [],
   };

@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, statSync, unlinkSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, unlinkSync, writeFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { dirname, join } from "node:path";
 import { Database } from "bun:sqlite";
@@ -34,16 +34,23 @@ export function defaultArchivePath(id: string): string {
   return join(base, "opencode", "tools", "opencode-all", "exports", `${id}.json`);
 }
 
+export function defaultArchiveRoot(): string {
+  const base = process.env.XDG_DATA_HOME || join(process.env.HOME || ".", ".local", "share");
+  return join(base, "opencode", "tools", "opencode-all", "exports");
+}
+
 function opencodeBin(): string {
   return process.env.OPENCODE_ALL_OPENCODE_BIN || "opencode";
 }
 
-export function exportSessionToFile(id: string, raw = false): { ok: boolean; code: number; stderr: string } {
+export function exportSessionToFile(id: string): { ok: boolean; code: number; stderr: string } {
   if (!isSafeSessionId(id)) return invalidCliResult(id);
   const file = defaultArchivePath(id);
   mkdirSync(dirname(file), { recursive: true });
-  const args = ["session", "export", id, ...(raw ? [] : ["--sanitize"]), file];
-  const result = spawnSync(opencodeBin(), args, { stdio: "pipe" });
+  const result = spawnSync(opencodeBin(), ["export", id], { stdio: ["ignore", "pipe", "pipe"] });
+  if (result.status === 0) {
+    writeFileSync(file, result.stdout || Buffer.from(""), { mode: 0o600 });
+  }
   return { ok: result.status === 0, code: result.status ?? 1, stderr: (result.stderr || "").toString() };
 }
 
@@ -53,7 +60,7 @@ export function importSessionFromFile(id: string): { ok: boolean; code: number; 
   if (!existsSync(file)) {
     return { ok: false, code: -1, stderr: `archive file not found at ${file}` };
   }
-  const result = spawnSync(opencodeBin(), ["session", "import", file], { stdio: "pipe" });
+  const result = spawnSync(opencodeBin(), ["import", file], { stdio: "pipe" });
   return { ok: result.status === 0, code: result.status ?? 1, stderr: (result.stderr || "").toString() };
 }
 
@@ -126,6 +133,62 @@ export function readArchivedMessages(id: string, maxMessages = 200): ArchivedMes
   }
 }
 
+export function getArchivedSessionDetail(id: string): (SessionDetail & { archivePath?: string; archiveBytes?: number }) | null {
+  if (!isSafeSessionId(id)) return null;
+  const file = defaultArchivePath(id);
+  if (!existsSync(file)) return null;
+  try {
+    const stats = statSync(file);
+    if (stats.size > MAX_ARCHIVE_BYTES) return null;
+    const raw = JSON.parse(readFileSync(file, "utf8"));
+    const row = archiveInfoToRow(raw, file, process.env.OPENCODE_ALL_CWD || process.cwd(), Math.trunc(stats.mtimeMs));
+    if (!row) return null;
+    const messages = Array.isArray(raw?.messages) ? raw.messages.length : 0;
+    return {
+      ...row,
+      messages,
+      diffPath: null,
+      diffBytes: null,
+      partCounts: {},
+      toolCounts: [],
+      recentText: readArchivedMessages(id, 4).map(m => ({ role: m.role, timeCreated: m.time, text: m.text })),
+      tokensReasoning: 0,
+      tokensCacheRead: 0,
+      tokensCacheWrite: 0,
+      summaryFiles: Number(raw?.info?.summary?.files || 0),
+      summaryAdditions: Number(raw?.info?.summary?.additions || 0),
+      summaryDeletions: Number(raw?.info?.summary?.deletions || 0),
+      archivePath: file,
+      archiveBytes: stats.size,
+    };
+  } catch {
+    return null;
+  }
+}
+
+export function listArchivedSessionFiles(options: { archiveRoot?: string; cwd?: string } = {}): ArchiveFileRow[] {
+  const root = options.archiveRoot || defaultArchiveRoot();
+  if (!existsSync(root)) return [];
+  const cwdValue = options.cwd || process.env.OPENCODE_ALL_CWD || process.cwd();
+  const rows: ArchiveFileRow[] = [];
+  for (const name of readdirSync(root)) {
+    if (!name.endsWith(".json")) continue;
+    const id = name.slice(0, -".json".length);
+    if (!isSafeSessionId(id)) continue;
+    const file = join(root, name);
+    try {
+      const stats = statSync(file);
+      if (stats.size > MAX_ARCHIVE_BYTES) continue;
+      const raw = JSON.parse(readFileSync(file, "utf8"));
+      const row = archiveInfoToRow(raw, file, cwdValue, Math.trunc(stats.mtimeMs));
+      if (row) rows.push(row);
+    } catch {
+      continue;
+    }
+  }
+  return rows.sort((a, b) => b.timeArchived! - a.timeArchived! || b.timeUpdated - a.timeUpdated);
+}
+
 export function listActiveSessionsInDir(directory: string): SessionRow[] {
   return listSessions({ tab: "active", cwd: process.env.OPENCODE_ALL_CWD || process.cwd(), directory });
 }
@@ -150,6 +213,11 @@ export type SessionRow = {
   timeArchived: number | null;
   isCurrent: boolean;
   suspicious: boolean;
+};
+
+export type ArchiveFileRow = SessionRow & {
+  archivePath: string;
+  archiveBytes: number;
 };
 
 export type DirectoryRow = {
@@ -259,6 +327,40 @@ function toRow(raw: SessionRawRow, cwd: string): SessionRow {
     timeArchived: raw.time_archived == null ? null : Number(raw.time_archived),
     isCurrent,
     suspicious,
+  };
+}
+
+export function archiveInfoToRow(raw: any, archivePath: string, cwdValue: string, archiveTime: number): ArchiveFileRow | null {
+  const info = raw?.info;
+  if (!info || typeof info !== "object") return null;
+  const id = String(info.id || "");
+  if (!isSafeSessionId(id)) return null;
+  const title = renderSafe(info.title || id);
+  const directory = renderSafe(info.directory || "");
+  const path = renderSafe(info.path || "");
+  const agent = renderSafe(info.agent || "");
+  const model = renderSafe(typeof info.model === "string" ? info.model : JSON.stringify(info.model || ""));
+  const tokens = info.tokens || {};
+  const summary = info.summary || {};
+  const stats = statSync(archivePath);
+  return {
+    id,
+    title: capText(title, 240),
+    directory: capText(directory, 300),
+    path: capText(path, 300),
+    agent: capText(agent, 80),
+    model: capText(model, 160),
+    shareUrl: "",
+    cost: Number(info.cost || 0),
+    tokensInput: Number(tokens.input || 0),
+    tokensOutput: Number(tokens.output || 0),
+    timeCreated: Number(info.time?.created || 0),
+    timeUpdated: Number(info.time?.updated || 0),
+    timeArchived: archiveTime || Math.trunc(stats.mtimeMs),
+    isCurrent: directory.startsWith(cwdValue) || path.startsWith(cwdValue),
+    suspicious: [info.title, info.directory, info.path, info.agent, info.model].some(hasControlBytes),
+    archivePath,
+    archiveBytes: stats.size,
   };
 }
 
@@ -423,5 +525,41 @@ export function listDirectories(options: { dbPath?: string; prefix?: string }): 
       .filter(row => !prefix || row.directory.toLowerCase().includes(prefix));
   } finally {
     db.close();
+  }
+}
+
+export function activeSessionsMatchingText(query: string, maxResults = 50, dbPath = defaultDbPath(), cwdValue = process.env.OPENCODE_ALL_CWD || process.cwd()): SessionRow[] {
+  try {
+    const db = openDb(dbPath);
+    try {
+      const lower = `%${query.toLowerCase()}%`;
+      const rows = db.query(`
+        SELECT DISTINCT s.id, s.title, s.directory, COALESCE(s.path, '') AS path,
+               COALESCE(s.agent, '') AS agent, COALESCE(s.model, '') AS model,
+               COALESCE(s.share_url, '') AS share_url,
+               s.cost, s.tokens_input, s.tokens_output,
+               s.time_created, s.time_updated, s.time_archived
+        FROM session s
+        LEFT JOIN message m ON m.session_id = s.id
+        LEFT JOIN part p ON p.message_id = m.id
+        WHERE s.parent_id IS NULL
+          AND s.time_archived IS NULL
+          AND (
+            LOWER(s.title) LIKE ?
+            OR LOWER(s.directory) LIKE ?
+            OR LOWER(s.path) LIKE ?
+            OR LOWER(s.agent) LIKE ?
+            OR LOWER(s.model) LIKE ?
+            OR LOWER(json_extract(p.data, '$.text')) LIKE ?
+          )
+        ORDER BY s.time_updated DESC
+        LIMIT ?
+      `).all(lower, lower, lower, lower, lower, lower, maxResults) as SessionRawRow[];
+      return rows.map(raw => toRow(raw, cwdValue));
+    } finally {
+      db.close();
+    }
+  } catch {
+    return [];
   }
 }

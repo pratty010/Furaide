@@ -2,6 +2,11 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { Database } from "bun:sqlite";
 import { unlinkSync } from "node:fs";
 import {
+  addActiveToIndex,
+  addArchivedToIndex,
+  type SessionIndex,
+} from "../src/dashboard/session-index.ts";
+import {
   clampCursor,
   createInitialState,
   currentSession,
@@ -31,6 +36,27 @@ const sessions: UiSession[] = Array.from({ length: 6 }, (_, index) => ({
 }));
 
 const vp = { height: 20, width: 100 };
+
+function makeIndex(rows: UiSession[]): SessionIndex {
+  const index: SessionIndex = {
+    active: new Map(),
+    archived: new Map(),
+    activeByDir: new Map(),
+    archivedByDir: new Map(),
+  };
+  for (const row of rows) {
+    if (row.timeArchived != null) {
+      addArchivedToIndex(index, row);
+    } else {
+      addActiveToIndex(index, row);
+    }
+  }
+  return index;
+}
+
+function makeState(rows: UiSession[] = sessions): UiState {
+  return createInitialState(makeIndex(rows), vp);
+}
 
 function createDb(): void {
   const db = new Database(TEST_DB);
@@ -103,14 +129,14 @@ function expandFolderWithSessions(state: UiState): UiState {
 
 describe("initial state", () => {
   test("initial focus is sessions", () => {
-    const state = createInitialState(sessions, vp);
+    const state = makeState();
     expect(state.focus).toBe("sessions");
   });
 });
 
 describe("visible rows", () => {
   test("visible rows include folders and expanded sessions when expanded", () => {
-    const state = createInitialState(sessions, vp);
+    const state = makeState();
     const expanded = expandFolderWithSessions(state);
     const visible = getVisibleRows(expanded);
     const folders = visible.filter(r => !("id" in r));
@@ -122,14 +148,14 @@ describe("visible rows", () => {
 
 describe("currentSession", () => {
   test("currentSession undefined on folder rows", () => {
-    const state = createInitialState(sessions, vp);
+    const state = makeState();
     expect(currentSession(state)).toBeUndefined();
   });
 });
 
 describe("clampCursor", () => {
   test("clampCursor bounds cursor within visible rows", () => {
-    const state = createInitialState(sessions, vp);
+    const state = makeState();
     const total = getVisibleRows(state).length;
 
     const beyond = clampCursor({ ...state, cursor: 999 });
@@ -145,7 +171,7 @@ describe("clampCursor", () => {
 
 describe("reloadState", () => {
   test("reloadState loads active messages for selected active session", () => {
-    const state = createInitialState(sessions, vp);
+    const state = makeState();
     const expanded = expandFolderWithSessions(state);
     const visible = getVisibleRows(expanded);
     const cursor = visible.findIndex(row => "id" in row && row.id === "ses_0");
@@ -154,13 +180,13 @@ describe("reloadState", () => {
   });
 
   test("reloadState clears messages on folder rows", () => {
-    const state = createInitialState(sessions, vp);
+    const state = makeState();
     const result = reloadState({ ...state, cursor: 0, messageRows: [{ role: "user", time: 100, text: "stale" }] });
     expect(result.messageRows).toEqual([]);
   });
 
   test("reloadState loads archived messages for archived tab session", () => {
-    const state = createInitialState(sessions, vp);
+    const state = makeState();
     const dummy = [{ role: "user" as const, time: 100, text: "hello" }];
     const withMessages = { ...state, messageRows: dummy, tab: "archived" as const };
     const result = reloadState(withMessages);
