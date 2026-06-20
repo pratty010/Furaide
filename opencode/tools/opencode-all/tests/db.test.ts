@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { Database } from "bun:sqlite";
-import { activeSessionsMatchingText, defaultArchivePath, exportSessionToFile, getSessionDetail, importSessionFromFile, isSafeSessionId, listDirectories, listSessions, readArchivedMessages, readRecentMessages, setArchived } from "../src/db.ts";
+import { defaultArchivePath, exportSessionToFile, getSessionDetail, importSessionFromFile, isSafeSessionId, listArchivedSessionFiles, listDirectories, listSessions, readArchivedMessages, readRecentMessages, setArchived } from "../src/db.ts";
 
 const root = join(import.meta.dir, ".tmp-db");
 const dbPath = join(root, "opencode.db");
@@ -178,6 +178,19 @@ describe("archive path and archived messages", () => {
     expect(rows[0]).toEqual({ role: "user", time: 123, text: "helloworld" });
     delete process.env.XDG_DATA_HOME;
   });
+
+  test("listArchivedSessionFiles skips files where filename and inner id mismatch", () => {
+    process.env.XDG_DATA_HOME = root;
+    const exportsDir = join(root, "opencode", "tools", "opencode-all", "exports");
+    mkdirSync(exportsDir, { recursive: true });
+    writeFileSync(join(exportsDir, "ses_safe.json"), JSON.stringify({
+      info: { id: "different_id", title: "Mismatched", directory: "/repo" },
+      messages: [],
+    }));
+    const rows = listArchivedSessionFiles({ archiveRoot: exportsDir, cwd: "/repo" });
+    expect(rows).toHaveLength(0);
+    delete process.env.XDG_DATA_HOME;
+  });
 });
 
 describe("hard archive CLI helpers", () => {
@@ -210,12 +223,15 @@ describe("hard archive CLI helpers", () => {
     delete process.env.OPENCODE_ALL_OPENCODE_BIN;
     delete process.env.XDG_DATA_HOME;
   });
-});
 
-describe("activeSessionsMatchingText", () => {
-  test("finds sessions by message text", () => {
-    const rows = activeSessionsMatchingText("hello", 50, dbPath, "/repo/current");
-    expect(rows.length).toBeGreaterThan(0);
-    expect(rows.some(r => r.id === "ses_a")).toBe(true);
+  test("exportSessionToFile returns error code -3 when opencode bin is missing", () => {
+    process.env.XDG_DATA_HOME = root;
+    process.env.OPENCODE_ALL_OPENCODE_BIN = "/nonexistent/path/opencode-binary-that-does-not-exist";
+    const res = exportSessionToFile("ses_safe");
+    expect(res.ok).toBe(false);
+    expect(res.code).toBe(-3);
+    expect(res.stderr).toContain("opencode CLI not found");
+    delete process.env.OPENCODE_ALL_OPENCODE_BIN;
+    delete process.env.XDG_DATA_HOME;
   });
 });

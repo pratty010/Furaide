@@ -1,6 +1,5 @@
 import {
   currentSession,
-  cwd,
   selectFolderAtCursor,
   getVisibleRows,
   popStack,
@@ -15,8 +14,6 @@ function moveSessionCursor(state: UiState, cursor: number): UiState {
 }
 import type { DirectoryRow } from "../db.ts";
 import {
-  activeSessionsMatchingText,
-  defaultDbPath,
   deleteSessionById,
   exportSessionToFile,
   importSessionFromFile,
@@ -345,8 +342,14 @@ export function searchResultsFor(state: UiState): SearchResult[] {
   const activeResults = state.allSessions.filter(s => s.timeArchived == null);
   const archivedResults = state.allSessions.filter(s => s.timeArchived != null);
 
-  const activeDbResults = activeSessionsMatchingText(query, 50, defaultDbPath(), cwd())
-    .map(s => ({ session: s, tab: "active" as const, matchIn: "messages" as const }));
+  const activeDbResults = activeResults
+    .filter(s => {
+      const id = s.id.toLowerCase();
+      return s.title.toLowerCase().includes(query)
+        || id.includes(query)
+        || s.directory.toLowerCase().includes(query);
+    })
+    .map(s => ({ session: s, tab: "active" as const, matchIn: "metadata" as const }));
 
   const activeMetaResults = activeResults
     .filter(s => [s.title, s.directory, s.path, s.agent, s.model, s.shareUrl].some(v => v.toLowerCase().includes(query)))

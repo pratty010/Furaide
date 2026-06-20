@@ -46,12 +46,27 @@ function opencodeBin(): string {
 export function exportSessionToFile(id: string): { ok: boolean; code: number; stderr: string } {
   if (!isSafeSessionId(id)) return invalidCliResult(id);
   const file = defaultArchivePath(id);
-  mkdirSync(dirname(file), { recursive: true });
-  const result = spawnSync(opencodeBin(), ["export", id], { stdio: ["ignore", "pipe", "pipe"] });
-  if (result.status === 0) {
-    writeFileSync(file, result.stdout || Buffer.from(""), { mode: 0o600 });
+  try {
+    mkdirSync(dirname(file), { recursive: true, mode: 0o700 });
+  } catch (err) {
+    return { ok: false, code: -5, stderr: `failed to create archive dir: ${(err as Error).message}` };
   }
-  return { ok: result.status === 0, code: result.status ?? 1, stderr: (result.stderr || "").toString() };
+  try {
+    const result = spawnSync(opencodeBin(), ["export", id], { stdio: ["ignore", "pipe", "pipe"], timeout: 30_000 });
+    if (result.error) {
+      return { ok: false, code: -3, stderr: `opencode CLI not found: ${result.error.message}` };
+    }
+    if (result.status === 0) {
+      writeFileSync(file, result.stdout || Buffer.from(""), { mode: 0o600 });
+      return { ok: true, code: 0, stderr: "" };
+    }
+    if (result.signal === "SIGTERM") {
+      return { ok: false, code: -4, stderr: "opencode export timed out (30s)" };
+    }
+    return { ok: false, code: result.status ?? 1, stderr: (result.stderr || "").toString() };
+  } catch (err) {
+    return { ok: false, code: -3, stderr: `opencode CLI not found: ${(err as Error).message}` };
+  }
 }
 
 export function importSessionFromFile(id: string): { ok: boolean; code: number; stderr: string } {
@@ -60,14 +75,28 @@ export function importSessionFromFile(id: string): { ok: boolean; code: number; 
   if (!existsSync(file)) {
     return { ok: false, code: -1, stderr: `archive file not found at ${file}` };
   }
-  const result = spawnSync(opencodeBin(), ["import", file], { stdio: "pipe" });
-  return { ok: result.status === 0, code: result.status ?? 1, stderr: (result.stderr || "").toString() };
+  try {
+    const result = spawnSync(opencodeBin(), ["import", file], { stdio: "pipe", timeout: 30_000 });
+    if (result.error) return { ok: false, code: -3, stderr: `opencode CLI not found: ${result.error.message}` };
+    if (result.status === 0) return { ok: true, code: 0, stderr: "" };
+    if (result.signal === "SIGTERM") return { ok: false, code: -4, stderr: "opencode import timed out (30s)" };
+    return { ok: false, code: result.status ?? 1, stderr: (result.stderr || "").toString() };
+  } catch (err) {
+    return { ok: false, code: -3, stderr: `opencode CLI not found: ${(err as Error).message}` };
+  }
 }
 
 export function deleteSessionById(id: string): { ok: boolean; code: number; stderr: string } {
   if (!isSafeSessionId(id)) return invalidCliResult(id);
-  const result = spawnSync(opencodeBin(), ["session", "delete", id], { stdio: "pipe" });
-  return { ok: result.status === 0, code: result.status ?? 1, stderr: (result.stderr || "").toString() };
+  try {
+    const result = spawnSync(opencodeBin(), ["session", "delete", id], { stdio: "pipe", timeout: 30_000 });
+    if (result.error) return { ok: false, code: -3, stderr: `opencode CLI not found: ${result.error.message}` };
+    if (result.status === 0) return { ok: true, code: 0, stderr: "" };
+    if (result.signal === "SIGTERM") return { ok: false, code: -4, stderr: "opencode delete timed out (30s)" };
+    return { ok: false, code: result.status ?? 1, stderr: (result.stderr || "").toString() };
+  } catch (err) {
+    return { ok: false, code: -3, stderr: `opencode CLI not found: ${(err as Error).message}` };
+  }
 }
 
 export function removeArchiveFile(id: string): { ok: boolean; err?: string } {
@@ -335,6 +364,8 @@ export function archiveInfoToRow(raw: any, archivePath: string, cwdValue: string
   if (!info || typeof info !== "object") return null;
   const id = String(info.id || "");
   if (!isSafeSessionId(id)) return null;
+  const fileId = archivePath.split("/").pop()?.replace(/\.json$/, "") || "";
+  if (id !== fileId) return null;
   const title = renderSafe(info.title || id);
   const directory = renderSafe(info.directory || "");
   const path = renderSafe(info.path || "");
@@ -351,11 +382,11 @@ export function archiveInfoToRow(raw: any, archivePath: string, cwdValue: string
     agent: capText(agent, 80),
     model: capText(model, 160),
     shareUrl: "",
-    cost: Number(info.cost || 0),
-    tokensInput: Number(tokens.input || 0),
-    tokensOutput: Number(tokens.output || 0),
-    timeCreated: Number(info.time?.created || 0),
-    timeUpdated: Number(info.time?.updated || 0),
+    cost: typeof info.cost === "number" ? info.cost : 0,
+    tokensInput: typeof tokens.input === "number" ? tokens.input : 0,
+    tokensOutput: typeof tokens.output === "number" ? tokens.output : 0,
+    timeCreated: typeof info.time?.created === "number" ? info.time.created : 0,
+    timeUpdated: typeof info.time?.updated === "number" ? info.time.updated : 0,
     timeArchived: archiveTime || Math.trunc(stats.mtimeMs),
     isCurrent: directory.startsWith(cwdValue) || path.startsWith(cwdValue),
     suspicious: [info.title, info.directory, info.path, info.agent, info.model].some(hasControlBytes),
@@ -528,6 +559,12 @@ export function listDirectories(options: { dbPath?: string; prefix?: string }): 
   }
 }
 
+/**
+ * @deprecated Search scope no longer includes message content. Use the in-memory
+ * filter in `dashboard/actions.ts` (`searchResultsFor`) which matches active
+ * sessions on title + session_id + directory only. Kept here temporarily to
+ * avoid breaking imports; remove in Task 5.
+ */
 export function activeSessionsMatchingText(query: string, maxResults = 50, dbPath = defaultDbPath(), cwdValue = process.env.OPENCODE_ALL_CWD || process.cwd()): SessionRow[] {
   try {
     const db = openDb(dbPath);
