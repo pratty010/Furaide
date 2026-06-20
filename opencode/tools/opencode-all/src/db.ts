@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, unlinkSync, writeFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
-import { dirname, join } from "node:path";
+import { basename, dirname, join } from "node:path";
 import { Database } from "bun:sqlite";
 import { capText, hasControlBytes, renderSafe } from "./sanitize.ts";
 
@@ -19,6 +19,7 @@ export type ActiveMessageRow = {
 };
 
 const MAX_ARCHIVE_BYTES = 100 * 1024 * 1024;
+const SPAWN_TIMEOUT_MS = 30_000;
 
 export function isSafeSessionId(id: string): boolean {
   return /^[A-Za-z0-9_][A-Za-z0-9_-]{0,63}$/.test(id);
@@ -52,7 +53,7 @@ export function exportSessionToFile(id: string): { ok: boolean; code: number; st
     return { ok: false, code: -5, stderr: `failed to create archive dir: ${(err as Error).message}` };
   }
   try {
-    const result = spawnSync(opencodeBin(), ["export", id], { stdio: ["ignore", "pipe", "pipe"], timeout: 30_000 });
+    const result = spawnSync(opencodeBin(), ["export", id], { stdio: ["ignore", "pipe", "pipe"], timeout: SPAWN_TIMEOUT_MS });
     if (result.error) {
       return { ok: false, code: -3, stderr: `opencode CLI not found: ${result.error.message}` };
     }
@@ -61,7 +62,7 @@ export function exportSessionToFile(id: string): { ok: boolean; code: number; st
       return { ok: true, code: 0, stderr: "" };
     }
     if (result.signal === "SIGTERM") {
-      return { ok: false, code: -4, stderr: "opencode export timed out (30s)" };
+      return { ok: false, code: -4, stderr: `opencode export timed out (${SPAWN_TIMEOUT_MS / 1000}s)` };
     }
     return { ok: false, code: result.status ?? 1, stderr: (result.stderr || "").toString() };
   } catch (err) {
@@ -76,10 +77,10 @@ export function importSessionFromFile(id: string): { ok: boolean; code: number; 
     return { ok: false, code: -1, stderr: `archive file not found at ${file}` };
   }
   try {
-    const result = spawnSync(opencodeBin(), ["import", file], { stdio: "pipe", timeout: 30_000 });
+    const result = spawnSync(opencodeBin(), ["import", file], { stdio: "pipe", timeout: SPAWN_TIMEOUT_MS });
     if (result.error) return { ok: false, code: -3, stderr: `opencode CLI not found: ${result.error.message}` };
     if (result.status === 0) return { ok: true, code: 0, stderr: "" };
-    if (result.signal === "SIGTERM") return { ok: false, code: -4, stderr: "opencode import timed out (30s)" };
+    if (result.signal === "SIGTERM") return { ok: false, code: -4, stderr: `opencode import timed out (${SPAWN_TIMEOUT_MS / 1000}s)` };
     return { ok: false, code: result.status ?? 1, stderr: (result.stderr || "").toString() };
   } catch (err) {
     return { ok: false, code: -3, stderr: `opencode CLI not found: ${(err as Error).message}` };
@@ -89,10 +90,10 @@ export function importSessionFromFile(id: string): { ok: boolean; code: number; 
 export function deleteSessionById(id: string): { ok: boolean; code: number; stderr: string } {
   if (!isSafeSessionId(id)) return invalidCliResult(id);
   try {
-    const result = spawnSync(opencodeBin(), ["session", "delete", id], { stdio: "pipe", timeout: 30_000 });
+    const result = spawnSync(opencodeBin(), ["session", "delete", id], { stdio: "pipe", timeout: SPAWN_TIMEOUT_MS });
     if (result.error) return { ok: false, code: -3, stderr: `opencode CLI not found: ${result.error.message}` };
     if (result.status === 0) return { ok: true, code: 0, stderr: "" };
-    if (result.signal === "SIGTERM") return { ok: false, code: -4, stderr: "opencode delete timed out (30s)" };
+    if (result.signal === "SIGTERM") return { ok: false, code: -4, stderr: `opencode delete timed out (${SPAWN_TIMEOUT_MS / 1000}s)` };
     return { ok: false, code: result.status ?? 1, stderr: (result.stderr || "").toString() };
   } catch (err) {
     return { ok: false, code: -3, stderr: `opencode CLI not found: ${(err as Error).message}` };
@@ -184,9 +185,9 @@ export function getArchivedSessionDetail(id: string): (SessionDetail & { archive
       tokensReasoning: 0,
       tokensCacheRead: 0,
       tokensCacheWrite: 0,
-      summaryFiles: Number(raw?.info?.summary?.files || 0),
-      summaryAdditions: Number(raw?.info?.summary?.additions || 0),
-      summaryDeletions: Number(raw?.info?.summary?.deletions || 0),
+      summaryFiles: typeof raw?.info?.summary?.files === "number" ? raw.info.summary.files : 0,
+      summaryAdditions: typeof raw?.info?.summary?.additions === "number" ? raw.info.summary.additions : 0,
+      summaryDeletions: typeof raw?.info?.summary?.deletions === "number" ? raw.info.summary.deletions : 0,
       archivePath: file,
       archiveBytes: stats.size,
     };
@@ -364,7 +365,7 @@ export function archiveInfoToRow(raw: any, archivePath: string, cwdValue: string
   if (!info || typeof info !== "object") return null;
   const id = String(info.id || "");
   if (!isSafeSessionId(id)) return null;
-  const fileId = archivePath.split("/").pop()?.replace(/\.json$/, "") || "";
+  const fileId = basename(archivePath, ".json");
   if (id !== fileId) return null;
   const title = renderSafe(info.title || id);
   const directory = renderSafe(info.directory || "");
@@ -373,6 +374,7 @@ export function archiveInfoToRow(raw: any, archivePath: string, cwdValue: string
   const model = renderSafe(typeof info.model === "string" ? info.model : JSON.stringify(info.model || ""));
   const tokens = info.tokens || {};
   const summary = info.summary || {};
+  const time = info.time || {};
   const stats = statSync(archivePath);
   return {
     id,
@@ -385,8 +387,8 @@ export function archiveInfoToRow(raw: any, archivePath: string, cwdValue: string
     cost: typeof info.cost === "number" ? info.cost : 0,
     tokensInput: typeof tokens.input === "number" ? tokens.input : 0,
     tokensOutput: typeof tokens.output === "number" ? tokens.output : 0,
-    timeCreated: typeof info.time?.created === "number" ? info.time.created : 0,
-    timeUpdated: typeof info.time?.updated === "number" ? info.time.updated : 0,
+    timeCreated: typeof time.created === "number" ? time.created : 0,
+    timeUpdated: typeof time.updated === "number" ? time.updated : 0,
     timeArchived: archiveTime || Math.trunc(stats.mtimeMs),
     isCurrent: directory.startsWith(cwdValue) || path.startsWith(cwdValue),
     suspicious: [info.title, info.directory, info.path, info.agent, info.model].some(hasControlBytes),
