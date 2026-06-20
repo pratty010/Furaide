@@ -115,7 +115,7 @@ describe("index updates", () => {
     const index = buildSessionIndex({ dbPath, archiveRoot, cwd: "/repo" });
     removeActiveFromIndex(index, "ses_active_1");
     expect(index.active.has("ses_active_1")).toBe(false);
-    expect(index.activeByDir.get("/repo/a")?.has("ses_active_1")).toBe(false);
+    expect(index.activeByDir.has("/repo/a")).toBe(false);
   });
 
   test("addArchivedToIndex adds archived row and directory group entry", () => {
@@ -131,7 +131,7 @@ describe("index updates", () => {
     const index = buildSessionIndex({ dbPath, archiveRoot, cwd: "/repo" });
     removeArchivedFromIndex(index, "ses_archived_1");
     expect(index.archived.has("ses_archived_1")).toBe(false);
-    expect(index.archivedByDir.get("/repo/a")?.has("ses_archived_1")).toBe(false);
+    expect(index.archivedByDir.has("/repo/a")).toBe(false);
   });
 
   test("addActiveToIndex adds active row and directory group entry", () => {
@@ -141,5 +141,44 @@ describe("index updates", () => {
     addActiveToIndex(index, { ...row, timeArchived: null });
     expect(index.active.has("ses_archived_1")).toBe(true);
     expect(index.activeByDir.get("/repo/a")?.has("ses_archived_1")).toBe(true);
+  });
+
+  test("removeFromGroup cleans up empty directory sets", () => {
+    const index = buildSessionIndex({ dbPath, archiveRoot, cwd: "/repo" });
+    // /repo/a has ses_active_1 (active) and ses_archived_1 (archived)
+    removeActiveFromIndex(index, "ses_active_1");
+    // After removing the only active session in /repo/a, the active group should not have /repo/a
+    expect(index.activeByDir.has("/repo/a")).toBe(false);
+    // But /repo/b still has ses_active_2
+    expect(index.activeByDir.has("/repo/b")).toBe(true);
+    // Archived group for /repo/a still has ses_archived_1
+    expect(index.archivedByDir.has("/repo/a")).toBe(true);
+  });
+});
+
+describe("buildSessionIndex dedup", () => {
+  test("skips archived entries that also exist in active (export succeeded but delete failed)", () => {
+    // Write an archive file for ses_active_1 (simulating export succeeded, delete failed)
+    writeArchive("ses_active_1", "/repo/a", "Active One Archive Copy");
+    const index = buildSessionIndex({ dbPath, archiveRoot, cwd: "/repo" });
+    // ses_active_1 should be in active, NOT in archived
+    expect(index.active.has("ses_active_1")).toBe(true);
+    expect(index.archived.has("ses_active_1")).toBe(false);
+    // ses_archived_1 should still be in archived (it's not in active)
+    expect(index.archived.has("ses_archived_1")).toBe(true);
+  });
+});
+
+describe("rowsForTab search scope", () => {
+  test("matches on title, directory, and id only (not path/agent/model)", () => {
+    const index = buildSessionIndex({ dbPath, archiveRoot, cwd: "/repo" });
+    // ses_active_1 has agent "build" and model "model-a" — searching for "build" should NOT match
+    expect(rowsForTab(index, "active", undefined, "build")).toEqual([]);
+    // Searching for "active" (title substring) should match
+    expect(rowsForTab(index, "active", undefined, "active").map(r => r.id)).toContain("ses_active_1");
+    // Searching for "repo/a" (directory substring) should match
+    expect(rowsForTab(index, "active", undefined, "repo/a").map(r => r.id)).toContain("ses_active_1");
+    // Searching for "ses_active_1" (id) should match
+    expect(rowsForTab(index, "active", undefined, "ses_active_1").map(r => r.id)).toEqual(["ses_active_1"]);
   });
 });

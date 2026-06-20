@@ -33,6 +33,7 @@ function removeFromGroup(group: Map<string, Set<string>>, row: SessionRow): void
   const set = group.get(row.directory);
   if (!set) return;
   set.delete(row.id);
+  if (set.size === 0) group.delete(row.directory);
 }
 
 export function addActiveToIndex(index: SessionIndex, row: SessionRow): void {
@@ -67,7 +68,10 @@ export function buildSessionIndex(options: BuildSessionIndexOptions): SessionInd
   const active = listSessions({ tab: "active", cwd: options.cwd, dbPath: options.dbPath });
   for (const row of active) addActiveToIndex(index, row);
   const archived = listArchivedSessionFiles({ archiveRoot: options.archiveRoot, cwd: options.cwd });
-  for (const row of archived) addArchivedToIndex(index, row);
+  for (const row of archived) {
+    if (index.active.has(row.id)) continue;
+    addArchivedToIndex(index, row);
+  }
   return index;
 }
 
@@ -76,7 +80,7 @@ export function rowsForTab(index: SessionIndex, tab: Tab, directory?: string, qu
   const lower = query.trim().toLowerCase();
   return [...source.values()]
     .filter(row => !directory || row.directory === directory)
-    .filter(row => !lower || [row.title, row.directory, row.path, row.agent, row.model, row.shareUrl].some(value => value.toLowerCase().includes(lower)))
+    .filter(row => !lower || [row.title, row.directory, row.id].some(value => value.toLowerCase().includes(lower)))
     .sort((a, b) => Number(b.isCurrent) - Number(a.isCurrent) || b.timeUpdated - a.timeUpdated);
 }
 
