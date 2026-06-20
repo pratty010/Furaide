@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { Database } from "bun:sqlite";
-import { getSessionDetail, listDirectories, listSessions, setArchived } from "../src/db.ts";
+import { defaultArchivePath, getSessionDetail, isSafeSessionId, listDirectories, listSessions, readArchivedMessages, readRecentMessages, setArchived } from "../src/db.ts";
 
 const root = join(import.meta.dir, ".tmp-db");
 const dbPath = join(root, "opencode.db");
@@ -61,13 +61,23 @@ function seed() {
   `);
   db.run(`INSERT INTO message VALUES
     ('msg_a','ses_a',1000,1000,'{"role":"user"}'),
-    ('msg_b','ses_a',1001,1001,'{"role":"assistant"}')
+    ('msg_b','ses_a',1001,1001,'{"role":"assistant"}'),
+    ('msg_c','ses_c',2000,2000,'{"role":"system"}'),
+    ('msg_d','ses_c',2001,2001,'{"role":"user"}'),
+    ('msg_e','ses_c',2002,2002,'{"role":"assistant"}'),
+    ('msg_f','ses_c',2003,2003,'{"role":"user"}'),
+    ('msg_g','ses_c',2004,2004,'{"role":"assistant"}')
   `);
   db.run(`INSERT INTO part VALUES
     ('prt_1','msg_a','ses_a',1000,1000,'{"type":"text","text":"hello from user"}'),
     ('prt_2','msg_b','ses_a',1001,1001,'{"type":"text","text":"hello from assistant"}'),
     ('prt_3','msg_b','ses_a',1002,1002,'{"type":"tool","tool":"bash","state":{"status":"completed"}}'),
-    ('prt_4','msg_b','ses_a',1003,1003,'{"type":"reasoning","text":"thinking"}')
+    ('prt_4','msg_b','ses_a',1003,1003,'{"type":"reasoning","text":"thinking"}'),
+    ('prt_5','msg_c','ses_c',2000,2000,'{"type":"text","text":"system prompt"}'),
+    ('prt_6','msg_d','ses_c',2001,2001,'{"type":"text","text":"first user"}'),
+    ('prt_7','msg_e','ses_c',2002,2002,'{"type":"text","text":"first assistant"}'),
+    ('prt_8','msg_f','ses_c',2003,2003,'{"type":"text","text":"second user"}'),
+    ('prt_9','msg_g','ses_c',2004,2004,'{"type":"text","text":"second assistant"}')
   `);
   db.close();
 
@@ -119,5 +129,53 @@ describe("directories", () => {
       { directory: "/repo/current/sub", active: 1, archived: 0, latestUpdated: 3000 },
       { directory: "/repo/other", active: 1, archived: 0, latestUpdated: 6000 },
     ]);
+  });
+});
+
+describe("readRecentMessages", () => {
+  test("returns user/assistant only, ascending, no system", () => {
+    const rows = readRecentMessages("ses_c", 200, dbPath);
+    expect(rows).toHaveLength(4);
+    expect(rows[0]).toEqual({ role: "user", time: 2001, text: "first user" });
+    expect(rows[1]).toEqual({ role: "assistant", time: 2002, text: "first assistant" });
+    expect(rows[2]).toEqual({ role: "user", time: 2003, text: "second user" });
+    expect(rows[3]).toEqual({ role: "assistant", time: 2004, text: "second assistant" });
+  });
+
+  test("respects maxMessages cap", () => {
+    const rows = readRecentMessages("ses_c", 2, dbPath);
+    expect(rows).toHaveLength(2);
+    expect(rows[1].text).toBe("first assistant");
+  });
+
+  test("returns empty array for missing session", () => {
+    expect(readRecentMessages("nonexistent", 200, dbPath)).toEqual([]);
+  });
+
+  test("returns empty array for session with no user/assistant messages", () => {
+    expect(readRecentMessages("ses_d", 200, dbPath)).toEqual([]);
+  });
+});
+
+describe("archive path and archived messages", () => {
+  test("rejects path traversal session ids", () => {
+    expect(isSafeSessionId("ses_safe-123")).toBe(true);
+    expect(isSafeSessionId("../bad")).toBe(false);
+    expect(isSafeSessionId("-bad")).toBe(false);
+    expect(() => defaultArchivePath("../bad")).toThrow("invalid session id");
+  });
+
+  test("readArchivedMessages sanitizes archived text", () => {
+    process.env.XDG_DATA_HOME = root;
+    const file = defaultArchivePath("ses_a");
+    mkdirSync(join(root, "opencode", "tools", "opencode-all", "exports"), { recursive: true });
+    writeFileSync(file, JSON.stringify({
+      messages: [
+        { info: { role: "user", time: { created: 123 } }, parts: [{ type: "text", text: "hello\u001b[2Jworld" }] },
+      ],
+    }));
+    const rows = readArchivedMessages("ses_a");
+    expect(rows[0]).toEqual({ role: "user", time: 123, text: "helloworld" });
+    delete process.env.XDG_DATA_HOME;
   });
 });

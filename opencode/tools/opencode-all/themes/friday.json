@@ -33,6 +33,7 @@
     "statusKey": "accent",
     "modalBorder": "accent",
     "modalBg": "surface",
-    "modalFg": "text"
+    "modalFg": "text",
+    "danger": "error"
   }
 }

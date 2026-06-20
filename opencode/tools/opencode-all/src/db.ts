@@ -1,6 +1,6 @@
-import { existsSync, readFileSync, statSync, unlinkSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, statSync, unlinkSync } from "node:fs";
 import { spawnSync } from "node:child_process";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { Database } from "bun:sqlite";
 import { capText, hasControlBytes, renderSafe } from "./sanitize.ts";
 
@@ -12,7 +12,24 @@ export type ArchivedMessageRow = {
   text: string;
 };
 
+export type ActiveMessageRow = {
+  role: "user" | "assistant";
+  time: number;
+  text: string;
+};
+
+const MAX_ARCHIVE_BYTES = 100 * 1024 * 1024;
+
+export function isSafeSessionId(id: string): boolean {
+  return /^[A-Za-z0-9_][A-Za-z0-9_-]{0,63}$/.test(id);
+}
+
+function invalidCliResult(id: string): { ok: false; code: number; stderr: string } {
+  return { ok: false, code: -2, stderr: `invalid session id: ${renderSafe(id)}` };
+}
+
 export function defaultArchivePath(id: string): string {
+  if (!isSafeSessionId(id)) throw new Error(`invalid session id: ${renderSafe(id)}`);
   const base = process.env.XDG_DATA_HOME || join(process.env.HOME || ".", ".local", "share");
   return join(base, "opencode", "tools", "opencode-all", "exports", `${id}.json`);
 }
@@ -22,13 +39,16 @@ function opencodeBin(): string {
 }
 
 export function exportSessionToFile(id: string, raw = false): { ok: boolean; code: number; stderr: string } {
+  if (!isSafeSessionId(id)) return invalidCliResult(id);
   const file = defaultArchivePath(id);
+  mkdirSync(dirname(file), { recursive: true });
   const args = ["session", "export", id, ...(raw ? [] : ["--sanitize"]), file];
   const result = spawnSync(opencodeBin(), args, { stdio: "pipe" });
   return { ok: result.status === 0, code: result.status ?? 1, stderr: (result.stderr || "").toString() };
 }
 
 export function importSessionFromFile(id: string): { ok: boolean; code: number; stderr: string } {
+  if (!isSafeSessionId(id)) return invalidCliResult(id);
   const file = defaultArchivePath(id);
   if (!existsSync(file)) {
     return { ok: false, code: -1, stderr: `archive file not found at ${file}` };
@@ -38,11 +58,13 @@ export function importSessionFromFile(id: string): { ok: boolean; code: number; 
 }
 
 export function deleteSessionById(id: string): { ok: boolean; code: number; stderr: string } {
+  if (!isSafeSessionId(id)) return invalidCliResult(id);
   const result = spawnSync(opencodeBin(), ["session", "delete", id], { stdio: "pipe" });
   return { ok: result.status === 0, code: result.status ?? 1, stderr: (result.stderr || "").toString() };
 }
 
 export function removeArchiveFile(id: string): { ok: boolean; err?: string } {
+  if (!isSafeSessionId(id)) return { ok: false, err: `invalid session id: ${renderSafe(id)}` };
   const file = defaultArchivePath(id);
   if (!existsSync(file)) return { ok: true };
   try {
@@ -53,10 +75,38 @@ export function removeArchiveFile(id: string): { ok: boolean; err?: string } {
   }
 }
 
+export function readRecentMessages(id: string, maxMessages = 200, dbPath = defaultDbPath()): ActiveMessageRow[] {
+  if (!isSafeSessionId(id)) return [];
+  const db = openDb(dbPath);
+  try {
+    return (db.query(`
+      SELECT json_extract(m.data, '$.role') AS role,
+             m.time_created AS time,
+             json_extract(p.data, '$.text') AS text
+      FROM message m
+      JOIN part p ON p.message_id = m.id
+      WHERE m.session_id = ?
+        AND json_extract(m.data, '$.role') IN ('user', 'assistant')
+        AND json_extract(p.data, '$.type') = 'text'
+      ORDER BY m.time_created ASC
+      LIMIT ?
+    `).all(id, maxMessages) as Array<{ role?: string; time?: number; text?: string }>).map(item => ({
+      role: (item.role === "user" ? "user" : "assistant") as "user" | "assistant",
+      time: Number(item.time || 0),
+      text: renderSafe(item.text || ""),
+    }));
+  } finally {
+    db.close();
+  }
+}
+
 export function readArchivedMessages(id: string, maxMessages = 200): ArchivedMessageRow[] {
+  if (!isSafeSessionId(id)) return [];
   const file = defaultArchivePath(id);
   if (!existsSync(file)) return [];
   try {
+    const size = statSync(file).size;
+    if (size > MAX_ARCHIVE_BYTES) return [{ role: "system", time: 0, text: `archive too large (${size} bytes)` }];
     const raw = JSON.parse(readFileSync(file, "utf8"));
     const messages = Array.isArray(raw?.messages) ? raw.messages : [];
     const rows: ArchivedMessageRow[] = [];
@@ -67,21 +117,21 @@ export function readArchivedMessages(id: string, maxMessages = 200): ArchivedMes
       const time = Number(m?.info?.time?.created ?? 0);
       const parts = Array.isArray(m?.parts) ? m.parts : [];
       const textPart = parts.find((p: any) => p?.type === "text");
-      const text = String(textPart?.text ?? "");
+      const text = renderSafe(String(textPart?.text ?? ""));
       rows.push({ role, time, text });
     }
     return rows;
   } catch {
-    return [];
+    return [{ role: "system", time: 0, text: "archive corrupt or unreadable" }];
   }
 }
 
 export function listActiveSessionsInDir(directory: string): SessionRow[] {
-  return listSessions({ tab: "active", cwd: process.cwd(), directory });
+  return listSessions({ tab: "active", cwd: process.env.OPENCODE_ALL_CWD || process.cwd(), directory });
 }
 
 export function listArchivedSessionsInDir(directory: string): SessionRow[] {
-  return listSessions({ tab: "archived", cwd: process.cwd(), directory });
+  return listSessions({ tab: "archived", cwd: process.env.OPENCODE_ALL_CWD || process.cwd(), directory });
 }
 
 export type SessionRow = {
@@ -259,6 +309,7 @@ export function listSessions(options: ListOptions): SessionRow[] {
 }
 
 export function getSessionDetail(options: { dbPath?: string; id: string; cwd?: string }): SessionDetail | null {
+  if (!isSafeSessionId(options.id)) return null;
   const db = openDb(options.dbPath);
   try {
     const raw = db.query(`
@@ -339,6 +390,7 @@ export function getSessionDetail(options: { dbPath?: string; id: string; cwd?: s
 }
 
 export function setArchived(options: { dbPath?: string; id: string; archivedAt: number | null }): void {
+  if (!isSafeSessionId(options.id)) return;
   const db = openDb(options.dbPath);
   try {
     db.query("UPDATE session SET time_archived = ? WHERE id = ?").run(options.archivedAt, options.id);
