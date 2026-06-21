@@ -312,42 +312,42 @@ describe("dashboardLayout", () => {
   test("wide layout uses half top split and two-row action bar", () => {
     const layout = dashboardLayout(110, 30);
     expect(layout.mode).toBe("wide");
-    expect(layout.topPercent).toBe(1);
-    expect(layout.sessionsPercent).toBe(1);
+    expect(layout.topPercent).toBe(55);
+    expect(layout.sessionsPercent).toBe(30);
     expect(layout.actionRows).toBe(2);
     expect(layout.topSplit).toBe("half");
-    expect(layout.topMaxHeight).toBe("55%");
+    expect(layout.topMaxHeight).toBe("70%");
     expect(layout.sessionsMinHeight).toBe("30%");
   });
 
   test("medium layout keeps half top split and two-row action bar", () => {
-    const layout = dashboardLayout(100, 30);
+    const layout = dashboardLayout(99, 28);
     expect(layout.mode).toBe("medium");
-    expect(layout.topPercent).toBe(1);
-    expect(layout.sessionsPercent).toBe(1);
+    expect(layout.topPercent).toBe(55);
+    expect(layout.sessionsPercent).toBe(30);
     expect(layout.actionRows).toBe(2);
     expect(layout.topSplit).toBe("half");
-    expect(layout.topMaxHeight).toBe("55%");
+    expect(layout.topMaxHeight).toBe("70%");
     expect(layout.sessionsMinHeight).toBe("30%");
   });
 
   test("focused layout activates below minimum terminal size", () => {
-    const narrow = dashboardLayout(81, 30);
+    const narrow = dashboardLayout(59, 30);
     expect(narrow.mode).toBe("focused");
     expect(narrow.topPercent).toBe(0);
     expect(narrow.sessionsPercent).toBe(0);
     expect(narrow.topSplit).toBe("focused");
     expect(narrow.actionRows).toBe(1);
-    expect(narrow.topMaxHeight).toBe("55%");
+    expect(narrow.topMaxHeight).toBe("70%");
     expect(narrow.sessionsMinHeight).toBe("30%");
 
-    const short = dashboardLayout(100, 21);
+    const short = dashboardLayout(100, 19);
     expect(short.mode).toBe("focused");
     expect(short.topPercent).toBe(0);
     expect(short.sessionsPercent).toBe(0);
     expect(short.topSplit).toBe("focused");
     expect(short.actionRows).toBe(1);
-    expect(short.topMaxHeight).toBe("55%");
+    expect(short.topMaxHeight).toBe("70%");
     expect(short.sessionsMinHeight).toBe("30%");
   });
 
@@ -355,18 +355,18 @@ describe("dashboardLayout", () => {
     const wide = dashboardLayout(110, 30);
     expect(wide.topPercent + wide.sessionsPercent).toBeLessThanOrEqual(100);
 
-    const medium = dashboardLayout(100, 30);
+    const medium = dashboardLayout(99, 28);
     expect(medium.topPercent + medium.sessionsPercent).toBeLessThanOrEqual(100);
 
-    const focused = dashboardLayout(81, 30);
+    const focused = dashboardLayout(59, 30);
     expect(focused.topPercent + focused.sessionsPercent).toBeLessThanOrEqual(100);
   });
 
   test("medium mode activates on either dimension below threshold", () => {
-    const narrow = dashboardLayout(109, 30);
+    const narrow = dashboardLayout(99, 30);
     expect(narrow.mode).toBe("medium");
 
-    const short = dashboardLayout(110, 29);
+    const short = dashboardLayout(110, 27);
     expect(short.mode).toBe("medium");
   });
 
@@ -376,7 +376,7 @@ describe("dashboardLayout", () => {
     expect(layout.topPercent).toBe(0);
     expect(layout.sessionsPercent).toBe(0);
     expect(layout.topSplit).toBe("focused");
-    expect(layout.topMaxHeight).toBe("55%");
+    expect(layout.topMaxHeight).toBe("70%");
     expect(layout.sessionsMinHeight).toBe("30%");
   });
 
@@ -384,9 +384,17 @@ describe("dashboardLayout", () => {
     const sizes: [number, number][] = [[40, 10], [100, 30], [120, 30]];
     for (const [w, h] of sizes) {
       const layout = dashboardLayout(w, h);
-      expect(layout.topMaxHeight).toBe("55%");
+      expect(layout.topMaxHeight).toBe("70%");
       expect(layout.sessionsMinHeight).toBe("30%");
     }
+  });
+
+  test("80x24 terminal gets medium mode with 3 panes (not focused)", () => {
+    const layout = dashboardLayout(80, 24);
+    expect(layout.mode).toBe("medium");
+    expect(layout.topSplit).toBe("half");
+    expect(layout.topPercent).toBe(55);
+    expect(layout.sessionsPercent).toBe(30);
   });
 });
 
