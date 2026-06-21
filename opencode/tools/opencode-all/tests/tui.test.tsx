@@ -1,8 +1,9 @@
 import { beforeAll, afterAll, describe, expect, test } from "bun:test";
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
+import { EventEmitter } from "node:events";
 import { Database } from "bun:sqlite";
-import { applyKey, buildSearchOverlay } from "../src/tui.tsx";
+import { applyKey, buildSearchOverlay, runChildSession, type ContinueRequest } from "../src/tui.tsx";
 import { addActiveToIndex, addArchivedToIndex, type SessionIndex } from "../src/dashboard/session-index.ts";
 import { createInitialState, currentSession, getVisibleRows, reloadState, type UiSession } from "../src/dashboard/state.ts";
 import { actionChips } from "../src/dashboard/actions.ts";
@@ -530,7 +531,7 @@ describe("scrollable layout tree (ScrollBoxRenderable)", () => {
       const layout = dashboardLayout(120, 30);
       expect(layout.mode).toBe("wide");
 
-      const messagesText = new TextRenderable(renderer, { id: "messages-text", wrapMode: "none", content: buildMessagesContent(state) });
+      const messagesText = new TextRenderable(renderer, { id: "messages-text", wrapMode: "word", content: buildMessagesContent(state) });
       const messagesScroll = new ScrollBoxRenderable(renderer, { id: "messages-scroll", scrollY: true });
       messagesScroll.add(messagesText);
 
@@ -639,5 +640,54 @@ describe("scrollable layout tree (ScrollBoxRenderable)", () => {
     } finally {
       setup.renderer.destroy();
     }
+  });
+});
+
+describe("runChildSession", () => {
+  test("suspends renderer during child session and resumes after exit", async () => {
+    const calls: string[] = [];
+    const renderer = {
+      suspend: () => { calls.push("suspend"); },
+      resume: () => { calls.push("resume"); },
+      requestRender: () => { calls.push("render"); },
+    };
+    const audits: Array<{ action: string; sessionId: string; status: string }> = [];
+    const child = new EventEmitter() as any;
+    const spawnImpl = (_bin: string, args: string[], _opts: any) => {
+      expect(args).toEqual(["--session", "ses_1"]);
+      queueMicrotask(() => child.emit("exit", 0, null));
+      return child;
+    };
+    await runChildSession(renderer as any, { id: "ses_1", fork: false } as ContinueRequest, spawnImpl as any, (action, sessionId, status) => {
+      audits.push({ action, sessionId, status });
+    });
+    expect(calls).toEqual(["suspend", "resume", "render"]);
+    expect(audits).toEqual([
+      { action: "open_session", sessionId: "ses_1", status: "started" },
+      { action: "open_session", sessionId: "ses_1", status: "exit 0" },
+    ]);
+  });
+
+  test("records child error and still resumes renderer", async () => {
+    const calls: string[] = [];
+    const renderer = {
+      suspend: () => { calls.push("suspend"); },
+      resume: () => { calls.push("resume"); },
+      requestRender: () => { calls.push("render"); },
+    };
+    const audits: Array<{ action: string; sessionId: string; status: string }> = [];
+    const child = new EventEmitter() as any;
+    const spawnImpl = (_bin: string, _args: string[], _opts: any) => {
+      queueMicrotask(() => child.emit("error", Object.assign(new Error("boom"), { code: "ENOENT" })));
+      return child;
+    };
+    await runChildSession(renderer as any, { id: "ses_2", fork: false } as ContinueRequest, spawnImpl as any, (action, sessionId, status) => {
+      audits.push({ action, sessionId, status });
+    });
+    expect(calls).toEqual(["suspend", "resume", "render"]);
+    expect(audits[0]).toEqual({ action: "open_session", sessionId: "ses_2", status: "started" });
+    expect(audits[1].action).toBe("open_session");
+    expect(audits[1].sessionId).toBe("ses_2");
+    expect(audits[1].status).toContain("opencode CLI not found");
   });
 });

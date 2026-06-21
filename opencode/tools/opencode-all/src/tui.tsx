@@ -24,11 +24,6 @@ import {
 const theme = JSON.parse(readFileSync(new URL("../themes/friday.json", import.meta.url), "utf8"));
 setTheme(theme);
 
-let continueRequest: { id: string; fork: boolean } | null = null;
-let quitRequestCode: number | null = null;
-
-
-
 export function errorMessage(error: unknown): string {
   if (error && typeof error === "object" && "code" in error && (error as { code?: string }).code === "ENOENT") {
     return "opencode CLI not found. Set OPENCODE_ALL_OPENCODE_BIN or install opencode.";
@@ -56,11 +51,37 @@ function opencodeBin(): string {
   return process.env.OPENCODE_ALL_OPENCODE_BIN || "opencode";
 }
 
+export type ContinueRequest = { id: string; fork: boolean };
+
+export async function runChildSession(
+  renderer: Pick<CliRenderer, "requestRender"> & { suspend?: () => unknown; resume?: () => unknown },
+  req: ContinueRequest,
+  spawnImpl: typeof spawn = spawn,
+  auditImpl: (action: string, sessionId: string, status: string) => void = audit,
+): Promise<void> {
+  auditImpl("open_session", req.id, "started");
+  renderer.suspend?.();
+  const child = spawnImpl(opencodeBin(), ["--session", req.id, ...(req.fork ? ["--fork"] : [])], { stdio: "inherit" });
+  const status = await new Promise<string>((resolve) => {
+    child.on("exit", (code, signal) => {
+      if (signal) resolve(`signal ${signal}`);
+      else resolve(`exit ${code ?? 0}`);
+    });
+    child.on("error", (error) => resolve(`error ${errorMessage(error)}`));
+  });
+  auditImpl("open_session", req.id, status);
+  renderer.resume?.();
+  renderer.requestRender();
+}
+
 export async function startInteractiveTui(): Promise<void> {
   const renderer = await createCliRenderer({ exitOnCtrlC: true, targetFps: 30, useMouse: true });
   let state = createInitialState(buildSessionIndex({ cwd: cwd() }), { height: process.stdout.rows || 24, width: process.stdout.columns || 100 });
   state = reloadState(state);
   let layout = dashboardLayout(state.viewport.width, state.viewport.height);
+  let continueRequest: ContinueRequest | null = null;
+  let quitRequested = false;
+  let settleLoop: (() => void) | null = null;
 
   function makeScrollPane(
     paneRenderer: CliRenderer,
@@ -101,10 +122,8 @@ export async function startInteractiveTui(): Promise<void> {
     return { scrollBox, text };
   }
 
-  const { scrollBox: messagesScroll, text: messagesText } = makeScrollPane(renderer, "messages", buildMessagesContent(state), "messages", "none");
+  const { scrollBox: messagesScroll, text: messagesText } = makeScrollPane(renderer, "messages", buildMessagesContent(state), "messages", "word");
   const { scrollBox: metadataScroll, text: metadataText } = makeScrollPane(renderer, "metadata", buildMetadataContent(state), "metadata");
-
-  let exitTui: (() => void) = () => {};
 
   const { scrollBox: sessionsScroll, text: sessionsText } = makeScrollPane(
     renderer,
@@ -190,48 +209,59 @@ export async function startInteractiveTui(): Promise<void> {
   }
 
   process.stdout.on("resize", onResize);
-  rebuildLayout();
 
-  await new Promise<void>((resolve) => {
-    exitTui = () => resolve();
-    renderer.keyInput.on("keypress", (key: any) => {
-      const mapped = mapKey(key);
-      if (mapped === "q") {
-        quitRequestCode = 0;
-        renderer.destroy();
-        resolve();
-        return;
-      }
-      if (mapped === "R" && !state.inputMode && !state.pendingAction && !state.pendingChoice) {
-        state = reloadState({ ...state, index: buildSessionIndex({ cwd: cwd() }), status: "index refreshed", cursor: 0, listScroll: 0 });
+  const onKeypress = (key: any) => {
+    const mapped = mapKey(key);
+    if (mapped === "q") {
+      quitRequested = true;
+      settleLoop?.();
+      return;
+    }
+    if (mapped === "R" && !state.inputMode && !state.pendingAction && !state.pendingChoice) {
+      state = reloadState({ ...state, index: buildSessionIndex({ cwd: cwd() }), status: "index refreshed", cursor: 0, listScroll: 0 });
+      refreshPanes();
+      renderer.requestRender();
+      return;
+    }
+    const prevFocus = state.focus;
+    const next = applyKey(state, mapped, (id, fork) => { continueRequest = { id, fork }; });
+    if (next !== state) {
+      state = next;
+      refreshPanes();
+      if (state.focus !== prevFocus) rebuildLayout();
+    }
+    if (continueRequest) {
+      settleLoop?.();
+      return;
+    }
+    renderer.requestRender();
+  };
+
+  renderer.keyInput.on("keypress", onKeypress);
+  rebuildLayout();
+  refreshPanes();
+  renderer.requestRender();
+
+  try {
+    while (!quitRequested) {
+      await new Promise<void>((resolve) => {
+        settleLoop = resolve;
+      });
+      settleLoop = null;
+      if (quitRequested) break;
+      if (continueRequest) {
+        const req = continueRequest;
+        continueRequest = null;
+        await runChildSession(renderer, req);
+        rebuildLayout();
         refreshPanes();
         renderer.requestRender();
-        return;
       }
-      const prevFocus = state.focus;
-      const next = applyKey(state, mapped, (id, fork) => { continueRequest = { id, fork }; });
-      if (next !== state) {
-        state = next;
-        refreshPanes();
-        if (state.focus !== prevFocus) rebuildLayout();
-      }
-      if (continueRequest) {
-        renderer.destroy();
-        resolve();
-        return;
-      }
-      renderer.requestRender();
-    });
-  });
-
-  if (continueRequest) {
-    const req = continueRequest;
-    continueRequest = null;
-    const child = spawn(opencodeBin(), ["--session", req.id, ...(req.fork ? ["--fork"] : [])], { stdio: "inherit" });
-    await new Promise<void>((resolve) => {
-      child.on("exit", () => resolve());
-      child.on("error", () => resolve());
-    });
+    }
+  } finally {
+    process.stdout.off("resize", onResize);
+    renderer.keyInput.off?.("keypress", onKeypress);
+    renderer.destroy();
   }
 }
 
@@ -242,7 +272,7 @@ function dataDir(): string {
 
 function audit(action: string, sessionId: string, status: string): void {
   const file = join(dataDir(), "audit.log");
-  mkdirSync(dirname(file), { recursive: true });
+  mkdirSync(dirname(file), { recursive: true, mode: 0o700 });
   writeFileSync(file, `${JSON.stringify({ ts: new Date().toISOString(), action, session_id: sessionId, status })}\n`, { flag: "a", mode: 0o600 });
 }
 
