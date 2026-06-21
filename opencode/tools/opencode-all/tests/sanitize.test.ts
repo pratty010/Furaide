@@ -68,3 +68,9 @@ describe("capText", () => {
     expect(capText("abc", 4)).toBe("abc");
   });
 });
+
+test("strips deprecated bidi controls (U+206A-U+206F)", () => {
+  expect(renderSafe("a\u206ab")).toBe("ab");
+  expect(renderSafe("a\u206fb")).toBe("ab");
+  expect(hasControlBytes("bad\u206a")).toBe(true);
+});

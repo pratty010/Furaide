@@ -51,10 +51,11 @@ export function renderSafe(input: unknown): string {
     if (code < 0x20 || code === 0x7f) continue;
 
     // Filter Unicode Cf (format) and bidi control characters.
-    // U+200B–U+2069: zero-width spaces, bidi marks (LRE, RLE, LRO, RLO, PDF, LRI, RLI, FSI, PDI).
+    // U+200B–U+206F: zero-width spaces, bidi marks (LRE, RLE, LRO, RLO, PDF,
+    // LRI, RLI, FSI, PDI), and deprecated bidi controls (U+206A–U+206F).
     // U+2028–U+202F: line/paragraph separators and bidi controls.
     // U+FEFF: BOM (zero-width no-break space).
-    if (code >= 0x200b && code <= 0x2069) continue;
+    if (code >= 0x200b && code <= 0x206f) continue;
     if (code >= 0x2028 && code <= 0x202f) continue;
     if (code === 0xfeff) continue;
 
@@ -72,7 +73,7 @@ export function hasControlBytes(input: unknown): boolean {
     if (code === 0x0b || code === 0x0c) return true;
     if (code >= 0x0e && code <= 0x1f) return true;
     if (code === 0x1b || code === 0x7f) return true;
-    if (code >= 0x200b && code <= 0x2069) return true;
+    if (code >= 0x200b && code <= 0x206f) return true;
     if (code >= 0x2028 && code <= 0x202f) return true;
     if (code === 0xfeff) return true;
   }
