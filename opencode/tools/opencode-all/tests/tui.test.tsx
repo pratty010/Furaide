@@ -661,7 +661,7 @@ describe("runChildSession", () => {
     await runChildSession(renderer as any, { id: "ses_1", fork: false } as ContinueRequest, spawnImpl as any, (action, sessionId, status) => {
       audits.push({ action, sessionId, status });
     });
-    expect(calls).toEqual(["suspend", "resume", "render"]);
+    expect(calls).toEqual(["suspend", "resume"]);
     expect(audits).toEqual([
       { action: "open_session", sessionId: "ses_1", status: "started" },
       { action: "open_session", sessionId: "ses_1", status: "exit 0" },
@@ -684,7 +684,7 @@ describe("runChildSession", () => {
     await runChildSession(renderer as any, { id: "ses_2", fork: false } as ContinueRequest, spawnImpl as any, (action, sessionId, status) => {
       audits.push({ action, sessionId, status });
     });
-    expect(calls).toEqual(["suspend", "resume", "render"]);
+    expect(calls).toEqual(["suspend", "resume"]);
     expect(audits[0]).toEqual({ action: "open_session", sessionId: "ses_2", status: "started" });
     expect(audits[1].action).toBe("open_session");
     expect(audits[1].sessionId).toBe("ses_2");

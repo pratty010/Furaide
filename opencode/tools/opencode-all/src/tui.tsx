@@ -54,13 +54,13 @@ function opencodeBin(): string {
 export type ContinueRequest = { id: string; fork: boolean };
 
 export async function runChildSession(
-  renderer: Pick<CliRenderer, "requestRender"> & { suspend?: () => unknown; resume?: () => unknown },
+  renderer: Pick<CliRenderer, "requestRender"> & { suspend: () => unknown; resume: () => unknown },
   req: ContinueRequest,
   spawnImpl: typeof spawn = spawn,
   auditImpl: (action: string, sessionId: string, status: string) => void = audit,
 ): Promise<void> {
   auditImpl("open_session", req.id, "started");
-  renderer.suspend?.();
+  renderer.suspend();
   const child = spawnImpl(opencodeBin(), ["--session", req.id, ...(req.fork ? ["--fork"] : [])], { stdio: "inherit" });
   const status = await new Promise<string>((resolve) => {
     child.on("exit", (code, signal) => {
@@ -70,8 +70,7 @@ export async function runChildSession(
     child.on("error", (error) => resolve(`error ${errorMessage(error)}`));
   });
   auditImpl("open_session", req.id, status);
-  renderer.resume?.();
-  renderer.requestRender();
+  renderer.resume();
 }
 
 export async function startInteractiveTui(): Promise<void> {
@@ -82,6 +81,7 @@ export async function startInteractiveTui(): Promise<void> {
   let continueRequest: ContinueRequest | null = null;
   let quitRequested = false;
   let settleLoop: (() => void) | null = null;
+  let childRunning = false;
 
   function makeScrollPane(
     paneRenderer: CliRenderer,
@@ -201,6 +201,7 @@ export async function startInteractiveTui(): Promise<void> {
   };
 
   function onResize() {
+    if (childRunning) return;
     const vp = { height: process.stdout.rows || 24, width: process.stdout.columns || 100 };
     state = { ...state, viewport: vp };
     rebuildLayout();
@@ -211,6 +212,7 @@ export async function startInteractiveTui(): Promise<void> {
   process.stdout.on("resize", onResize);
 
   const onKeypress = (key: any) => {
+    if (childRunning) return;
     const mapped = mapKey(key);
     if (mapped === "q") {
       quitRequested = true;
@@ -252,7 +254,12 @@ export async function startInteractiveTui(): Promise<void> {
       if (continueRequest) {
         const req = continueRequest;
         continueRequest = null;
-        await runChildSession(renderer, req);
+        childRunning = true;
+        try {
+          await runChildSession(renderer, req);
+        } finally {
+          childRunning = false;
+        }
         rebuildLayout();
         refreshPanes();
         renderer.requestRender();
