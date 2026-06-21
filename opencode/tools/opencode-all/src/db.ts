@@ -219,14 +219,6 @@ export function listArchivedSessionFiles(options: { archiveRoot?: string; cwd?: 
   return rows.sort((a, b) => b.timeArchived! - a.timeArchived! || b.timeUpdated - a.timeUpdated);
 }
 
-export function listActiveSessionsInDir(directory: string): SessionRow[] {
-  return listSessions({ tab: "active", cwd: process.env.OPENCODE_ALL_CWD || process.cwd(), directory });
-}
-
-export function listArchivedSessionsInDir(directory: string): SessionRow[] {
-  return listSessions({ tab: "archived", cwd: process.env.OPENCODE_ALL_CWD || process.cwd(), directory });
-}
-
 export type SessionRow = {
   id: string;
   title: string;
