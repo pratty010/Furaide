@@ -142,6 +142,30 @@ describe("buildMessagesContent", () => {
     expect(text).not.toContain("system msg");
     expect(text).toContain("user msg");
   });
+
+  test("word-wraps long messages to multiple lines with continuation indent", () => {
+    const longText = "This is a very long message that should be word-wrapped across multiple lines because it exceeds the available row width in the messages pane";
+    const msgs: ArchivedMessageRow[] = [
+      { role: "user", time: 100000, text: longText },
+    ];
+    const state = baseState({ cursor: 1, expandedFolders: new Set([mockFolder.directory]), messageRows: msgs, viewport: { height: 24, width: 80 } });
+    const text = flatText(buildMessagesContent(state));
+    expect(text).toContain("This is a very long message that should be word-wrapped");
+    expect(text).toContain("available row width");
+    const lines = text.split("\n").filter(l => l.trim());
+    expect(lines.length).toBeGreaterThan(1);
+  });
+
+  test("word-wraps very long single word with character-level break", () => {
+    const longWord = "a".repeat(200);
+    const msgs: ArchivedMessageRow[] = [
+      { role: "assistant", time: 200000, text: longWord },
+    ];
+    const state = baseState({ cursor: 1, expandedFolders: new Set([mockFolder.directory]), messageRows: msgs, viewport: { height: 24, width: 80 } });
+    const text = flatText(buildMessagesContent(state));
+    expect(text).toContain("a".repeat(60));
+    expect(text.split("\n").filter(l => l.trim()).length).toBeGreaterThan(1);
+  });
 });
 
 describe("buildMetadataContent", () => {

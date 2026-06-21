@@ -73,12 +73,12 @@ export function buildMessagesContent(state: UiState): StyledText {
   const chunks: LooseChunk[] = [];
   const selected = currentSession(state);
   if (!selected) {
-    chunks.push({ text: "Select a session\n", fg: tone("muted") as any });
+    chunks.push({ text: "Select a session\n", fg: tone("muted") });
     return asStyledText(chunks);
   }
   const msgs = state.messageRows.filter(m => m.role === "user" || m.role === "assistant");
   if (msgs.length === 0) {
-    chunks.push({ text: "(no messages)\n", fg: tone("muted") as any });
+    chunks.push({ text: "(no messages)\n", fg: tone("muted") });
     return asStyledText(chunks);
   }
   const rowWidth = Math.max(20, state.viewport.width - 12);
@@ -92,6 +92,13 @@ export function buildMessagesContent(state: UiState): StyledText {
     const lines: string[] = [];
     let line = "";
     for (const word of words) {
+      if (word.length > width) {
+        if (line) { lines.push(line); line = ""; }
+        for (let i = 0; i < word.length; i += width) {
+          lines.push(word.slice(i, i + width));
+        }
+        continue;
+      }
       if (line.length === 0) {
         line = word;
       } else if (line.length + 1 + word.length <= width) {
@@ -102,13 +109,13 @@ export function buildMessagesContent(state: UiState): StyledText {
       }
     }
     if (line) lines.push(line);
-    return lines.length > 0 ? lines : [""];
+    return lines;
   }
 
-  const start = Math.max(0, Math.min(state.messageScroll, Math.max(0, msgs.length - 1)));
+  const start = Math.max(0, Math.min(state.messageScroll, msgs.length - 1));
   const visible = msgs.slice(start);
   if (msgs.length > 1) {
-    chunks.push({ text: `Messages ${start + 1}-${msgs.length}/${msgs.length}\n`, fg: tone("dim") as any });
+    chunks.push({ text: `Messages ${start + 1}-${msgs.length}/${msgs.length}\n`, fg: tone("dim") });
   }
   for (const m of visible) {
     const prefix = m.role === "user" ? "U" : "A";
@@ -118,16 +125,16 @@ export function buildMessagesContent(state: UiState): StyledText {
       if (i === 0) {
         chunks.push({
           text: `${timeStr} ${prefix} ${lines[i]}\n`,
-          fg: (m.role === "user" ? tone("cyan") : tone("text")) as any,
+          fg: m.role === "user" ? tone("cyan") : tone("text"),
         });
       } else {
         chunks.push({
           text: `${" ".repeat(prefixLen)}${lines[i]}\n`,
-          fg: (m.role === "user" ? tone("cyan") : tone("text")) as any,
+          fg: m.role === "user" ? tone("cyan") : tone("text"),
         });
       }
     }
-    chunks.push({ text: "\n", fg: tone("muted") as any });
+    chunks.push({ text: "\n", fg: tone("muted") });
   }
   return asStyledText(chunks);
 }
@@ -223,13 +230,13 @@ export function buildSearchOverlay(state: UiState): StyledText {
   const visible = searchVisibleSlice(state);
   const start = Math.max(0, Math.min(state.searchScroll, Math.max(0, all.length - SEARCH_VISIBLE_WINDOW)));
 
-  chunks.push({ text: "\u250c" + "\u2500".repeat(boxWidth - 2) + "\u2510\n", fg: tone("modalBorder") as any });
-  chunks.push({ text: `\u2502 ${clip("\uD83D\uDD0D Search Sessions", inner).padEnd(inner)} \u2502\n`, fg: tone("modalFg") as any, bg: tone("modalBg") as any, bold: true as any });
+  chunks.push({ text: "\u250c" + "\u2500".repeat(boxWidth - 2) + "\u2510\n", fg: tone("modalBorder") });
+  chunks.push({ text: `\u2502 ${clip("\uD83D\uDD0D Search Sessions", inner).padEnd(inner)} \u2502\n`, fg: tone("modalFg"), bg: tone("modalBg"), bold: true });
   const input = `> ${state.query}\u2588`;
-  chunks.push({ text: `\u2502 ${clip(input, inner).padEnd(inner)} \u2502\n`, fg: tone("text") as any, bg: tone("modalBg") as any });
-  chunks.push({ text: "\u251c" + "\u2500".repeat(boxWidth - 2) + "\u2524\n", fg: tone("modalBorder") as any, bg: tone("modalBg") as any });
+  chunks.push({ text: `\u2502 ${clip(input, inner).padEnd(inner)} \u2502\n`, fg: tone("text"), bg: tone("modalBg") });
+  chunks.push({ text: "\u251c" + "\u2500".repeat(boxWidth - 2) + "\u2524\n", fg: tone("modalBorder"), bg: tone("modalBg") });
   if (all.length === 0) {
-    chunks.push({ text: `\u2502 ${clip("No matches", inner).padEnd(inner)} \u2502\n`, fg: tone("muted") as any, bg: tone("modalBg") as any });
+    chunks.push({ text: `\u2502 ${clip("No matches", inner).padEnd(inner)} \u2502\n`, fg: tone("muted"), bg: tone("modalBg") });
   } else {
     for (let i = 0; i < visible.length; i++) {
       const r = visible[i];
@@ -262,14 +269,14 @@ export function buildChoiceOverlay(state: UiState): StyledText {
   const inner = boxWidth - 4;
   const isBulk = !!state.pendingDirectory;
   const title = isBulk ? "Archive or Delete (bulk)" : "Archive or Delete";
-  chunks.push({ text: "\u250c" + "\u2500".repeat(boxWidth - 2) + "\u2510\n", fg: tone("modalBorder") as any });
-  chunks.push({ text: `\u2502 ${clip(title, inner).padEnd(inner)} \u2502\n`, fg: tone("modalFg") as any, bg: tone("modalBg") as any, bold: true as any });
+  chunks.push({ text: "\u250c" + "\u2500".repeat(boxWidth - 2) + "\u2510\n", fg: tone("modalBorder") });
+  chunks.push({ text: `\u2502 ${clip(title, inner).padEnd(inner)} \u2502\n`, fg: tone("modalFg"), bg: tone("modalBg"), bold: true });
   const archiveLabel = isBulk ? "[A] Archive & delete all sessions" : "[A] Archive & delete session";
   const deleteLabel = isBulk ? "[D] Delete all sessions (no archive)" : "[D] Delete session only (no archive)";
-  chunks.push({ text: `\u2502 ${clip(archiveLabel, inner).padEnd(inner)} \u2502\n`, fg: tone("accent") as any, bg: tone("modalBg") as any });
-  chunks.push({ text: `\u2502 ${clip(deleteLabel, inner).padEnd(inner)} \u2502\n`, fg: tone("danger") as any, bg: tone("modalBg") as any });
-  chunks.push({ text: `\u2502 ${clip("[C] Cancel", inner).padEnd(inner)} \u2502\n`, fg: tone("dim") as any, bg: tone("modalBg") as any });
-  chunks.push({ text: "\u2514" + "\u2500".repeat(boxWidth - 2) + "\u2518\n", fg: tone("modalBorder") as any });
+  chunks.push({ text: `\u2502 ${clip(archiveLabel, inner).padEnd(inner)} \u2502\n`, fg: tone("accent"), bg: tone("modalBg") });
+  chunks.push({ text: `\u2502 ${clip(deleteLabel, inner).padEnd(inner)} \u2502\n`, fg: tone("danger"), bg: tone("modalBg") });
+  chunks.push({ text: `\u2502 ${clip("[C] Cancel", inner).padEnd(inner)} \u2502\n`, fg: tone("dim"), bg: tone("modalBg") });
+  chunks.push({ text: "\u2514" + "\u2500".repeat(boxWidth - 2) + "\u2518\n", fg: tone("modalBorder") });
   return asStyledText(chunks);
 }
 
