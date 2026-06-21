@@ -5,7 +5,7 @@ import { dirname, join } from "node:path";
 import { Box, BoxRenderable, ScrollBoxRenderable, TextRenderable, createCliRenderer, type CliRenderer } from "@opentui/core";
 import type { StyledText } from "@opentui/core";
 import { buildSessionIndex } from "./dashboard/session-index.ts";
-import { createInitialState, cwd, reloadState, type UiState } from "./dashboard/state.ts";
+import { createInitialState, cwd, getVisibleRows, reloadState, type UiState } from "./dashboard/state.ts";
 import { applyKey } from "./dashboard/actions.ts";
 import { dashboardLayout } from "./dashboard/layout.ts";
 export { applyKey, buildSearchOverlay };
@@ -31,12 +31,12 @@ export function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-function mapKey(key: any): string {
+export function mapKey(key: any): string {
   if (key?.ctrl && key?.name === "c") return "q";
   if (key?.ctrl && key?.name === "d") return "Ctrl+D";
   if (key?.ctrl && key?.name === "u") return "Ctrl+U";
-  if (key?.name === "down") return "j";
-  if (key?.name === "up") return "k";
+  if (key?.name === "down") return "ArrowDown";
+  if (key?.name === "up") return "ArrowUp";
   if (key?.name === "pagedown") return "PageDown";
   if (key?.name === "pageup") return "PageUp";
   if (key?.name === "tab") return "Tab";
@@ -45,6 +45,19 @@ function mapKey(key: any): string {
   if (key?.name === "escape") return "Escape";
   if (key?.name === "backspace") return "Backspace";
   return key?.sequence || key?.name || "";
+}
+
+export function refreshStateFromDisk(s: UiState, status: string): UiState {
+  const rows = getVisibleRows(s);
+  const currentRow = rows[s.cursor];
+  const selectedId = currentRow && "id" in currentRow ? (currentRow as any).id as string : undefined;
+  const rebuilt = buildSessionIndex({ cwd: cwd() });
+  const candidate: UiState = reloadState({ ...s, index: rebuilt, status });
+  if (!selectedId) return candidate;
+  const visible = getVisibleRows(candidate);
+  const targetIdx = visible.findIndex(r => "id" in r && (r as any).id === selectedId);
+  if (targetIdx < 0) return candidate;
+  return { ...candidate, cursor: targetIdx, listScroll: targetIdx };
 }
 
 function opencodeBin(): string {
@@ -132,31 +145,83 @@ export async function startInteractiveTui(): Promise<void> {
     "sessions",
   );
 
-  const actionBar = new TextRenderable(renderer, {
-    id: "action-bar",
+  const actionBarText = new TextRenderable(renderer, {
+    id: "action-bar-text",
     height: layout.actionRows,
     wrapMode: "word",
     truncate: true,
     content: buildActionBarContent(state),
   });
+  const actionBar = new BoxRenderable(renderer, {
+    id: "action-bar",
+    width: "100%",
+    height: layout.actionRows,
+    flexDirection: "row",
+    backgroundColor: tone("statusBg"),
+  });
+  actionBar.add(actionBarText);
   // Action bar click handling intentionally deferred: chips are rendered as a single
   // StyledText with no per-chip boundary in OpenTUI. Hit-testing would require a
   // custom terminal hit-test engine (Ponytail rule) to walk chunks and map x to a
   // chip id, which is fragile against truncation, font width changes, and locale
   // text shaping. Re-evaluate if OpenTUI ships a low-code per-region click API.
 
-  const searchOverlay = new TextRenderable(renderer, {
-    id: "search-overlay", position: "absolute", top: "20%", left: "10%", right: "10%", height: "60%", zIndex: 100, visible: false,
+  const searchOverlayText = new TextRenderable(renderer, {
+    id: "search-overlay-text",
+    wrapMode: "none",
+    truncate: true,
     content: buildSearchOverlay(state),
   });
-  const confirmOverlay = new TextRenderable(renderer, {
-    id: "confirm-overlay", position: "absolute", top: "35%", left: "15%", right: "15%", height: "30%", zIndex: 110, visible: false,
+  const searchOverlay = new BoxRenderable(renderer, {
+    id: "search-overlay",
+    position: "absolute",
+    top: "20%", left: "10%", right: "10%", bottom: "20%",
+    zIndex: 100,
+    visible: false,
+    flexDirection: "column",
+    border: true,
+    borderColor: tone("modalBorder"),
+    backgroundColor: tone("modalBg"),
+  });
+  searchOverlay.add(searchOverlayText);
+
+  const confirmOverlayText = new TextRenderable(renderer, {
+    id: "confirm-overlay-text",
+    wrapMode: "none",
+    truncate: true,
     content: buildConfirmOverlay(state),
   });
-  const choiceOverlay = new TextRenderable(renderer, {
-    id: "choice-overlay", position: "absolute", top: "32%", left: "15%", right: "15%", height: "36%", zIndex: 105, visible: false,
+  const confirmOverlay = new BoxRenderable(renderer, {
+    id: "confirm-overlay",
+    position: "absolute",
+    top: "35%", left: "15%", right: "15%", bottom: "35%",
+    zIndex: 110,
+    visible: false,
+    flexDirection: "column",
+    border: true,
+    borderColor: tone("modalBorder"),
+    backgroundColor: tone("modalBg"),
+  });
+  confirmOverlay.add(confirmOverlayText);
+
+  const choiceOverlayText = new TextRenderable(renderer, {
+    id: "choice-overlay-text",
+    wrapMode: "none",
+    truncate: true,
     content: buildChoiceOverlay(state),
   });
+  const choiceOverlay = new BoxRenderable(renderer, {
+    id: "choice-overlay",
+    position: "absolute",
+    top: "32%", left: "15%", right: "15%", bottom: "32%",
+    zIndex: 105,
+    visible: false,
+    flexDirection: "column",
+    border: true,
+    borderColor: tone("modalBorder"),
+    backgroundColor: tone("modalBg"),
+  });
+  choiceOverlay.add(choiceOverlayText);
 
   const bodyArea = new BoxRenderable(renderer, { id: "body-area", flexDirection: "column", flexGrow: 1 });
   const rootColumn = Box({ flexDirection: "column", width: "100%", height: "100%" }, bodyArea, actionBar);
@@ -168,6 +233,7 @@ export async function startInteractiveTui(): Promise<void> {
   function rebuildLayout() {
     layout = dashboardLayout(state.viewport.width, state.viewport.height);
     actionBar.height = layout.actionRows;
+    actionBarText.height = layout.actionRows;
     for (const child of bodyArea.getChildren()) bodyArea.remove(child.id);
 
     if (layout.mode === "focused") {
@@ -191,10 +257,10 @@ export async function startInteractiveTui(): Promise<void> {
     messagesText.content = buildMessagesContent(state);
     metadataText.content = buildMetadataContent(state);
     sessionsText.content = buildSessionsContent(state);
-    actionBar.content = buildActionBarContent(state);
-    searchOverlay.content = buildSearchOverlay(state);
-    confirmOverlay.content = buildConfirmOverlay(state);
-    choiceOverlay.content = buildChoiceOverlay(state);
+    actionBarText.content = buildActionBarContent(state);
+    searchOverlayText.content = buildSearchOverlay(state);
+    confirmOverlayText.content = buildConfirmOverlay(state);
+    choiceOverlayText.content = buildChoiceOverlay(state);
     searchOverlay.visible = state.inputMode === "search";
     confirmOverlay.visible = !!state.pendingAction;
     choiceOverlay.visible = !!state.pendingChoice;
@@ -219,8 +285,8 @@ export async function startInteractiveTui(): Promise<void> {
       settleLoop?.();
       return;
     }
-    if (mapped === "R" && !state.inputMode && !state.pendingAction && !state.pendingChoice) {
-      state = reloadState({ ...state, index: buildSessionIndex({ cwd: cwd() }), status: "index refreshed", cursor: 0, listScroll: 0 });
+    if ((mapped === "r" || mapped === "R") && !state.inputMode && !state.pendingAction && !state.pendingChoice) {
+      state = refreshStateFromDisk(state, "index refreshed");
       refreshPanes();
       renderer.requestRender();
       return;
@@ -260,6 +326,7 @@ export async function startInteractiveTui(): Promise<void> {
         } finally {
           childRunning = false;
         }
+        state = refreshStateFromDisk(state, "back from session");
         rebuildLayout();
         refreshPanes();
         renderer.requestRender();

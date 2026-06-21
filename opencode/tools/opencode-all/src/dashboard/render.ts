@@ -59,7 +59,29 @@ export function clip(text: string, width: number): string {
 }
 
 export function fmtCost(value: number): string {
+  if (value >= 1_000_000) return `$${(value / 1_000_000).toFixed(2)}M`;
+  if (value >= 1_000) return `$${(value / 1_000).toFixed(2)}K`;
   return value > 0 ? `$${value.toFixed(2)}` : "$0.00";
+}
+
+export function fmtCompact(value: number): string {
+  const abs = Math.abs(value);
+  if (abs < 1_000) return String(value);
+  if (abs < 1_000_000) return `${(value / 1_000).toFixed(abs < 10_000 ? 1 : 0)}K`;
+  if (abs < 1_000_000_000) return `${(value / 1_000_000).toFixed(abs < 10_000_000 ? 1 : 0)}M`;
+  return `${(value / 1_000_000_000).toFixed(1)}B`;
+}
+
+const MESSAGE_MAX_CHARS = 100;
+
+export function capMessage(text: string, max = MESSAGE_MAX_CHARS): string {
+  if (text.length <= max) return text;
+  if (max <= 1) return "\u2026";
+  return `${text.slice(0, max - 1)}\u2026`;
+}
+
+export function overlayBoxWidth(viewportWidth: number): number {
+  return Math.min(Math.max(60, Math.min(100, viewportWidth - 4)), viewportWidth - 2);
 }
 
 export function selectedDetail(state: UiState): SessionDetail | null {
@@ -120,17 +142,24 @@ export function buildMessagesContent(state: UiState): StyledText {
   for (const m of visible) {
     const prefix = m.role === "user" ? "U" : "A";
     const timeStr = formatTime(m.time).slice(0, 5);
-    const lines = wrapText(m.text, wrapWidth);
+    const isUser = m.role === "user";
+    const fg = isUser ? tone("cyan") : tone("text");
+    const bg = isUser ? tone("listSelectedBg") : tone("surfaceAlt");
+    const capped = capMessage(m.text);
+    const lines = wrapText(capped, wrapWidth);
     for (let i = 0; i < lines.length; i++) {
       if (i === 0) {
         chunks.push({
           text: `${timeStr} ${prefix} ${lines[i]}\n`,
-          fg: m.role === "user" ? tone("cyan") : tone("text"),
+          fg,
+          bg,
+          bold: isUser,
         });
       } else {
         chunks.push({
           text: `${" ".repeat(prefixLen)}${lines[i]}\n`,
-          fg: m.role === "user" ? tone("cyan") : tone("text"),
+          fg,
+          bg,
         });
       }
     }
@@ -153,23 +182,23 @@ export function buildMetadataContent(
   chunks.push({ text: `\uD83D\uDCC1 ${d.directory}${d.isCurrent ? " (cwd)" : ""}\n`, fg: tone("detailValue") });
   chunks.push({ text: `\uD83E\uDD16 ${d.agent || "-"} \u00B7 ${parseModel(d.model)}\n`, fg: tone("detailValue") });
   chunks.push({ text: `\uD83D\uDCB0 ${fmtCost(d.cost)}\n`, fg: tone("detailCost") });
-  chunks.push({ text: `\uD83D\uDCCA in ${d.tokensInput} \u00B7 out ${d.tokensOutput} \u00B7 reasoning ${d.tokensReasoning}\n`, fg: tone("detailTokens") });
-  chunks.push({ text: `\uD83D\uDDC2  cache r ${d.tokensCacheRead} \u00B7 w ${d.tokensCacheWrite}\n`, fg: tone("detailTokens") });
+  chunks.push({ text: `\uD83D\uDCCA in ${fmtCompact(d.tokensInput)} \u00B7 out ${fmtCompact(d.tokensOutput)} \u00B7 reasoning ${fmtCompact(d.tokensReasoning)}\n`, fg: tone("detailTokens") });
+  chunks.push({ text: `\uD83D\uDDC2  cache r ${fmtCompact(d.tokensCacheRead)} \u00B7 w ${fmtCompact(d.tokensCacheWrite)}\n`, fg: tone("detailTokens") });
   chunks.push({ text: `\uD83D\uDCC5 created ${formatTime(d.timeCreated)} \u00B7 updated ${formatTime(d.timeUpdated)}${d.timeArchived ? ` \u00B7 archived ${formatTime(d.timeArchived)}` : ""}\n`, fg: tone("detailValue") });
   if (state.tab === "archived" && "archivePath" in d) {
     const ad = d as SessionDetail & { archivePath?: string; archiveBytes?: number };
     chunks.push({ text: `archive file: ${ad.archivePath || "-"}\n`, fg: tone("detailValue") });
-    chunks.push({ text: `archive bytes: ${ad.archiveBytes || 0}\n`, fg: tone("detailValue") });
+    chunks.push({ text: `archive bytes: ${fmtCompact(ad.archiveBytes || 0)}\n`, fg: tone("detailValue") });
   }
-  chunks.push({ text: `\uD83D\uDCC8 ${d.summaryFiles} files \u00B7 +${d.summaryAdditions} / -${d.summaryDeletions}\n`, fg: tone("detailValue") });
+  chunks.push({ text: `\uD83D\uDCC8 ${fmtCompact(d.summaryFiles)} files \u00B7 +${fmtCompact(d.summaryAdditions)} / -${fmtCompact(d.summaryDeletions)}\n`, fg: tone("detailValue") });
   if (state.tab === "active") {
-    chunks.push({ text: `\uD83D\uDCCE ${d.diffPath ? `${d.diffPath} (${d.diffBytes || 0}b)` : "-"}\n`, fg: tone("detailValue") });
+    chunks.push({ text: `\uD83D\uDCCE ${d.diffPath ? `${d.diffPath} (${fmtCompact(d.diffBytes || 0)}b)` : "-"}\n`, fg: tone("detailValue") });
   }
   if (d.suspicious) {
     chunks.push({ text: "\u26A0 suspicious session\n", fg: tone("danger") });
   }
   if (d.toolCounts.length > 0) {
-    chunks.push({ text: `\uD83D\uDD27 ${d.toolCounts.slice(0, 4).map(t => `${t.tool} ${t.count} ${t.status}`).join(" \u00B7 ")}\n`, fg: tone("success") });
+    chunks.push({ text: `\uD83D\uDD27 ${d.toolCounts.slice(0, 4).map(t => `${t.tool} ${fmtCompact(t.count)} ${t.status}`).join(" \u00B7 ")}\n`, fg: tone("success") });
   }
   const rowsVisible = Math.max(4, Math.floor(state.viewport.height * 0.35));
   const start = Math.max(0, Math.min(state.detailScroll, Math.max(0, chunks.length - rowsVisible)));
@@ -224,19 +253,17 @@ export function buildActionBarContent(state: UiState): StyledText {
 
 export function buildSearchOverlay(state: UiState): StyledText {
   const chunks: LooseChunk[] = [];
-  const boxWidth = Math.min(Math.max(60, Math.min(100, state.viewport.width - 4)), state.viewport.width - 2);
-  const inner = boxWidth - 4;
+  const boxWidth = overlayBoxWidth(state.viewport.width);
+  const inner = boxWidth - 2;
   const all = searchResultsFor(state);
   const visible = searchVisibleSlice(state);
   const start = Math.max(0, Math.min(state.searchScroll, Math.max(0, all.length - SEARCH_VISIBLE_WINDOW)));
 
-  chunks.push({ text: "\u250c" + "\u2500".repeat(boxWidth - 2) + "\u2510\n", fg: tone("modalBorder") });
-  chunks.push({ text: `\u2502 ${clip("\uD83D\uDD0D Search Sessions", inner).padEnd(inner)} \u2502\n`, fg: tone("modalFg"), bg: tone("modalBg"), bold: true });
+  chunks.push({ text: `${clip("\uD83D\uDD0D Search Sessions", inner).padEnd(inner)}\n`, fg: tone("modalFg"), bg: tone("modalBg"), bold: true });
   const input = `> ${state.query}\u2588`;
-  chunks.push({ text: `\u2502 ${clip(input, inner).padEnd(inner)} \u2502\n`, fg: tone("text"), bg: tone("modalBg") });
-  chunks.push({ text: "\u251c" + "\u2500".repeat(boxWidth - 2) + "\u2524\n", fg: tone("modalBorder"), bg: tone("modalBg") });
+  chunks.push({ text: `${clip(input, inner).padEnd(inner)}\n`, fg: tone("text"), bg: tone("modalBg") });
   if (all.length === 0) {
-    chunks.push({ text: `\u2502 ${clip("No matches", inner).padEnd(inner)} \u2502\n`, fg: tone("muted"), bg: tone("modalBg") });
+    chunks.push({ text: `${clip("No matches", inner).padEnd(inner)}\n`, fg: tone("muted"), bg: tone("modalBg") });
   } else {
     for (let i = 0; i < visible.length; i++) {
       const r = visible[i];
@@ -244,61 +271,55 @@ export function buildSearchOverlay(state: UiState): StyledText {
       const tabMarker = r.tab === "active" ? "[A]" : "[a]";
       const prefix = `${tabMarker} `;
       const dirPad = Math.min(r.session.directory.length, Math.max(10, inner * 0.35));
-      const titleMax = Math.max(10, inner - dirPad - prefix.length - 7);
+      const titleMax = Math.max(10, inner - dirPad - prefix.length - 5);
       const left = clip(r.session.title, titleMax);
-      const row = `\u2502 ${isSelected ? "\u276f" : " "} ${prefix}${left.padEnd(titleMax)}  ${clip(r.session.directory, dirPad).padEnd(dirPad)} \u2502\n`;
+      const row = `${isSelected ? "\u276f" : " "} ${prefix}${left.padEnd(titleMax)}  ${clip(r.session.directory, dirPad).padEnd(dirPad)}\n`;
       chunks.push({ text: row, fg: isSelected ? tone("accent") : tone("text"), bg: isSelected ? tone("listSelectedBg") : tone("modalBg") });
     }
     for (let i = visible.length; i < SEARCH_VISIBLE_WINDOW; i++) {
-      chunks.push({ text: `\u2502 ${" ".repeat(inner)} \u2502\n`, fg: tone("modalFg"), bg: tone("modalBg") });
+      chunks.push({ text: `${" ".repeat(inner)}\n`, fg: tone("modalFg"), bg: tone("modalBg") });
     }
   }
-  chunks.push({ text: "\u251c" + "\u2500".repeat(boxWidth - 2) + "\u2524\n", fg: tone("modalBorder"), bg: tone("modalBg") });
   const footer = all.length > SEARCH_VISIBLE_WINDOW
     ? `\u2191\u2193 select \u00B7 Enter open active only \u00B7 Esc cancel \u00B7 ${start + 1}\u2013${Math.min(start + SEARCH_VISIBLE_WINDOW, all.length)}/${all.length}`
     : "\u2191\u2193 select \u00B7 Enter open active only \u00B7 Esc cancel";
-  chunks.push({ text: `\u2502 ${clip(footer, inner).padEnd(inner)} \u2502\n`, fg: tone("dim"), bg: tone("modalBg") });
-  chunks.push({ text: "\u2514" + "\u2500".repeat(boxWidth - 2) + "\u2518\n", fg: tone("modalBorder") });
+  chunks.push({ text: `${clip(footer, inner).padEnd(inner)}\n`, fg: tone("dim"), bg: tone("modalBg") });
   return asStyledText(chunks);
 }
 
 export function buildChoiceOverlay(state: UiState): StyledText {
   const chunks: LooseChunk[] = [];
   if (!state.pendingChoice) return asStyledText(chunks);
-  const boxWidth = Math.min(Math.max(60, state.viewport.width - 6), state.viewport.width - 2);
-  const inner = boxWidth - 4;
+  const boxWidth = overlayBoxWidth(state.viewport.width);
+  const inner = boxWidth - 2;
   const isBulk = !!state.pendingDirectory;
   const title = isBulk ? "Archive or Delete (bulk)" : "Archive or Delete";
-  chunks.push({ text: "\u250c" + "\u2500".repeat(boxWidth - 2) + "\u2510\n", fg: tone("modalBorder") });
-  chunks.push({ text: `\u2502 ${clip(title, inner).padEnd(inner)} \u2502\n`, fg: tone("modalFg"), bg: tone("modalBg"), bold: true });
+  chunks.push({ text: `${clip(title, inner).padEnd(inner)}\n`, fg: tone("modalFg"), bg: tone("modalBg"), bold: true });
   const archiveLabel = isBulk ? "[A] Archive & delete all sessions" : "[A] Archive & delete session";
   const deleteLabel = isBulk ? "[D] Delete all sessions (no archive)" : "[D] Delete session only (no archive)";
-  chunks.push({ text: `\u2502 ${clip(archiveLabel, inner).padEnd(inner)} \u2502\n`, fg: tone("accent"), bg: tone("modalBg") });
-  chunks.push({ text: `\u2502 ${clip(deleteLabel, inner).padEnd(inner)} \u2502\n`, fg: tone("danger"), bg: tone("modalBg") });
-  chunks.push({ text: `\u2502 ${clip("[C] Cancel", inner).padEnd(inner)} \u2502\n`, fg: tone("dim"), bg: tone("modalBg") });
-  chunks.push({ text: "\u2514" + "\u2500".repeat(boxWidth - 2) + "\u2518\n", fg: tone("modalBorder") });
+  chunks.push({ text: `${clip(archiveLabel, inner).padEnd(inner)}\n`, fg: tone("accent"), bg: tone("modalBg") });
+  chunks.push({ text: `${clip(deleteLabel, inner).padEnd(inner)}\n`, fg: tone("danger"), bg: tone("modalBg") });
+  chunks.push({ text: `${clip("[C] Cancel", inner).padEnd(inner)}\n`, fg: tone("dim"), bg: tone("modalBg") });
   return asStyledText(chunks);
 }
 
 export function buildConfirmOverlay(state: UiState): StyledText {
   const chunks: LooseChunk[] = [];
   if (!state.pendingAction) return asStyledText(chunks);
-  const boxWidth = Math.max(60, Math.min(100, state.viewport.width - 6));
-  const inner = boxWidth - 4;
+  const boxWidth = overlayBoxWidth(state.viewport.width);
+  const inner = boxWidth - 2;
   const isDestructive = state.pendingAction === "delete"
     || state.pendingAction === "bulk_delete";
-  chunks.push({ text: "\u250c" + "\u2500".repeat(boxWidth - 2) + "\u2510\n", fg: tone("modalBorder") });
   const title = state.pendingAction.replaceAll("_", " ").toUpperCase();
-  chunks.push({ text: `\u2502 ${clip(title, inner).padEnd(inner)} \u2502\n`, fg: tone("modalFg"), bg: tone("modalBg"), bold: true });
+  chunks.push({ text: `${clip(title, inner).padEnd(inner)}\n`, fg: tone("modalFg"), bg: tone("modalBg"), bold: true });
   if (isDestructive) {
-    chunks.push({ text: `\u2502 ${clip("\u26A0 DESTRUCTIVE \u2014 cannot be undone", inner).padEnd(inner)} \u2502\n`, fg: tone("danger"), bg: tone("modalBg"), bold: true });
+    chunks.push({ text: `${clip("\u26A0 DESTRUCTIVE \u2014 cannot be undone", inner).padEnd(inner)}\n`, fg: tone("danger"), bg: tone("modalBg"), bold: true });
   }
-  chunks.push({ text: `\u2502 ${clip(renderSafe(confirmOverlayText(state)), inner).padEnd(inner)} \u2502\n`, fg: tone("detailValue"), bg: tone("modalBg") });
+  chunks.push({ text: `${clip(renderSafe(confirmOverlayText(state)), inner).padEnd(inner)}\n`, fg: tone("detailValue"), bg: tone("modalBg") });
   const session = currentSession(state);
   if (session) {
-    chunks.push({ text: `\u2502 ${clip(`${renderSafe(session.title)} (${renderSafe(session.id)})`, inner).padEnd(inner)} \u2502\n`, fg: tone("muted"), bg: tone("modalBg") });
+    chunks.push({ text: `${clip(`${renderSafe(session.title)} (${renderSafe(session.id)})`, inner).padEnd(inner)}\n`, fg: tone("muted"), bg: tone("modalBg") });
   }
-  chunks.push({ text: `\u2502 ${clip("[y/Enter] confirm \u00B7 [n/Esc] cancel", inner).padEnd(inner)} \u2502\n`, fg: tone("dim"), bg: tone("modalBg") });
-  chunks.push({ text: "\u2514" + "\u2500".repeat(boxWidth - 2) + "\u2518\n", fg: tone("modalBorder") });
+  chunks.push({ text: `${clip("[y/Enter] confirm \u00B7 [n/Esc] cancel", inner).padEnd(inner)}\n`, fg: tone("dim"), bg: tone("modalBg") });
   return asStyledText(chunks);
 }

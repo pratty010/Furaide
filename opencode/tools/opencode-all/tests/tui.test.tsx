@@ -3,13 +3,13 @@ import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { EventEmitter } from "node:events";
 import { Database } from "bun:sqlite";
-import { applyKey, buildSearchOverlay, runChildSession, type ContinueRequest } from "../src/tui.tsx";
+import { applyKey, buildSearchOverlay, mapKey, refreshStateFromDisk, runChildSession, type ContinueRequest } from "../src/tui.tsx";
 import { addActiveToIndex, addArchivedToIndex, type SessionIndex } from "../src/dashboard/session-index.ts";
 import { createInitialState, currentSession, getVisibleRows, reloadState, type UiSession } from "../src/dashboard/state.ts";
 import { actionChips } from "../src/dashboard/actions.ts";
 import { Box, BoxRenderable, ScrollBoxRenderable, TextRenderable } from "@opentui/core";
 import { createTestRenderer } from "@opentui/core/testing";
-import { buildMessagesContent, buildMetadataContent, buildSessionsContent, buildChoiceOverlay, buildActionBarContent } from "../src/dashboard/render.ts";
+import { buildMessagesContent, buildMetadataContent, buildSessionsContent, buildChoiceOverlay, buildConfirmOverlay, buildActionBarContent } from "../src/dashboard/render.ts";
 import { dashboardLayout } from "../src/dashboard/layout.ts";
 
 const sessions: UiSession[] = Array.from({ length: 6 }, (_, index) => ({
@@ -289,21 +289,51 @@ describe("search mode", () => {
     expect(state.query).toBe("");
   });
 
-  test("j/k in search mode update searchSelected, k decrements at top", () => {
+  test("ArrowDown/ArrowUp in search mode update searchSelected, ArrowUp decrements at top", () => {
     let state = createInitialState(makeIndex(sessions), { height: 20, width: 100 });
     state = applyKey(state, "/");
-    state = applyKey(state, "j");
-    state = applyKey(state, "j");
+    state = applyKey(state, "ArrowDown");
+    state = applyKey(state, "ArrowDown");
     expect(state.searchSelected).toBe(2);
-    state = applyKey(state, "k");
+    state = applyKey(state, "ArrowUp");
     expect(state.searchSelected).toBe(1);
-    state = applyKey(state, "k");
-    state = applyKey(state, "k");
-    state = applyKey(state, "k");
+    state = applyKey(state, "ArrowUp");
+    state = applyKey(state, "ArrowUp");
+    state = applyKey(state, "ArrowUp");
     expect(state.searchSelected).toBe(0);
   });
 
-  test("j in search mode updates searchScroll when selection passes visible window", () => {
+  test("literal j in search mode appends to query", () => {
+    let state = createInitialState(makeIndex(sessions), { height: 20, width: 100 });
+    state = applyKey(state, "/");
+    state = applyKey(state, "j");
+    expect(state.query).toBe("j");
+    expect(state.searchSelected).toBe(0);
+  });
+
+  test("literal k in search mode appends to query", () => {
+    let state = createInitialState(makeIndex(sessions), { height: 20, width: 100 });
+    state = applyKey(state, "/");
+    state = applyKey(state, "k");
+    expect(state.query).toBe("k");
+    expect(state.searchSelected).toBe(0);
+  });
+
+  test("ArrowDown in search mode updates searchScroll when selection passes visible window", () => {
+    const many = Array.from({ length: 25 }, (_, i) => ({
+      ...sessions[0],
+      id: `ses_${i}`,
+      title: `Session ${i}`,
+      directory: `/repo/${i}`,
+    }));
+    let state = createInitialState(makeIndex(many), { height: 14, width: 100 });
+    state = applyKey(state, "/");
+    for (let i = 0; i < 12; i++) state = applyKey(state, "ArrowDown");
+    expect(state.searchSelected).toBe(12);
+    expect(state.searchScroll).toBeGreaterThan(0);
+  });
+
+  test("j in search mode does not move selection across many results", () => {
     const many = Array.from({ length: 25 }, (_, i) => ({
       ...sessions[0],
       id: `ses_${i}`,
@@ -313,8 +343,9 @@ describe("search mode", () => {
     let state = createInitialState(makeIndex(many), { height: 14, width: 100 });
     state = applyKey(state, "/");
     for (let i = 0; i < 12; i++) state = applyKey(state, "j");
-    expect(state.searchSelected).toBe(12);
-    expect(state.searchScroll).toBeGreaterThan(0);
+    expect(state.query.length).toBe(12);
+    expect(state.searchSelected).toBe(0);
+    expect(state.searchScroll).toBe(0);
   });
 });
 
@@ -329,6 +360,7 @@ describe("Esc as universal back/close", () => {
     let state = createInitialState(makeIndex(sessions), { height: 10, width: 100 });
     state = expandFolderWithSessions(state);
     state = cursorOnFirstSession(state);
+    state = applyKey(state, "D");
     state = applyKey(state, "a");
     expect(state.pendingAction).toBe("archive");
     state = applyKey(state, "Escape");
@@ -338,12 +370,25 @@ describe("Esc as universal back/close", () => {
 });
 
 describe("confirmation workflow semantics", () => {
-  test("active session: a -> archive confirmation", () => {
+  test("active session: a no longer triggers direct archive", () => {
     let state = createInitialState(makeIndex(sessions), { height: 10, width: 100 });
     state = expandFolderWithSessions(state);
     state = cursorOnFirstSession(state);
+    const next = applyKey(state, "a");
+    expect(next.pendingAction).toBeNull();
+    expect(next.pendingChoice).toBeNull();
+    expect(next.status).toBe("use D to archive or delete this session");
+  });
+
+  test("active session: D -> choice, then a -> archive confirmation", () => {
+    let state = createInitialState(makeIndex(sessions), { height: 10, width: 100 });
+    state = expandFolderWithSessions(state);
+    state = cursorOnFirstSession(state);
+    state = applyKey(state, "D");
+    expect(state.pendingChoice).toBe("archive_or_delete");
     state = applyKey(state, "a");
     expect(state.pendingAction).toBe("archive");
+    expect(state.pendingChoice).toBeNull();
   });
 
   test("active session: D/D/Delete sets pendingChoice archive_or_delete", () => {
@@ -547,7 +592,10 @@ describe("scrollable layout tree (ScrollBoxRenderable)", () => {
       expect(metadataScroll.getChildren().map(c => c.id)).toEqual(["metadata-text"]);
       expect(sessionsScroll.getChildren().map(c => c.id)).toEqual(["sessions-text"]);
 
-      const actionBar = new TextRenderable(renderer, { id: "action-bar", height: layout.actionRows, content: buildActionBarContent(state) });
+      const actionBarText = new TextRenderable(renderer, { id: "action-bar-text", height: layout.actionRows, wrapMode: "word", truncate: true, content: buildActionBarContent(state) });
+      const actionBar = new BoxRenderable(renderer, { id: "action-bar", width: "100%", height: layout.actionRows, flexDirection: "row", backgroundColor: "#000000" });
+      actionBar.add(actionBarText);
+      expect(actionBar.getChildren().map(c => c.id)).toEqual(["action-bar-text"]);
 
       const topRow = Box({ flexDirection: "row", flexGrow: layout.topPercent },
         Box({ flexDirection: "column", flexGrow: 1 }, messagesScroll),
@@ -596,6 +644,38 @@ describe("scrollable layout tree (ScrollBoxRenderable)", () => {
       const bodyArea = new BoxRenderable(renderer, { id: "body-area", flexDirection: "column", flexGrow: 1 });
       bodyArea.add(focusPane);
       expect(bodyArea.getChildren().map(c => c.id)).toEqual(["metadata-scroll"]);
+    } finally {
+      setup.renderer.destroy();
+    }
+  });
+
+  test("overlays are BoxRenderable modals containing TextRenderable content", async () => {
+    const setup = await createTestRenderer({ width: 120, height: 30 });
+    try {
+      const { renderer } = setup;
+      const state = createInitialState(makeIndex(sessions), { width: 120, height: 30 });
+
+      const searchText = new TextRenderable(renderer, { id: "search-overlay-text", content: buildSearchOverlay({ ...state, inputMode: "search" }) });
+      const searchBox = new BoxRenderable(renderer, { id: "search-overlay", position: "absolute", top: "20%", left: "10%", right: "10%", bottom: "20%", zIndex: 100, visible: false, flexDirection: "column", border: true, borderColor: "#555555", backgroundColor: "#222222" });
+      searchBox.add(searchText);
+      expect(searchBox.getChildren().map(c => c.id)).toEqual(["search-overlay-text"]);
+
+      const confirmText = new TextRenderable(renderer, { id: "confirm-overlay-text", content: buildConfirmOverlay(state) });
+      const confirmBox = new BoxRenderable(renderer, { id: "confirm-overlay", position: "absolute", top: "35%", left: "15%", right: "15%", bottom: "35%", zIndex: 110, visible: false, flexDirection: "column", border: true, borderColor: "#555555", backgroundColor: "#222222" });
+      confirmBox.add(confirmText);
+      expect(confirmBox.getChildren().map(c => c.id)).toEqual(["confirm-overlay-text"]);
+
+      const choiceText = new TextRenderable(renderer, { id: "choice-overlay-text", content: buildChoiceOverlay(state) });
+      const choiceBox = new BoxRenderable(renderer, { id: "choice-overlay", position: "absolute", top: "32%", left: "15%", right: "15%", bottom: "32%", zIndex: 105, visible: false, flexDirection: "column", border: true, borderColor: "#555555", backgroundColor: "#222222" });
+      choiceBox.add(choiceText);
+      expect(choiceBox.getChildren().map(c => c.id)).toEqual(["choice-overlay-text"]);
+
+      renderer.root.add(searchBox);
+      renderer.root.add(confirmBox);
+      renderer.root.add(choiceBox);
+      expect(searchBox.id).toBe("search-overlay");
+      expect(confirmBox.id).toBe("confirm-overlay");
+      expect(choiceBox.id).toBe("choice-overlay");
     } finally {
       setup.renderer.destroy();
     }
@@ -689,5 +769,135 @@ describe("runChildSession", () => {
     expect(audits[1].action).toBe("open_session");
     expect(audits[1].sessionId).toBe("ses_2");
     expect(audits[1].status).toContain("opencode CLI not found");
+  });
+
+  test("refresh-after-child returns renderer to ready for next request", async () => {
+    const calls: string[] = [];
+    const renderer = {
+      suspend: () => { calls.push("suspend"); },
+      resume: () => { calls.push("resume"); },
+      requestRender: () => { calls.push("render"); },
+    };
+    const child = new EventEmitter() as any;
+    const spawnImpl = (_bin: string, _args: string[], _opts: any) => {
+      queueMicrotask(() => child.emit("exit", 0, null));
+      return child;
+    };
+    await runChildSession(renderer as any, { id: "ses_3", fork: false } as ContinueRequest, spawnImpl as any, () => {});
+    expect(calls).toEqual(["suspend", "resume"]);
+  });
+});
+
+describe("mapKey", () => {
+  test("down arrow maps to ArrowDown", () => {
+    expect(mapKey({ name: "down" })).toBe("ArrowDown");
+  });
+
+  test("up arrow maps to ArrowUp", () => {
+    expect(mapKey({ name: "up" })).toBe("ArrowUp");
+  });
+
+  test("mapKey does not map down to j or up to k", () => {
+    expect(mapKey({ name: "down" })).not.toBe("j");
+    expect(mapKey({ name: "up" })).not.toBe("k");
+  });
+
+  test("mapKey supports other named keys", () => {
+    expect(mapKey({ name: "escape" })).toBe("Escape");
+    expect(mapKey({ name: "return" })).toBe("Enter");
+    expect(mapKey({ name: "backspace" })).toBe("Backspace");
+    expect(mapKey({ name: "tab" })).toBe("Tab");
+  });
+
+  test("mapKey ctrl+d maps to Ctrl+D", () => {
+    expect(mapKey({ ctrl: true, name: "d" })).toBe("Ctrl+D");
+  });
+
+  test("mapKey ctrl+c maps to q", () => {
+    expect(mapKey({ ctrl: true, name: "c" })).toBe("q");
+  });
+});
+
+describe("refreshStateFromDisk", () => {
+  function seedDb(rows: UiSession[]): void {
+    const db = new Database(fakeDbPath);
+    db.run("DELETE FROM session");
+    for (const row of rows) {
+      if (row.timeArchived != null) continue;
+      db.run(
+        `INSERT OR REPLACE INTO session
+        (id, project_id, parent_id, slug, directory, title, version, share_url,
+         summary_additions, summary_deletions, summary_files, summary_diffs,
+         time_created, time_updated, time_archived, workspace_id, path, agent,
+         model, cost, tokens_input, tokens_output, tokens_reasoning,
+         tokens_cache_read, tokens_cache_write)
+        VALUES (?, ?, NULL, ?, ?, ?, ?, '', 0, 0, 0, NULL, ?, ?, NULL, NULL, ?, ?, ?, ?, ?, ?, 0, 0, 0)`,
+        [
+          row.id,
+          "p",
+          `s-${row.id}`,
+          row.directory,
+          row.title,
+          "v",
+          row.timeCreated,
+          row.timeUpdated,
+          row.path || "",
+          row.agent || "",
+          row.model || "",
+          row.cost,
+          row.tokensInput,
+          row.tokensOutput,
+        ],
+      );
+    }
+    db.close();
+  }
+
+  test("preserves selected session by id after rebuild", () => {
+    const active = sessions.filter(s => s.timeArchived == null);
+    seedDb(active);
+    let state = createInitialState(makeIndex(active), { height: 20, width: 100 });
+    state = expandFolderWithSessions(state);
+    state = cursorOnFirstSession(state);
+    const before = currentSession(state);
+    expect(before?.id).toBe("ses_0");
+    const after = refreshStateFromDisk(state, "index refreshed");
+    expect(after.status).toBe("index refreshed");
+    const sel = currentSession(after);
+    expect(sel?.id).toBe("ses_0");
+  });
+
+  test("falls back to clamp when selected id disappears", () => {
+    const active = sessions.filter(s => s.timeArchived == null);
+    seedDb(active);
+    let state = createInitialState(makeIndex(active), { height: 20, width: 100 });
+    state = expandFolderWithSessions(state);
+    state = cursorOnFirstSession(state);
+    const before = currentSession(state);
+    expect(before?.id).toBe("ses_0");
+    const reduced: UiSession[] = active.filter(s => s.directory !== "/repo/current");
+    seedDb(reduced);
+    const candidate: any = { ...state, index: makeIndex(reduced) };
+    const after = refreshStateFromDisk(candidate, "back from session");
+    expect(after.status).toBe("back from session");
+    const sel = currentSession(after);
+    if (sel) expect(reduced.some(s => s.id === sel.id)).toBe(true);
+  });
+
+  test("preserves focus and tab on refresh", () => {
+    seedDb(sessions);
+    let state = createInitialState(makeIndex(sessions), { height: 20, width: 100 });
+    state = { ...state, focus: "metadata" as const, tab: "archived" as const };
+    const after = refreshStateFromDisk(state, "index refreshed");
+    expect(after.focus).toBe("metadata");
+    expect(after.tab).toBe("archived");
+  });
+
+  test("clears stale opening status with new status", () => {
+    seedDb(sessions);
+    let state = createInitialState(makeIndex(sessions), { height: 20, width: 100 });
+    state = { ...state, status: "opening ses_0" };
+    const after = refreshStateFromDisk(state, "back from session");
+    expect(after.status).toBe("back from session");
   });
 });

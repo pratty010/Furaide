@@ -326,29 +326,29 @@ describe("actionChips", () => {
     expect(chipIds(chips)).not.toContain("tab");
   });
 
-  test("folder row returns chip set with expand/toggle/archive/delete/search/switch/back/quit (active tab)", () => {
+  test("folder row returns chip set with expand/toggle/delete/search/switch/back/quit (active tab)", () => {
     const state = cursorOnFirstFolder(makeState());
     const chips = actionChips(state);
     expect(chipIds(chips)).toContain("expand");
     expect(chipIds(chips)).toContain("toggle-all");
-    expect(chipIds(chips)).toContain("archive");
     expect(chipIds(chips)).toContain("delete");
     expect(chipIds(chips)).toContain("search");
     expect(chipIds(chips)).toContain("tab-switch");
     expect(chipIds(chips)).toContain("back");
     expect(chipIds(chips)).toContain("quit");
+    expect(chipIds(chips)).not.toContain("archive");
   });
 
-  test("active session row returns chip set with open/archive/delete/search/switch/back/quit", () => {
+  test("active session row returns chip set with open/delete/search/switch/back/quit", () => {
     const state = cursorOnFirstSession(makeState());
     const chips = actionChips(state);
     expect(chipIds(chips)).toContain("open");
-    expect(chipIds(chips)).toContain("archive");
     expect(chipIds(chips)).toContain("delete");
     expect(chipIds(chips)).toContain("search");
     expect(chipIds(chips)).toContain("tab-switch");
     expect(chipIds(chips)).toContain("back");
     expect(chipIds(chips)).toContain("quit");
+    expect(chipIds(chips)).not.toContain("archive");
     expect(chipIds(chips)).not.toContain("import");
   });
 
@@ -533,6 +533,8 @@ describe("applyKey: Tab, t, and navigation keys", () => {
     let state = makeState();
     state = expandFolderWithSessions(state);
     state = cursorOnFirstSession(state);
+    state = applyKey(state, "D");
+    expect(state.pendingChoice).toBe("archive_or_delete");
     state = applyKey(state, "a");
     expect(state.pendingAction).toBe("archive");
     const before = state;
@@ -711,5 +713,188 @@ describe("search - unified search results", () => {
     const selState = { ...searchState, searchSelected: archivedIdx, searchScroll: 0 };
     const result = applyKey(selState, "Enter");
     expect(result.status).toContain("Archived sessions can't be opened directly");
+  });
+});
+
+describe("search mode - arrows only navigation", () => {
+  test("literal j appends to query instead of moving selection", () => {
+    let state = makeState();
+    state = applyKey(state, "/");
+    state = applyKey(state, "j");
+    expect(state.query).toBe("j");
+    expect(state.searchSelected).toBe(0);
+  });
+
+  test("literal k appends to query instead of moving selection", () => {
+    let state = makeState();
+    state = applyKey(state, "/");
+    state = applyKey(state, "k");
+    expect(state.query).toBe("k");
+    expect(state.searchSelected).toBe(0);
+  });
+
+  test("ArrowDown moves search selection down", () => {
+    let state = makeState();
+    state = applyKey(state, "/");
+    state = applyKey(state, "ArrowDown");
+    expect(state.searchSelected).toBe(1);
+    state = applyKey(state, "ArrowDown");
+    expect(state.searchSelected).toBe(2);
+  });
+
+  test("ArrowUp moves search selection up with floor at 0", () => {
+    let state = makeState();
+    state = applyKey(state, "/");
+    state = applyKey(state, "ArrowDown");
+    state = applyKey(state, "ArrowDown");
+    state = applyKey(state, "ArrowDown");
+    expect(state.searchSelected).toBe(3);
+    state = applyKey(state, "ArrowUp");
+    expect(state.searchSelected).toBe(2);
+    state = applyKey(state, "ArrowUp");
+    state = applyKey(state, "ArrowUp");
+    state = applyKey(state, "ArrowUp");
+    state = applyKey(state, "ArrowUp");
+    expect(state.searchSelected).toBe(0);
+  });
+
+  test("j in search does not change searchScroll", () => {
+    const many = Array.from({ length: 25 }, (_, i) => ({
+      ...sessions[0],
+      id: `ses_${i}`,
+      title: `Session ${i}`,
+      directory: `/repo/${i}`,
+    }));
+    let state = makeState(many);
+    state = applyKey(state, "/");
+    for (let i = 0; i < 12; i++) state = applyKey(state, "j");
+    expect(state.query.length).toBe(12);
+    expect(state.searchSelected).toBe(0);
+    expect(state.searchScroll).toBe(0);
+  });
+});
+
+describe("active destructive flow unification", () => {
+  test("active session: a no longer triggers direct archive", () => {
+    let state = makeState();
+    state = expandFolderWithSessions(state);
+    state = cursorOnFirstSession(state);
+    const result = applyKey(state, "a");
+    expect(result.pendingAction).toBeNull();
+    expect(result.pendingChoice).toBeNull();
+    expect(result.status).toBe("use D to archive or delete this session");
+  });
+
+  test("active session: D still opens archive/delete choice", () => {
+    let state = makeState();
+    state = expandFolderWithSessions(state);
+    state = cursorOnFirstSession(state);
+    const result = applyKey(state, "D");
+    expect(result.pendingChoice).toBe("archive_or_delete");
+  });
+
+  test("active session: Delete opens archive/delete choice", () => {
+    let state = makeState();
+    state = expandFolderWithSessions(state);
+    state = cursorOnFirstSession(state);
+    const result = applyKey(state, "Delete");
+    expect(result.pendingChoice).toBe("archive_or_delete");
+  });
+
+  test("active folder: a no longer triggers direct bulk archive", () => {
+    let state = makeState();
+    state = expandFolderWithSessions(state);
+    state = cursorOnFirstFolder(state);
+    const result = applyKey(state, "a");
+    expect(result.pendingAction).toBeNull();
+    expect(result.pendingChoice).toBeNull();
+  });
+});
+
+describe("choice overlay key contract", () => {
+  function setupActiveSessionChoice() {
+    let state = makeState();
+    state = expandFolderWithSessions(state);
+    state = cursorOnFirstSession(state);
+    state = applyKey(state, "D");
+    return state;
+  }
+
+  test("uppercase A chooses archive from choice overlay", () => {
+    let state = setupActiveSessionChoice();
+    expect(state.pendingChoice).toBe("archive_or_delete");
+    const result = applyKey(state, "A");
+    expect(result.pendingChoice).toBeNull();
+    expect(result.pendingAction).toBe("archive");
+  });
+
+  test("lowercase a chooses archive from choice overlay", () => {
+    let state = setupActiveSessionChoice();
+    const result = applyKey(state, "a");
+    expect(result.pendingChoice).toBeNull();
+    expect(result.pendingAction).toBe("archive");
+  });
+
+  test("c cancels choice overlay with cleared pending fields", () => {
+    let state = setupActiveSessionChoice();
+    const result = applyKey(state, "c");
+    expect(result.pendingChoice).toBeNull();
+    expect(result.status).toBe("cancelled");
+  });
+
+  test("C cancels choice overlay with cleared pending fields", () => {
+    let state = setupActiveSessionChoice();
+    const result = applyKey(state, "C");
+    expect(result.pendingChoice).toBeNull();
+    expect(result.status).toBe("cancelled");
+  });
+
+  test("Esc cancels choice overlay with cleared pending fields", () => {
+    let state = setupActiveSessionChoice();
+    const result = applyKey(state, "Esc");
+    expect(result.pendingChoice).toBeNull();
+    expect(result.status).toBe("cancelled");
+  });
+
+  test("Escape cancels choice overlay with cleared pending fields", () => {
+    let state = setupActiveSessionChoice();
+    const result = applyKey(state, "Escape");
+    expect(result.pendingChoice).toBeNull();
+    expect(result.status).toBe("cancelled");
+  });
+
+  test("d from choice overlay chooses delete", () => {
+    let state = setupActiveSessionChoice();
+    const result = applyKey(state, "d");
+    expect(result.pendingChoice).toBeNull();
+    expect(result.pendingAction).toBe("delete");
+  });
+
+  test("D from choice overlay chooses delete", () => {
+    let state = setupActiveSessionChoice();
+    const result = applyKey(state, "D");
+    expect(result.pendingChoice).toBeNull();
+    expect(result.pendingAction).toBe("delete");
+  });
+
+  test("Delete from choice overlay chooses delete", () => {
+    let state = setupActiveSessionChoice();
+    const result = applyKey(state, "Delete");
+    expect(result.pendingChoice).toBeNull();
+    expect(result.pendingAction).toBe("delete");
+  });
+
+  test("cancel clears pendingDirectory and pendingCount for folder choices", () => {
+    let state = makeState();
+    state = expandFolderWithSessions(state);
+    state = cursorOnFirstFolder(state);
+    state = applyKey(state, "D");
+    expect(state.pendingChoice).toBe("archive_or_delete");
+    expect(state.pendingDirectory).toBeDefined();
+    expect(state.pendingCount).toBeDefined();
+    const result = applyKey(state, "c");
+    expect(result.pendingChoice).toBeNull();
+    expect(result.pendingDirectory).toBeUndefined();
+    expect(result.pendingCount).toBeUndefined();
   });
 });

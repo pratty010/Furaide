@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Rework `opencode-all` so Active sessions are sourced from `opencode.db`, Archive sessions are sourced from export files, display reads from an in-memory index, Tab switches Active/Archive, pane focus is mouse-only, hard archive/import/delete actions refresh automatically, and the top panes cannot hide the Sessions pane.
+**Goal:** Rework `opencode-all` so Active sessions are sourced from `opencode.db`, Archive sessions are sourced from export files, display reads from an in-memory index, Tab switches Active/Archive, pane focus is mouse-only, hard archive/import/delete actions refresh automatically, and the final UI/interaction model matches the post-review product corrections documented below.
 
-**Architecture:** Treat the OpenCode DB as the Active store and `~/.local/share/opencode/tools/opencode-all/exports/*.json` as the Archive store. Build an in-memory session index at startup, update it after lifecycle actions, and use manual `R` refresh for external changes. Keep expensive IO out of cursor movement and tab switching; only action execution, startup indexing, manual refresh, selected metadata, and selected messages read DB/filesystem.
+**Architecture:** Treat the OpenCode DB as the Active store and `~/.local/share/opencode/tools/opencode-all/exports/*.json` as the Archive store. Build an in-memory session index at startup, update it after lifecycle actions, and use manual refresh for external changes. Keep expensive IO out of cursor movement and tab switching; only action execution, startup indexing, manual refresh, selected metadata, and selected messages read DB/filesystem. After the hard-archive implementation landed, a final correction tranche tightens the action model, search behavior, overlay rendering, child-session return path, and layout polish without changing the hard-archive storage design.
 
 **Tech Stack:** Bun, TypeScript, `bun:sqlite`, `@opentui/core`, OpenCode CLI (`opencode export`, `opencode import`, `opencode session delete`), Node `fs` APIs, `bun test`.
 
@@ -21,10 +21,16 @@
 - Tab key switches Active/Archive tabs. It must not change pane focus.
 - Pane focus changes only through mouse click inside a pane. Mouse wheel scrolls the focused/clicked pane.
 - Archived sessions cannot be opened directly. They must be imported, then opened from Active.
-- Search spans Active and Archive and matches session metadata plus message content. Archived search results cannot be opened directly.
-- Messages render as truncated one-line rows.
-- Metadata and sessions text wrap. Messages do not wrap.
-- `R` manually rebuilds the in-memory index from DB and archive files.
+- Search spans Active and Archive but matches **title + session id + working directory only**. It must not match message content, agent, model, path, or share URL. Archived search results cannot be opened directly.
+- Search result navigation is **arrow-only** inside search mode. Literal `j` and `k` must type into the query like any other character.
+- Active sessions expose **one destructive entrypoint**: `D`/`d` opens the archive/delete choice overlay. Active `a` is no longer a direct archive action.
+- Archived sessions keep **separate actions**: `I`/`i` imports directly and `D`/`d` deletes directly.
+- Messages render with distinct user/assistant colors, are capped to 100 characters total per message, then wrapped inside the pane.
+- Metadata values use compact denominations (`K`, `M`) where appropriate.
+- The top area (Messages + Metadata together) should occupy roughly 55% of usable height. Sessions should occupy roughly 30% of usable height and remain full-width above a fixed bottom action bar.
+- The current horizontal split of Messages/Metadata is acceptable and remains 50/50.
+- Overlays should render as centered framed modals, not hand-drawn box characters inside plain text blocks.
+- Refresh must work from the TUI and preserve user context as much as practical.
 
 ## Current Repository Context
 
@@ -61,6 +67,19 @@ Fresh baseline before this plan was written:
 - `bun test`: 147 pass, 0 fail.
 - `OPENCODE_ALL_CWD="/d/Everything/Furaidē" bun src/tui.tsx --list`: passed.
 - `bunx tsc --noEmit`: still fails on known upstream `@opentui/core` type issue and existing `string` to `RGBA` errors in `src/dashboard/render.ts`; do not claim typecheck passes until those are fixed separately.
+
+## Implementation Status After Tasks 1-12 And Review Follow-Ups
+
+The original hard-archive/index implementation in Tasks 1-12 is already complete in code and should **not** be re-implemented. The following landed after the original plan:
+
+- Hard archive lifecycle is implemented: export to JSON, delete DB row, import from JSON, delete export file.
+- `src/dashboard/session-index.ts` exists and is wired through `state.ts`, `actions.ts`, and `tui.tsx`.
+- Active/Archive tab switching, index rebuild, archived-open blocking, and hard-archive/import/delete status handling are in code.
+- Review fixes from `docs/superpowers/reviews/2026-06-21-opencode-all-hard-archive-review.md` have already been applied across `db.ts`, `session-index.ts`, `sanitize.ts`, `actions.ts`, `render.ts`, `layout.ts`, `tui.tsx`, and tests.
+- The render/typecheck cleanup already resolved the former 71 local `render.ts` RGBA errors; the remaining `tsc` blocker is now only the upstream `@opentui/core` declaration issue.
+- The child-session resume loop is already in place in `tui.tsx`, but the final UX correction tranche below still refines its post-return refresh behavior.
+
+This means Tasks 1-12 below are now historical implementation record. The remaining work is the final correction tranche in the addendum section.
 
 ## File Structure After This Plan
 
@@ -107,6 +126,114 @@ Do not modify in this plan:
 - Archived sessions cannot be opened from rows or search results.
 - Backspace is back only in normal mode. In search mode Backspace edits the search query.
 - `Esc` cancels `pendingChoice`, then `pendingAction`, then search/input mode, then back/root.
+
+## Final Correction Tranche
+
+These items supersede parts of the earlier UI/interaction wording where the shipped implementation diverged from the latest product direction.
+
+- Active `D`/`d` is the single destructive/action entry point and must open archive/delete choice.
+- Search input must accept every printable character, including `j` and `k`; only arrow keys navigate search results.
+- Refresh must be discoverable and reliable from the TUI.
+- Returning from a child `opencode --session` must bring the user back to a freshly reloaded dashboard, not a stale one.
+- Overlays must be centered framed modals implemented with layout primitives, not text-drawn border glyphs.
+- Top-area height target is 55% usable height, sessions height target is 30% usable height, action bar remains pinned to bottom.
+- Messages should be readable but uncluttered: distinct U/A color treatment, capped to 100 chars total, then wrapped within the message pane.
+- Metadata numbers should use compact formatting.
+
+---
+
+## Addendum Tasks: Final Product Corrections
+
+### Task 13: Fix TSC Dependency Noise And TUI Return/Refresh Reliability
+
+**Files:**
+
+- Modify: `opencode/tools/opencode-all/tsconfig.json`
+- Modify: `opencode/tools/opencode-all/src/tui.tsx`
+- Modify: `opencode/tools/opencode-all/tests/tui.test.tsx`
+
+- [ ] Add `"skipLibCheck": true` to `tsconfig.json` to suppress the upstream `@opentui/core` declaration bug without patching dependencies.
+- [ ] After `runChildSession(...)` returns in `src/tui.tsx`, rebuild the session index and call `reloadState(...)` so the dashboard reflects any child-session changes immediately.
+- [ ] Clear stale `opening ...` status on return from the child session.
+- [ ] Make TUI refresh accept both `r` and `R` (or explicitly advertise one choice and enforce it consistently), while preserving current selection if possible.
+- [ ] Add tests proving return-from-child triggers a fresh reload and refresh path.
+- [ ] Verification: `bun test tests/tui.test.tsx` and `bunx tsc --noEmit`.
+
+### Task 14: Unify Active Archive/Delete Flow And Fix Choice Overlay Key Contract
+
+**Files:**
+
+- Modify: `opencode/tools/opencode-all/src/dashboard/actions.ts`
+- Modify: `opencode/tools/opencode-all/tests/actions.test.ts`
+- Modify: `opencode/tools/opencode-all/tests/tui.test.tsx`
+
+- [ ] Remove the direct active-session and active-folder `a` archive path; route active `d`/`D` only into `pendingChoice: "archive_or_delete"`.
+- [ ] In the choice handler, accept `a/A`, `d/D/Delete`, and `c/C/Esc` so overlay labels and handler behavior match.
+- [ ] Keep archived rows/folders on direct `I` import and direct `D` delete.
+- [ ] Update action chips so active rows advertise only the unified destructive/action entrypoint.
+- [ ] Add tests for uppercase/lowercase choice keys and cancel behavior.
+- [ ] Verification: `bun test tests/actions.test.ts tests/tui.test.tsx`.
+
+### Task 15: Make Search Modal Arrow-Navigation Only And Keep Printable Characters Literal
+
+**Files:**
+
+- Modify: `opencode/tools/opencode-all/src/tui.tsx`
+- Modify: `opencode/tools/opencode-all/src/dashboard/actions.ts`
+- Modify: `opencode/tools/opencode-all/src/dashboard/render.ts`
+- Modify: `opencode/tools/opencode-all/tests/tui.test.tsx`
+- Modify: `opencode/tools/opencode-all/tests/layout.test.ts`
+
+- [ ] Stop collapsing arrow keys into literal `j`/`k` in `mapKey` so search-mode logic can distinguish arrows from typed characters.
+- [ ] In search mode, reserve `ArrowUp`/`ArrowDown` for result navigation and allow literal `j`/`k` to append to `state.query`.
+- [ ] Keep non-search-mode `j`/`k` navigation unchanged.
+- [ ] Update search overlay footer/help text so it accurately advertises arrow navigation.
+- [ ] Add tests that literal `j`/`k` type into the search query and arrows move the selection.
+- [ ] Verification: `bun test tests/tui.test.tsx tests/layout.test.ts`.
+
+### Task 16: Replace Text-Drawn Overlays With Centered Box Modals
+
+**Files:**
+
+- Modify: `opencode/tools/opencode-all/src/tui.tsx`
+- Modify: `opencode/tools/opencode-all/src/dashboard/render.ts`
+- Modify: `opencode/tools/opencode-all/tests/layout.test.ts`
+
+- [ ] Replace `TextRenderable`-only search/choice/confirm overlays with bordered `BoxRenderable` modal containers and inner text content.
+- [ ] Remove hand-drawn box-drawing characters from `buildSearchOverlay`, `buildChoiceOverlay`, and `buildConfirmOverlay`; these functions should render inner content only.
+- [ ] Center all overlays and size them from the viewport so they do not distort on medium terminals.
+- [ ] Keep destructive warning content and keyboard hints inside the modal body.
+- [ ] Add/update tests to assert overlay content still renders correctly after the modal primitive swap.
+- [ ] Verification: `bun test tests/layout.test.ts tests/tui.test.tsx`.
+
+### Task 17: Correct Final Layout Geometry And Bottom Action Bar Presentation
+
+**Files:**
+
+- Modify: `opencode/tools/opencode-all/src/dashboard/layout.ts`
+- Modify: `opencode/tools/opencode-all/src/tui.tsx`
+- Modify: `opencode/tools/opencode-all/tests/layout.test.ts`
+
+- [ ] Change medium/wide vertical proportions from `55/30` naming to actual top-area `55` and sessions `30` behavior.
+- [ ] Keep the top horizontal split at 50/50 between Messages and Metadata.
+- [ ] Ensure Sessions stays full-width beneath the top region.
+- [ ] Keep the action bar visually fixed as a full-width bottom strip with stable background fill.
+- [ ] Update layout tests so `80x24` still renders all panes but with the corrected top/sessions ratio.
+- [ ] Verification: `bun test tests/layout.test.ts tests/tui.test.tsx`.
+
+### Task 18: Message And Metadata Readability Pass
+
+**Files:**
+
+- Modify: `opencode/tools/opencode-all/src/dashboard/render.ts`
+- Modify: `opencode/tools/opencode-all/tests/layout.test.ts`
+
+- [ ] Cap each rendered message to 100 characters total before wrapping.
+- [ ] Keep user and assistant messages visually distinct with stronger contrast than the current near-white/cyan pairing.
+- [ ] Add compact number helpers for tokens, file counts, cache stats, archive bytes, and tool counts.
+- [ ] Apply compact formatting in metadata rendering.
+- [ ] Update tests for truncation-at-100 and compact-value rendering.
+- [ ] Verification: `bun test tests/layout.test.ts`.
 
 ---
 

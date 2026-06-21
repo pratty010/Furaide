@@ -167,6 +167,29 @@ describe("buildMessagesContent", () => {
     expect(text).toContain("a".repeat(60));
     expect(text.split("\n").filter(l => l.trim()).length).toBeGreaterThan(1);
   });
+
+  test("caps messages to 100 characters before wrapping and adds ellipsis", () => {
+    const longText = "word ".repeat(50).trim();
+    expect(longText.length).toBeGreaterThan(100);
+    const msgs: ArchivedMessageRow[] = [
+      { role: "user", time: 100000, text: longText },
+    ];
+    const state = baseState({ cursor: 1, expandedFolders: new Set([mockFolder.directory]), messageRows: msgs, viewport: { height: 24, width: 80 } });
+    const text = flatText(buildMessagesContent(state));
+    expect(text).toContain("\u2026");
+    const lines = text.split("\n").filter(l => l.trim());
+    expect(lines.length).toBeGreaterThan(1);
+  });
+
+  test("preserves short messages without ellipsis", () => {
+    const msgs: ArchivedMessageRow[] = [
+      { role: "user", time: 100000, text: "short message" },
+    ];
+    const state = baseState({ cursor: 1, expandedFolders: new Set([mockFolder.directory]), messageRows: msgs, viewport: { height: 24, width: 80 } });
+    const text = flatText(buildMessagesContent(state));
+    expect(text).not.toContain("\u2026");
+    expect(text).toContain("short message");
+  });
 });
 
 describe("buildMetadataContent", () => {
@@ -203,6 +226,35 @@ describe("buildMetadataContent", () => {
     const cwdDetail = { ...mockDetail, isCurrent: true };
     const text = flatText(buildMetadataContent(baseState(), cwdDetail));
     expect(text).toContain("(cwd)");
+  });
+
+  test("uses compact K formatting for token counts >= 1000", () => {
+    const large = { ...mockDetail, tokensInput: 1234, tokensOutput: 5678, tokensReasoning: 0, tokensCacheRead: 890, tokensCacheWrite: 1500 };
+    const text = flatText(buildMetadataContent(baseState({ viewport: { height: 100, width: 100 } }), large));
+    expect(text).toContain("1.2K");
+    expect(text).toContain("5.7K");
+    expect(text).toContain("1.5K");
+  });
+
+  test("uses compact M formatting for counts >= 1_000_000", () => {
+    const large = { ...mockDetail, tokensInput: 2_300_000, tokensOutput: 0, tokensReasoning: 0, tokensCacheRead: 0, tokensCacheWrite: 0, summaryFiles: 1, summaryAdditions: 0, summaryDeletions: 0 };
+    const text = flatText(buildMetadataContent(baseState({ viewport: { height: 100, width: 100 } }), large));
+    expect(text).toContain("2.3M");
+  });
+
+  test("keeps literal numbers under 1000", () => {
+    const small = { ...mockDetail, tokensInput: 999, tokensOutput: 100, tokensReasoning: 5, tokensCacheRead: 0, tokensCacheWrite: 0, summaryFiles: 0, summaryAdditions: 0, summaryDeletions: 0 };
+    const text = flatText(buildMetadataContent(baseState({ viewport: { height: 100, width: 100 } }), small));
+    expect(text).toContain("999");
+    expect(text).toContain("100");
+    expect(text).not.toContain("999K");
+  });
+
+  test("uses compact K formatting for summary counts", () => {
+    const large = { ...mockDetail, summaryFiles: 1200, summaryAdditions: 5500, summaryDeletions: 0, tokensInput: 0, tokensOutput: 0, tokensReasoning: 0, tokensCacheRead: 0, tokensCacheWrite: 0 };
+    const text = flatText(buildMetadataContent(baseState({ viewport: { height: 100, width: 100 } }), large));
+    expect(text).toContain("1.2K");
+    expect(text).toContain("5.5K");
   });
 });
 
@@ -244,12 +296,12 @@ describe("buildSessionsContent", () => {
 });
 
 describe("buildActionBarContent", () => {
-  test("renders active session chips with open/archive/delete", () => {
+  test("renders active session chips with open and delete (no standalone archive chip)", () => {
     const state = baseState({ expandedFolders: new Set([mockFolder.directory]), cursor: 1 });
     const text = flatText(buildActionBarContent(state));
     expect(text).toContain("Enter open");
-    expect(text).toContain("archive");
     expect(text).toContain("delete");
+    expect(text).not.toContain("archive");
   });
 
   test("renders metadata focus chips with tab-focus/back/quit", () => {
@@ -300,6 +352,15 @@ describe("buildConfirmOverlay", () => {
     expect(text).toContain("[y/Enter] confirm");
     expect(text).not.toContain("click");
   });
+
+  test("does not include hand-drawn box-drawing frame characters", () => {
+    const state = baseState({ pendingAction: "delete", expandedFolders: new Set([mockFolder.directory]), cursor: 1 });
+    const text = flatText(buildConfirmOverlay(state));
+    const frameGlyphs = ["\u250c", "\u2510", "\u2514", "\u2518", "\u251c", "\u2524", "\u2502", "\u2500"];
+    for (const g of frameGlyphs) {
+      expect(text).not.toContain(g);
+    }
+  });
 });
 
 describe("buildChoiceOverlay", () => {
@@ -324,6 +385,15 @@ describe("buildChoiceOverlay", () => {
     expect(text).toContain("[A]");
     expect(text).toContain("[D]");
     expect(text).toContain("[C]");
+  });
+
+  test("does not include hand-drawn box-drawing frame characters", () => {
+    const state = baseState({ pendingChoice: "archive_or_delete" });
+    const text = flatText(buildChoiceOverlay(state));
+    const frameGlyphs = ["\u250c", "\u2510", "\u2514", "\u2518", "\u251c", "\u2524", "\u2502", "\u2500"];
+    for (const g of frameGlyphs) {
+      expect(text).not.toContain(g);
+    }
   });
 });
 
@@ -423,5 +493,14 @@ describe("buildSearchOverlay", () => {
     const text = flatText(buildSearchOverlay(state));
     expect(text).toContain("[A]");
     expect(text).toContain("[a]");
+  });
+
+  test("does not include hand-drawn box-drawing frame characters", () => {
+    const state = baseState({ inputMode: "search", query: "" });
+    const text = flatText(buildSearchOverlay(state));
+    const frameGlyphs = ["\u250c", "\u2510", "\u2514", "\u2518", "\u251c", "\u2524", "\u2502", "\u2500"];
+    for (const g of frameGlyphs) {
+      expect(text).not.toContain(g);
+    }
   });
 });

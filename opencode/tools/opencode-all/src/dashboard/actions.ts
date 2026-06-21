@@ -228,9 +228,9 @@ export function actionChips(state: UiState): ActionChip[] {
   if (state.pendingChoice) {
     if (state.pendingChoice === "archive_or_delete") {
       return [
-        { id: "archive", label: "a archive", key: "a" },
-        { id: "delete", label: "d delete", key: "d", danger: true },
-        { id: "cancel", label: "Esc cancel", key: "Esc" },
+        { id: "archive", label: "a archive", key: "a|A" },
+        { id: "delete", label: "d delete", key: "d|D|Delete", danger: true },
+        { id: "cancel", label: "Esc cancel", key: "c|C|Esc" },
       ];
     }
   }
@@ -272,7 +272,6 @@ export function actionChips(state: UiState): ActionChip[] {
     return [
       { id: "expand", label: "Enter expand", key: "Enter" },
       { id: "toggle-all", label: "o toggle", key: "o" },
-      { id: "archive", label: "a archive", key: "a" },
       { id: "delete", label: "D delete", key: "D", danger: true },
       { id: "search", label: "/ search", key: "/" },
       { id: "tab-switch", label: "Tab switch tab", key: "Tab" },
@@ -297,7 +296,6 @@ export function actionChips(state: UiState): ActionChip[] {
 
   return [
     { id: "open", label: "Enter open", key: "Enter" },
-    { id: "archive", label: "a archive", key: "a" },
     { id: "delete", label: "D delete", key: "D", danger: true },
     { id: "search", label: "/ search", key: "/" },
     { id: "tab-switch", label: "Tab switch tab", key: "Tab" },
@@ -394,13 +392,13 @@ export function applyKey(
   }
 
   if (state.inputMode === "search") {
-    if (key === "ArrowUp" || key === "k") {
+    if (key === "ArrowUp") {
       const nextSel = Math.max(0, state.searchSelected - 1);
       const total = searchResultsFor(state).length;
       const nextScroll = clampSearchScroll(nextSel, state.searchScroll, total);
       return { ...state, searchSelected: nextSel, searchScroll: nextScroll };
     }
-    if (key === "ArrowDown" || key === "j") {
+    if (key === "ArrowDown") {
       const total = searchResultsFor(state).length;
       const last = Math.max(0, total - 1);
       const nextSel = Math.min(last, state.searchSelected + 1);
@@ -430,11 +428,11 @@ export function applyKey(
   }
 
   if (state.pendingChoice) {
-    if (key === "Esc" || key === "Escape") {
+    if (key === "c" || key === "C" || key === "Esc" || key === "Escape") {
       return { ...state, pendingChoice: null, pendingDirectory: undefined, pendingCount: undefined, status: "cancelled" };
     }
     if (state.pendingChoice === "archive_or_delete") {
-      if (key === "a") {
+      if (key === "a" || key === "A") {
         const pendingAction = state.pendingDirectory ? "bulk_archive" : "archive";
         return { ...state, pendingChoice: null, pendingAction, status: confirmOverlayText({ ...state, pendingAction, pendingDirectory: state.pendingDirectory, pendingCount: state.pendingCount }) };
       }
@@ -587,11 +585,6 @@ export function applyKey(
   const folder = selectFolderAtCursor(state);
 
   if (ctx.isFolder && folder) {
-    if (key === "a") {
-      const count = state.index.activeByDir.get(folder.directory)?.size ?? 0;
-      if (count === 0) return { ...state, status: "no active sessions to archive" };
-      return { ...state, status: confirmOverlayText({ ...state, pendingAction: "bulk_archive", pendingDirectory: folder.directory, pendingCount: count }), pendingAction: "bulk_archive", pendingDirectory: folder.directory, pendingCount: count };
-    }
     if (key === "I" && state.tab === "archived") {
       const count = state.index.archivedByDir.get(folder.directory)?.size ?? 0;
       if (count === 0) return { ...state, status: "no sessions in this folder" };
@@ -622,7 +615,7 @@ export function applyKey(
     } else {
       if (key === "r" || key === "I") return { ...state, status: "import only applies to archived sessions" };
       if (key === "i") return { ...state, status: "import only applies to archived sessions" };
-      if (key === "a") return { ...state, status: `confirm archive ${session.id}`, pendingAction: "archive" };
+      if (key === "a") return { ...state, status: "use D to archive or delete this session" };
       if (key === "d" || key === "D" || key === "Delete") {
         return { ...state, pendingChoice: "archive_or_delete", status: "confirm action on session" };
       }
