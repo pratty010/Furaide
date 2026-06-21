@@ -167,8 +167,8 @@ describe("navigation", () => {
   });
 
   test("focused mode: Tab switches tab, focus stays sessions", () => {
-    const state = createInitialState(makeIndex(sessions), { height: 20, width: 100 });
-    expect(dashboardLayout(100, 20).mode).toBe("focused");
+    const state = createInitialState(makeIndex(sessions), { height: 18, width: 100 });
+    expect(dashboardLayout(100, 18).mode).toBe("focused");
     const s1 = applyKey(state, "Tab");
     expect(s1.tab).toBe("archived");
     expect(s1.focus).toBe("sessions");
@@ -573,11 +573,11 @@ describe("scrollable layout tree (ScrollBoxRenderable)", () => {
   });
 
   test("focused layout shows a single pane filling the body when state.focus is set", async () => {
-    const setup = await createTestRenderer({ width: 60, height: 20 });
+    const setup = await createTestRenderer({ width: 50, height: 15 });
     try {
       const { renderer } = setup;
-      const state: any = { ...createInitialState(makeIndex(sessions), { width: 60, height: 20 }), focus: "metadata" };
-      const layout = dashboardLayout(60, 20);
+      const state: any = { ...createInitialState(makeIndex(sessions), { width: 50, height: 15 }), focus: "metadata" };
+      const layout = dashboardLayout(50, 15);
       expect(layout.mode).toBe("focused");
 
       const metadataText = new TextRenderable(renderer, { id: "metadata-text", wrapMode: "word", content: buildMetadataContent(state) });
