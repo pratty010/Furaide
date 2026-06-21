@@ -1,0 +1,39 @@
+{
+  "name": "friday-opencode-all",
+  "vars": {
+    "bg": "#040410",
+    "surface": "#0a0616",
+    "surfaceAlt": "#120a22",
+    "accent": "#ff0080",
+    "violet": "#7b2fff",
+    "success": "#39ff14",
+    "warning": "#ffaa00",
+    "error": "#ff4466",
+    "muted": "#b48fe0",
+    "dim": "#8064a8",
+    "text": "#f2eaff",
+    "cyan": "#00d8ff"
+  },
+  "pane": {
+    "listBorder": "dim",
+    "listBorderFocus": "accent",
+    "listSelectedBg": "surfaceAlt",
+    "listSelectedFg": "text",
+    "listCursor": "accent",
+    "detailBorder": "dim",
+    "detailLabel": "muted",
+    "detailValue": "text",
+    "detailCost": "violet",
+    "detailTokens": "cyan",
+    "detailStatusActive": "success",
+    "detailStatusArchived": "warning",
+    "detailStatusDeleted": "error",
+    "statusBg": "surface",
+    "statusFg": "muted",
+    "statusKey": "accent",
+    "modalBorder": "accent",
+    "modalBg": "surface",
+    "modalFg": "text",
+    "danger": "error"
+  }
+}

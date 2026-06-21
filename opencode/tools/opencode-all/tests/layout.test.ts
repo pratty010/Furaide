@@ -1,0 +1,506 @@
+import { describe, expect, test, beforeAll } from "bun:test";
+import { dashboardLayout } from "../src/dashboard/layout.ts";
+import {
+  buildMessagesContent,
+  buildMetadataContent,
+  buildSessionsContent,
+  buildActionBarContent,
+  buildConfirmOverlay,
+  buildChoiceOverlay,
+  buildSearchOverlay,
+  setTheme,
+} from "../src/dashboard/render.ts";
+import { getVisibleRows } from "../src/dashboard/state.ts";
+import type { SessionDetail, ArchivedMessageRow, DirectoryRow } from "../src/db.ts";
+import type { UiState, UiSession } from "../src/dashboard/state.ts";
+
+function flatText(st: { chunks: Array<{ text?: string }> }): string {
+  return st.chunks.map(c => c.text || "").join("");
+}
+
+const testTheme = {
+  name: "test",
+  vars: {
+    text: "#ffffff", surfaceAlt: "#1a1a1a",
+    cyan: "#00ffff", success: "#00ff00", muted: "#888888",
+    listSelectedBg: "#333333", detailValue: "#cccccc", detailCost: "#ffcc00",
+    detailTokens: "#aaaaaa", accent: "#ff6600", dim: "#666666",
+    modalBorder: "#555555", modalFg: "#ffffff", modalBg: "#222222",
+    statusFg: "#ffffff", statusBg: "#000000", danger: "#ff0000",
+  },
+  pane: {
+    text: "text", surfaceAlt: "surfaceAlt",
+    cyan: "cyan", success: "success", muted: "muted",
+    listSelectedBg: "listSelectedBg", detailValue: "detailValue",
+    detailCost: "detailCost", detailTokens: "detailTokens",
+    accent: "accent", dim: "dim",
+    modalBorder: "modalBorder", modalFg: "modalFg", modalBg: "modalBg",
+    statusFg: "statusFg", statusBg: "statusBg", danger: "danger",
+  },
+};
+
+const mockSession: UiSession = {
+  id: "ses_1", title: "Test Session", directory: "/test/proj",
+  path: "", agent: "build", model: JSON.stringify({ providerID: "openai", id: "gpt-4" }),
+  shareUrl: "", cost: 1.23, tokensInput: 100, tokensOutput: 50,
+  timeCreated: 100000, timeUpdated: 200000, timeArchived: null,
+  isCurrent: true, suspicious: false,
+};
+
+const mockArchivedSession: UiSession = {
+  ...mockSession, id: "ses_2", title: "Archived Session",
+  timeArchived: 300000, isCurrent: false,
+};
+
+const mockFolder: DirectoryRow = {
+  directory: "/test/proj", active: 1, archived: 1, latestUpdated: 200000,
+};
+
+function baseState(overrides: Partial<UiState> = {}): UiState {
+  return {
+    folders: [mockFolder],
+    sessions: [mockSession, mockArchivedSession],
+    allSessions: [mockSession, mockArchivedSession],
+    expandedFolders: new Set<string>(),
+    cursor: 0,
+    listScroll: 0,
+    detailScroll: 0,
+    messageScroll: 0,
+    tab: "active",
+    inputMode: null,
+    query: "",
+    directory: undefined,
+    sort: "updated",
+    stack: [],
+    viewport: { height: 24, width: 100 },
+    status: "ready",
+    pendingAction: null,
+    pendingDirectory: undefined,
+    pendingCount: undefined,
+    searchSelected: 0,
+    searchScroll: 0,
+    searchResults: [],
+    focus: "sessions",
+    messageRows: [],
+    ...overrides,
+  } as UiState;
+}
+
+const mockDetail: SessionDetail = {
+  ...mockSession,
+  messages: 5,
+  diffPath: null,
+  diffBytes: null,
+  partCounts: { text: 10, tool: 3 },
+  toolCounts: [{ tool: "read", status: "success", count: 2 }],
+  recentText: [{ role: "user", timeCreated: 100000, text: "hello" }],
+  tokensReasoning: 20,
+  tokensCacheRead: 5,
+  tokensCacheWrite: 3,
+  summaryFiles: 3,
+  summaryAdditions: 10,
+  summaryDeletions: 2,
+};
+
+beforeAll(() => {
+  setTheme(testTheme as any);
+});
+
+describe("buildMessagesContent", () => {
+  test("returns placeholder when no session selected", () => {
+    const state = baseState({ cursor: 0, expandedFolders: new Set() });
+    const text = flatText(buildMessagesContent(state));
+    expect(text).toContain("Select a session");
+  });
+
+  test("returns empty message when no message rows", () => {
+    const state = baseState({ cursor: 1, expandedFolders: new Set([mockFolder.directory]) });
+    const text = flatText(buildMessagesContent(state));
+    expect(text).toContain("(no messages)");
+  });
+
+  test("renders user and assistant messages with U/A prefix and timestamp", () => {
+    const msgs: ArchivedMessageRow[] = [
+      { role: "user", time: 100000, text: "hello" },
+      { role: "assistant", time: 200000, text: "world" },
+    ];
+    const state = baseState({ cursor: 1, expandedFolders: new Set([mockFolder.directory]), messageRows: msgs });
+    const text = flatText(buildMessagesContent(state));
+    expect(text).toContain("U");
+    expect(text).toContain("A");
+    expect(text).toContain("hello");
+    expect(text).toContain("world");
+  });
+
+  test("filters out system messages", () => {
+    const msgs: ArchivedMessageRow[] = [
+      { role: "system", time: 50000, text: "system msg" },
+      { role: "user", time: 100000, text: "user msg" },
+    ];
+    const state = baseState({ cursor: 1, expandedFolders: new Set([mockFolder.directory]), messageRows: msgs });
+    const text = flatText(buildMessagesContent(state));
+    expect(text).not.toContain("system msg");
+    expect(text).toContain("user msg");
+  });
+
+  test("word-wraps long messages to multiple lines with continuation indent", () => {
+    const longText = "This is a very long message that should be word-wrapped across multiple lines because it exceeds the available row width in the messages pane";
+    const msgs: ArchivedMessageRow[] = [
+      { role: "user", time: 100000, text: longText },
+    ];
+    const state = baseState({ cursor: 1, expandedFolders: new Set([mockFolder.directory]), messageRows: msgs, viewport: { height: 24, width: 80 } });
+    const text = flatText(buildMessagesContent(state));
+    expect(text).toContain("This is a very long message that should be word-wrapped");
+    expect(text).toContain("across multiple lines");
+    const lines = text.split("\n").filter(l => l.trim());
+    expect(lines.length).toBeGreaterThan(1);
+    expect(lines.slice(1).some(line => line.startsWith("        "))).toBe(true);
+  });
+
+  test("word-wraps very long single word with character-level break", () => {
+    const longWord = "a".repeat(200);
+    const msgs: ArchivedMessageRow[] = [
+      { role: "assistant", time: 200000, text: longWord },
+    ];
+    const state = baseState({ cursor: 1, expandedFolders: new Set([mockFolder.directory]), messageRows: msgs, viewport: { height: 24, width: 80 } });
+    const text = flatText(buildMessagesContent(state));
+    expect(text).toContain("a".repeat(60));
+    expect(text.split("\n").filter(l => l.trim()).length).toBeGreaterThan(1);
+  });
+
+  test("caps messages to 100 characters before wrapping and adds ellipsis", () => {
+    const longText = "word ".repeat(50).trim();
+    expect(longText.length).toBeGreaterThan(100);
+    const msgs: ArchivedMessageRow[] = [
+      { role: "user", time: 100000, text: longText },
+    ];
+    const state = baseState({ cursor: 1, expandedFolders: new Set([mockFolder.directory]), messageRows: msgs, viewport: { height: 24, width: 80 } });
+    const text = flatText(buildMessagesContent(state));
+    expect(text).toContain("\u2026");
+    const lines = text.split("\n").filter(l => l.trim());
+    expect(lines.length).toBeGreaterThan(1);
+  });
+
+  test("preserves short messages without ellipsis", () => {
+    const msgs: ArchivedMessageRow[] = [
+      { role: "user", time: 100000, text: "short message" },
+    ];
+    const state = baseState({ cursor: 1, expandedFolders: new Set([mockFolder.directory]), messageRows: msgs, viewport: { height: 24, width: 80 } });
+    const text = flatText(buildMessagesContent(state));
+    expect(text).not.toContain("\u2026");
+    expect(text).toContain("short message");
+  });
+});
+
+describe("buildMetadataContent", () => {
+  test("returns placeholder when no detail", () => {
+    const state = baseState();
+    const text = flatText(buildMetadataContent(state, null));
+    expect(text).toContain("No session selected");
+  });
+
+  test("renders detail fields with id, directory, agent, model", () => {
+    const text = flatText(buildMetadataContent(baseState(), mockDetail));
+    expect(text).toContain("ses_1");
+    expect(text).toContain("/test/proj");
+    expect(text).toContain("build");
+    expect(text).toContain("gpt-4");
+    expect(text).toContain("openai");
+  });
+
+  test("renders cost, tokens, and times", () => {
+    const text = flatText(buildMetadataContent(baseState(), mockDetail));
+    expect(text).toContain("$1.23");
+    expect(text).toContain("100");
+    expect(text).toContain("50");
+    expect(text).toContain("20");
+  });
+
+  test("renders suspicious indicator when flagged", () => {
+    const suspicious = { ...mockDetail, suspicious: true };
+    const text = flatText(buildMetadataContent(baseState({ viewport: { height: 60, width: 100 } }), suspicious));
+    expect(text).toContain("suspicious");
+  });
+
+  test("renders (cwd) indicator for current directory", () => {
+    const cwdDetail = { ...mockDetail, isCurrent: true };
+    const text = flatText(buildMetadataContent(baseState(), cwdDetail));
+    expect(text).toContain("(cwd)");
+  });
+
+  test("uses compact K formatting for token counts >= 1000", () => {
+    const large = { ...mockDetail, tokensInput: 1234, tokensOutput: 5678, tokensReasoning: 0, tokensCacheRead: 890, tokensCacheWrite: 1500 };
+    const text = flatText(buildMetadataContent(baseState({ viewport: { height: 100, width: 100 } }), large));
+    expect(text).toContain("1.2K");
+    expect(text).toContain("5.7K");
+    expect(text).toContain("1.5K");
+  });
+
+  test("uses compact M formatting for counts >= 1_000_000", () => {
+    const large = { ...mockDetail, tokensInput: 2_300_000, tokensOutput: 0, tokensReasoning: 0, tokensCacheRead: 0, tokensCacheWrite: 0, summaryFiles: 1, summaryAdditions: 0, summaryDeletions: 0 };
+    const text = flatText(buildMetadataContent(baseState({ viewport: { height: 100, width: 100 } }), large));
+    expect(text).toContain("2.3M");
+  });
+
+  test("keeps literal numbers under 1000", () => {
+    const small = { ...mockDetail, tokensInput: 999, tokensOutput: 100, tokensReasoning: 5, tokensCacheRead: 0, tokensCacheWrite: 0, summaryFiles: 0, summaryAdditions: 0, summaryDeletions: 0 };
+    const text = flatText(buildMetadataContent(baseState({ viewport: { height: 100, width: 100 } }), small));
+    expect(text).toContain("999");
+    expect(text).toContain("100");
+    expect(text).not.toContain("999K");
+  });
+
+  test("uses compact K formatting for summary counts", () => {
+    const large = { ...mockDetail, summaryFiles: 1200, summaryAdditions: 5500, summaryDeletions: 0, tokensInput: 0, tokensOutput: 0, tokensReasoning: 0, tokensCacheRead: 0, tokensCacheWrite: 0 };
+    const text = flatText(buildMetadataContent(baseState({ viewport: { height: 100, width: 100 } }), large));
+    expect(text).toContain("1.2K");
+    expect(text).toContain("5.5K");
+  });
+});
+
+describe("buildSessionsContent", () => {
+  test("renders header with tab name", () => {
+    const state = baseState({ expandedFolders: new Set([mockFolder.directory]) });
+    const text = flatText(buildSessionsContent(state));
+    expect(text).toContain("[Active]");
+    expect(text).toContain("Archived");
+  });
+
+  test("renders folder rows with directory name and without counts", () => {
+    const state = baseState({ expandedFolders: new Set([mockFolder.directory]) });
+    const text = flatText(buildSessionsContent(state));
+    expect(text).toContain("/test/proj");
+    expect(text).not.toContain("1 active");
+    expect(text).not.toContain("1 archived");
+  });
+
+  test("renders session rows with title, updated time, cost, and archive marker", () => {
+    const state = baseState({ expandedFolders: new Set([mockFolder.directory]) });
+    const visible = getVisibleRows(state);
+    const sessionIdx = visible.findIndex(r => "id" in r);
+    const cursorState = { ...state, cursor: sessionIdx };
+    const text = flatText(buildSessionsContent(cursorState));
+    expect(text).toContain("Test Session");
+    expect(text).toMatch(/\d{2}:\d{2}:\d{2}/);
+    expect(text).toContain("$1.23");
+  });
+
+  test("selected row has selection marker", () => {
+    const state = baseState({ expandedFolders: new Set([mockFolder.directory]) });
+    const visible = getVisibleRows(state);
+    const sessionIdx = visible.findIndex(r => "id" in r);
+    const cursorState = { ...state, cursor: sessionIdx };
+    const text = flatText(buildSessionsContent(cursorState));
+    expect(text).toContain("\u276f");
+  });
+});
+
+describe("buildActionBarContent", () => {
+  test("renders active session chips with open and delete (no standalone archive chip)", () => {
+    const state = baseState({ expandedFolders: new Set([mockFolder.directory]), cursor: 1 });
+    const text = flatText(buildActionBarContent(state));
+    expect(text).toContain("Enter open");
+    expect(text).toContain("delete");
+    expect(text).not.toContain("archive");
+  });
+
+  test("renders metadata focus chips with tab-focus/back/quit", () => {
+    const state = baseState({ focus: "metadata" });
+    const text = flatText(buildActionBarContent(state));
+    expect(text).toContain("Tab switch tab");
+    expect(text).toContain("Esc back");
+    expect(text).toContain("q quit");
+  });
+});
+
+describe("buildConfirmOverlay", () => {
+  test("returns empty when no pending action", () => {
+    const text = flatText(buildConfirmOverlay(baseState()));
+    expect(text).toBe("");
+  });
+
+  test("renders overlay with pending action title", () => {
+    const state = baseState({ pendingAction: "delete", expandedFolders: new Set([mockFolder.directory]), cursor: 1 });
+    const text = flatText(buildConfirmOverlay(state));
+    expect(text).toContain("DELETE");
+    expect(text).toContain("permanently");
+  });
+
+  test("delete confirmation includes destructive text", () => {
+    const state = baseState({ pendingAction: "delete", expandedFolders: new Set([mockFolder.directory]), cursor: 1 });
+    const text = flatText(buildConfirmOverlay(state));
+    expect(text).toContain("DESTRUCTIVE");
+    expect(text).toContain("cannot be undone");
+  });
+
+  test("bulk_delete confirmation includes destructive text", () => {
+    const state = baseState({ pendingAction: "bulk_delete", pendingDirectory: "/test/proj", pendingCount: 5 });
+    const text = flatText(buildConfirmOverlay(state));
+    expect(text).toContain("DESTRUCTIVE");
+  });
+
+  test("non-destructive confirm (archive) does not show destructive warning", () => {
+    const state = baseState({ pendingAction: "archive", expandedFolders: new Set([mockFolder.directory]), cursor: 1 });
+    const text = flatText(buildConfirmOverlay(state));
+    expect(text).toContain("ARCHIVE");
+    expect(text).not.toContain("DESTRUCTIVE");
+  });
+
+  test("confirm overlay includes only keyboard confirm/cancel hint", () => {
+    const state = baseState({ pendingAction: "archive", expandedFolders: new Set([mockFolder.directory]), cursor: 1 });
+    const text = flatText(buildConfirmOverlay(state));
+    expect(text).toContain("[y/Enter] confirm");
+    expect(text).not.toContain("click");
+  });
+
+  test("does not include hand-drawn box-drawing frame characters", () => {
+    const state = baseState({ pendingAction: "delete", expandedFolders: new Set([mockFolder.directory]), cursor: 1 });
+    const text = flatText(buildConfirmOverlay(state));
+    const frameGlyphs = ["\u250c", "\u2510", "\u2514", "\u2518", "\u251c", "\u2524", "\u2502", "\u2500"];
+    for (const g of frameGlyphs) {
+      expect(text).not.toContain(g);
+    }
+  });
+});
+
+describe("buildChoiceOverlay", () => {
+  test("returns empty when no pending choice", () => {
+    const text = flatText(buildChoiceOverlay(baseState()));
+    expect(text).toBe("");
+  });
+
+  test("renders archive/delete choices", () => {
+    const state = baseState({ pendingChoice: "archive_or_delete" });
+    const text = flatText(buildChoiceOverlay(state));
+    expect(text).toContain("Archive or Delete");
+    expect(text).toContain("[A]");
+    expect(text).toContain("[D]");
+    expect(text).toContain("[C]");
+  });
+
+  test("renders archive/delete choices", () => {
+    const state = baseState({ pendingChoice: "archive_or_delete" });
+    const text = flatText(buildChoiceOverlay(state));
+    expect(text).toContain("Archive or Delete");
+    expect(text).toContain("[A]");
+    expect(text).toContain("[D]");
+    expect(text).toContain("[C]");
+  });
+
+  test("does not include hand-drawn box-drawing frame characters", () => {
+    const state = baseState({ pendingChoice: "archive_or_delete" });
+    const text = flatText(buildChoiceOverlay(state));
+    const frameGlyphs = ["\u250c", "\u2510", "\u2514", "\u2518", "\u251c", "\u2524", "\u2502", "\u2500"];
+    for (const g of frameGlyphs) {
+      expect(text).not.toContain(g);
+    }
+  });
+});
+
+describe("dashboardLayout", () => {
+  test("wide layout uses half top split and two-row action bar", () => {
+    const layout = dashboardLayout(110, 30);
+    expect(layout.mode).toBe("wide");
+    expect(layout.topPercent).toBe(55);
+    expect(layout.sessionsPercent).toBe(30);
+    expect(layout.actionRows).toBe(2);
+    expect(layout.topSplit).toBe("half");
+    expect(layout.topMaxHeight).toBe("70%");
+    expect(layout.sessionsMinHeight).toBe("30%");
+  });
+
+  test("medium layout keeps half top split and two-row action bar", () => {
+    const layout = dashboardLayout(99, 28);
+    expect(layout.mode).toBe("medium");
+    expect(layout.topPercent).toBe(55);
+    expect(layout.sessionsPercent).toBe(30);
+    expect(layout.actionRows).toBe(2);
+    expect(layout.topSplit).toBe("half");
+    expect(layout.topMaxHeight).toBe("70%");
+    expect(layout.sessionsMinHeight).toBe("30%");
+  });
+
+  test("focused layout activates below minimum terminal size", () => {
+    const narrow = dashboardLayout(59, 30);
+    expect(narrow.mode).toBe("focused");
+    expect(narrow.topPercent).toBe(0);
+    expect(narrow.sessionsPercent).toBe(0);
+    expect(narrow.topSplit).toBe("focused");
+    expect(narrow.actionRows).toBe(1);
+    expect(narrow.topMaxHeight).toBe("70%");
+    expect(narrow.sessionsMinHeight).toBe("30%");
+
+    const short = dashboardLayout(100, 19);
+    expect(short.mode).toBe("focused");
+    expect(short.topPercent).toBe(0);
+    expect(short.sessionsPercent).toBe(0);
+    expect(short.topSplit).toBe("focused");
+    expect(short.actionRows).toBe(1);
+    expect(short.topMaxHeight).toBe("70%");
+    expect(short.sessionsMinHeight).toBe("30%");
+  });
+
+  test("layout percentages leave room for action bar", () => {
+    const wide = dashboardLayout(110, 30);
+    expect(wide.topPercent + wide.sessionsPercent).toBeLessThanOrEqual(100);
+
+    const medium = dashboardLayout(99, 28);
+    expect(medium.topPercent + medium.sessionsPercent).toBeLessThanOrEqual(100);
+
+    const focused = dashboardLayout(59, 30);
+    expect(focused.topPercent + focused.sessionsPercent).toBeLessThanOrEqual(100);
+  });
+
+  test("medium mode activates on either dimension below threshold", () => {
+    const narrow = dashboardLayout(99, 30);
+    expect(narrow.mode).toBe("medium");
+
+    const short = dashboardLayout(110, 27);
+    expect(short.mode).toBe("medium");
+  });
+
+  test("focused on very small both dimensions", () => {
+    const layout = dashboardLayout(40, 10);
+    expect(layout.mode).toBe("focused");
+    expect(layout.topPercent).toBe(0);
+    expect(layout.sessionsPercent).toBe(0);
+    expect(layout.topSplit).toBe("focused");
+    expect(layout.topMaxHeight).toBe("70%");
+    expect(layout.sessionsMinHeight).toBe("30%");
+  });
+
+  test("all layout sizes include maxHeight and minHeight constraints", () => {
+    const sizes: [number, number][] = [[40, 10], [100, 30], [120, 30]];
+    for (const [w, h] of sizes) {
+      const layout = dashboardLayout(w, h);
+      expect(layout.topMaxHeight).toBe("70%");
+      expect(layout.sessionsMinHeight).toBe("30%");
+    }
+  });
+
+  test("80x24 terminal gets medium mode with 3 panes (not focused)", () => {
+    const layout = dashboardLayout(80, 24);
+    expect(layout.mode).toBe("medium");
+    expect(layout.topSplit).toBe("half");
+    expect(layout.topPercent).toBe(55);
+    expect(layout.sessionsPercent).toBe(30);
+  });
+});
+
+describe("buildSearchOverlay", () => {
+  test("renders [A]/[a] tab markers", () => {
+    const state = baseState({ inputMode: "search", query: "" });
+    const text = flatText(buildSearchOverlay(state));
+    expect(text).toContain("[A]");
+    expect(text).toContain("[a]");
+  });
+
+  test("does not include hand-drawn box-drawing frame characters", () => {
+    const state = baseState({ inputMode: "search", query: "" });
+    const text = flatText(buildSearchOverlay(state));
+    const frameGlyphs = ["\u250c", "\u2510", "\u2514", "\u2518", "\u251c", "\u2524", "\u2502", "\u2500"];
+    for (const g of frameGlyphs) {
+      expect(text).not.toContain(g);
+    }
+  });
+});
