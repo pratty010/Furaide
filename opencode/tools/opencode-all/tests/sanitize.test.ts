@@ -22,12 +22,25 @@ describe("renderSafe", () => {
     expect(renderSafe("a\x1bP1;2;3+qAAAA\x1b\\b")).toBe("ab");
   });
 
-  test("preserves printable text, tabs, and newlines", () => {
-    expect(renderSafe("alpha\tbeta\ngamma")).toBe("alpha\tbeta\ngamma");
+  test("preserves printable text and newlines, replaces tabs with spaces", () => {
+    expect(renderSafe("alpha\tbeta\ngamma")).toBe("alpha beta\ngamma");
   });
 
-  test("removes raw control bytes except tab and newline", () => {
+  test("removes raw control bytes, replaces tab with space, preserves newline", () => {
     expect(renderSafe("a\x00b\x07c\rd")).toBe("abcd");
+    expect(renderSafe("x\ty")).toBe("x y");
+  });
+
+  test("strips Unicode bidi override (U+202E RLO)", () => {
+    expect(renderSafe("hello\u202eworld")).toBe("helloworld");
+  });
+
+  test("strips zero-width spaces (U+200B)", () => {
+    expect(renderSafe("a\u200bb")).toBe("ab");
+  });
+
+  test("strips BOM (U+FEFF)", () => {
+    expect(renderSafe("\ufeffhello")).toBe("hello");
   });
 });
 
@@ -36,6 +49,13 @@ describe("hasControlBytes", () => {
     expect(hasControlBytes("safe")).toBe(false);
     expect(hasControlBytes("bad\x1b[2J")).toBe(true);
     expect(hasControlBytes("bad\x07")).toBe(true);
+  });
+
+  test("detects Unicode bidi override characters", () => {
+    expect(hasControlBytes("safe")).toBe(false);
+    expect(hasControlBytes("bad\u202e")).toBe(true);
+    expect(hasControlBytes("bad\u200b")).toBe(true);
+    expect(hasControlBytes("bad\ufeff")).toBe(true);
   });
 });
 
