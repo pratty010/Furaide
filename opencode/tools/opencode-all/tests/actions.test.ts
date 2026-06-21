@@ -666,6 +666,27 @@ describe("applyKey: focus-aware scrolling", () => {
     expect(state.messageScroll).toBe(beforeMessage);
     expect(state.detailScroll).toBe(beforeDetail);
   });
+
+  test("messages focus ignores system rows when clamping messageScroll", () => {
+    let state = makeState();
+    state = expandFolderWithSessions(state);
+    state = cursorOnFirstSession(state);
+    state = {
+      ...state,
+      focus: "messages" as const,
+      messageRows: [
+        { role: "system", time: 1, text: "sys-1" },
+        { role: "user", time: 2, text: "u-1" },
+        { role: "assistant", time: 3, text: "a-1" },
+        { role: "system", time: 4, text: "sys-2" },
+      ] as any,
+    };
+    state = applyKey(state, "G");
+    // Only 2 visible rows (user + assistant), so max scroll is 1
+    expect(state.messageScroll).toBe(1);
+    state = applyKey(state, "j");
+    expect(state.messageScroll).toBe(1);
+  });
 });
 
 describe("search - unified search results", () => {

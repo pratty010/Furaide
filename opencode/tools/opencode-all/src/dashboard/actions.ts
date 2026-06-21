@@ -40,6 +40,10 @@ function sessionRowsInDirectory(state: UiState, directory: string): UiSession[] 
   return rowsForTab(state.index, state.tab, directory);
 }
 
+function visibleMessageCount(state: UiState): number {
+  return state.messageRows.filter(m => m.role === "user" || m.role === "assistant").length;
+}
+
 export function confirmOverlayText(state: UiState): string {
   if (!state.pendingAction) return "";
   const selected = currentSession(state);
@@ -496,9 +500,12 @@ export function applyKey(
   }
 
   if (key === "j" || key === "ArrowDown") {
-    if (state.focus === "messages" && state.messageRows.length > 0) {
-      const max = Math.max(0, state.messageRows.length - 1);
-      return { ...state, messageScroll: Math.min(max, state.messageScroll + 1) };
+    if (state.focus === "messages") {
+      const count = visibleMessageCount(state);
+      if (count > 0) {
+        const max = Math.max(0, count - 1);
+        return { ...state, messageScroll: Math.min(max, state.messageScroll + 1) };
+      }
     }
     if (state.focus === "metadata") {
       return { ...state, detailScroll: state.detailScroll + 1 };
@@ -506,8 +513,11 @@ export function applyKey(
     return moveSessionCursor(state, state.cursor + 1);
   }
   if (key === "k" || key === "ArrowUp") {
-    if (state.focus === "messages" && state.messageRows.length > 0) {
-      return { ...state, messageScroll: Math.max(0, state.messageScroll - 1) };
+    if (state.focus === "messages") {
+      const count = visibleMessageCount(state);
+      if (count > 0) {
+        return { ...state, messageScroll: Math.max(0, state.messageScroll - 1) };
+      }
     }
     if (state.focus === "metadata") {
       return { ...state, detailScroll: Math.max(0, state.detailScroll - 1) };
@@ -515,8 +525,11 @@ export function applyKey(
     return moveSessionCursor(state, state.cursor - 1);
   }
   if (key === "G") {
-    if (state.focus === "messages" && state.messageRows.length > 0) {
-      return { ...state, messageScroll: state.messageRows.length - 1 };
+    if (state.focus === "messages") {
+      const count = visibleMessageCount(state);
+      if (count > 0) {
+        return { ...state, messageScroll: count - 1 };
+      }
     }
     if (state.focus === "metadata") {
       return { ...state, detailScroll: Number.MAX_SAFE_INTEGER };
@@ -525,9 +538,12 @@ export function applyKey(
   }
   if (key === "gg") return moveSessionCursor(state, 0);
   if (key === "Ctrl+D" || key === "PageDown") {
-    if (state.focus === "messages" && state.messageRows.length > 0) {
-      const max = Math.max(0, state.messageRows.length - 1);
-      return { ...state, messageScroll: Math.min(max, state.messageScroll + 5) };
+    if (state.focus === "messages") {
+      const count = visibleMessageCount(state);
+      if (count > 0) {
+        const max = Math.max(0, count - 1);
+        return { ...state, messageScroll: Math.min(max, state.messageScroll + 5) };
+      }
     }
     if (state.focus === "metadata") {
       return { ...state, detailScroll: state.detailScroll + 5 };
@@ -535,8 +551,11 @@ export function applyKey(
     return moveSessionCursor(state, state.cursor + 5);
   }
   if (key === "Ctrl+U" || key === "PageUp") {
-    if (state.focus === "messages" && state.messageRows.length > 0) {
-      return { ...state, messageScroll: Math.max(0, state.messageScroll - 5) };
+    if (state.focus === "messages") {
+      const count = visibleMessageCount(state);
+      if (count > 0) {
+        return { ...state, messageScroll: Math.max(0, state.messageScroll - 5) };
+      }
     }
     if (state.focus === "metadata") {
       return { ...state, detailScroll: Math.max(0, state.detailScroll - 5) };

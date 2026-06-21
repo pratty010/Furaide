@@ -82,7 +82,7 @@ export function buildMessagesContent(state: UiState): StyledText {
     return asStyledText(chunks);
   }
   const rowWidth = Math.max(20, state.viewport.width - 12);
-  const prefixLen = 6;
+  const prefixLen = 8; // "HH:MM U "
   const wrapWidth = Math.max(10, rowWidth - prefixLen);
 
   function wrapText(text: string, width: number): string[] {

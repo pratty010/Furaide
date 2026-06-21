@@ -151,9 +151,10 @@ describe("buildMessagesContent", () => {
     const state = baseState({ cursor: 1, expandedFolders: new Set([mockFolder.directory]), messageRows: msgs, viewport: { height: 24, width: 80 } });
     const text = flatText(buildMessagesContent(state));
     expect(text).toContain("This is a very long message that should be word-wrapped");
-    expect(text).toContain("available row width");
+    expect(text).toContain("across multiple lines");
     const lines = text.split("\n").filter(l => l.trim());
     expect(lines.length).toBeGreaterThan(1);
+    expect(lines.slice(1).some(line => line.startsWith("        "))).toBe(true);
   });
 
   test("word-wraps very long single word with character-level break", () => {
