@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { Database } from "bun:sqlite";
-import { defaultArchivePath, exportSessionToFile, getSessionDetail, importSessionFromFile, isSafeSessionId, listArchivedSessionFiles, listDirectories, listSessions, readArchivedMessages, readRecentMessages, setArchived } from "../src/db.ts";
+import { defaultArchivePath, exportSessionToFile, getSessionDetail, importSessionFromFile, isSafeSessionId, listArchivedSessionFiles, listDirectories, listSessions, readArchivedMessages, readRecentMessages } from "../src/db.ts";
 
 const root = join(import.meta.dir, ".tmp-db");
 const dbPath = join(root, "opencode.db");
@@ -111,13 +111,6 @@ describe("detail and archive", () => {
     expect(detail?.recentText[0]?.text).toContain("hello");
     expect(detail?.diffBytes).toBe(2);
     delete process.env.XDG_DATA_HOME;
-  });
-
-  test("archives and restores a session", () => {
-    setArchived({ dbPath, id: "ses_a", archivedAt: 8000 });
-    expect(listSessions({ dbPath, tab: "archived", cwd: "/repo/current" }).map(row => row.id)).toContain("ses_a");
-    setArchived({ dbPath, id: "ses_a", archivedAt: null });
-    expect(listSessions({ dbPath, tab: "active", cwd: "/repo/current" }).map(row => row.id)).toContain("ses_a");
   });
 });
 

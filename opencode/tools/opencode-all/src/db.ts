@@ -524,16 +524,6 @@ export function getSessionDetail(options: { dbPath?: string; id: string; cwd?: s
   }
 }
 
-export function setArchived(options: { dbPath?: string; id: string; archivedAt: number | null }): void {
-  if (!isSafeSessionId(options.id)) return;
-  const db = openDb(options.dbPath);
-  try {
-    db.query("UPDATE session SET time_archived = ? WHERE id = ?").run(options.archivedAt, options.id);
-  } finally {
-    db.close();
-  }
-}
-
 export function listDirectories(options: { dbPath?: string; prefix?: string }): DirectoryRow[] {
   const db = openDb(options.dbPath);
   try {
@@ -558,47 +548,5 @@ export function listDirectories(options: { dbPath?: string; prefix?: string }): 
       .filter(row => !prefix || row.directory.toLowerCase().includes(prefix));
   } finally {
     db.close();
-  }
-}
-
-/**
- * @deprecated Search scope no longer includes message content. Use the in-memory
- * filter in `dashboard/actions.ts` (`searchResultsFor`) which matches active
- * sessions on title + session_id + directory only. Kept here temporarily to
- * avoid breaking imports; remove in Task 5.
- */
-export function activeSessionsMatchingText(query: string, maxResults = 50, dbPath = defaultDbPath(), cwdValue = process.env.OPENCODE_ALL_CWD || process.cwd()): SessionRow[] {
-  try {
-    const db = openDb(dbPath);
-    try {
-      const lower = `%${query.toLowerCase()}%`;
-      const rows = db.query(`
-        SELECT DISTINCT s.id, s.title, s.directory, COALESCE(s.path, '') AS path,
-               COALESCE(s.agent, '') AS agent, COALESCE(s.model, '') AS model,
-               COALESCE(s.share_url, '') AS share_url,
-               s.cost, s.tokens_input, s.tokens_output,
-               s.time_created, s.time_updated, s.time_archived
-        FROM session s
-        LEFT JOIN message m ON m.session_id = s.id
-        LEFT JOIN part p ON p.message_id = m.id
-        WHERE s.parent_id IS NULL
-          AND s.time_archived IS NULL
-          AND (
-            LOWER(s.title) LIKE ?
-            OR LOWER(s.directory) LIKE ?
-            OR LOWER(s.path) LIKE ?
-            OR LOWER(s.agent) LIKE ?
-            OR LOWER(s.model) LIKE ?
-            OR LOWER(json_extract(p.data, '$.text')) LIKE ?
-          )
-        ORDER BY s.time_updated DESC
-        LIMIT ?
-      `).all(lower, lower, lower, lower, lower, lower, maxResults) as SessionRawRow[];
-      return rows.map(raw => toRow(raw, cwdValue));
-    } finally {
-      db.close();
-    }
-  } catch {
-    return [];
   }
 }

@@ -26,10 +26,8 @@ type InputMode = null | "search" | "directory" | "filter";
 type PendingAction =
   | "delete"
   | "archive"
-  | "restore"
   | "export_sanitized"
   | "continue"
-  | "archive_and_delete"
   | "import"
   | "bulk_archive"
   | "bulk_restore"
@@ -37,7 +35,7 @@ type PendingAction =
   | null;
 export type PaneFocus = "messages" | "metadata" | "sessions" | "search" | "confirm";
 
-type PendingChoice = "archive_or_delete" | "delete_or_import" | null;
+type PendingChoice = "archive_or_delete" | null;
 
 export type UiState = {
   index: SessionIndex;

@@ -17,11 +17,7 @@ import {
   deleteSessionById,
   exportSessionToFile,
   importSessionFromFile,
-  listActiveSessionsInDir,
-  listArchivedSessionsInDir,
-  readArchivedMessages,
   removeArchiveFile,
-  setArchived,
 } from "../db.ts";
 import {
   addActiveToIndex,
@@ -50,11 +46,12 @@ export function confirmOverlayText(state: UiState): string {
   switch (state.pendingAction) {
     case "archive":
       return `Archive session ${selected?.id || ""}?`;
-    case "archive_and_delete":
-      return `Archive + delete ${selected?.id || ""}? This legacy action is disabled.`;
     case "import":
       return `Import archived session ${selected?.id || ""}?`;
     case "delete":
+      if (state.tab === "archived") {
+        return `Delete archive file for ${selected?.title || selected?.id || ""}? This permanently removes the export.`;
+      }
       return `Delete ${selected?.title || selected?.id || ""} permanently? No archive will be created.`;
     case "bulk_archive":
       return `Bulk archive ${state.pendingCount ?? 0} active sessions under ${state.pendingDirectory || ""}?`;
@@ -79,18 +76,19 @@ export function executePendingAction(
     let ok = 0;
     let failed = 0;
     let lastError = "";
+    const failedIds: string[] = [];
     for (const row of rows) {
       const res = exportSessionToFile(row.id);
-      if (!res.ok) { failed += 1; lastError = res.stderr.slice(-160); continue; }
+      if (!res.ok) { failed += 1; failedIds.push(row.id); lastError = res.stderr.slice(-160); continue; }
       const del = deleteSessionById(row.id);
-      if (!del.ok) { failed += 1; lastError = del.stderr.slice(-160); continue; }
+      if (!del.ok) { failed += 1; failedIds.push(row.id); lastError = del.stderr.slice(-160); continue; }
       const removed = removeActiveFromIndex(state.index, row.id);
       if (removed) {
         addArchivedToIndex(state.index, { ...removed, timeArchived: Date.now() });
       }
       ok += 1;
     }
-    const status = `bulk archived ${ok}/${rows.length}` + (failed ? `, ${failed} failed: ${lastError}` : "");
+    const status = `bulk archived ${ok}/${rows.length}` + (failed ? `, ${failed} failed: ${failedIds.join(",")} (${lastError})` : "");
     return clampCursor(reloadState({ ...state, pendingAction: null, pendingDirectory: undefined, pendingCount: undefined, status }));
   }
   if (state.pendingAction === "bulk_restore" && state.pendingDirectory) {
@@ -98,9 +96,10 @@ export function executePendingAction(
     let ok = 0;
     let failed = 0;
     let lastError = "";
+    const failedIds: string[] = [];
     for (const row of rows) {
       const imp = importSessionFromFile(row.id);
-      if (!imp.ok) { failed += 1; lastError = imp.stderr.slice(-160); continue; }
+      if (!imp.ok) { failed += 1; failedIds.push(row.id); lastError = imp.stderr.slice(-160); continue; }
       const removed = removeArchivedFromIndex(state.index, row.id);
       if (removed) {
         addActiveToIndex(state.index, { ...removed, timeArchived: null });
@@ -109,7 +108,7 @@ export function executePendingAction(
       if (!rem.ok) { lastError = rem.err || lastError; }
       ok += 1;
     }
-    const status = `bulk restored ${ok}/${rows.length}` + (failed ? `, ${failed} failed: ${lastError}` : "");
+    const status = `bulk restored ${ok}/${rows.length}` + (failed ? `, ${failed} failed: ${failedIds.join(",")} (${lastError})` : "");
     return clampCursor(reloadState({ ...state, pendingAction: null, pendingDirectory: undefined, pendingCount: undefined, status }));
   }
   if (state.pendingAction === "bulk_delete" && state.pendingDirectory) {
@@ -117,20 +116,21 @@ export function executePendingAction(
     let ok = 0;
     let failed = 0;
     let lastError = "";
+    const failedIds: string[] = [];
     for (const row of rows) {
       if (state.tab === "active") {
         const del = deleteSessionById(row.id);
-        if (!del.ok) { failed += 1; lastError = del.stderr.slice(-160); continue; }
+        if (!del.ok) { failed += 1; failedIds.push(row.id); lastError = del.stderr.slice(-160); continue; }
         removeActiveFromIndex(state.index, row.id);
         removeArchiveFile(row.id);
       } else {
         const rem = removeArchiveFile(row.id);
-        if (!rem.ok) { failed += 1; lastError = rem.err || lastError; continue; }
+        if (!rem.ok) { failed += 1; failedIds.push(row.id); lastError = rem.err || lastError; continue; }
         removeArchivedFromIndex(state.index, row.id);
       }
       ok += 1;
     }
-    const status = `bulk deleted ${ok}/${rows.length}` + (failed ? `, ${failed} failed: ${lastError}` : "");
+    const status = `bulk deleted ${ok}/${rows.length}` + (failed ? `, ${failed} failed: ${failedIds.join(",")} (${lastError})` : "");
     return clampCursor(reloadState({ ...state, pendingAction: null, pendingDirectory: undefined, pendingCount: undefined, status }));
   }
 
@@ -143,22 +143,13 @@ export function executePendingAction(
     }
     const delRes = deleteSessionById(selected.id);
     if (!delRes.ok) {
-      return { ...state, pendingAction: null, status: "archive exported but delete failed" };
+      return { ...state, pendingAction: null, status: `archive exported but delete failed (exit ${delRes.code}): ${delRes.stderr.slice(-160)}` };
     }
     const removed = removeActiveFromIndex(state.index, selected.id);
     if (removed) {
       addArchivedToIndex(state.index, { ...removed, timeArchived: Date.now() });
     }
     return clampCursor(reloadState({ ...state, pendingAction: null, status: `archived ${selected.id}` }));
-  }
-
-  if (state.pendingAction === "archive_and_delete") {
-    return { ...state, pendingAction: null, status: "legacy archive+delete disabled; use a archive or d delete" };
-  }
-
-  if (state.pendingAction === "restore") {
-    setArchived({ id: selected.id, archivedAt: null });
-    return clampCursor(reloadState({ ...state, pendingAction: null, tab: "active", cursor: 0, listScroll: 0, status: `restored ${selected.id}` }));
   }
 
   if (state.pendingAction === "import") {
@@ -175,7 +166,7 @@ export function executePendingAction(
       if (removed) {
         addArchivedToIndex(state.index, removed);
       }
-      return clampCursor(reloadState({ ...state, pendingAction: null, status: "imported but archive file removal failed" }));
+      return clampCursor(reloadState({ ...state, pendingAction: null, status: `imported but archive file removal failed: ${rem.err}` }));
     }
     return clampCursor(reloadState({ ...state, pendingAction: null, tab: "active", status: `imported ${selected.id}` }));
   }
@@ -238,13 +229,6 @@ export function actionChips(state: UiState): ActionChip[] {
         { id: "cancel", label: "Esc cancel", key: "Esc" },
       ];
     }
-    if (state.pendingChoice === "delete_or_import") {
-      return [
-        { id: "import", label: "i import", key: "i" },
-        { id: "delete", label: "d delete", key: "d", danger: true },
-        { id: "cancel", label: "Esc cancel", key: "Esc" },
-      ];
-    }
   }
 
   if (state.inputMode === "search") {
@@ -297,7 +281,6 @@ export function actionChips(state: UiState): ActionChip[] {
   const session = row as UiSession;
   if (session.timeArchived != null) {
     return [
-      { id: "open", label: "Enter open", key: "Enter" },
       { id: "import", label: "I import", key: "I" },
       { id: "delete", label: "D delete", key: "D", danger: true },
       { id: "search", label: "/ search", key: "/" },
@@ -320,11 +303,6 @@ export function actionChips(state: UiState): ActionChip[] {
   ];
 }
 
-function archivedMatchesMessage(id: string, query: string): boolean {
-  const lower = query.toLowerCase();
-  return readArchivedMessages(id, 500).some(row => row.text.toLowerCase().includes(lower));
-}
-
 export function searchResultsFor(state: UiState): SearchResult[] {
   const query = state.query.trim().toLowerCase();
   if (!query) {
@@ -342,28 +320,15 @@ export function searchResultsFor(state: UiState): SearchResult[] {
   const activeResults = state.allSessions.filter(s => s.timeArchived == null);
   const archivedResults = state.allSessions.filter(s => s.timeArchived != null);
 
-  const activeDbResults = activeResults
-    .filter(s => {
-      const id = s.id.toLowerCase();
-      return s.title.toLowerCase().includes(query)
-        || id.includes(query)
-        || s.directory.toLowerCase().includes(query);
-    })
-    .map(s => ({ session: s, tab: "active" as const, matchIn: "metadata" as const }));
-
   const activeMetaResults = activeResults
-    .filter(s => [s.title, s.directory, s.path, s.agent, s.model, s.shareUrl].some(v => v.toLowerCase().includes(query)))
+    .filter(s => [s.title, s.directory, s.id].some(v => v.toLowerCase().includes(query)))
     .map(s => ({ session: s, tab: "active" as const, matchIn: "metadata" as const }));
 
   const archivedMetaResults = archivedResults
-    .filter(s => [s.title, s.directory, s.path, s.agent, s.model, s.shareUrl].some(v => v.toLowerCase().includes(query)))
+    .filter(s => [s.title, s.directory, s.id].some(v => v.toLowerCase().includes(query)))
     .map(s => ({ session: s, tab: "archived" as const, matchIn: "metadata" as const }));
 
-  const archivedMsgResults = archivedResults
-    .filter(s => archivedMatchesMessage(s.id, query))
-    .map(s => ({ session: s, tab: "archived" as const, matchIn: "messages" as const }));
-
-  const merged = [...activeDbResults, ...activeMetaResults, ...archivedMetaResults, ...archivedMsgResults];
+  const merged = [...activeMetaResults, ...archivedMetaResults];
 
   const seen = new Set<string>();
   const deduped: SearchResult[] = [];
@@ -411,6 +376,9 @@ export function applyKey(
   if (key === "f") return { ...state, inputMode: "filter", searchSelected: 0, searchScroll: 0, status: "filter" };
   if (key.startsWith("type:")) {
     const query = key.slice("type:".length);
+    if (state.inputMode === "search") {
+      return clampCursor(reloadState({ ...state, query, cursor: 0, listScroll: 0, searchSelected: 0, searchScroll: 0, status: `${state.inputMode || "input"}:${query}` }));
+    }
     return clampCursor(reloadState({ ...state, query, cursor: 0, listScroll: 0, status: `${state.inputMode || "input"}:${query}` }));
   }
   if (key === "Escape" || key === "Esc") {
@@ -471,16 +439,6 @@ export function applyKey(
         return { ...state, pendingChoice: null, pendingAction, status: confirmOverlayText({ ...state, pendingAction, pendingDirectory: state.pendingDirectory, pendingCount: state.pendingCount }) };
       }
     }
-    if (state.pendingChoice === "delete_or_import") {
-      if (key === "i" || key === "I") {
-        const pendingAction = state.pendingDirectory ? "bulk_restore" : "import";
-        return { ...state, pendingChoice: null, pendingAction, status: confirmOverlayText({ ...state, pendingAction, pendingDirectory: state.pendingDirectory, pendingCount: state.pendingCount }) };
-      }
-      if (key === "d" || key === "D" || key === "Delete") {
-        const pendingAction = state.pendingDirectory ? "bulk_delete" : "delete";
-        return { ...state, pendingChoice: null, pendingAction, status: confirmOverlayText({ ...state, pendingAction, pendingDirectory: state.pendingDirectory, pendingCount: state.pendingCount }) };
-      }
-    }
     return state;
   }
 
@@ -501,9 +459,6 @@ export function applyKey(
   }
   if (key === "B") {
     return clampCursor(reloadState({ ...state, directory: undefined, query: "", inputMode: null, stack: [], cursor: 0, listScroll: 0, focus: "sessions", status: "reset" }));
-  }
-  if (key === "R") {
-    return clampCursor(reloadState({ ...state, status: "index refresh requested" }));
   }
   if (key === "E") {
     const nextExpanded = new Set(state.folders.map(f => f.directory));
@@ -601,7 +556,7 @@ export function applyKey(
     const session = currentSession(state);
     if (session) {
       if (session.timeArchived != null) {
-        return { ...state, status: "archived session" };
+        return { ...state, status: "Archived sessions can't be opened directly. Press I to import first." };
       }
       return openSessionInOpencode(state, session.id, onContinue);
     }
@@ -614,28 +569,24 @@ export function applyKey(
 
   if (ctx.isFolder && folder) {
     if (key === "a") {
-      const count = listActiveSessionsInDir(folder.directory).length;
+      const count = state.index.activeByDir.get(folder.directory)?.size ?? 0;
       if (count === 0) return { ...state, status: "no active sessions to archive" };
       return { ...state, status: confirmOverlayText({ ...state, pendingAction: "bulk_archive", pendingDirectory: folder.directory, pendingCount: count }), pendingAction: "bulk_archive", pendingDirectory: folder.directory, pendingCount: count };
     }
-    if (key === "r") {
-      const count = listArchivedSessionsInDir(folder.directory).length;
-      if (count === 0) return { ...state, status: "no archived sessions to restore" };
-      return { ...state, status: confirmOverlayText({ ...state, pendingAction: "bulk_restore", pendingDirectory: folder.directory, pendingCount: count }), pendingAction: "bulk_restore", pendingDirectory: folder.directory, pendingCount: count };
-    }
     if (key === "I" && state.tab === "archived") {
-      const count = listArchivedSessionsInDir(folder.directory).length;
+      const count = state.index.archivedByDir.get(folder.directory)?.size ?? 0;
       if (count === 0) return { ...state, status: "no sessions in this folder" };
       return { ...state, status: confirmOverlayText({ ...state, pendingAction: "bulk_restore", pendingDirectory: folder.directory, pendingCount: count }), pendingAction: "bulk_restore", pendingDirectory: folder.directory, pendingCount: count };
     }
     if (key === "d" || key === "D" || key === "Delete") {
-      const activeCount = listActiveSessionsInDir(folder.directory).length;
-      const archivedCount = listArchivedSessionsInDir(folder.directory).length;
-      const total = activeCount + archivedCount;
-      if (total === 0) return { ...state, status: "no sessions in this folder" };
-      const pendingChoice = state.tab === "active" ? "archive_or_delete" : "delete_or_import";
-      const count = state.tab === "active" ? activeCount : archivedCount;
-      return { ...state, pendingChoice, pendingDirectory: folder.directory, pendingCount: count, status: `confirm action on ${folder.directory}` };
+      if (state.tab === "archived") {
+        const count = state.index.archivedByDir.get(folder.directory)?.size ?? 0;
+        if (count === 0) return { ...state, status: "no sessions in this folder" };
+        return { ...state, status: confirmOverlayText({ ...state, pendingAction: "bulk_delete", pendingDirectory: folder.directory, pendingCount: count }), pendingAction: "bulk_delete", pendingDirectory: folder.directory, pendingCount: count };
+      }
+      const count = state.index.activeByDir.get(folder.directory)?.size ?? 0;
+      if (count === 0) return { ...state, status: "no sessions in this folder" };
+      return { ...state, pendingChoice: "archive_or_delete", pendingDirectory: folder.directory, pendingCount: count, status: `confirm action on ${folder.directory}` };
     }
     return state;
   }
@@ -646,9 +597,8 @@ export function applyKey(
       if (key === "i" || key === "I") {
         return { ...state, status: confirmOverlayText({ ...state, pendingAction: "import" }), pendingAction: "import" };
       }
-      if (key === "r") return { ...state, status: `confirm restore ${session.id}`, pendingAction: "restore" };
       if (key === "d" || key === "D" || key === "Delete") {
-        return { ...state, pendingChoice: "delete_or_import", status: "confirm action on session" };
+        return { ...state, status: confirmOverlayText({ ...state, pendingAction: "delete" }), pendingAction: "delete" };
       }
     } else {
       if (key === "r" || key === "I") return { ...state, status: "import only applies to archived sessions" };

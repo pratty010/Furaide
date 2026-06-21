@@ -242,7 +242,6 @@ export function buildConfirmOverlay(state: UiState): StyledText {
   const boxWidth = Math.max(60, Math.min(100, state.viewport.width - 6));
   const inner = boxWidth - 4;
   const isDestructive = state.pendingAction === "delete"
-    || state.pendingAction === "archive_and_delete"
     || state.pendingAction === "bulk_delete";
   chunks.push({ text: "\u250c" + "\u2500".repeat(boxWidth - 2) + "\u2510\n", fg: tone("modalBorder") });
   const title = state.pendingAction.replaceAll("_", " ").toUpperCase();

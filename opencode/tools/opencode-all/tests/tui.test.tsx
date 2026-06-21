@@ -353,20 +353,22 @@ describe("confirmation workflow semantics", () => {
     expect(state.pendingChoice).toBe("archive_or_delete");
   });
 
-  test("archived session: r -> restore confirmation", () => {
+  test("archived session: r is no longer bound (legacy restore removed)", () => {
     let state = createInitialState(makeIndex(archivedSessions), { height: 10, width: 100 });
     state = reloadState({ ...state, tab: "archived" as const });
     state = cursorOnFirstSession(state);
     const next = applyKey(state, "r");
-    expect(next.pendingAction).toBe("restore");
+    expect(next.pendingAction).toBeNull();
+    expect(next).toBe(state);
   });
 
-  test("archived session: D sets pendingChoice delete_or_import", () => {
+  test("archived session: D sets pendingAction delete (no choice overlay)", () => {
     let state = createInitialState(makeIndex(archivedSessions), { height: 10, width: 100 });
     state = reloadState({ ...state, tab: "archived" as const });
     state = cursorOnFirstSession(state);
     const next = applyKey(state, "D");
-    expect(next.pendingChoice).toBe("delete_or_import");
+    expect(next.pendingAction).toBe("delete");
+    expect(next.pendingChoice).toBeNull();
   });
 
   test("folder rows only show folders that have sessions", () => {
@@ -499,13 +501,6 @@ describe("render helpers", () => {
     expect(text2).toContain("Archive or Delete");
     expect(text2).toContain("[A]");
     expect(text2).toContain("[D]");
-
-    const withChoice2 = { ...state, pendingChoice: "delete_or_import" as const };
-    const overlay3 = buildChoiceOverlay(withChoice2);
-    const text3 = String(overlay3.chunks.map(c => c.text || "").join(""));
-    expect(text3).toContain("Delete or Import");
-    expect(text3).toContain("[I]");
-    expect(text3).toContain("[D]");
   });
 
   test("search overlay with scroll advanced shows higher-numbered title", () => {

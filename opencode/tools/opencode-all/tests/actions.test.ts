@@ -1,4 +1,6 @@
-import { describe, expect, test } from "bun:test";
+import { afterAll, beforeAll, describe, expect, test } from "bun:test";
+import { existsSync, unlinkSync } from "node:fs";
+import { Database } from "bun:sqlite";
 import {
   addActiveToIndex,
   addArchivedToIndex,
@@ -14,6 +16,63 @@ import {
   searchResultsFor,
   type ActionChip,
 } from "../src/dashboard/actions.ts";
+
+const TEST_DB_PATH = "/tmp/opencode-all-actions-test-empty.db";
+
+let savedDbPath: string | undefined;
+beforeAll(() => {
+  savedDbPath = process.env.OPENCODE_ALL_DB_PATH;
+  if (existsSync(TEST_DB_PATH)) unlinkSync(TEST_DB_PATH);
+  const db = new Database(TEST_DB_PATH);
+  db.run(`CREATE TABLE session (
+    id text PRIMARY KEY,
+    project_id text NOT NULL,
+    parent_id text,
+    slug text NOT NULL,
+    directory text NOT NULL,
+    title text NOT NULL,
+    version text NOT NULL,
+    share_url text,
+    summary_additions integer,
+    summary_deletions integer,
+    summary_files integer,
+    summary_diffs text,
+    time_created integer NOT NULL,
+    time_updated integer NOT NULL,
+    time_archived integer,
+    workspace_id text,
+    path text,
+    agent text,
+    model text,
+    cost real DEFAULT 0 NOT NULL,
+    tokens_input integer DEFAULT 0 NOT NULL,
+    tokens_output integer DEFAULT 0 NOT NULL,
+    tokens_reasoning integer DEFAULT 0 NOT NULL,
+    tokens_cache_read integer DEFAULT 0 NOT NULL,
+    tokens_cache_write integer DEFAULT 0 NOT NULL
+  )`);
+  db.run(`CREATE TABLE message (
+    id text PRIMARY KEY,
+    session_id text NOT NULL,
+    time_created integer NOT NULL,
+    time_updated integer NOT NULL,
+    data text NOT NULL
+  )`);
+  db.run(`CREATE TABLE part (
+    id text PRIMARY KEY,
+    message_id text NOT NULL,
+    session_id text NOT NULL,
+    time_created integer NOT NULL,
+    time_updated integer NOT NULL,
+    data text NOT NULL
+  )`);
+  db.close();
+  process.env.OPENCODE_ALL_DB_PATH = TEST_DB_PATH;
+});
+afterAll(() => {
+  if (savedDbPath) process.env.OPENCODE_ALL_DB_PATH = savedDbPath;
+  else delete process.env.OPENCODE_ALL_DB_PATH;
+});
 
 const sessions: UiSession[] = Array.from({ length: 6 }, (_, index) => ({
   id: `ses_${index}`,
@@ -103,12 +162,6 @@ describe("confirmOverlayText", () => {
     const state = cursorOnFirstSession(makeState());
     const text = confirmOverlayText({ ...state, pendingAction: "archive" });
     expect(text).toContain("Archive session");
-  });
-
-  test("archive_and_delete", () => {
-    const state = cursorOnFirstSession(makeState());
-    const text = confirmOverlayText({ ...state, pendingAction: "archive_and_delete" });
-    expect(text).toContain("Archive + delete");
   });
 
   test("import", () => {
@@ -216,26 +269,24 @@ describe("actionChips", () => {
     }
   });
 
-  test("metadata focus hides all destructive actions (delete, archive, import, restore)", () => {
+  test("metadata focus hides all destructive actions (delete, archive, import)", () => {
     const state = { ...makeState(), focus: "metadata" as const };
     const chips = actionChips(state);
     const ids = chipIds(chips);
     expect(ids).not.toContain("delete");
     expect(ids).not.toContain("archive");
     expect(ids).not.toContain("import");
-    expect(ids).not.toContain("restore");
     expect(ids).not.toContain("expand");
     expect(ids).not.toContain("open");
   });
 
-  test("messages focus hides all destructive actions (delete, archive, import, restore)", () => {
+  test("messages focus hides all destructive actions (delete, archive, import)", () => {
     const state = { ...makeState(), focus: "messages" as const };
     const chips = actionChips(state);
     const ids = chipIds(chips);
     expect(ids).not.toContain("delete");
     expect(ids).not.toContain("archive");
     expect(ids).not.toContain("import");
-    expect(ids).not.toContain("restore");
     expect(ids).not.toContain("expand");
     expect(ids).not.toContain("open");
   });
@@ -281,7 +332,6 @@ describe("actionChips", () => {
     expect(chipIds(chips)).toContain("expand");
     expect(chipIds(chips)).toContain("toggle-all");
     expect(chipIds(chips)).toContain("archive");
-    expect(chipIds(chips)).not.toContain("restore");
     expect(chipIds(chips)).toContain("delete");
     expect(chipIds(chips)).toContain("search");
     expect(chipIds(chips)).toContain("tab-switch");
@@ -300,23 +350,21 @@ describe("actionChips", () => {
     expect(chipIds(chips)).toContain("back");
     expect(chipIds(chips)).toContain("quit");
     expect(chipIds(chips)).not.toContain("import");
-    expect(chipIds(chips)).not.toContain("restore");
   });
 
-  test("archived session row returns chip set with open/import/delete/search/switch/back/quit", () => {
+  test("archived session row returns chip set with import/delete/search/switch/back/quit", () => {
     let state = makeState(archivedSessions);
     state = reloadState({ ...state, tab: "archived" as const });
     state = cursorOnFirstSession(state);
     const chips = actionChips(state);
-    expect(chipIds(chips)).toContain("open");
     expect(chipIds(chips)).toContain("import");
     expect(chipIds(chips)).toContain("delete");
     expect(chipIds(chips)).toContain("search");
     expect(chipIds(chips)).toContain("tab-switch");
     expect(chipIds(chips)).toContain("back");
     expect(chipIds(chips)).toContain("quit");
+    expect(chipIds(chips)).not.toContain("open");
     expect(chipIds(chips)).not.toContain("archive");
-    expect(chipIds(chips)).not.toContain("restore");
   });
 
   test("invalid actions not shown for active session", () => {
@@ -324,7 +372,6 @@ describe("actionChips", () => {
     const chips = actionChips(state);
     const ids = chipIds(chips);
     expect(ids).not.toContain("import");
-    expect(ids).not.toContain("restore");
   });
 
   test("invalid actions not shown for archived session", () => {
@@ -332,7 +379,7 @@ describe("actionChips", () => {
     const chips = actionChips(state);
     const ids = chipIds(chips);
     expect(ids).not.toContain("archive");
-    expect(ids).not.toContain("restore");
+    expect(ids).not.toContain("open");
   });
 
   test("folder row in sessions focus exposes wheel scroll only", () => {
@@ -508,12 +555,13 @@ describe("applyKey: Tab, t, and navigation keys", () => {
     expect(state.pendingChoice).toBe("archive_or_delete");
   });
 
-  test("D on archived session sets pendingChoice delete_or_import", () => {
+  test("D on archived session sets pendingAction delete (no choice overlay)", () => {
     let state = makeState(archivedSessions);
     state = reloadState({ ...state, tab: "archived" as const });
     state = cursorOnFirstSession(state);
     state = applyKey(state, "D");
-    expect(state.pendingChoice).toBe("delete_or_import");
+    expect(state.pendingAction).toBe("delete");
+    expect(state.pendingChoice).toBeNull();
   });
 
   test("I on archived session sets pendingAction import", () => {
@@ -529,7 +577,7 @@ describe("applyKey: Tab, t, and navigation keys", () => {
     state = reloadState({ ...state, tab: "archived" as const });
     state = cursorOnFirstSession(state);
     state = applyKey(state, "Enter");
-    expect(state.status).toBe("archived session");
+    expect(state.status).toBe("Archived sessions can't be opened directly. Press I to import first.");
   });
 
   test("Backspace in normal mode calls back", () => {

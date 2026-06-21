@@ -256,12 +256,6 @@ describe("buildConfirmOverlay", () => {
     expect(text).toContain("cannot be undone");
   });
 
-  test("archive_and_delete confirmation includes destructive text", () => {
-    const state = baseState({ pendingAction: "archive_and_delete", expandedFolders: new Set([mockFolder.directory]), cursor: 1 });
-    const text = flatText(buildConfirmOverlay(state));
-    expect(text).toContain("DESTRUCTIVE");
-  });
-
   test("bulk_delete confirmation includes destructive text", () => {
     const state = baseState({ pendingAction: "bulk_delete", pendingDirectory: "/test/proj", pendingCount: 5 });
     const text = flatText(buildConfirmOverlay(state));
@@ -298,11 +292,11 @@ describe("buildChoiceOverlay", () => {
     expect(text).toContain("[C]");
   });
 
-  test("renders import/delete choices", () => {
-    const state = baseState({ pendingChoice: "delete_or_import" });
+  test("renders archive/delete choices", () => {
+    const state = baseState({ pendingChoice: "archive_or_delete" });
     const text = flatText(buildChoiceOverlay(state));
-    expect(text).toContain("Delete or Import");
-    expect(text).toContain("[I]");
+    expect(text).toContain("Archive or Delete");
+    expect(text).toContain("[A]");
     expect(text).toContain("[D]");
     expect(text).toContain("[C]");
   });
