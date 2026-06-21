@@ -393,11 +393,10 @@ describe("dashboardLayout", () => {
 });
 
 describe("buildSearchOverlay", () => {
-  test("renders [A]/[a] markers and match type indicators", () => {
+  test("renders [A]/[a] tab markers", () => {
     const state = baseState({ inputMode: "search", query: "" });
     const text = flatText(buildSearchOverlay(state));
     expect(text).toContain("[A]");
     expect(text).toContain("[a]");
-    expect(text).toContain("meta");
   });
 });
