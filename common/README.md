@@ -1,8 +1,28 @@
-# common/
+# 📦 common/
+
+[![MIT](https://img.shields.io/badge/License-MIT-blue)](LICENSE)
+[![GitHub](https://img.shields.io/badge/GitHub-pratty010%2FFuraide-8b5cf6)](https://github.com/pratty010/Furaide)
+[![Shared](https://img.shields.io/badge/Layer-Shared-8b5cf6)](https://github.com/pratty010/Furaide)
 
 Shared layer for the F.R.I.D.A.Y. monorepo. Single source of truth for everything that crosses ecosystem boundaries (opencode, claude-code, pi-agent).
 
-## Structure
+---
+
+## ✨ What this layer provides
+
+| Area | What it holds |
+|------|--------------|
+| `agents/` | Runtime-agnostic agent cores (A+B architecture) |
+| `docs/` | Shared reference documentation |
+| `scripts/` | Shared scripts (github-setup-check) |
+| `skills/` | Vendored lightweight skills |
+| `install-common.sh` | Copy `common/skills/` → chosen scope |
+| `install-skills.sh` | Clone-install heavier/third-party skills from manifest |
+| `skills-manifest.json` | Catalog of all skills, ecosystem-tagged |
+
+---
+
+## 🗂️ Structure
 
 ```
 common/
@@ -39,7 +59,7 @@ See `docs/agent-template.md` for the XML body authoring standard and per-runtime
 
 ---
 
-## docs/ (shared reference)
+## 📚 docs/ (shared reference)
 
 | File | Purpose |
 |------|---------|
@@ -71,7 +91,24 @@ Installed by `install-common.sh`. These are self-contained (no external deps bey
 
 ---
 
-## install-common.sh
+## 🚀 Usage Examples
+
+**Install shared skills globally:**
+
+```bash
+bash common/install-common.sh --global   # → ~/.agents/skills/ + ~/.claude/skills/
+```
+
+**Install ecosystem-specific skill sets:**
+
+```bash
+bash common/install-skills.sh --ecosystem opencode     # only opencode-tagged sets
+bash common/install-skills.sh --ecosystem claude-code  # only claude-code-tagged sets
+```
+
+---
+
+## ⚡ install-common.sh
 
 Copies `common/skills/*` to a user-chosen scope:
 
@@ -87,7 +124,7 @@ Called by both `claude-code/scripts/bootstrap.sh` and `opencode/scripts/install-
 
 ---
 
-## install-skills.sh + skills-manifest.json
+## ⚡ install-skills.sh + skills-manifest.json
 
 For heavier or third-party skills that are clone-installed rather than vendored:
 
@@ -100,3 +137,11 @@ bash common/install-skills.sh --list                # show available sets, then 
 ```
 
 `skills-manifest.json` is the catalog. Each skill set has an `ecosystem` tag so installers pull only what they need.
+
+---
+
+## 🗑️ Uninstall / rollback
+
+These installers are copy-based, not package-managed. To roll back:
+- **`install-common.sh`**: re-run with `--global` to overwrite, or manually remove skill directories from `~/.agents/skills/` and `~/.claude/skills/`.
+- **`install-skills.sh`**: each cloned skill has its own uninstall notes in its SKILL.md; remove the skill directory from your target scope manually.

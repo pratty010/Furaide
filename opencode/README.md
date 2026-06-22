@@ -1,10 +1,14 @@
-# Furaidē's Fleet: OpenCode Setup
+# ⛩️ Furaidē's Fleet: OpenCode Setup
+
+[![MIT](https://img.shields.io/badge/License-MIT-blue)](LICENSE)
+[![GitHub](https://img.shields.io/badge/GitHub-pratty010%2FFuraide-8b5cf6)](https://github.com/pratty010/Furaide)
+[![Fleet](https://img.shields.io/badge/F.R.I.D.A.Y.-30%20Shikigami-ff0080)](https://github.com/pratty010/Furaide)
 
 > *"Thirty spirits. Four gate-guardians. The fleet is ready."*
 
-Furaidē's [OpenCode](https://opencode.ai) configuration: a 30-agent fleet of named shikigami specialists, four gate plugins enforcing workflow integrity, and Kitsune's brand-builder domain (opt-in, in development). Part of the [F.R.I.D.A.Y.](https://github.com/pratty010/Furaide) collection.
+Furaidē's [OpenCode](https://opencode.ai) fleet config pack: 30 named shikigami specialists, four gate plugins enforcing workflow integrity, and Kitsune's brand-builder domain (opt-in, in development). Part of the [F.R.I.D.A.Y.](https://github.com/pratty010/Furaide) collection.
 
-There is no marketplace: the installer is the distribution. One command clones and installs:
+There is no marketplace. The installer below sets up the **fleet config pack** (agents, plugins, gates). Companion tools in `opencode/tools/` are installed separately — see the Companion Tools section.
 
 ```bash
 bash <(curl -fsSL https://raw.githubusercontent.com/pratty010/Furaide/main/opencode/scripts/install-fleet-bootstrap.sh)
@@ -16,7 +20,7 @@ Or if you already have the repo:
 bash opencode/scripts/install-fleet.sh
 ```
 
-The installer now runs as an interactive wizard with one model-resolution checkpoint before writes:
+The installer runs as an interactive wizard with one model-resolution checkpoint before writes:
 
 1. **Core bundle** (always default on): workflow gates, model failover, security gate, specialist agents, agent support scripts, rules, and reference docs.
 2. **Brand Builder / Kitsune** (optional, default **No**): the opt-in 9-agent brand domain. Skip unless you want it.
@@ -28,6 +32,8 @@ The installer now runs as an interactive wizard with one model-resolution checkp
 8. **Install receipt**: every target root gets `.furaide-install-receipt.json`, which records selected components, merged config keys, and model-map summary for later uninstall or rollback.
 
 After install, edit runtime models in the installed `opencode.json` or `opencode.jsonc` under `agent.<name>.model`. Fallback chains remain in `docs/routing-manifest.json`.
+
+> `opencode/tools/` contains standalone companion tools installed independently of the fleet. See `### Companion Tools` below.
 
 ### Flags
 
@@ -68,7 +74,47 @@ After install, edit runtime models in the installed `opencode.json` or `opencode
 
 Run `bash opencode/scripts/install-fleet.sh --list` for the full machine-readable view.
 
-> **Superpowers** (the @obra skill collection) is **not** auto-loaded. It was removed from `opencode.jsonc` to avoid third-party network hits on install. Install it manually via `bash common/install-skills.sh --ecosystem opencode` if you want it.
+> **Superpowers** (the @obra skill collection) is **not** auto-loaded. It was removed from `config/opencode.jsonc` to avoid third-party network hits on install. Install it manually via `bash common/install-skills.sh --ecosystem opencode` if you want it.
+
+### Companion Tools (independent install)
+
+These tools ship in the repo but install separately from the fleet config pack. No `install-fleet.sh` required.
+
+| Tool | What it does | Install |
+|------|-------------|---------|
+| `opencode-all` | OpenTUI session dashboard — browse, search, manage OpenCode sessions | `bash opencode/tools/opencode-all/scripts/install.sh` |
+
+See [opencode/tools/opencode-all/README.md](tools/opencode-all/README.md) for full details.
+
+---
+
+## 🚀 Usage Examples
+
+**General coding task** — route through the fleet's default specialist dispatch:
+
+```bash
+opencode "fix this failing test and explain the root cause"
+```
+
+**Specialist research dispatch** — invoke Tsuchigumo for deep multi-source research:
+
+```bash
+opencode "research the latest transformer architectures and write a summary with citations"
+```
+
+**Git workflow via Hanko** — let the git subagent handle commits and PRs:
+
+```
+commit these changes to dev
+create a PR from feat/my-feature
+check CI status for my branch
+```
+
+**Companion tool** — launch the session dashboard:
+
+```bash
+opencode-all
+```
 
 ---
 
@@ -148,7 +194,7 @@ Brand Builder remains opt-in only. The installer does not enable it unless you e
 
 ---
 
-## Tests
+## 🧪 Tests
 
 ```bash
 bun test scripts/tests/
@@ -156,15 +202,19 @@ bun test scripts/tests/
 
 ---
 
-## Uninstall
+## 🗑️ Uninstall
 
 The OpenCode uninstaller removes OpenCode-owned shikigami files, gate plugins, and configs. It can also clean up shared `common/` skills used across harnesses.
 
 If `.furaide-install-receipt.json` is present, uninstall uses it first to decide which components and config keys to remove. If the receipt is absent, it falls back to manifest-driven cleanup.
 
+**Automated:**
+
 ```bash
 bash opencode/scripts/uninstall-fleet.sh
 ```
+
+**Manual:** If you installed only a companion tool (e.g. `opencode-all`), use that tool's README uninstall steps. Companion tools are not covered by the fleet uninstaller.
 
 ### Flags
 
@@ -206,6 +256,14 @@ Verify the fleet configuration and scripts:
 ```bash
 bun test scripts/tests/
 ```
+
+---
+
+## 🗺️ Roadmap
+
+- **`opencode-all`** — shipped standalone session dashboard companion tool
+- **`web-tools v0.1`** — planning-stage native web search/fetch/maps plugin with provider fallback and budgets
+- **Brand Builder / Kitsune** — opt-in, in development, excluded from default install
 
 ---
 

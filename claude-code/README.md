@@ -1,8 +1,24 @@
-# claude-code/
+# 🧠 claude-code/
+
+[![MIT](https://img.shields.io/badge/License-MIT-blue)](LICENSE)
+[![GitHub](https://img.shields.io/badge/GitHub-pratty010%2FFuraide-8b5cf6)](https://github.com/pratty010/Furaide)
+[![Satori](https://img.shields.io/badge/Satori-Capability%20Analytics-8b5cf6)](https://github.com/pratty010/Furaide)
 
 > *One plugin, one skill. Furaidē's shikigami for Claude Code.*
 
 Part of the [F.R.I.D.A.Y.](https://github.com/pratty010/Furaide) monorepo.
+
+---
+
+## ✨ What ships here
+
+| Piece | What it does |
+|-------|-------------|
+| **Satori plugin** | Capability analytics — captures skill invocations, runs dream passes, surfaces improvement suggestions |
+| **`github` skill** | Git/GitHub workflow recipes for the `hanko--git-seal` subagent |
+| **`hanko--git-seal` agent** | Quiet executor for all git/GitHub ops; routes through the `github` skill |
+
+Satori and the `github` skill share a single engine (`cli/`) installed by `scripts/bootstrap.sh`.
 
 ---
 
@@ -13,8 +29,6 @@ Part of the [F.R.I.D.A.Y.](https://github.com/pratty010/Furaide) monorepo.
 | **Satori** (plugin) | Capability analytics: captures skill invocations across harnesses, runs dream passes, and surfaces improvement suggestions |
 | **`github` skill** | Git/GitHub workflow recipes for the `hanko--git-seal` subagent |
 | **`hanko--git-seal`** (agent) | Quiet executor for all git/GitHub ops; routes through the `github` skill |
-
-Satori and the `github` skill share a single engine (`cli/`) installed by `scripts/bootstrap.sh`.
 
 ### Satori architecture
 
@@ -49,9 +63,11 @@ Hook events and transcript events are deduplicated at read time using canonical 
 
 ---
 
-## Install
+## ⚡ Install
 
-### 1. Clone and bootstrap
+A two-phase process: bootstrap local assets, then register the plugin in Claude Code.
+
+### Phase 1: Clone and bootstrap
 
 ```bash
 git clone https://github.com/pratty010/Furaide.git ~/Furaidē
@@ -67,7 +83,7 @@ The bootstrap script is interactive by default (Y/n prompt per step). Pass `--ye
 
 Flags: `--yes`/`-y` (non-interactive), `--minimal` (steps 1–2 only), `--no-config` (skip step 5), `--with-skills` (also install manifest skills), `-h`.
 
-### 2. Register and install Satori plugin in Claude Code
+### Phase 2: Register and install Satori plugin in Claude Code
 
 ```
 /plugin marketplace add pratty010/Furaide
@@ -77,7 +93,7 @@ Flags: `--yes`/`-y` (non-interactive), `--minimal` (steps 1–2 only), `--no-con
 
 ---
 
-## Usage
+## 🚀 Usage
 
 ### Satori: capability analytics
 
@@ -122,7 +138,7 @@ The subagent invokes `Skill(github)` for the six standard workflow recipes and r
 
 ---
 
-## Data directory
+## 🗂️ Data directory
 
 Runtime data lives in `~/.satori/` (or `$SATORI_HOME`):
 
@@ -149,7 +165,7 @@ SATORI_CAPTURE_HOOK_PAYLOADS=1 claude
 
 ---
 
-## Configuration
+## ⚙️ Configuration
 
 Satori reads optional config from `~/.satori/config.json` (or `$SATORI_HOME/config.json`). All fields have defaults:
 
@@ -164,7 +180,9 @@ Satori reads optional config from `~/.satori/config.json` (or `$SATORI_HOME/conf
 
 ---
 
-## Workflow skills
+## 📚 Docs / Reference
+
+### Workflow skills
 
 Satori observes skills, so you need skills installed for it to observe anything. Bootstrap offers to run the common installer. You can also run it separately:
 
@@ -173,9 +191,7 @@ bash ~/Furaidē/common/install-common.sh --global      # bx, html-preview, brave
 bash ~/Furaidē/common/install-skills.sh --ecosystem claude-code  # superpowers, notebooklm, …
 ```
 
----
-
-## Config bundle
+### Config bundle
 
 `config/` contains Furaidē's sanitized global Claude Code configuration. `bootstrap.sh` offers to copy it for you.
 
@@ -190,9 +206,15 @@ See [`config/README.md`](config/README.md) for per-file notes.
 
 > The `hooks` block is intentionally absent from `config/settings.json`. Satori's plugin ships its own hook scripts using `${CLAUDE_PLUGIN_ROOT}`, so no manual hook wiring is required.
 
+### Why `.claude-plugin/` is at the repo root
+
+Claude Code's marketplace command fetches `.claude-plugin/marketplace.json` from the repository root. That path is part of the discovery protocol: `/plugin marketplace add pratty010/Furaide` reads the repo-root copy, and each plugin `source` path is relative to that root (e.g. `./claude-code/plugins/satori`). The file is a small JSON index; the actual plugin code lives in `plugins/` here.
+
+It stays at the root by design. Moving it under `claude-code/` would break the `owner/repo` install shorthand, which only resolves a marketplace at the repository root.
+
 ---
 
-## Uninstall
+## 🗑️ Uninstall
 
 ```bash
 bash ~/Furaidē/claude-code/scripts/uninstall.sh
@@ -201,6 +223,7 @@ bash ~/Furaidē/claude-code/scripts/uninstall.sh
 Default: interactive (prompts for user data). Flags: `--dry-run` (print what would be removed, no changes), `--purge` (remove everything with no prompts).
 
 Then in Claude Code:
+
 ```
 /plugin uninstall satori@fr1d4y
 /plugin marketplace remove fr1d4y
@@ -208,7 +231,7 @@ Then in Claude Code:
 
 ---
 
-## Development
+## 🔧 Development
 
 ```bash
 cd cli/src/satori
@@ -273,20 +296,13 @@ config/
     hanko--git-seal.md           # git/GitHub subagent (installed → ~/.claude/agents/)
   CLAUDE.md                      # global config (installed → ~/.claude/)
   statusline-command.sh          # statusline helper (installed → ~/.claude/)
-```
 
 **Adding a new skill:** add to `common/skills/`, then update `common/skills-manifest.json`.
 
 **Adding a new plugin:** create `plugins/<name>/.claude-plugin/plugin.json`, then register it in `/.claude-plugin/marketplace.json` at the repo root.
 
-### Why `.claude-plugin/` is at the repo root
-
-Claude Code's marketplace command fetches `.claude-plugin/marketplace.json` from the repository root. That path is part of the discovery protocol: `/plugin marketplace add pratty010/Furaide` reads the repo-root copy, and each plugin `source` path is relative to that root (e.g. `./claude-code/plugins/satori`). The file is a small JSON index; the actual plugin code lives in `plugins/` here.
-
-It stays at the root by design. Moving it under `claude-code/` would break the `owner/repo` install shorthand, which only resolves a marketplace at the repository root.
-
 ---
 
-## Part of F.R.I.D.A.Y.
+## 📚 See also
 
 The full collection lives at [pratty010/Furaide](https://github.com/pratty010/Furaide). Other components: `opencode/` (30-agent core fleet), `common/` (shared skills + docs), `pi-agent/`, `openclaw/`.

@@ -1,4 +1,8 @@
-# openclaw/
+# 🎭 openclaw/
+
+[![MIT](https://img.shields.io/badge/License-MIT-blue)](LICENSE)
+[![GitHub](https://img.shields.io/badge/GitHub-pratty010%2FFuraide-8b5cf6)](https://github.com/pratty010/Furaide)
+[![OpenCLAW](https://img.shields.io/badge/OpenCLAW-Persona%20Workspaces-8b5cf6)](https://docs.openclaw.ai)
 
 OpenCLAW persona configurations for Furaidē's stateful assistant runtime.
 
@@ -6,7 +10,9 @@ OpenCLAW is a separate runtime from opencode and claude-code. It's a persistent,
 
 ---
 
-## What's in this directory
+## ✨ What ships here
+
+These are **persona workspace configs**, not a runtime package. Each workspace defines a character's SOUL, IDENTITY, MEMORY, and tools — pure markdown, no build step.
 
 ```
 openclaw/
@@ -22,7 +28,7 @@ The workspace directories are safe to commit; they contain only personality/beha
 
 ---
 
-## Install OpenCLAW
+## ⚡ Install OpenCLAW
 
 ```bash
 npm install -g @openclaw/openclaw
@@ -37,7 +43,7 @@ brew install openclaw/tap/openclaw
 
 ---
 
-## Config schema (`openclaw.json`)
+## ⚙️ Config schema (`openclaw.json`)
 
 Create your own `openclaw.json` in `~/.config/openclaw/` or a path of your choice. The structure below uses placeholders; never commit real keys:
 
@@ -90,7 +96,7 @@ Create your own `openclaw.json` in `~/.config/openclaw/` or a path of your choic
 
 ---
 
-## Persona workspace structure (SOUL/IDENTITY/MEMORY pattern)
+## 🗂️ Persona workspace structure (SOUL/IDENTITY/MEMORY pattern)
 
 Each workspace directory (`agents/workspace-*/`) holds markdown files that define the persona's behavior and memory:
 
@@ -109,7 +115,30 @@ The agent reads all files in its `agentDir` at session start. `MEMORY.md` and `U
 
 ---
 
-## Authoring a new persona
+## 🚀 Usage Examples
+
+**Point `agentDir` at a workspace:**
+
+```json
+{
+  "name": "kinyo",
+  "agentDir": "/path/to/Furaidē/openclaw/agents/workspace-kinyo",
+  "model": "claude-opus-4-8",
+  "profile": "default"
+}
+```
+
+**Copy a workspace to author a new persona:**
+
+```bash
+cp -r openclaw/agents/workspace-kinyo openclaw/agents/workspace-myagent
+# Edit SOUL.md, IDENTITY.md, MEMORY.md, AGENTS.md, TOOLS.md
+# Add to openclaw.json → agents.list
+```
+
+---
+
+## ✏️ Authoring a new persona
 
 1. Copy an existing workspace as a template:
    ```bash
@@ -127,7 +156,7 @@ The agent reads all files in its `agentDir` at session start. `MEMORY.md` and `U
 
 ---
 
-## GOSHIN v2 security protocol (from workspace-kinyo)
+## 🛡️ GOSHIN v2 security protocol (from workspace-kinyo)
 
 GOSHIN v2 is a behavioral security protocol embedded in the `workspace-kinyo` persona. Key principles:
 
@@ -141,7 +170,13 @@ To adapt GOSHIN v2 for a new persona: copy the relevant sections from `workspace
 
 ---
 
-## Reference
+## 🗑️ Uninstall
+
+Remove the `agentDir` reference from your OpenCLAW config (`openclaw.json` → `agents.list`). Delete local workspace copies if no longer needed.
+
+---
+
+## 📚 Reference
 
 - Full OpenCLAW documentation: [docs.openclaw.ai](https://docs.openclaw.ai)
 - Config schema reference: see `openclaw/_reference/openclaw_default.json` (local only, gitignored)

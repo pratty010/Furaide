@@ -1,4 +1,8 @@
-# Furaidē — F.R.I.D.A.Y.
+# 🌸 Furaidē — F.R.I.D.A.Y.
+
+[![MIT](https://img.shields.io/badge/License-MIT-blue)](LICENSE)
+[![GitHub](https://img.shields.io/badge/GitHub-pratty010%2FFuraide-8b5cf6)](https://github.com/pratty010/Furaide)
+[![Fleet](https://img.shields.io/badge/F.R.I.D.A.Y.-Furaidē-ff0080)](https://github.com/pratty010/Furaide)
 
 > *フライデー。すべてのシステムオンライン。式神、整列。今日は何をしますか？*
 > *Furaidē. All systems online. Shikigami assembled. What are we working on today?*
@@ -17,7 +21,7 @@ This repo is those retainers, wired into every major AI coding harness: Claude C
 
 ## For agents: codebase map
 
-Start here before reading source files. This repo ships a pre-built knowledge graph in `graphify-out/`, covering 2,459 nodes and 3,791 edges across all five components (AST structure plus semantic relationships between agents, skills, configs, and docs).
+If you are an AI coding agent, this is your fastest orientation path. Start here before reading source files. This repo ships a pre-built knowledge graph in `graphify-out/`, covering 2,459 nodes and 3,791 edges across all five components (AST structure plus semantic relationships between agents, skills, configs, and docs).
 
 Three files worth reading:
 
@@ -56,11 +60,12 @@ To install graphify: `uv tool install graphifyy`
 
 ## What this is
 
-Five components that wire Furaidē into AI coding harnesses:
+Five components and one companion tool that wire Furaidē into AI coding harnesses:
 
 | Component | Harness | What it does |
 |-----------|---------|-------------|
 | `opencode/` | [OpenCode](https://opencode.ai) | 30-agent fleet: 12 domain specialists, 16 shared subagents, 4 always-on gate guardians, Kitsune brand-builder (opt-in) |
+| `opencode/tools/opencode-all/` | OpenCode | Standalone OpenTUI session dashboard companion tool for OpenCode |
 | `claude-code/` | [Claude Code](https://claude.ai/code) | Satori plugin (capability analytics) + `github` skill / `hanko--git-seal` agent (git workflow) |
 | `pi-agent/` | [pi.dev](https://pi.dev) | Extension package: web-RAG tools, `/usage` cost tracking, animated TUI, friday and chimu themes, GSD skills |
 | `openclaw/` | [OpenCLAW](https://docs.openclaw.ai) | Persona workspace configs for four pre-built identities: kinyo, koda, kagakusha, tengan |
@@ -73,6 +78,7 @@ Five components that wire Furaidē into AI coding harnesses:
 ```
 Furaidē/
 ├── opencode/          # 30-agent OpenCode fleet
+│   └── tools/         # Standalone companion tools (opencode-all, …)
 ├── claude-code/       # Satori plugin + github skill / hanko--git-seal agent
 ├── pi-agent/          # Pi extension (friday-furaidee)
 ├── openclaw/          # OpenCLAW persona workspaces
@@ -80,16 +86,13 @@ Furaidē/
 └── graphify-out/      # Pre-built knowledge graph (see "For agents" above)
 ```
 
+`opencode/tools/` ships standalone companion tools outside the fleet installer. See each tool's README for install/uninstall.
+
 ---
 
-## Install
+## ⚡ Install
 
-### Prerequisites
-
-| Tool | Install |
-|------|---------|
-| [bun](https://bun.sh) | `curl -fsSL https://bun.sh/install \| bash` |
-| [uv](https://docs.astral.sh/uv/) | `curl -LsSf https://astral.sh/uv/install.sh \| sh` |
+Choose your harness below. Each component has its own installer — pick what you need.
 
 ### OpenCode: Furaidē's fleet
 
@@ -108,6 +111,17 @@ Flags: `--list` · `--all` · `--global` / `--project` / `--custom <dir>` · `--
 
 See [opencode/README.md](opencode/README.md).
 
+### OpenCode companion tool: opencode-all
+
+Standalone OpenTUI session dashboard for browsing, searching, and managing OpenCode sessions. Sits outside the fleet — no agent wiring, no plugin loading.
+
+```bash
+git clone https://github.com/pratty010/Furaide.git ~/Furaidē
+bash ~/Furaidē/opencode/tools/opencode-all/scripts/install.sh
+```
+
+See [opencode/tools/opencode-all/README.md](opencode/tools/opencode-all/README.md).
+
 ### Claude Code: Satori
 
 ```bash
@@ -124,7 +138,6 @@ Then in Claude Code:
 ```
 
 To uninstall: `bash ~/Furaidē/claude-code/scripts/uninstall.sh`
-
 
 See [claude-code/README.md](claude-code/README.md).
 
@@ -170,7 +183,15 @@ See [the brand-builder README](opencode/brand-builder-plugin/brand-builder/READM
 
 ---
 
-## Update
+## 🗺️ Roadmap
+
+- **`opencode/tools/opencode-all/`** — shipped standalone session dashboard companion tool
+- **`web-tools v0.1`** — planning-stage native OpenCode web tools plugin (search/fetch/maps with provider fallback and budgets)
+- **Brand Builder / Kitsune** — opt-in profile/portfolio optimization domain, still in development and intentionally excluded from the default fleet install
+
+---
+
+## ⚡ Update
 
 ```bash
 cd ~/Furaidē && git pull origin master
@@ -179,7 +200,7 @@ bash opencode/scripts/install-fleet.sh --dry-run
 
 ---
 
-## Development
+## 🔧 Development
 
 Before your first commit, verify SSH signing, Lefthook, and gitleaks are configured:
 

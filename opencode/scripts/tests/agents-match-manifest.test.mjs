@@ -5,7 +5,7 @@ import { parseJsonc } from '../lib/jsonc.mjs';
 
 const FLEET_ROOT = join(import.meta.dir, '..', '..');
 const manifest = JSON.parse(readFileSync(join(FLEET_ROOT, 'docs/routing-manifest.json'), 'utf8'));
-const config = parseJsonc(readFileSync(join(FLEET_ROOT, 'opencode.jsonc'), 'utf8'));
+const config = parseJsonc(readFileSync(join(FLEET_ROOT, 'config/opencode.jsonc'), 'utf8'));
 const configAgents = config.agent ?? {};
 
 const allAgents = {

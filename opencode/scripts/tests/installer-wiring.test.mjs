@@ -98,8 +98,8 @@ test('install-fleet.sh: --all wiring carries agents-core agent model mappings en
 test('install-fleet.sh: ships opencode.jsonc in agents-core component (manifest lists it)', () => {
   // The manifest must list opencode.jsonc in the agents-core component so the
   // fleet's runtime config (with agent model mappings) gets copied by default.
-  const manifest = readJson(join(FLEET_ROOT, 'fleet-manifest.json'));
+  const manifest = readJson(join(FLEET_ROOT, 'config/fleet-manifest.json'));
   const agentsCore = manifest.components.find((c) => c.id === 'agents-core');
   expect(agentsCore, 'agents-core component missing from manifest').toBeDefined();
-  expect(agentsCore.files).toContain('opencode.jsonc');
+  expect(agentsCore.files).toContain('config/opencode.jsonc');
 });

@@ -12,6 +12,12 @@ rsync -a --delete \
   --exclude .git \
   "$SOURCE_DIR/" "$INSTALL_DIR/"
 
+if command -v bun &>/dev/null; then
+  (cd "$INSTALL_DIR" && bun install --production) || exit 1
+else
+  printf 'warning: bun not found. Run "bun install" manually in %s\n' "$INSTALL_DIR" >&2
+fi
+
 chmod +x "$INSTALL_DIR/src/tui.tsx"
 ln -sfn "$INSTALL_DIR/src/tui.tsx" "$BIN_PATH"
 

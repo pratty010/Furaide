@@ -103,7 +103,8 @@
         "agents/shiranui--migration-guide.md",
         "agents/chizu--implementation-planner.md",
         "agents/mizuchi--data-current.md",
-        "opencode.jsonc"
+        "config/opencode.jsonc",
+        "config/AGENTS.md"
       ],
       "globs": []
     },

@@ -27,7 +27,7 @@ _bold()  { printf '%b\n' "${BOLD}$*${RST}"; }
 # ── Paths ─────────────────────────────────────────────────────────────────────
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 FLEET_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-MANIFEST="$FLEET_ROOT/fleet-manifest.json"
+MANIFEST="$FLEET_ROOT/config/fleet-manifest.json"
 
 GLOBAL_SCOPE="$HOME/.config/opencode"
 PROJECT_SCOPE="$(pwd)/.opencode"

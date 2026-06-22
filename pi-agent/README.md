@@ -1,4 +1,8 @@
-# pi-agent/ (friday-furaidee)
+# 🥧 pi-agent/ (friday-furaidee)
+
+[![MIT](https://img.shields.io/badge/License-MIT-blue)](LICENSE)
+[![GitHub](https://img.shields.io/badge/GitHub-pratty010%2FFuraide-8b5cf6)](https://github.com/pratty010/Furaide)
+[![Pi](https://img.shields.io/badge/Pi-Extension-00d4aa)](https://pi.dev)
 
 Furaidē's [pi.dev](https://pi.dev) extension package. Web-RAG tools, `/usage` analytics, TUI widgets, themes, and GSD skills.
 
@@ -6,7 +10,7 @@ Part of the [F.R.I.D.A.Y.](https://github.com/pratty010/Furaide) monorepo.
 
 ---
 
-## What it provides
+## ✨ What it provides
 
 | Feature | Details |
 |---------|---------|
@@ -20,7 +24,7 @@ Part of the [F.R.I.D.A.Y.](https://github.com/pratty010/Furaide) monorepo.
 
 ---
 
-## What works zero-config vs. what needs API keys
+## ⚙️ What works zero-config vs. what needs API keys
 
 | Feature | Needs |
 |---------|-------|
@@ -37,7 +41,7 @@ All missing keys/binaries degrade gracefully with a clear error rather than cras
 
 ---
 
-## Install
+## ⚡ Install
 
 ### One-command (recommended)
 
@@ -66,7 +70,7 @@ Restart Pi for the extension to take effect.
 
 ---
 
-## Config
+## ⚙️ Config
 
 After first run, Pi creates the config directory at `~/.pi/agent/extensions/friday/config/`. Two config files are auto-generated from defaults:
 
@@ -77,9 +81,7 @@ After first run, Pi creates the config directory at `~/.pi/agent/extensions/frid
 
 Use `config/system.example.yml` and `config/tools.yml` in this directory as reference starting points. Copy `system.example.yml` → `system.yml` in your runtime config dir and edit quota limits and timezone to match your setup.
 
----
-
-## Prerequisites
+### Prerequisites
 
 | Tool | Install |
 |------|---------|
@@ -92,7 +94,31 @@ Use `config/system.example.yml` and `config/tools.yml` in this directory as refe
 
 ---
 
-## Structure
+## 🚀 Usage Examples
+
+**Check session costs:**
+
+```
+/usage
+/usage refresh
+```
+
+**Web research with provider fallback:**
+
+```
+web_search "latest transformer architectures 2026"
+```
+
+**Switch themes:**
+
+```
+/theme friday
+/theme chimu
+```
+
+---
+
+## 🗂️ Structure
 
 ```
 pi-agent/
@@ -126,7 +152,20 @@ pi-agent/
 
 ---
 
-## Future work (archived, not shipped)
+## 🗑️ Uninstall
+
+No bundled uninstaller. Remove the extension using Pi's extension management:
+
+```bash
+pi extensions list
+pi uninstall friday-furaidee
+```
+
+Or delete the extension directory from Pi's extensions path manually.
+
+---
+
+## 🗺️ Future Work (archived, not shipped)
 
 - **Native task management**: Todo system (surgically removed; see `knowledge/future_work/friday_archive/` in Experimental repo if needed)
 - **Chimu orchestration**: Parallel subagent orchestration layer (archived; see `knowledge/future_work/pi_chimu_archive/`)
@@ -137,4 +176,4 @@ pi-agent/
 
 ## Part of F.R.I.D.A.Y.
 
-Other components: `opencode/` (30-agent core fleet), `claude-code/` (Mekiki + Hanko plugins), `common/` (shared skills + docs), `openclaw/` (stateful assistant personas).
+Other components: `opencode/` (30-agent core fleet), `claude-code/` (Satori + Hanko), `common/` (shared skills + docs), `openclaw/` (stateful assistant personas).
