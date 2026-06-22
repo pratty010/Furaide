@@ -10,13 +10,22 @@ Part of the [F.R.I.D.A.Y.](https://github.com/pratty010/Furaide) monorepo.
 
 ---
 
+## Prerequisites
+
+- **bun**: runtime for the Satori CLI engine
+- **Python 3.11+**: runtime for mekiki event processing
+- **jq**: JSON processing in bootstrap hooks
+- **Claude Code CLI**: registered and authenticated
+
+---
+
 ## ✨ What ships here
 
 | Piece | What it does |
 |-------|-------------|
-| **Satori plugin** | Capability analytics — captures skill invocations, runs dream passes, surfaces improvement suggestions |
+| **Satori plugin** | Capability analytics shikigami. Captures skill invocations, runs dream passes, surfaces improvement suggestions |
 | **`github` skill** | Git/GitHub workflow recipes for the `hanko--git-seal` subagent |
-| **`hanko--git-seal` agent** | Quiet executor for all git/GitHub ops; routes through the `github` skill |
+| **`hanko--git-seal` shikigami** | Quiet executor for all git/GitHub ops; routes through the `github` skill |
 
 Satori and the `github` skill share a single engine (`cli/`) installed by `scripts/bootstrap.sh`.
 
@@ -26,9 +35,9 @@ Satori and the `github` skill share a single engine (`cli/`) installed by `scrip
 
 | Component | Role |
 |-----------|------|
-| **Satori** (plugin) | Capability analytics: captures skill invocations across harnesses, runs dream passes, and surfaces improvement suggestions |
+| **Satori** (plugin) | Capability analytics shikigami. Captures skill invocations across harnesses, runs dream passes, surfaces improvement suggestions |
 | **`github` skill** | Git/GitHub workflow recipes for the `hanko--git-seal` subagent |
-| **`hanko--git-seal`** (agent) | Quiet executor for all git/GitHub ops; routes through the `github` skill |
+| **`hanko--git-seal`** (shikigami) | Quiet executor for all git/GitHub ops; routes through the `github` skill |
 
 ### Satori architecture
 
@@ -38,10 +47,10 @@ Satori runs a four-phase **dream loop** over your session data:
 Orient → Gather → Consolidate → Prune
 ```
 
-- **Orient** — loads config, manifest, and previous state
-- **Gather** — scans harness transcripts via adapters (Claude Code, Codex, OpenCode), deduplicates hook events against transcript events, appends new events to the log
-- **Consolidate** — computes capability metrics, builds intent clusters from BM25 terms, writes profile and backlog projections
-- **Prune** — evicts evidence past the retention window, reindexes
+- **Orient**: loads config, manifest, and previous state
+- **Gather**: scans harness transcripts via adapters (Claude Code, Codex, OpenCode), deduplicates hook events against transcript events, appends new events to the log
+- **Consolidate**: computes capability metrics, builds intent clusters from BM25 terms, writes profile and backlog projections
+- **Prune**: evicts evidence past the retention window, reindexes
 
 The dream loop acquires a directory-based lock (`.dream.lock.d/` with PID/timestamp metadata) to prevent concurrent runs. Scheduled runs (triggered by the `Stop` hook) respect `dream_interval_hours` from config.
 
@@ -53,13 +62,13 @@ The dream loop acquires a directory-based lock (`.dream.lock.d/` with PID/timest
 | `CodexAdapter` | Codex session files | `~/.codex/sessions/` |
 | `OpenCodeAdapter` | SQLite database | `~/.local/share/opencode/opencode.db` |
 
-Hook events and transcript events are deduplicated at read time using canonical `event_id` values derived from `source_id` + `source_position`. When a `tool_use_id` exists in transcript data, the adapter emits events with `cc-hook:sessionId` source format so they collide with hook-captured events and deduplicate naturally.
+Satori deduplicates hook events and transcript events at read time using canonical `event_id` values derived from `source_id` + `source_position`. When a `tool_use_id` exists in transcript data, the adapter emits events with `cc-hook:sessionId` source format so they collide with hook-captured events and deduplicate naturally.
 
 **Projections** are the output artifacts written to `~/.satori/state/`:
 
-- `profile.json` — per-capability metrics (recency, frequency, session spread, intent cluster membership)
-- `backlog.json` — open improvement suggestions with priority scoring
-- `findings.json` — gap detection results
+- `profile.json`: per-capability metrics (recency, frequency, session spread, intent cluster membership)
+- `backlog.json`: open improvement suggestions with priority scoring
+- `findings.json`: gap detection results
 
 ---
 
@@ -77,11 +86,11 @@ bash ~/Furaidē/claude-code/scripts/bootstrap.sh
 The bootstrap script is interactive by default (Y/n prompt per step). Pass `--yes`/`-y` to run unattended:
 1. Archives legacy `~/.mekiki` and creates `~/.satori`
 2. Installs the `satori` CLI engine via `bun install`
-3. Installs shared common skills (`github`, `bx`, `html-preview`, `brave-search`, `plan`) — copies to `~/.agents/skills/`, symlinks `~/.claude/skills/` → `~/.agents/skills/`
+3. Installs shared common skills (`github`, `bx`, `html-preview`, `brave-search`, `plan`): copies to `~/.agents/skills/`, symlinks `~/.claude/skills/` → `~/.agents/skills/`
 4. Copies `config/agents/hanko--git-seal.md` → `~/.claude/agents/`
 5. Backs up and copies `config/CLAUDE.md` + `config/statusline-command.sh` → `~/.claude/`
 
-Flags: `--yes`/`-y` (non-interactive), `--minimal` (steps 1–2 only), `--no-config` (skip step 5), `--with-skills` (also install manifest skills), `-h`.
+Flags: `--yes`/`-y` (non-interactive), `--minimal` (steps 1-2 only), `--no-config` (skip step 5), `--with-skills` (also install manifest skills), `-h`.
 
 ### Phase 2: Register and install Satori plugin in Claude Code
 
@@ -242,7 +251,7 @@ bun run lint             # biome check
 bun run fmt              # biome format --write
 ```
 
-### Experimental `dev` Branch
+### Experimental `dev` branch
 
 For testing upcoming features on the `dev` branch:
 
@@ -305,4 +314,4 @@ config/
 
 ## 📚 See also
 
-The full collection lives at [pratty010/Furaide](https://github.com/pratty010/Furaide). Other components: `opencode/` (30-agent core fleet), `common/` (shared skills + docs), `pi-agent/`, `openclaw/`.
+The full collection lives at [pratty010/Furaide](https://github.com/pratty010/Furaide). Other components: `opencode/` (30-shikigami core fleet), `common/` (shared skills + docs), `pi-agent/`, `openclaw/`.

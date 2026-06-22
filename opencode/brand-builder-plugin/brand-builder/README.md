@@ -1,11 +1,19 @@
 # Brand Builder v2
 
-A project-local professional profile review and improvement system. Brand Builder is an opencode-native product: one primary orchestrator, specialist agents, deterministic scoring engines, and a persistent SQLite memory layer.
+A project-local professional profile review and improvement system. Brand Builder is an opencode-native product. Kitsune leads a court of specialist shikigami with deterministic scoring engines and a persistent SQLite memory layer.
+
+## Prerequisites
+
+| Tool | Purpose |
+|------|---------|
+| [bun](https://bun.sh) | Runtime for plugin and tests |
+| OpenCode CLI | Plugin host environment |
+| API key (Gemini or Ollama) | Embedding provider for semantic retrieval |
 
 ## What is operational (v2)
 
 **Plugin tools (22 `bb_` tools)**
-All 22 tools are implemented and wired in `.opencode/plugin/brand-builder.js`:
+All 22 tools live in `.opencode/plugin/brand-builder.js`:
 - Artifact intake: `bb_ingest`, `bb_update`, `bb_compare_promote`, `bb_delete`, `bb_read`, `bb_list`
 - Assessment: `bb_assess`, `bb_role_fit`, `bb_parse_jd`
 - Surface optimization: `bb_linkedin`, `bb_github_proof`, `bb_ats_scan`, `bb_brand`, `bb_growth`
@@ -64,33 +72,33 @@ bun run calibration/harness.js
 
 ## Plugin entry point
 
-`.opencode/plugin/brand-builder.js` — single CJS module, loaded by opencode at startup. Defines all 22 tools via `definePlugin()`.
+`.opencode/plugin/brand-builder.js` is a single CJS module. opencode loads it at startup and defines all 22 tools via `definePlugin()`.
 
 ## Agents
 
 All agent files are in `.opencode/agents/`:
-- `kitsune.md` — primary orchestrator (Kitsune, the nine-tailed fox)
-- `kurabokko.md`, `kudagitsune.md`, `akashi.md`, `migaki.md`, `kataribe.md`, `kodama.md`, `hyakume.md`, `amanojaku.md` — specialists
-- Yamabiko (source-retriever) / Azukiarai (extractor) — bounded fetch/extraction/research offload delegated to Fleet agents (runs JD retrieval 3-tier ladder)
+- `kitsune.md`: primary orchestrator (Kitsune, the nine-tailed fox)
+- `kurabokko.md`, `kudagitsune.md`, `akashi.md`, `migaki.md`, `kataribe.md`, `kodama.md`, `hyakume.md`, `amanojaku.md`: specialists
+- Yamabiko (source-retriever) / Azukiarai (extractor): bounded fetch/extraction/research offload delegated to Fleet agents (runs JD retrieval 3-tier ladder)
 
 ## Directory layout
 
 ```
 .opencode/brand-builder/
-  assess/         — assessment.js, role-fit.js
-  ats/            — ats-scan.js
-  brand/          — strategy.js
-  calibration/    — harness.js, fixtures/
-  embedding/      — index.js, gemini.js, ollama.js, transformers.js
-  github-proof/   — evaluator.js
-  growth/         — planner.js
-  hooks/          — hook-predicates.js
-  intake/         — artifact-store.js, compare-promote.js, index.js
-  linkedin/       — optimizer.js
-  memory/         — repository.js, retrieval.js, schema.js, types.js
-  progress/       — comparison.js
-  role-fit/       — history.js, jd-parser.js
-  snapshots/      — persist.js
-  tests/          — all test files
-  tools/          — tool-helpers.js
+  assess/          · assessment.js, role-fit.js
+  ats/             · ats-scan.js
+  brand/           · strategy.js
+  calibration/     · harness.js, fixtures/
+  embedding/       · index.js, gemini.js, ollama.js, transformers.js
+  github-proof/    · evaluator.js
+  growth/          · planner.js
+  hooks/           · hook-predicates.js
+  intake/          · artifact-store.js, compare-promote.js, index.js
+  linkedin/        · optimizer.js
+  memory/          · repository.js, retrieval.js, schema.js, types.js
+  progress/        · comparison.js
+  role-fit/        · history.js, jd-parser.js
+  snapshots/       · persist.js
+  tests/           · all test files
+  tools/           · tool-helpers.js
 ```

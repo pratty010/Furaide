@@ -4,7 +4,7 @@
 [![GitHub](https://img.shields.io/badge/GitHub-pratty010%2FFuraide-8b5cf6)](https://github.com/pratty010/Furaide)
 [![Pi](https://img.shields.io/badge/Pi-Extension-00d4aa)](https://pi.dev)
 
-Furaidē's [pi.dev](https://pi.dev) extension package. Web-RAG tools, `/usage` analytics, TUI widgets, themes, and GSD skills.
+Furaidē's [pi.dev](https://pi.dev) extension package. Five shikigami subsystems: Web-RAG tools, `/usage` analytics, TUI widgets, themes, and GSD skills.
 
 Part of the [F.R.I.D.A.Y.](https://github.com/pratty010/Furaide) monorepo.
 
@@ -37,7 +37,7 @@ Part of the [F.R.I.D.A.Y.](https://github.com/pratty010/Furaide) monorepo.
 | `code_search` | `ctx7` binary and/or authenticated `gh` CLI |
 | `video_search` | `bx` binary + `yt-dlp`; Gemini fallback needs `GEMINI_API_KEY` |
 
-All missing keys/binaries degrade gracefully with a clear error rather than crashing.
+Missing keys and binaries emit a clear error message instead of crashing.
 
 ---
 
@@ -72,7 +72,7 @@ Restart Pi for the extension to take effect.
 
 ## ⚙️ Config
 
-After first run, Pi creates the config directory at `~/.pi/agent/extensions/friday/config/`. Two config files are auto-generated from defaults:
+After first run, Pi creates the config directory at `~/.pi/agent/extensions/friday/config/`. Two config files auto-generate from defaults:
 
 | File | Purpose |
 |------|---------|
@@ -82,6 +82,8 @@ After first run, Pi creates the config directory at `~/.pi/agent/extensions/frid
 Use `config/system.example.yml` and `config/tools.yml` in this directory as reference starting points. Copy `system.example.yml` → `system.yml` in your runtime config dir and edit quota limits and timezone to match your setup.
 
 ### Prerequisites
+
+Minimal setup needs only bun and Pi CLI. Optional shikigami binaries unlock additional providers.
 
 | Tool | Install |
 |------|---------|
@@ -129,7 +131,7 @@ pi-agent/
     tools.yml                   # Provider on/off toggles (generic defaults, shipped)
     system.example.yml          # Quota/provider config template (copy → system.yml)
   src/
-    index.ts                    # Extension entry point — registers all features
+    index.ts                    # Extension entry point. Registers all features
     web.ts                      # Web subsystem registration shim
     theme.ts                    # Theme + TUI widget registration
     system-prompt.ts            # System prompt injector (APPEND_SYSTEM.md)

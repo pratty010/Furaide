@@ -1,4 +1,4 @@
-# 🌸 Furaidē — F.R.I.D.A.Y.
+# 🌸 Furaidē: F.R.I.D.A.Y.
 
 [![MIT](https://img.shields.io/badge/License-MIT-blue)](LICENSE)
 [![GitHub](https://img.shields.io/badge/GitHub-pratty010%2FFuraide-8b5cf6)](https://github.com/pratty010/Furaide)
@@ -90,9 +90,17 @@ Furaidē/
 
 ---
 
+## Prerequisites
+
+- Bun (runtime)
+- OpenCode CLI (any version)
+- git
+
+---
+
 ## ⚡ Install
 
-Choose your harness below. Each component has its own installer — pick what you need.
+Choose your harness below. Each component has its own installer. Pick what you need.
 
 ### OpenCode: Furaidē's fleet
 
@@ -113,7 +121,7 @@ See [opencode/README.md](opencode/README.md).
 
 ### OpenCode companion tool: opencode-all
 
-Standalone OpenTUI session dashboard for browsing, searching, and managing OpenCode sessions. Sits outside the fleet — no agent wiring, no plugin loading.
+Standalone OpenTUI session dashboard for OpenCode session management. Sits outside the fleet. No agent wiring, no plugin loading.
 
 ```bash
 git clone https://github.com/pratty010/Furaide.git ~/Furaidē
@@ -185,9 +193,9 @@ See [the brand-builder README](opencode/brand-builder-plugin/brand-builder/READM
 
 ## 🗺️ Roadmap
 
-- **`opencode/tools/opencode-all/`** — shipped standalone session dashboard companion tool
-- **`web-tools v0.1`** — planning-stage native OpenCode web tools plugin (search/fetch/maps with provider fallback and budgets)
-- **Brand Builder / Kitsune** — opt-in profile/portfolio optimization domain, still in development and intentionally excluded from the default fleet install
+- **`opencode/tools/opencode-all/`**: shipped standalone session dashboard companion tool
+- **`web-tools v0.1`**: planning-stage native OpenCode web tools plugin (search/fetch/maps with provider fallback and budgets)
+- **Brand Builder / Kitsune**: opt-in profile/portfolio optimization domain, still in development and intentionally excluded from the default fleet install
 
 ---
 

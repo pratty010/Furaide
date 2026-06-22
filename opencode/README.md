@@ -5,10 +5,13 @@
 [![Fleet](https://img.shields.io/badge/F.R.I.D.A.Y.-30%20Shikigami-ff0080)](https://github.com/pratty010/Furaide)
 
 > *"Thirty spirits. Four gate-guardians. The fleet is ready."*
+> *No theatre.*
 
-Furaidē's [OpenCode](https://opencode.ai) fleet config pack: 30 named shikigami specialists, four gate plugins enforcing workflow integrity, and Kitsune's brand-builder domain (opt-in, in development). Part of the [F.R.I.D.A.Y.](https://github.com/pratty010/Furaide) collection.
+Furaidē's [OpenCode](https://opencode.ai) fleet config pack: 30 named shikigami specialists, four gate plugins that enforce workflow integrity, and Kitsune's brand-builder domain (opt-in, in development). Part of the [F.R.I.D.A.Y.](https://github.com/pratty010/Furaide) collection.
 
-There is no marketplace. The installer below sets up the **fleet config pack** (agents, plugins, gates). Companion tools in `opencode/tools/` are installed separately — see the Companion Tools section.
+**Prerequisites:** [OpenCode CLI](https://opencode.ai), `bun` (for tests), and `git`.
+
+There is no marketplace. The installer below sets up the **fleet config pack** (shikigami, plugins, gates). Install companion tools in `opencode/tools/` separately. See the Companion Tools section.
 
 ```bash
 bash <(curl -fsSL https://raw.githubusercontent.com/pratty010/Furaide/main/opencode/scripts/install-fleet-bootstrap.sh)
@@ -22,8 +25,8 @@ bash opencode/scripts/install-fleet.sh
 
 The installer runs as an interactive wizard with one model-resolution checkpoint before writes:
 
-1. **Core bundle** (always default on): workflow gates, model failover, security gate, specialist agents, agent support scripts, rules, and reference docs.
-2. **Brand Builder / Kitsune** (optional, default **No**): the opt-in 9-agent brand domain. Skip unless you want it.
+1. **Core bundle** (always default on): workflow gates, model failover, security gate, specialist shikigami, agent support scripts, rules, and reference docs.
+2. **Brand Builder / Kitsune** (optional, default **No**): the opt-in 9-agent brand domain, skipped unless you want it.
 3. **Location** (independent choice): global (`~/.config/opencode/`), project (`./.opencode/`), or a custom absolute path.
 4. **Mode** (independent choice): copy (default; writable, self-contained) or link (`ln -sfn` from the repo; useful for development).
 5. **Model resolution**: the installer runs `opencode models --refresh` (falls back to `opencode models`), compares local availability to the fleet routing manifest, and only asks once if any model remap is required.
@@ -66,11 +69,11 @@ After install, edit runtime models in the installed `opencode.json` or `opencode
 | 1 | Workflow Gates | yes | on | Nio + Nurikabe gate plugins + workflow state engine. Tightly coupled; cannot be split. |
 | 2 | Model Failover | yes | on | Migawari plugin + routing manifest. Tightly coupled; cannot be split. |
 | 3 | Security Gate | no | on | Komainu plugin: 35+ dangerous-pattern checks on every Edit/Write. Standalone. |
-| 4 | Specialist Agents | no | on | 30 core shikigami: 12 domain specialists + 2 general agents + 16 shared subagents. |
-| 5 | Agent Support Scripts | no | on | Verification and safety scripts called by agents via Karakuri. |
+| 4 | Specialist Agents | no | on | 30 core shikigami: 12 domain specialists + 2 general shikigami + 16 shared subagents. |
+| 5 | Agent Support Scripts | no | on | Verification and safety scripts called by shikigami via Karakuri. |
 | 6 | Rules | no | on | Memory contract and other rules wired via `instructions` glob. |
 | 7 | Reference Docs | no | off | OPERATOR guide, architecture overview, manifest schema, model family guides. |
-| 8 | Brand Builder / Kitsune | yes | off | Opt-in; in development. 9 brand agents + plugin + commands + skills. Needs `bun install`. |
+| 8 | Brand Builder / Kitsune | yes | off | Opt-in; in development. 9 brand shikigami + plugin + commands + skills. Needs `bun install`. |
 
 Run `bash opencode/scripts/install-fleet.sh --list` for the full machine-readable view.
 
@@ -82,27 +85,27 @@ These tools ship in the repo but install separately from the fleet config pack. 
 
 | Tool | What it does | Install |
 |------|-------------|---------|
-| `opencode-all` | OpenTUI session dashboard — browse, search, manage OpenCode sessions | `bash opencode/tools/opencode-all/scripts/install.sh` |
+| `opencode-all` | OpenTUI session dashboard: browse, search, manage OpenCode sessions | `bash opencode/tools/opencode-all/scripts/install.sh` |
 
 See [opencode/tools/opencode-all/README.md](tools/opencode-all/README.md) for full details.
 
 ---
 
-## 🚀 Usage Examples
+## 🚀 Usage examples
 
-**General coding task** — route through the fleet's default specialist dispatch:
+**General coding task:** route through the fleet's default specialist dispatch:
 
 ```bash
 opencode "fix this failing test and explain the root cause"
 ```
 
-**Specialist research dispatch** — invoke Tsuchigumo for deep multi-source research:
+**Specialist research dispatch:** invoke Tsuchigumo for deep multi-source research:
 
 ```bash
 opencode "research the latest transformer architectures and write a summary with citations"
 ```
 
-**Git workflow via Hanko** — let the git subagent handle commits and PRs:
+**Git workflow via Hanko:** let the git subagent handle commits and PRs:
 
 ```
 commit these changes to dev
@@ -110,7 +113,7 @@ create a PR from feat/my-feature
 check CI status for my branch
 ```
 
-**Companion tool** — launch the session dashboard:
+**Companion tool:** launch the session dashboard:
 
 ```bash
 opencode-all
@@ -120,7 +123,7 @@ opencode-all
 
 ## The Fleet
 
-### 12 Domain Specialists
+### 12 Domain specialists
 
 | Shikigami | Role |
 |-----------|------|
@@ -137,14 +140,14 @@ opencode-all
 | Mizuchi(Data Architect) | Schema design, SQL, dbt models, ETL/ELT pipelines |
 | Sōjōbō(Strategist) | Architecture decisions (ADRs, options tables) and implementation plans |
 
-### 2 General Agents
+### 2 General agents
 
 | Shikigami | Role |
 |-----------|------|
 | Tanuki(General) | Cost-aware generalist for tasks that fit no specialist |
 | Karasu-tengu(Scout) | Library and dependency lookup; ctx7 protocol baked in |
 
-### 16 Shared Subagents
+### 16 Shared subagents
 
 | Shikigami | Role |
 |-----------|------|
@@ -165,7 +168,7 @@ opencode-all
 | Shiranui(Migrator) | Migration and codemod orchestrator for dependency upgrades and large-scale refactors |
 | Tanuki(Codemod Runner) | Bulk code transforms via jscodeshift, ast-grep, sed; dispatches shell to Karakuri |
 
-### 4 Gate Shikigami (always active)
+### 4 Gate shikigami (always active)
 
 | Shikigami | Role |
 |-----------|------|
@@ -176,7 +179,7 @@ opencode-all
 
 ### Brand Builder / Kitsune Domain (opt-in, in development)
 
-Install with `scripts/install-fleet.sh` (brand-builder component). Not loaded by default.
+Install with `scripts/install-fleet.sh` (brand-builder component). The installer does not load it by default.
 
 Brand Builder remains opt-in only. The installer does not enable it unless you explicitly select it.
 
@@ -214,7 +217,7 @@ If `.furaide-install-receipt.json` is present, uninstall uses it first to decide
 bash opencode/scripts/uninstall-fleet.sh
 ```
 
-**Manual:** If you installed only a companion tool (e.g. `opencode-all`), use that tool's README uninstall steps. Companion tools are not covered by the fleet uninstaller.
+**Manual:** If you installed only a companion tool (e.g. `opencode-all`), use that tool's README uninstall steps. The fleet uninstaller does not cover companion tools.
 
 ### Flags
 
@@ -242,7 +245,7 @@ cd ~/furaide-dev/opencode
 bash scripts/install-fleet.sh --project --link
 ```
 
-Using `--link` symlinks configuration files to your checked-out repository instead of copying them, allowing you to test modifications instantly.
+Using `--link` symlinks configuration files to your checked-out repository instead of copying them. You can test modifications instantly.
 
 Alternatively, run the remote bootstrap installer pointing to the `dev` branch:
 
@@ -261,9 +264,9 @@ bun test scripts/tests/
 
 ## 🗺️ Roadmap
 
-- **`opencode-all`** — shipped standalone session dashboard companion tool
-- **`web-tools v0.1`** — planning-stage native web search/fetch/maps plugin with provider fallback and budgets
-- **Brand Builder / Kitsune** — opt-in, in development, excluded from default install
+- **`opencode-all`**: shipped standalone session dashboard companion tool
+- **`web-tools v0.1`**: planning-stage native web search/fetch/maps plugin with provider fallback and budgets
+- **Brand Builder / Kitsune**: opt-in, in development, excluded from default install
 
 ---
 

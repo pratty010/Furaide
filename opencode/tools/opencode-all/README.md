@@ -1,10 +1,10 @@
-# 📊 opencode-all — Session Dashboard for OpenCode
+# 📊 opencode-all: Session Dashboard for OpenCode
 
 [![Bun](https://img.shields.io/badge/Bun-000?logo=bun&logoColor=fff)](https://bun.sh)
 [![MIT](https://img.shields.io/badge/License-MIT-blue)](LICENSE)
 [![F.R.I.D.A.Y.](https://img.shields.io/badge/F.R.I.D.A.Y.-Furaidē-8b5cf6)](https://github.com/pratty010/Furaide)
 
-An OpenTUI session dashboard for browsing, searching, and managing OpenCode sessions with hard archive support.
+An OpenTUI session dashboard for browsing and managing OpenCode sessions with hard archive support.
 
 ## ⚡ Quick Install
 
@@ -29,20 +29,20 @@ ln -sfn "$PWD/src/tui.tsx" ~/.local/bin/opencode-all
 
 ## ✨ Features
 
-**Session management** — Active / Archive tab views, in-memory session index, automatic return to dashboard after child session exit.
+Session management. Active and Archive tab views with an in-memory session index. Automatic return to dashboard after child session exit.
 
-**Hard archive lifecycle** — Export sessions to standalone archive files, import from archives, delete archived sessions with confirmation.
+Hard archive lifecycle. Export sessions to standalone archive files. Import from archives. Delete archived sessions with confirmation.
 
-**Search and navigation** — Search by session title, session ID, or directory with arrow-key result navigation.
+Search and navigation. Search by session title, session ID, or directory. Arrow-key result navigation.
 
-**Safety and reliability** — Centered confirmation modals, compact metadata formatting, input sanitization and bidirectional text filtering.
+Safety and reliability. Centered confirmation modals, compact metadata formatting, input sanitization, bidirectional text filtering.
 
 ## ⌨️ Keybindings
 
 | Key | Context | Action |
 |-----|---------|--------|
 | `Enter` | Active session | Open child session |
-| `Enter` | Archived session | Blocked — use `I` to import first |
+| `Enter` | Archived session | Blocked. Use `I` to import first |
 | `Tab` | Any | Switch between Active / Archive tabs |
 | `D` / `d` | Active session | Open archive / delete choice |
 | `I` | Archive tab | Import the selected archive |
@@ -56,16 +56,16 @@ ln -sfn "$PWD/src/tui.tsx" ~/.local/bin/opencode-all
 
 ## 🎨 Theme
 
-Built with a Friday dark theme using violet and magenta accents. Tuned for OpenTUI — compact, high-contrast, terminal-native.
+Built with a Friday dark theme using violet and magenta accents. Compact and high contrast, tuned for OpenTUI.
 
-## 📦 Installation
-
-**Prerequisites**
+## Prerequisites
 
 | Tool | Required | Notes |
 |------|----------|-------|
 | [Bun](https://bun.sh) | Yes | Runtime and package manager |
 | [OpenCode CLI](https://opencode.ai) | Yes | Generates the SQLite DB this tool reads |
+
+## 📦 Installation
 
 **Script install**
 
@@ -88,9 +88,9 @@ mkdir -p ~/.local/bin
 ln -sfn "$PWD/src/tui.tsx" ~/.local/bin/opencode-all
 ```
 
-**From the fleet repo** — This tool ships in `opencode/tools/opencode-all` but installs independently from the fleet config. No `install-fleet.sh` required.
+From the fleet repo. This tool ships in `opencode/tools/opencode-all` but installs independently from the fleet config. No `install-fleet.sh` required.
 
-**Development install** — Clone the repo, `cd opencode/tools/opencode-all`, then `bun install`. Use `ln -sfn "$PWD/src/tui.tsx" ~/.local/bin/opencode-all` for live iteration.
+Development install. Clone the repo, `cd opencode/tools/opencode-all`, then `bun install`. Use `ln -sfn "$PWD/src/tui.tsx" ~/.local/bin/opencode-all` for live iteration.
 
 ## 🧪 Verification
 
@@ -118,7 +118,7 @@ Follow the printed instructions to launch against a synthetic, throwaway databas
 
 ## 🗂️ Architecture
 
-`opencode-all` is a standalone Bun / OpenTUI companion app. It reads the OpenCode SQLite database (`opencode.db`) and archive files from the filesystem, providing a terminal UI for session browsing and management. It does not participate in the fleet runtime — no agent wiring, no plugin loading, no config merging.
+`opencode-all` is a standalone Bun / OpenTUI companion app. It reads the OpenCode SQLite database (`opencode.db`) and archive files from the filesystem, providing a terminal UI for session browsing and management. It does not participate in the fleet runtime. No agent wiring, plugin loading, or config merging.
 
 ## 🗑️ Uninstall
 

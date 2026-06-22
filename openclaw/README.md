@@ -4,24 +4,24 @@
 [![GitHub](https://img.shields.io/badge/GitHub-pratty010%2FFuraide-8b5cf6)](https://github.com/pratty010/Furaide)
 [![OpenCLAW](https://img.shields.io/badge/OpenCLAW-Persona%20Workspaces-8b5cf6)](https://docs.openclaw.ai)
 
-OpenCLAW persona configurations for Furaidē's stateful assistant runtime.
+OpenCLAW persona configurations for Furaidē's stateful assistant runtime. Each workspace is a shikigami vessel: markdown files define SOUL, IDENTITY, and MEMORY.
 
-OpenCLAW is a separate runtime from opencode and claude-code. It's a persistent, Discord/gateway-connected agent that holds memory across sessions via markdown files. See the [OpenCLAW documentation](https://docs.openclaw.ai) for the full reference.
+OpenCLAW is a separate runtime from opencode and claude-code. It is a persistent, Discord/gateway-connected agent that holds memory across sessions via markdown files. See the [OpenCLAW documentation](https://docs.openclaw.ai) for the full reference.
 
 ---
 
 ## ✨ What ships here
 
-These are **persona workspace configs**, not a runtime package. Each workspace defines a character's SOUL, IDENTITY, MEMORY, and tools — pure markdown, no build step.
+These are **persona workspace configs**, not a runtime package. Each workspace defines a character's SOUL, IDENTITY, MEMORY, and tools: pure markdown, no build step.
 
 ```
 openclaw/
   agents/
-    workspace-kinyo/      # Kinyo persona — general assistant with GOSHIN v2 security
-    workspace-koda/       # Koda persona — code-focused
-    workspace-kagakusha/  # Kagakusha persona — research specialist
-    workspace-tengan/     # Tengan persona — lightweight general
-  _reference/             # GITIGNORED — full experimental config with live secrets (local only)
+    workspace-kinyo/      · Kinyo persona: general assistant with GOSHIN v2 security
+    workspace-koda/       · Koda persona: code-focused
+    workspace-kagakusha/  · Kagakusha persona: research specialist
+    workspace-tengan/     · Tengan persona: lightweight general
+    _reference/            · GITIGNORED: full experimental config with live secrets (local only)
 ```
 
 The workspace directories are safe to commit; they contain only personality/behavior markdown files. The `_reference/` directory is gitignored; it holds the actual `openclaw.json` and `openclaw_default.json` config files which contain live API keys. **Never commit `_reference/`.**
@@ -40,6 +40,16 @@ Or via brew (macOS):
 ```bash
 brew install openclaw/tap/openclaw
 ```
+
+---
+
+### Prerequisites
+
+| Tool | Purpose |
+|------|---------|
+| Node.js 18+ / npm | Required for OpenCLAW CLI installation |
+| OpenCLAW CLI | `npm install -g @openclaw/openclaw` |
+| API keys | Provider key (Anthropic, OpenAI, or Google) for agent runtime |
 
 ---
 
@@ -111,7 +121,7 @@ Each workspace directory (`agents/workspace-*/`) holds markdown files that defin
 | `USER.md` (optional) | Per-user context and preferences |
 | `RESEARCH.md` (optional) | Research notes and findings |
 
-The agent reads all files in its `agentDir` at session start. `MEMORY.md` and `USER.md` are updated during sessions. All other files are relatively static.
+The agent reads all files in its `agentDir` at session start. The agent updates `MEMORY.md` and `USER.md` during sessions. Other files rarely change.
 
 ---
 

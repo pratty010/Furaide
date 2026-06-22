@@ -4,7 +4,7 @@
 [![GitHub](https://img.shields.io/badge/GitHub-pratty010%2FFuraide-8b5cf6)](https://github.com/pratty010/Furaide)
 [![Shared](https://img.shields.io/badge/Layer-Shared-8b5cf6)](https://github.com/pratty010/Furaide)
 
-Shared layer for the F.R.I.D.A.Y. monorepo. Single source of truth for everything that crosses ecosystem boundaries (opencode, claude-code, pi-agent).
+Shared layer for the F.R.I.D.A.Y. monorepo. Single source of truth for cross-ecosystem contracts between opencode, claude-code, and pi-agent shikigami.
 
 ---
 
@@ -34,6 +34,17 @@ common/
   install-skills.sh          # Clone-install heavier/third-party skills from manifest
   skills-manifest.json       # Catalog of all skills, ecosystem-tagged
 ```
+
+---
+
+## ⚡ Prerequisites
+
+| Tool | Required for |
+|------|-------------|
+| git | Repository cloning and agent sync |
+| bash | Installer scripts and tooling |
+
+This layer is pure markdown and shell scripts. No runtime dependencies beyond these.
 
 ---
 
@@ -120,7 +131,7 @@ bash common/install-common.sh --custom <path>       # → <path>/skills/
 
 Copy mode, not symlink. Users own the installed copy. Re-run to update.
 
-Called by both `claude-code/scripts/bootstrap.sh` and `opencode/scripts/install-fleet.sh`.
+Both `claude-code/scripts/bootstrap.sh` and `opencode/scripts/install-fleet.sh` call it.
 
 ---
 

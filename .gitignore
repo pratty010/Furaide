@@ -76,15 +76,55 @@ graphify-out/.graphify_python
 graphify-out/.graphify_root
 graphify-out/.graphify_ast.json
 
-# ── openclaw — binary/archive files generated at runtime ─────────────────────
-openclaw/agents/workspace-kagakusha/docs/*.pdf
-openclaw/agents/workspace-kagakusha/docs/*.zip
-openclaw/agents/workspace-kagakusha/reports/
+# ── Test / coverage outputs ───────────────────────────────────────────────────
+coverage/
+.nyc_output/
+.vitest/
+test-results/
+playwright-report/
+junit.xml
+*.lcov
+.coverage.*
+.ruff_cache/
+.tox/
+.nox/
+.hypothesis/
+*.tsbuildinfo
 
-opencode/docs/imgs/Screenshot 2026-06-18 223353.png
-opencode/docs/imgs/Screenshot 2026-06-21 162119.png
-opencode/docs/imgs/Screenshot 2026-06-21 162525.png
+# ── Temporary files ───────────────────────────────────────────────────────────
+*.tmp
+*.temp
 
-.gitignore
+# ── Graphify transient outputs (tracked outputs: graph.json, graph.html, GRAPH_REPORT.md, manifest.json) ──
+graphify-out/.graphify_detect.json
+graphify-out/.graphify_extract.json
+graphify-out/.graphify_semantic.json
+graphify-out/.graphify_semantic_new.json
+graphify-out/.graphify_analysis.json
+graphify-out/.graphify_cached.json
+graphify-out/.graphify_chunk_*.json
+graphify-out/.graphify_uncached.txt
+graphify-out/.needs_update
+
+# ── OpenCode tool runtime/test artifacts ──────────────────────────────────────
+opencode/tools/opencode-all/.tmp-db/
+opencode/tools/opencode-all/exports/
+opencode/brand-builder-plugin/brand-builder/data/test-*/
+opencode/brand-builder-plugin/brand-builder/data/*.db-journal
+opencode/brand-builder-plugin/brand-builder/data/*.sqlite
+opencode/brand-builder-plugin/brand-builder/data/*.sqlite-*
+
+# ── Claude / Satori local runtime artifacts ──────────────────────────────────
+claude-code/cli/.satori/
+claude-code/config/statusline-sidecar.json
+claude-code/cli/.satori/debug/
+
+# ── Screenshots ───────────────────────────────────────────────────────────────
+opencode/docs/imgs/Screenshot *.png
+
+# ── OpenCLAW — generated binary/report files per workspace ────────────────────
+openclaw/agents/*/docs/*.pdf
+openclaw/agents/*/docs/*.zip
+openclaw/agents/*/reports/
 
 
