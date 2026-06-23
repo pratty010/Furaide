@@ -920,14 +920,6 @@ describe("fresh session keybindings", () => {
     expect(result.status).toBe(`opening ${folder.directory}`);
   });
 
-  test("Alt+Enter on active session uses session directory", () => {
-    let state = cursorOnFirstSession(makeState());
-    const session = getVisibleRows(state)[state.cursor] as any;
-    const result = applyKey(state, "Alt+Enter");
-    expect(result.freshDirectory).toBe(session.directory);
-    expect(result.status).toBe(`opening ${session.directory}`);
-  });
-
   test("N in archived tab is blocked", () => {
     let state = makeState(archivedSessions);
     state = { ...state, tab: "archived" as const };

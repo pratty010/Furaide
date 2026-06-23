@@ -26,6 +26,7 @@ setTheme(theme);
 export const SEARCH_DEBOUNCE_MS = 150;
 
 export function mapKey(key: any): string {
+  if (key?.ctrl && key?.shift && key?.name === "c") return "Ctrl+Shift+C";
   if (key?.ctrl && key?.name === "c") return "q";
   if (key?.ctrl && key?.name === "d") return "Ctrl+D";
   if (key?.ctrl && key?.name === "u") return "Ctrl+U";
@@ -35,7 +36,6 @@ export function mapKey(key: any): string {
   if (key?.name === "pageup") return "PageUp";
   if (key?.name === "tab") return "Tab";
   if (key?.shift && key?.name === "tab") return "S-Tab";
-  if ((key?.meta || key?.alt) && key?.name === "return") return "Alt+Enter";
   if (key?.name === "return") return "Enter";
   if (key?.name === "escape") return "Escape";
   if (key?.name === "backspace") return "Backspace";
@@ -56,7 +56,7 @@ export function refreshStateFromDisk(s: UiState, status: string): UiState {
 }
 
 export async function startInteractiveTui(): Promise<void> {
-  const renderer = await createCliRenderer({ exitOnCtrlC: true, targetFps: 30, useMouse: true });
+  const renderer = await createCliRenderer({ exitOnCtrlC: false, targetFps: 30, useMouse: true });
   let state = createInitialState(buildSessionIndex({ cwd: cwd() }), { height: process.stdout.rows || 24, width: process.stdout.columns || 100 });
   state = reloadState(state);
   let layout = dashboardLayout(state.viewport.width, state.viewport.height);
@@ -278,6 +278,9 @@ export async function startInteractiveTui(): Promise<void> {
   const onKeypress = (key: any) => {
     if (childRunning) return;
     const mapped = mapKey(key);
+    if (mapped === "Ctrl+Shift+C") {
+      return;
+    }
     if (mapped === "q") {
       quitRequested = true;
       settleLoop?.();

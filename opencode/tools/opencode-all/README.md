@@ -31,7 +31,7 @@ ln -sfn "$PWD/src/tui.tsx" ~/.local/bin/opencode-all
 
 Session management. Active and Archive tab views with an in-memory session index. Automatic return to dashboard after child session exit.
 
-Fresh session launch. Start a brand-new OpenCode session in the selected active directory without leaving the dashboard. `N` and `Alt+Enter` on a folder or active session row.
+Fresh session launch. Start a brand-new OpenCode session in the selected active directory without leaving the dashboard. `N` or `n` on a folder or active session row.
 
 Hard archive lifecycle. Export sessions to standalone archive files. Import from archives. Delete archived sessions with confirmation.
 
@@ -46,7 +46,6 @@ Safety and reliability. Centered confirmation modals, compact metadata formattin
 | `Enter` | Active session | Open child session |
 | `Enter` | Archived session | Blocked. Use `I` to import first |
 | `N` / `n` | Active folder or active session | Start fresh session in that directory |
-| `Alt+Enter` | Active folder or active session | Start fresh session in that directory |
 | `Tab` | Any | Switch between Active / Archive tabs |
 | `D` / `d` | Active session | Open archive / delete choice |
 | `I` | Archive tab | Import the selected archive |
@@ -55,7 +54,7 @@ Safety and reliability. Centered confirmation modals, compact metadata formattin
 | `/` | Any | Enter search mode |
 | `ArrowUp` / `ArrowDown` | Search | Navigate search results |
 | `j` / `k` | Normal mode | Move selection up / down |
-| `R` / `r` | Any | Refresh session list |
+| `Ctrl+Shift+C` | Any | Let the terminal copy selected text without quitting the TUI |
 | `Esc` | Any | Back / cancel current action |
 | `q` | Any | Quit dashboard |
 

@@ -638,7 +638,7 @@ export function applyKey(
     return moveSessionCursor(state, state.cursor - 5);
   }
 
-  if (key === "N" || key === "n" || key === "Alt+Enter") {
+  if (key === "N" || key === "n") {
     return startFreshSessionInDirectory(state);
   }
 

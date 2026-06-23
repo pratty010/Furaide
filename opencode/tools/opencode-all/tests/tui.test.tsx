@@ -834,8 +834,8 @@ describe("mapKey", () => {
 });
 
 describe("fresh session TUI integration", () => {
-  test("mapKey maps alt-return to Alt+Enter", () => {
-    expect(mapKey({ meta: true, name: "return" })).toBe("Alt+Enter");
+  test("mapKey lets Ctrl+Shift+C bypass quit handling", () => {
+    expect(mapKey({ ctrl: true, shift: true, name: "c" })).toBe("Ctrl+Shift+C");
   });
 
   test("action bar shows N/n new for active folder and active session", () => {
