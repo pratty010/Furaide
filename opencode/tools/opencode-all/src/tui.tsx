@@ -33,6 +33,7 @@ export function mapKey(key: any): string {
   if (key?.name === "pageup") return "PageUp";
   if (key?.name === "tab") return "Tab";
   if (key?.shift && key?.name === "tab") return "S-Tab";
+  if ((key?.meta || key?.alt) && key?.name === "return") return "Alt+Enter";
   if (key?.name === "return") return "Enter";
   if (key?.name === "escape") return "Escape";
   if (key?.name === "backspace") return "Backspace";
@@ -61,6 +62,7 @@ export async function startInteractiveTui(): Promise<void> {
   let quitRequested = false;
   let settleLoop: (() => void) | null = null;
   let childRunning = false;
+  let freshDirectoryRequest: string | null = null;
 
   function makeScrollPane(
     paneRenderer: CliRenderer,
@@ -264,6 +266,12 @@ export async function startInteractiveTui(): Promise<void> {
       refreshPanes();
       if (state.focus !== prevFocus) rebuildLayout();
     }
+    if (next.freshDirectory) {
+      freshDirectoryRequest = next.freshDirectory;
+      state = { ...next, freshDirectory: undefined };
+      settleLoop?.();
+      return;
+    }
     if (continueRequest) {
       settleLoop?.();
       return;
@@ -283,6 +291,20 @@ export async function startInteractiveTui(): Promise<void> {
       });
       settleLoop = null;
       if (quitRequested) break;
+      if (freshDirectoryRequest) {
+        const directory = freshDirectoryRequest;
+        freshDirectoryRequest = null;
+        childRunning = true;
+        try {
+          await runFreshSession(renderer, directory);
+        } finally {
+          childRunning = false;
+        }
+        state = refreshStateFromDisk(state, "back from session");
+        rebuildLayout();
+        refreshPanes();
+        renderer.requestRender();
+      }
       if (continueRequest) {
         const req = continueRequest;
         continueRequest = null;

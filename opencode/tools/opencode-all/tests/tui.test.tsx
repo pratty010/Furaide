@@ -819,6 +819,19 @@ describe("mapKey", () => {
   });
 });
 
+describe("fresh session TUI integration", () => {
+  test("mapKey maps alt-return to Alt+Enter", () => {
+    expect(mapKey({ meta: true, name: "return" })).toBe("Alt+Enter");
+  });
+
+  test("action bar shows N new for active folder and active session", () => {
+    const folderState = createInitialState(makeIndex(sessions), { height: 20, width: 100 });
+    expect(flatText(buildActionBarContent(folderState))).toContain("N new");
+    const sessionState = cursorOnFirstSession(folderState);
+    expect(flatText(buildActionBarContent(sessionState))).toContain("N new");
+  });
+});
+
 describe("refreshStateFromDisk", () => {
   function seedDb(rows: UiSession[]): void {
     const db = new Database(fakeDbPath);
