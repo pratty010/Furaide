@@ -9,7 +9,7 @@ const FLEET_ROOT = join(import.meta.dir, "../..");
 const INSTALLER = join(FLEET_ROOT, "scripts/install-web-tools.sh");
 
 test("fleet-manifest ships web-tools component with required files", () => {
-  const manifest = JSON.parse(readFileSync(join(FLEET_ROOT, "fleet-manifest.json"), "utf8"));
+  const manifest = JSON.parse(readFileSync(join(FLEET_ROOT, "config/fleet-manifest.json"), "utf8"));
   const component = manifest.components.find((item) => item.id === "web-tools");
 
   expect(component).toBeTruthy();
