@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { Box, BoxRenderable, ScrollBoxRenderable, TextRenderable, createCliRenderer, type CliRenderer } from "@opentui/core";
 import type { StyledText } from "@opentui/core";
 import { buildSessionIndex } from "./dashboard/session-index.ts";
@@ -334,6 +334,14 @@ function printFallbackList(): void {
 }
 
 export async function main(argv = process.argv.slice(2)): Promise<void> {
+  const newIndex = argv.indexOf("--new");
+  if (newIndex >= 0) {
+    const directory = argv[newIndex + 1];
+    if (!directory) throw new Error("missing directory for --new");
+    if (!existsSync(directory)) throw new Error(`directory not found: ${directory}`);
+    await runFreshSession({ suspend() {}, resume() {}, requestRender() {} }, directory);
+    return;
+  }
   if (argv.includes("--list")) {
     printFallbackList();
     return;

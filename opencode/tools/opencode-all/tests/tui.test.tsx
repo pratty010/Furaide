@@ -832,6 +832,19 @@ describe("fresh session TUI integration", () => {
   });
 });
 
+describe("--new flag", () => {
+  test("main returns error for missing --new directory", async () => {
+    const writes: string[] = [];
+    const originalError = console.error;
+    console.error = (msg?: any) => { writes.push(String(msg)); };
+    try {
+      await expect(import("../src/tui.tsx").then(m => m.main(["--new"]))).rejects.toThrow("missing directory for --new");
+    } finally {
+      console.error = originalError;
+    }
+  });
+});
+
 describe("refreshStateFromDisk", () => {
   function seedDb(rows: UiSession[]): void {
     const db = new Database(fakeDbPath);
