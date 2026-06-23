@@ -37,6 +37,41 @@ export type ActionChip = {
   primary?: boolean;
 };
 
+let searchResultsMemo: { key: string; results: SearchResult[] } | null = null;
+let actionChipsMemo: { key: string; chips: ActionChip[] } | null = null;
+
+export function clearActionMemo(): void {
+  searchResultsMemo = null;
+  actionChipsMemo = null;
+}
+
+function searchResultsKey(state: UiState): string {
+  const query = state.query.trim().toLowerCase();
+  const sessionKey = state.allSessions
+    .map(s => `${s.id}:${s.title || ""}:${s.directory}:${s.timeArchived ?? ""}`)
+    .join("|");
+  return `${query}||${sessionKey}`;
+}
+
+function actionChipsKey(state: UiState): string {
+  const row = getVisibleRows(state)[state.cursor];
+  const rowKey = row
+    ? ("id" in row
+      ? `session:${(row as UiSession).id}:${(row as UiSession).timeArchived ?? ""}`
+      : `folder:${(row as DirectoryRow).directory}`)
+    : "none";
+  return JSON.stringify({
+    row: rowKey,
+    pendingAction: state.pendingAction,
+    pendingChoice: state.pendingChoice,
+    inputMode: state.inputMode,
+    focus: state.focus,
+    tab: state.tab,
+    folders: state.folders.map(f => f.directory).sort().join("|"),
+    expandedAll: state.folders.length > 0 && state.folders.every(f => state.expandedFolders.has(f.directory)),
+  });
+}
+
 function sessionRowsInDirectory(state: UiState, directory: string): UiSession[] {
   return rowsForTab(state.index, state.tab, directory);
 }
@@ -218,7 +253,7 @@ export function actionContext(state: UiState): { isFolder: boolean; isSession: b
   return { isFolder: !!isFolder, isSession: !!isSession, isArchived };
 }
 
-export function actionChips(state: UiState): ActionChip[] {
+const actionChipsImpl = (state: UiState): ActionChip[] => {
   if (state.pendingAction) {
     return [
       { id: "confirm", label: "[y/Enter] confirm", key: "y|Enter", primary: true },
@@ -306,9 +341,19 @@ export function actionChips(state: UiState): ActionChip[] {
     { id: "quit", label: "q quit", key: "q" },
     { id: "wheel", label: "wheel scroll", mouse: true },
   ];
+};
+
+export function actionChips(state: UiState): ActionChip[] {
+  const key = actionChipsKey(state);
+  if (actionChipsMemo?.key === key) return actionChipsMemo.chips;
+  const chips = actionChipsImpl(state);
+  actionChipsMemo = { key, chips };
+  return chips;
 }
 
 export function searchResultsFor(state: UiState): SearchResult[] {
+  const key = searchResultsKey(state);
+  if (searchResultsMemo?.key === key) return searchResultsMemo.results;
   const query = state.query.trim().toLowerCase();
   if (!query) {
     const active = state.allSessions
@@ -344,7 +389,9 @@ export function searchResultsFor(state: UiState): SearchResult[] {
     }
   }
 
-  return deduped.slice(0, 50);
+  const results = deduped.slice(0, 50);
+  searchResultsMemo = { key, results };
+  return results;
 }
 
 export const SEARCH_VISIBLE_WINDOW = 10;

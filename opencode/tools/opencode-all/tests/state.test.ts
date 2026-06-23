@@ -8,6 +8,7 @@ import {
 } from "../src/dashboard/session-index.ts";
 import {
   clampCursor,
+  clearVisibleRowsMemo,
   createInitialState,
   currentSession,
   getVisibleRows,
@@ -145,6 +146,14 @@ describe("visible rows", () => {
     const sessionRows = visible.filter(r => "id" in r);
     expect(folders.length).toBeGreaterThan(0);
     expect(sessionRows.length).toBeGreaterThan(0);
+  });
+
+  test("getVisibleRows returns same array reference for unchanged state", () => {
+    clearVisibleRowsMemo();
+    const state = expandFolderWithSessions(makeState());
+    const a = getVisibleRows(state);
+    const b = getVisibleRows(state);
+    expect(a).toBe(b);
   });
 });
 

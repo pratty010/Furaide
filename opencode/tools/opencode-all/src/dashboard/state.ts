@@ -82,7 +82,26 @@ export function sortFolders(rows: DirectoryRow[], baseCwd: string): DirectoryRow
   );
 }
 
+let visibleRowsMemo: { key: string; rows: Array<DirectoryRow | UiSession> } | null = null;
+
+export function clearVisibleRowsMemo(): void {
+  visibleRowsMemo = null;
+}
+
+function visibleRowsKey(state: UiState): string {
+  return JSON.stringify({
+    tab: state.tab,
+    directory: state.directory || "",
+    query: state.query,
+    sessions: state.sessions.map(s => `${s.id}:${s.timeUpdated}:${s.timeArchived ?? ""}`).join("|"),
+    folders: state.folders.map(f => `${f.directory}:${f.active}:${f.archived}:${f.latestUpdated}`).join("|"),
+    expanded: [...state.expandedFolders].sort().join("|"),
+  });
+}
+
 export function getVisibleRows(state: UiState): Array<DirectoryRow | UiSession> {
+  const key = visibleRowsKey(state);
+  if (visibleRowsMemo?.key === key) return visibleRowsMemo.rows;
   const rows: Array<DirectoryRow | UiSession> = [];
   const visibleSessions = state.directory
     ? state.sessions.filter(s => s.directory === state.directory)
@@ -99,6 +118,7 @@ export function getVisibleRows(state: UiState): Array<DirectoryRow | UiSession> 
       rows.push(...folderSessions);
     }
   }
+  visibleRowsMemo = { key, rows };
   return rows;
 }
 

@@ -13,6 +13,7 @@ import {
   actionContext,
   actionChips,
   applyKey,
+  clearActionMemo,
   executePendingAction,
   searchResultsFor,
   type ActionChip,
@@ -941,5 +942,32 @@ describe("fresh session keybindings", () => {
     expect(state.inputMode).toBe("search");
     expect(state.query).toBe("N");
     expect(state.freshDirectory).toBeUndefined();
+  });
+});
+
+describe("memoized derived state", () => {
+  test("searchResultsFor returns same array reference for unchanged state", () => {
+    clearActionMemo();
+    const state = { ...makeState(sessions), inputMode: "search" as const, query: "Session" };
+    const a = searchResultsFor(state);
+    const b = searchResultsFor(state);
+    expect(a).toBe(b);
+  });
+
+  test("actionChips returns same array reference for unchanged state", () => {
+    clearActionMemo();
+    const state = cursorOnFirstSession(makeState());
+    const a = actionChips(state);
+    const b = actionChips(state);
+    expect(a).toBe(b);
+  });
+
+  test("clearActionMemo invalidates cached results", () => {
+    clearActionMemo();
+    const state = cursorOnFirstSession(makeState());
+    const a = actionChips(state);
+    clearActionMemo();
+    const b = actionChips(state);
+    expect(a).not.toBe(b);
   });
 });
