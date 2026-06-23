@@ -159,7 +159,7 @@ export const WebToolsPlugin: Plugin = async (ctx) => {
         },
         async execute(args: WebSearchArgs) {
           const result = await executeWebSearchTool(args, runtime);
-          return result;
+          return JSON.stringify(result);
         },
       }),
       fetch_content: tool({
@@ -171,7 +171,7 @@ export const WebToolsPlugin: Plugin = async (ctx) => {
         },
         async execute(args: FetchContentArgs) {
           const result = await executeFetchContentTool(args, runtime);
-          return result;
+          return JSON.stringify(result);
         },
       }),
       maps_search: tool({
@@ -184,7 +184,7 @@ export const WebToolsPlugin: Plugin = async (ctx) => {
         },
         async execute(args: MapsSearchArgs) {
           const result = await executeMapsSearchTool(args, runtime);
-          return result;
+          return JSON.stringify(result);
         },
       }),
     },
