@@ -1,20 +1,12 @@
 import { test, expect, describe, beforeAll, afterAll, mock } from "bun:test";
 
 // ── Vertex auth mock ──────────────────────────────────────────
-// Intercepts the import inside vertex-auth.ts so getVertexAccessToken
-// returns a fake token without touching disk or needing real credentials.
-mock.module("google-auth-library", () => ({
-  GoogleAuth: class {
-    constructor() {}
-    async getClient() {
-      return {
-        getAccessToken: async () => ({
-          token: "fake-token",
-          res: { data: { expires_in: 3600 } },
-        }),
-      };
-    }
-  },
+// Mock the vertex-auth module directly so we don't need the real
+// google-auth-library package installed. Returning a fixed fake token
+// matches the real shape (string) and avoids the static-import
+// resolution that fails when the package is absent.
+mock.module("../../plugins/web-tools/providers/vertex-auth.ts", () => ({
+  getVertexAccessToken: async () => "fake-token",
 }));
 
 // ── AI Studio transport ───────────────────────────────────────
