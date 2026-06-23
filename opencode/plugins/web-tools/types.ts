@@ -1,4 +1,5 @@
 export type WebProvider = "gemini" | "brave" | "tavily";
+export type GoogleTransport = "auto" | "vertex" | "ai-studio";
 
 export interface WebSearchConfig {
   defaultProvider: WebProvider;
@@ -41,6 +42,9 @@ export interface WebToolsConfig {
   mapsSearch: MapsSearchConfig;
   cache: CacheConfig;
   budgets: BudgetConfig;
+  google: {
+    transport: GoogleTransport;
+  };
 }
 
 export interface UsageRecord {

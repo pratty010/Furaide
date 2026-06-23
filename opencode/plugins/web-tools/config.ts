@@ -2,7 +2,7 @@ import { readFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { parse } from "yaml";
-import type { WebToolsConfig, WebProvider } from "./types.ts";
+import type { WebToolsConfig, WebProvider, GoogleTransport } from "./types.ts";
 
 export const DEFAULT_WEB_TOOLS_CONFIG: WebToolsConfig = {
   webSearch: {
@@ -35,12 +35,16 @@ export const DEFAULT_WEB_TOOLS_CONFIG: WebToolsConfig = {
     braveRequests: 2000,
     tavilyCredits: 1000,
   },
+  google: {
+    transport: "auto",
+  },
 };
 
 const VALID_WEB_PROVIDERS = new Set<WebProvider>(["brave", "tavily", "gemini"]);
 const VALID_FETCH_PROVIDERS = new Set(["gemini", "tavily"]);
 const VALID_FRESHNESS = new Set(["pd", "pw", "pm", "py"]);
 const VALID_FORMATS = new Set(["markdown", "text"]);
+const VALID_GOOGLE_TRANSPORTS = new Set<GoogleTransport>(["auto", "vertex", "ai-studio"]);
 
 function isPlainObject(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);
@@ -135,6 +139,15 @@ export function validateConfig(loaded: unknown): WebToolsConfig {
     out.budgets.geminiUsd = clampFloat(b.geminiUsd, out.budgets.geminiUsd, 0, 1_000_000);
     out.budgets.braveRequests = clampInt(b.braveRequests, out.budgets.braveRequests, 0, 1_000_000_000);
     out.budgets.tavilyCredits = clampInt(b.tavilyCredits, out.budgets.tavilyCredits, 0, 1_000_000_000);
+  }
+
+  if (isPlainObject(cfg.google)) {
+    const g = cfg.google as Record<string, unknown>;
+    if (typeof g.transport === "string" && VALID_GOOGLE_TRANSPORTS.has(g.transport as GoogleTransport)) {
+      out.google.transport = g.transport as GoogleTransport;
+    } else {
+      out.google.transport = "auto";
+    }
   }
 
   return out;

@@ -13,3 +13,5 @@ fetchContent:
 mapsSearch:
   defaultProvider: gemini
   count: 5
+google:
+  transport: auto
