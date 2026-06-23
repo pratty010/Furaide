@@ -3,7 +3,7 @@ import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { EventEmitter } from "node:events";
 import { Database } from "bun:sqlite";
-import { applyKey, buildSearchOverlay, mapKey, refreshStateFromDisk, runChildSession } from "../src/tui.tsx";
+import { SEARCH_DEBOUNCE_MS, applyKey, buildSearchOverlay, mapKey, refreshStateFromDisk, runChildSession } from "../src/tui.tsx";
 import type { ContinueRequest } from "../src/session-runner.ts";
 import { addActiveToIndex, addArchivedToIndex, type SessionIndex } from "../src/dashboard/session-index.ts";
 import { createInitialState, currentSession, getVisibleRows, reloadState, type UiSession } from "../src/dashboard/state.ts";
@@ -275,6 +275,10 @@ describe("enter semantics", () => {
 });
 
 describe("search mode", () => {
+  test("SEARCH_DEBOUNCE_MS is 150", () => {
+    expect(SEARCH_DEBOUNCE_MS).toBe(150);
+  });
+
   test("slash enters search mode", () => {
     let state = createInitialState(makeIndex(sessions), { height: 20, width: 100 });
     state = applyKey(state, "/");

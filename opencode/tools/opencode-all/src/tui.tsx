@@ -3,7 +3,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { Box, BoxRenderable, ScrollBoxRenderable, TextRenderable, createCliRenderer, type CliRenderer } from "@opentui/core";
 import type { StyledText } from "@opentui/core";
 import { buildSessionIndex } from "./dashboard/session-index.ts";
-import { createInitialState, cwd, getVisibleRows, loadSelectedMessages, reloadState, type UiState } from "./dashboard/state.ts";
+import { createInitialState, cwd, getVisibleRows, loadSelectedMessages, reloadState, clampCursor, type UiState } from "./dashboard/state.ts";
 import { applyKey } from "./dashboard/actions.ts";
 import { dashboardLayout } from "./dashboard/layout.ts";
 import { runChildSession, runFreshSession, type ContinueRequest } from "./session-runner.ts";
@@ -22,6 +22,8 @@ import {
 
 const theme = JSON.parse(readFileSync(new URL("../themes/friday.json", import.meta.url), "utf8"));
 setTheme(theme);
+
+export const SEARCH_DEBOUNCE_MS = 150;
 
 export function mapKey(key: any): string {
   if (key?.ctrl && key?.name === "c") return "q";
@@ -64,6 +66,7 @@ export async function startInteractiveTui(): Promise<void> {
   let childRunning = false;
   let freshDirectoryRequest: string | null = null;
   let metadataTimer: ReturnType<typeof setTimeout> | null = null;
+  let searchTimer: ReturnType<typeof setTimeout> | null = null;
   function scheduleMetadataLoad() {
     if (metadataTimer) clearTimeout(metadataTimer);
     metadataTimer = setTimeout(() => {
@@ -268,6 +271,37 @@ export async function startInteractiveTui(): Promise<void> {
       renderer.requestRender();
       return;
     }
+    if (state.inputMode === "search") {
+      if (mapped.length === 1 && mapped >= " ") {
+        state = { ...state, query: state.query + mapped };
+        refreshPanes();
+        renderer.requestRender();
+        if (searchTimer) clearTimeout(searchTimer);
+        searchTimer = setTimeout(() => {
+          if (state.inputMode !== "search") return;
+          const q = state.query;
+          state = clampCursor(reloadState({ ...state, cursor: 0, listScroll: 0, searchSelected: 0, searchScroll: 0, status: `search:${q}` }));
+          refreshPanes();
+          renderer.requestRender();
+        }, SEARCH_DEBOUNCE_MS);
+        return;
+      }
+      if (mapped === "Backspace") {
+        const q = state.query.slice(0, -1);
+        state = { ...state, query: q };
+        refreshPanes();
+        renderer.requestRender();
+        if (searchTimer) clearTimeout(searchTimer);
+        searchTimer = setTimeout(() => {
+          if (state.inputMode !== "search") return;
+          const curQ = state.query;
+          state = clampCursor(reloadState({ ...state, cursor: 0, listScroll: 0, searchSelected: 0, searchScroll: 0, status: `search:${curQ}` }));
+          refreshPanes();
+          renderer.requestRender();
+        }, SEARCH_DEBOUNCE_MS);
+        return;
+      }
+    }
     const prevFocus = state.focus;
     const next = applyKey(state, mapped, (id, fork) => { continueRequest = { id, fork }; });
     if (next !== state) {
@@ -334,6 +368,7 @@ export async function startInteractiveTui(): Promise<void> {
     }
   } finally {
     if (metadataTimer) clearTimeout(metadataTimer);
+    if (searchTimer) clearTimeout(searchTimer);
     process.stdout.off("resize", onResize);
     renderer.keyInput.off?.("keypress", onKeypress);
     renderer.destroy();
