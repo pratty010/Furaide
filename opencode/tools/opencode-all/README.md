@@ -31,6 +31,8 @@ ln -sfn "$PWD/src/tui.tsx" ~/.local/bin/opencode-all
 
 Session management. Active and Archive tab views with an in-memory session index. Automatic return to dashboard after child session exit.
 
+Fresh session launch. Start a brand-new OpenCode session in the selected active directory without leaving the dashboard. `N` and `Alt+Enter` on a folder or active session row.
+
 Hard archive lifecycle. Export sessions to standalone archive files. Import from archives. Delete archived sessions with confirmation.
 
 Search and navigation. Search by session title, session ID, or directory. Arrow-key result navigation.
@@ -43,6 +45,8 @@ Safety and reliability. Centered confirmation modals, compact metadata formattin
 |-----|---------|--------|
 | `Enter` | Active session | Open child session |
 | `Enter` | Archived session | Blocked. Use `I` to import first |
+| `N` | Active folder or active session | Start fresh session in that directory |
+| `Alt+Enter` | Active folder or active session | Start fresh session in that directory |
 | `Tab` | Any | Switch between Active / Archive tabs |
 | `D` / `d` | Active session | Open archive / delete choice |
 | `I` | Archive tab | Import the selected archive |
@@ -115,6 +119,14 @@ bash scripts/test-fixture.sh
 ```
 
 Follow the printed instructions to launch against a synthetic, throwaway database.
+
+**Start a fresh session without opening the dashboard:**
+
+```bash
+opencode-all --new /path/to/project
+```
+
+The `--new` flag validates that the directory exists, then spawns `opencode <directory>` with inherited stdio. Exit code mirrors the spawned OpenCode process.
 
 ## 🗂️ Architecture
 
