@@ -572,6 +572,16 @@ describe("render helpers", () => {
   });
 });
 
+describe("session list virtualization", () => {
+  test("buildSessionsContent renders bounded row count", () => {
+    const many = Array.from({ length: 200 }, (_, index) => ({ ...sessions[0], id: `ses_many_${index}`, title: `Many ${index}`, directory: "/repo/many", timeUpdated: 10_000 - index }));
+    let state = createInitialState(makeIndex(many), { height: 20, width: 100 });
+    state = { ...state, expandedFolders: new Set(["/repo/many"]) };
+    const text = flatText(buildSessionsContent(state));
+    expect(text.split("\n").length).toBeLessThan(40);
+  });
+});
+
 describe("scrollable layout tree (ScrollBoxRenderable)", () => {
   test("wide layout assembles messages+metadata top row and sessions row with action bar", async () => {
     const setup = await createTestRenderer({ width: 120, height: 30 });
