@@ -1,0 +1,108 @@
+export type WebProvider = "gemini" | "brave" | "tavily";
+export type GoogleTransport = "auto" | "vertex" | "ai-studio";
+
+export interface WebSearchAdvanced {
+  depth: "simple" | "deep";
+  answer: boolean;
+  minScore: number;
+  includeDomains: string[];
+  excludeDomains: string[];
+  country: string;
+  topic: "general" | "news" | "finance" | "tech" | "science";
+  includeImages: boolean;
+  highlights: boolean;
+  braveGoggles: string[];
+}
+
+export interface WebSearchConfig {
+  defaultProvider: WebProvider;
+  primaryFallbackOrder: WebProvider[];
+  reserveFallbackOrder: WebProvider[];
+  count: number;
+  freshness: "pd" | "pw" | "pm" | "py";
+  rawContent: boolean;
+  advanced: WebSearchAdvanced;
+}
+
+export interface FetchContentAdvanced {
+  depth: number;
+  maxChars: number;
+  maxDepth: number;
+  limit: number;
+  selectPaths: string[];
+  query: string;
+  chunksPerSource: number;
+}
+
+export interface FetchContentConfig {
+  defaultProvider: "gemini" | "tavily";
+  primaryFallbackOrder: Array<"gemini" | "tavily">;
+  reserveFallbackOrder: Array<"gemini" | "tavily">;
+  format: "markdown" | "text";
+  advanced: FetchContentAdvanced;
+}
+
+export interface MapsSearchConfig {
+  defaultProvider: "gemini";
+  count: number;
+}
+
+export interface CacheConfig {
+  ttl: {
+    webSearchMs: number;
+    fetchContentMs: number;
+  };
+  maxEntries?: number;
+}
+
+export interface BudgetConfig {
+  geminiUsd: number;
+  braveRequests: number;
+  tavilyCredits: number;
+}
+
+export interface WebToolsConfig {
+  webSearch: WebSearchConfig;
+  fetchContent: FetchContentConfig;
+  mapsSearch: MapsSearchConfig;
+  cache: CacheConfig;
+  budgets: BudgetConfig;
+  google: {
+    transport: GoogleTransport;
+  };
+}
+
+export interface UsageRecord {
+  provider: WebProvider;
+  unitsUsed: number;
+  estimatedCostUsd: number;
+  month: string;
+  tokensInput?: number;
+  tokensOutput?: number;
+}
+
+export interface ResultMetadata {
+  provider: string;
+  latencyMs: number;
+  unitsUsed?: number;
+  tokensInput?: number;
+  tokensOutput?: number;
+  estimatedCostUsd?: number;
+}
+
+export type UsageMetadata = Omit<ResultMetadata, "latencyMs">;
+
+export interface UsageSnapshot {
+  provider: string;
+  month: string;
+  calls: number;
+  units_used: number;
+  estimated_cost_usd: number;
+  tokens_input: number;
+  tokens_output: number;
+  warning_80_shown: number;
+  warning_90_shown: number;
+  budget_exceeded_shown: number;
+  suppressed: number;
+  last_call_at: string | null;
+}

@@ -639,14 +639,14 @@ for i in $(seq 0 $((COMPONENT_COUNT - 1))); do
     # Substitute __FLEET_ROOT__ in installed plugins
     if [[ "$DRY_RUN" -eq 0 ]]; then
       for rel in "${files[@]}"; do
-        if [[ "$rel" == plugins/*.js ]]; then
+        if [[ "$rel" == plugins/*.js || "$rel" == plugins/*.ts ]]; then
           installed="$target_dir/$rel"
           [[ -f "$installed" ]] && substitute_fleet_root "$installed" "$target_dir"
         fi
       done
     else
       for rel in "${files[@]}"; do
-        if [[ "$rel" == plugins/*.js ]]; then
+        if [[ "$rel" == plugins/*.js || "$rel" == plugins/*.ts ]]; then
           printf '  %b[dry-run]%b substitute __FLEET_ROOT__ -> %s in %s\n' "$DIM" "$RST" "$target_dir" "$target_dir/$rel"
         fi
       done
@@ -654,7 +654,7 @@ for i in $(seq 0 $((COMPONENT_COUNT - 1))); do
 
     # Track plugins and rules for config merge
     for rel in "${files[@]}"; do
-      if [[ "$rel" == plugins/*.js ]]; then
+      if [[ "$rel" == plugins/*.js || "$rel" == plugins/*.ts ]]; then
         TARGET_PLUGINS["$target_dir"]+=" $rel"
       fi
     done
@@ -670,6 +670,35 @@ for i in $(seq 0 $((COMPONENT_COUNT - 1))); do
     _ok "Done: $label -> $target_dir"
   done
 done
+
+# ── Package fragment merge ─────────────────────────────────────────────────────
+web_tools_targets="${COMP_TARGETS[web-tools]:-}"
+if [[ -n "$web_tools_targets" ]]; then
+  for target_dir in $web_tools_targets; do
+    do_copy "$FLEET_ROOT/config/web-tools.yml" "$target_dir/web-tools.yml"
+    pkg_fragment="$FLEET_ROOT/config/package.web-tools.json"
+    target_pkg="$target_dir/package.json"
+    if [[ -f "$pkg_fragment" ]]; then
+      _info "Merging web-tools package fragment into $target_pkg"
+      if [[ "$DRY_RUN" -eq 1 ]]; then
+        printf '  %b[dry-run]%b merge-package-fragment %s %s\n' "$DIM" "$RST" "$target_pkg" "$pkg_fragment"
+      else
+        merge_out=$(bun "$FLEET_ROOT/scripts/merge-package-fragment.mjs" "$target_pkg" "$pkg_fragment" 2>&1)
+        echo "$merge_out"
+        if echo "$merge_out" | grep -q "CHANGED"; then
+          _info "Web Tools dependencies changed. Running bun install..."
+          (cd "$target_dir" && bun install 2>&1) && _ok "bun install for web-tools complete" || { _err "bun install failed in $target_dir (see output above)"; exit 1; }
+        fi
+      fi
+    fi
+    if [[ -z "${BRAVE_API_KEY:-}" ]]; then
+      _warn "BRAVE_API_KEY is not set; web_search via Brave will fail at runtime until configured."
+    fi
+    if [[ -z "${TAVILY_API_KEY:-}" ]]; then
+      _warn "TAVILY_API_KEY is not set; web_search/fetch_content via Tavily will fail at runtime until configured."
+    fi
+  done
+fi
 
 # ── Config merge for each target dir ─────────────────────────────────────────
 _bold "\nWiring configs...\n"

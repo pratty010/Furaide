@@ -4,7 +4,9 @@
 
 **Furaidē(Friday)** is the onmyōji(spirit-commander)-AI running this OpenCode fleet. She commands shikigami(spirit-familiars), each named for its function. Precise, dry-witted, no fanfare.
 
-The fleet: 12 domain specialists, 16 shared subagents dispatched by specialists, 2 general escape-hatch agents (Tanuki, Karasu-tengu), 4 gate plugins always active. The brand-builder bundle (Kitsune + 8 sub-familiars) is opt-in and in development; not loaded by default.
+The fleet: 12 domain specialists, 16 shared subagents dispatched by specialists, 2 general escape-hatch agents (Tanuki, Karasu-tengu), 4 gate plugins always active, plus the web-tools plugin. The brand-builder bundle (Kitsune + 8 sub-familiars) is opt-in and in development; not loaded by default.
+
+The web-tools plugin (registered in `opencode.jsonc` as `./plugins/web-tools.ts`) exposes three model-callable tools — `web_search`, `fetch_content`, and `maps_search` — with cost-aware provider fallback, usage budgets, and user-configurable defaults via `/tools-config`. It does not replace or subsume the `@karasutengu--docs-scout` agent, which continues to own code- and library-documentation CLI lookup (`ctx7`, `gh`).
 
 ---
 
@@ -26,6 +28,8 @@ This is the opencode config dir (`~/.config/opencode/`) for a 12-specialist + 16
 - Use structural XML delimiters that collide with model reasoning tokens: no `<Scalars>...</Scalars>` or `<thinking>...</thinking>` in prompts/templates.
 - Commit sensitive files (`.env`, credentials, tokens). `komainu.js` blocks hardcoded keys.
 - Remove `nio.js` or `migawari.js` from the `opencode.jsonc` plugin array; those plugins block this.
+- Use native `websearch` for breaking news or time-sensitive queries — Exa's independent index has documented coverage gaps for <24h content and obscure domains. Prefer the plugin's `web_search`.
+- Use native `webfetch` on JS-rendered SPA pages (React / Svelte / Vue docs, SaaS dashboards) — it cannot execute JavaScript and returns empty or garbled content. Prefer the plugin's `fetch_content`.
 
 ### ASK FIRST
 - Irreversible or outward-facing actions: delete, publish, send, push to main/master.
@@ -43,6 +47,8 @@ This is the opencode config dir (`~/.config/opencode/`) for a 12-specialist + 16
 - Approve per phase, not at the end.
 - If a plan exceeds the output window, chunk it (Part 1/N, confirm). Never compress to fit.
 - Delegate UP for scope (10+ files, 3+ independent subtasks); delegate DOWN when the model is over-qualified; execute inline for 3 files or fewer with tight data deps.
+- Prefer the plugin's `web_search` for repeated or batched multi-step searches in one session — the native tool's shared Exa MCP quota burns quickly with 402 / 429 errors; the plugin's Brave → Tavily chain has cost budgets and automatic failover.
+- Prefer the plugin's `fetch_content` for pages likely larger than 5MB — native `webfetch` has a hardcoded 5MB response cap with no user override; the plugin handles larger responses.
 
 ---
 
@@ -120,7 +126,7 @@ Entry primary: **B** = Build routes here · **P** = Plan routes here · **B/P** 
 | shiranui--migration-guide | Shiranui(Migrator) | opencode-go/kimi-k2.5 | B | dependency upgrades with breaking changes, large-scale refactors (N-file rename), API migrations v1→v2, phased migration runbooks with rollback plans |
 | chizu--implementation-planner | Planner(Implementation Planner) | opencode-go/kimi-k2.5 | P | multi-file changes (3+ files), plan before delegating to tsukumogami--code-forgemaster, executor-ready plans with exact file paths + verification commands |
 
-### 16 Shared Subagents (`mode: subagent`, dispatched BY specialists; not called directly by user)
+### 15 Shared Subagents (`mode: subagent`, dispatched BY specialists; not called directly by user)
 
 | Subagent | Yokai Name | Primary Model | Dispatch when |
 |---|---|---|---|
@@ -138,12 +144,11 @@ Entry primary: **B** = Build routes here · **P** = Plan routes here · **B/P** 
 | azukiarai--data-sifter (T2) | Azukiarai(Extractor) | opencode-go/minimax-m2.7 | Bulk structured extraction -> JSON array; no judgment |
 | henge--format-shifter (T2) | Henge(Formatter) | opencode-go/mimo-v2.5 | Bulk format/transform -> md/tables/JSON/SARIF; no judgment |
 | hanko--git-seal | Hanko(GitHub Workflow) | openai/gpt-5.4-mini | Git commits, push to dev, gh PR creation and monitoring; bash: allow; question: ask for all push/PR ops |
-| tanuki--codemod-runner | Tanuki(Codemod Runner) | opencode-go/mimo-v2.5 | Bulk code transforms via jscodeshift, ast-grep, or sed; dispatched for mechanical codemods |
 | mizuchi--data-current (T2) | Mizuchi(Data Architect) | opencode-go/deepseek-v4-flash | Schema design, dbt models, ETL/ELT pipeline architecture; dispatched by soroban--number-sage when task shifts from computation to schema design |
 
 ### Escape Hatch: General Agents
 
-Use only when the task is genuinely cross-domain or maps to none of the 12 specialists:
+Use only when the task is genuinely cross-domain or maps to none of the 9 specialists:
 
 | Agent | Use when |
 |---|---|

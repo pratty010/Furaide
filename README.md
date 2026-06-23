@@ -64,7 +64,7 @@ Five components and one companion tool that wire Furaidē into AI coding harness
 
 | Component | Harness | What it does |
 |-----------|---------|-------------|
-| `opencode/` | [OpenCode](https://opencode.ai) | 30-agent fleet: 12 domain specialists, 16 shared subagents, 4 always-on gate guardians, Kitsune brand-builder (opt-in) |
+| `opencode/` | [OpenCode](https://opencode.ai) | 30-agent fleet: 12 domain specialists, 16 shared subagents, 4 always-on gate guardians, web-tools plugin (3 tools, AI Studio / Vertex AI auto transport), Kitsune brand-builder (opt-in) |
 | `opencode/tools/opencode-all/` | OpenCode | Standalone OpenTUI session dashboard companion tool for OpenCode |
 | `claude-code/` | [Claude Code](https://claude.ai/code) | Satori plugin (capability analytics) + `github` skill / `hanko--git-seal` agent (git workflow) |
 | `pi-agent/` | [pi.dev](https://pi.dev) | Extension package: web-RAG tools, `/usage` cost tracking, animated TUI, friday and chimu themes, GSD skills |

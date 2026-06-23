@@ -11,11 +11,17 @@ Not auto-loaded. Pull when editing fleet wiring, scripts, or file relationships.
 | `agents/<name>.md` | Agent definition (frontmatter + body) | `permission.task` must match manifest `permitted_subagents`; no `model:` field — model lives in `opencode.jsonc` |
 | `docs/routing-manifest.json` | Canonical model routing (primary + fallback chains) | Routing + fallback source of truth; installer may write a resolved copy into the target install |
 | `docs/OPERATOR.md` | Tier discipline, model budget, reserve justification | `routing-manifest.json` should respect tier assignments here |
-| `opencode.jsonc` | Provider whitelist + plugin list + permissions + `agent` model mappings | Plugin array must include all 4 gate plugins; provider whitelists must not include `gemini-2.5-*`; `agent.<name>.model` is the runtime assignment |
-| `plugins/*.js` | Runtime gates (fail-closed on load error) | `migawari.js` reads `routing-manifest.json` at runtime |
+| `opencode.jsonc` | Provider whitelist + plugin list + permissions + `agent` model mappings | Plugin array must include all 4 gate plugins plus `web-tools.ts`; provider whitelists must not include `gemini-2.5-*`; `agent.<name>.model` is the runtime assignment |
+| `plugins/*.js` / `plugins/web-tools.ts` | Runtime gates and tools plugins (fail-closed on load error) | Gate plugins are `.js`; web-tools is `.ts` loaded directly by opencode; `migawari.js` reads `routing-manifest.json` at runtime |
 | `scripts/workflow-state.mjs` | Sole writer of `state.json` | Specialists call at phase boundaries; never write state directly |
 | `scripts/lib/state-lock.mjs` | File-based locking for workflow state | Used by `workflow-state.mjs` for CAS safety |
 | `docs/manifest-schema.md` | Schema for agent frontmatter manifest fields | `permission.task` allow-list is generated from `permitted_subagents` |
+| `plugins/web-tools/providers/gemini-ai-studio.ts` | AI Studio REST transport | `google.transport: ai-studio` in plugin YAML |
+| `plugins/web-tools/providers/gemini-vertex.ts` | Vertex AI REST transport (Bearer ADC) | `google.transport: vertex` in plugin YAML |
+| `plugins/web-tools/providers/vertex-auth.ts` | Vertex OAuth helper (google-auth-library) | Called by `gemini-vertex.ts` on 401 |
+| `plugins/web-tools/providers/vertex-endpoint.ts` | Vertex URL builder (global vs regional) | Called by `gemini-vertex.ts`; reads model region |
+| `plugins/web-tools/providers/transport-select.ts` | auto / vertex / ai-studio selector | Reads `google.transport` from plugin YAML |
+| `commands/tools-config.md` | Interactive web-tools config editor | Writes tool budgets and transport to plugin runtime |
 
 **After editing routing or runtime model config:** run `bun test` to verify model consistency.
 

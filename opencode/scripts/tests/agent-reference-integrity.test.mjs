@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { AGENT_RENAME_MAP, LEGACY_AGENT_ALIASES, ALL_AGENT_TARGETS } from '../lib/agent-fleet-map.mjs';
 
 const ROOTS = ['config/AGENTS.md', 'config/fleet-manifest.json', 'docs/routing-manifest.json', 'scripts/install-fleet.sh', 'scripts/install-fleet-bootstrap.sh', 'scripts/merge-config.mjs'];
-const DIRS = ['agents', 'command', 'docs'];
+const DIRS = ['agents', 'commands', 'docs'];
 const DOC_ALLOWLIST = new Set(['docs/agent-description-rubric.md', 'docs/archive/agent-fleet-structural-findings.md']);
 
 function walk(dir) {
