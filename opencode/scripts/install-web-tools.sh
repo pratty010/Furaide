@@ -26,8 +26,15 @@ fi
 if [[ -z "${TAVILY_API_KEY:-}" ]]; then
   _warn "TAVILY_API_KEY is not set. Tavily web_search/fetch_content will fail at runtime until configured."
 fi
-if [[ -z "${GEMINI_API_KEY:-}" ]]; then
-  _warn "GEMINI_API_KEY is not set. Gemini web_search/fetch_content/maps_search will fail at runtime until configured."
+# Detect Google transport (Vertex AI or AI Studio)
+if [[ -n "${GOOGLE_APPLICATION_CREDENTIALS:-}" && -n "${GOOGLE_CLOUD_PROJECT:-}" ]]; then
+  _info "Vertex AI detected"
+  loc="${GOOGLE_CLOUD_LOCATION:-${VERTEX_LOCATION:-global}}"
+  _info "Vertex AI location: ${loc}"
+elif [[ -n "${GEMINI_API_KEY:-}" || -n "${GOOGLE_API_KEY:-}" ]]; then
+  _info "AI Studio key detected"
+else
+  _warn "Google tools unavailable: set Vertex (GOOGLE_APPLICATION_CREDENTIALS + GOOGLE_CLOUD_PROJECT) or AI Studio (GEMINI_API_KEY / GOOGLE_API_KEY)"
 fi
 mkdir -p "$TARGET_DIR"
 cp "$FLEET_ROOT/config/web-tools.yml" "$TARGET_DIR/web-tools.yml"

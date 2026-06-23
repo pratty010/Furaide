@@ -59,6 +59,9 @@ test("install-web-tools.sh warns about missing API keys but does not fail", () =
     delete envNoKeys.BRAVE_API_KEY;
     delete envNoKeys.TAVILY_API_KEY;
     delete envNoKeys.GEMINI_API_KEY;
+    delete envNoKeys.GOOGLE_API_KEY;
+    delete envNoKeys.GOOGLE_APPLICATION_CREDENTIALS;
+    delete envNoKeys.GOOGLE_CLOUD_PROJECT;
 
     const out = execFileSync("bash", [INSTALLER, dir], {
       encoding: "utf8",
@@ -67,7 +70,61 @@ test("install-web-tools.sh warns about missing API keys but does not fail", () =
     });
     expect(out).toContain("BRAVE_API_KEY");
     expect(out).toContain("TAVILY_API_KEY");
+    expect(out).toContain("Google tools unavailable");
+    expect(out).toContain("complete");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("install-web-tools.sh mentions both GEMINI_API_KEY and GOOGLE_API_KEY", () => {
+  const dir = mkdtempSync(join(tmpdir(), "wt-install-"));
+  try {
+    const binDir = join(dir, "bin");
+    mkdirSync(binDir, { recursive: true });
+
+    const envNoKeys = { ...stubbedEnv(binDir) };
+    delete envNoKeys.BRAVE_API_KEY;
+    delete envNoKeys.TAVILY_API_KEY;
+    delete envNoKeys.GEMINI_API_KEY;
+    delete envNoKeys.GOOGLE_API_KEY;
+    delete envNoKeys.GOOGLE_APPLICATION_CREDENTIALS;
+    delete envNoKeys.GOOGLE_CLOUD_PROJECT;
+
+    const out = execFileSync("bash", [INSTALLER, dir], {
+      encoding: "utf8",
+      stdio: "pipe",
+      env: envNoKeys,
+    });
     expect(out).toContain("GEMINI_API_KEY");
+    expect(out).toContain("GOOGLE_API_KEY");
+    expect(out).toContain("complete");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("install-web-tools.sh mentions Vertex env vars (GOOGLE_APPLICATION_CREDENTIALS / GOOGLE_CLOUD_PROJECT) in the warn path", () => {
+  const dir = mkdtempSync(join(tmpdir(), "wt-install-"));
+  try {
+    const binDir = join(dir, "bin");
+    mkdirSync(binDir, { recursive: true });
+
+    const envNoKeys = { ...stubbedEnv(binDir) };
+    delete envNoKeys.BRAVE_API_KEY;
+    delete envNoKeys.TAVILY_API_KEY;
+    delete envNoKeys.GEMINI_API_KEY;
+    delete envNoKeys.GOOGLE_API_KEY;
+    delete envNoKeys.GOOGLE_APPLICATION_CREDENTIALS;
+    delete envNoKeys.GOOGLE_CLOUD_PROJECT;
+
+    const out = execFileSync("bash", [INSTALLER, dir], {
+      encoding: "utf8",
+      stdio: "pipe",
+      env: envNoKeys,
+    });
+    expect(out).toContain("GOOGLE_APPLICATION_CREDENTIALS");
+    expect(out).toContain("GOOGLE_CLOUD_PROJECT");
     expect(out).toContain("complete");
   } finally {
     rmSync(dir, { recursive: true, force: true });
