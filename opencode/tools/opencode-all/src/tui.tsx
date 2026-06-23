@@ -2,9 +2,9 @@
 import { existsSync, readFileSync } from "node:fs";
 import { Box, BoxRenderable, ScrollBoxRenderable, TextRenderable, createCliRenderer, type CliRenderer } from "@opentui/core";
 import type { StyledText } from "@opentui/core";
-import { buildSessionIndex } from "./dashboard/session-index.ts";
-import { createInitialState, cwd, getVisibleRows, loadSelectedMessages, reloadState, clampCursor, type UiState } from "./dashboard/state.ts";
-import { applyKey } from "./dashboard/actions.ts";
+import { buildSessionIndex, clearSessionIndexCache, deserializeSessionIndex } from "./dashboard/session-index.ts";
+import { createInitialState, cwd, getVisibleRows, loadSelectedMessages, reloadState, clearVisibleRowsMemo, clampCursor, type UiState } from "./dashboard/state.ts";
+import { applyKey, clearActionMemo } from "./dashboard/actions.ts";
 import { dashboardLayout } from "./dashboard/layout.ts";
 import { runChildSession, runFreshSession, type ContinueRequest } from "./session-runner.ts";
 export { applyKey, buildSearchOverlay, runChildSession, runFreshSession };
@@ -67,6 +67,24 @@ export async function startInteractiveTui(): Promise<void> {
   let freshDirectoryRequest: string | null = null;
   let metadataTimer: ReturnType<typeof setTimeout> | null = null;
   let searchTimer: ReturnType<typeof setTimeout> | null = null;
+  const indexWorker = new Worker(new URL("./workers/index-worker.ts", import.meta.url));
+  indexWorker.onmessage = (event) => {
+    const msg = event.data;
+    if (msg.type === "refresh-result") {
+      clearSessionIndexCache();
+      clearVisibleRowsMemo();
+      clearActionMemo();
+      state = reloadState({ ...state, index: deserializeSessionIndex(msg.index), status: "index refreshed" });
+      rebuildLayout();
+      refreshPanes();
+      renderer.requestRender();
+    }
+    if (msg.type === "error") {
+      state = { ...state, status: `refresh failed: ${msg.message}` };
+      refreshPanes();
+      renderer.requestRender();
+    }
+  };
   function scheduleMetadataLoad() {
     if (metadataTimer) clearTimeout(metadataTimer);
     metadataTimer = setTimeout(() => {
@@ -266,7 +284,8 @@ export async function startInteractiveTui(): Promise<void> {
       return;
     }
     if ((mapped === "r" || mapped === "R") && !state.inputMode && !state.pendingAction && !state.pendingChoice) {
-      state = refreshStateFromDisk(state, "index refreshed");
+      indexWorker.postMessage({ type: "refresh", cwd: cwd() });
+      state = { ...state, status: "refreshing index" };
       refreshPanes();
       renderer.requestRender();
       return;
@@ -369,6 +388,7 @@ export async function startInteractiveTui(): Promise<void> {
   } finally {
     if (metadataTimer) clearTimeout(metadataTimer);
     if (searchTimer) clearTimeout(searchTimer);
+    indexWorker.terminate();
     process.stdout.off("resize", onResize);
     renderer.keyInput.off?.("keypress", onKeypress);
     renderer.destroy();

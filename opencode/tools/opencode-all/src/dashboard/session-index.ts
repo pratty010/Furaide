@@ -118,3 +118,19 @@ export function directoriesForTab(index: SessionIndex, tab: Tab): DirectoryRow[]
     }))
     .sort((a, b) => a.directory.localeCompare(b.directory));
 }
+
+export type SerializableSessionIndex = {
+  active: SessionRow[];
+  archived: SessionRow[];
+};
+
+export function serializeSessionIndex(index: SessionIndex): SerializableSessionIndex {
+  return { active: [...index.active.values()], archived: [...index.archived.values()] };
+}
+
+export function deserializeSessionIndex(raw: SerializableSessionIndex): SessionIndex {
+  const index = emptyIndex();
+  for (const row of raw.active) addActiveToIndex(index, row);
+  for (const row of raw.archived) addArchivedToIndex(index, row);
+  return index;
+}
