@@ -85,7 +85,7 @@ async function createWebToolsRuntime(ctx: { directory: string }): Promise<WebSea
         try {
           if (p === "brave") return await brave.searchWeb(request);
           if (p === "tavily") return await tavily.searchWeb(request);
-          if (p === "gemini") return await gemini.searchWeb({ ...request, pricing });
+          if (p === "gemini") return await gemini.searchWeb({ ...request, pricing, transport: config.google.transport });
         } catch (e: any) {
           errors.push(`${p}: ${e.message}`);
         }
@@ -106,7 +106,7 @@ async function createWebToolsRuntime(ctx: { directory: string }): Promise<WebSea
           continue;
         }
         try {
-          if (p === "gemini") return await gemini.fetchContent({ ...request, pricing });
+          if (p === "gemini") return await gemini.fetchContent({ ...request, pricing, transport: config.google.transport });
           if (p === "tavily") return await tavily.fetchContent(request);
         } catch (e: any) {
           errors.push(`${p}: ${e.message}`);
@@ -119,7 +119,7 @@ async function createWebToolsRuntime(ctx: { directory: string }): Promise<WebSea
       if (blockReason) {
         throw new Error(`gemini: budget exceeded`);
       }
-      return await gemini.searchMaps({ ...request, pricing });
+      return await gemini.searchMaps({ ...request, pricing, transport: config.google.transport });
     },
   };
 

@@ -1,4 +1,4 @@
-import { test, expect, describe } from "bun:test";
+import { test, expect, describe, beforeAll, afterAll } from "bun:test";
 
 test("fetch_content tool executes with mock runtime", async () => {
   const { executeFetchContentTool } = await import("../../plugins/web-tools/tools/fetch-content.ts");
@@ -180,6 +180,20 @@ describe("fetch_content DNS rebinding integration", () => {
 });
 
 describe("Gemini fetchContent mode validation", () => {
+  const KEYS = ["GEMINI_API_KEY", "GOOGLE_API_KEY", "GOOGLE_CLOUD_PROJECT", "GOOGLE_APPLICATION_CREDENTIALS", "GOOGLE_CLOUD_LOCATION", "VERTEX_LOCATION"];
+  const ORIG = {};
+
+  beforeAll(() => {
+    for (const k of KEYS) { ORIG[k] = process.env[k]; delete process.env[k]; }
+  });
+
+  afterAll(() => {
+    for (const k of KEYS) {
+      if (ORIG[k] === undefined) delete process.env[k];
+      else process.env[k] = ORIG[k];
+    }
+  });
+
   test("rejects crawl mode before API key check", async () => {
     const gemini = await import("../../plugins/web-tools/providers/gemini.ts");
 
@@ -204,7 +218,7 @@ describe("Gemini fetchContent mode validation", () => {
     await expect(gemini.fetchContent({
       urls: ["https://example.com"],
       mode: "extract",
-    })).rejects.toThrow("requires GEMINI_API_KEY");
+    })).rejects.toThrow(/No Google credentials/);
   });
 
   test("defaults to extract mode when no mode given", async () => {
@@ -212,6 +226,6 @@ describe("Gemini fetchContent mode validation", () => {
 
     await expect(gemini.fetchContent({
       urls: ["https://example.com"],
-    })).rejects.toThrow("requires GEMINI_API_KEY");
+    })).rejects.toThrow(/No Google credentials/);
   });
 });
