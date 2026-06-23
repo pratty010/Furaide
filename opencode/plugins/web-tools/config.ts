@@ -2,7 +2,30 @@ import { readFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { parse } from "yaml";
-import type { WebToolsConfig, WebProvider, GoogleTransport } from "./types.ts";
+import type { WebToolsConfig, WebProvider, GoogleTransport, WebSearchAdvanced, FetchContentAdvanced } from "./types.ts";
+
+const DEFAULT_WEB_SEARCH_ADVANCED: WebSearchAdvanced = {
+  depth: "simple",
+  answer: false,
+  minScore: 0,
+  includeDomains: [],
+  excludeDomains: [],
+  country: "",
+  topic: "general",
+  includeImages: false,
+  highlights: false,
+  braveGoggles: [],
+};
+
+const DEFAULT_FETCH_CONTENT_ADVANCED: FetchContentAdvanced = {
+  depth: 2,
+  maxChars: 100000,
+  maxDepth: 2,
+  limit: 10,
+  selectPaths: [],
+  query: "",
+  chunksPerSource: 0,
+};
 
 export const DEFAULT_WEB_TOOLS_CONFIG: WebToolsConfig = {
   webSearch: {
@@ -12,12 +35,14 @@ export const DEFAULT_WEB_TOOLS_CONFIG: WebToolsConfig = {
     count: 5,
     freshness: "pm",
     rawContent: false,
+    advanced: { ...DEFAULT_WEB_SEARCH_ADVANCED },
   },
   fetchContent: {
     defaultProvider: "gemini",
     primaryFallbackOrder: ["gemini", "tavily"],
     reserveFallbackOrder: [],
     format: "markdown",
+    advanced: { ...DEFAULT_FETCH_CONTENT_ADVANCED },
   },
   mapsSearch: {
     defaultProvider: "gemini",
@@ -45,6 +70,8 @@ const VALID_FETCH_PROVIDERS = new Set(["gemini", "tavily"]);
 const VALID_FRESHNESS = new Set(["pd", "pw", "pm", "py"]);
 const VALID_FORMATS = new Set(["markdown", "text"]);
 const VALID_GOOGLE_TRANSPORTS = new Set<GoogleTransport>(["auto", "vertex", "ai-studio"]);
+const VALID_WEB_SEARCH_DEPTHS = new Set(["simple", "deep"]);
+const VALID_TOPICS = new Set(["general", "news", "finance", "tech", "science"]);
 
 function isPlainObject(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);
@@ -65,6 +92,32 @@ function clampFloat(n: unknown, fallback: number, min: number, max: number): num
   if (num < min) return min;
   if (num > max) return max;
   return num;
+}
+
+function clampString<T extends string>(v: unknown, valid: Set<string>, fallback: T): T {
+  if (typeof v === "string" && valid.has(v)) return v as T;
+  return fallback;
+}
+
+function filterUniqueTrimmed(arr: unknown): string[] {
+  if (!Array.isArray(arr)) return [];
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const item of arr) {
+    if (typeof item !== "string") continue;
+    const t = item.trim();
+    if (t.length === 0) continue;
+    if (seen.has(t)) continue;
+    seen.add(t);
+    out.push(t);
+  }
+  return out;
+}
+
+function trimStringMax(v: unknown, maxLen: number): string {
+  if (typeof v !== "string") return "";
+  const t = v.trim();
+  return t.slice(0, maxLen);
 }
 
 function filterProviders(arr: unknown, valid: Set<string>): string[] {
@@ -102,6 +155,19 @@ export function validateConfig(loaded: unknown): WebToolsConfig {
     if (typeof ws.rawContent === "boolean") {
       out.webSearch.rawContent = ws.rawContent;
     }
+    if (isPlainObject(ws.advanced)) {
+      const a = ws.advanced as Record<string, unknown>;
+      out.webSearch.advanced.depth = clampString(a.depth, VALID_WEB_SEARCH_DEPTHS, "simple");
+      if (typeof a.answer === "boolean") out.webSearch.advanced.answer = a.answer;
+      out.webSearch.advanced.minScore = clampFloat(a.minScore, 0, 0, 1);
+      out.webSearch.advanced.includeDomains = filterUniqueTrimmed(a.includeDomains);
+      out.webSearch.advanced.excludeDomains = filterUniqueTrimmed(a.excludeDomains);
+      out.webSearch.advanced.country = trimStringMax(a.country, 256);
+      out.webSearch.advanced.topic = clampString(a.topic, VALID_TOPICS, "general");
+      if (typeof a.includeImages === "boolean") out.webSearch.advanced.includeImages = a.includeImages;
+      if (typeof a.highlights === "boolean") out.webSearch.advanced.highlights = a.highlights;
+      out.webSearch.advanced.braveGoggles = filterUniqueTrimmed(a.braveGoggles);
+    }
   }
 
   if (isPlainObject(cfg.fetchContent)) {
@@ -113,6 +179,16 @@ export function validateConfig(loaded: unknown): WebToolsConfig {
     out.fetchContent.reserveFallbackOrder = filterProviders(fc.reserveFallbackOrder, VALID_FETCH_PROVIDERS) as Array<"gemini" | "tavily">;
     if (typeof fc.format === "string" && VALID_FORMATS.has(fc.format)) {
       out.fetchContent.format = fc.format as "markdown" | "text";
+    }
+    if (isPlainObject(fc.advanced)) {
+      const a = fc.advanced as Record<string, unknown>;
+      out.fetchContent.advanced.depth = clampInt(a.depth, 2, 1, 10);
+      out.fetchContent.advanced.maxChars = clampInt(a.maxChars, 100000, 1, 1_000_000);
+      out.fetchContent.advanced.maxDepth = clampInt(a.maxDepth, 2, 1, 10);
+      out.fetchContent.advanced.limit = clampInt(a.limit, 10, 1, 100);
+      out.fetchContent.advanced.selectPaths = filterUniqueTrimmed(a.selectPaths);
+      out.fetchContent.advanced.query = trimStringMax(a.query, 256);
+      out.fetchContent.advanced.chunksPerSource = clampInt(a.chunksPerSource, 0, 0, 50);
     }
   }
 

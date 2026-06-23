@@ -5,11 +5,32 @@ webSearch:
   count: 5
   freshness: pm
   rawContent: false
+  # advanced: advanced settings consumed by v0.2+ tools; v0.1 tools accept but ignore
+  advanced:
+    depth: simple
+    answer: false
+    minScore: 0
+    includeDomains: []
+    excludeDomains: []
+    country: ""
+    topic: general
+    includeImages: false
+    highlights: false
+    braveGoggles: []
 fetchContent:
   defaultProvider: gemini
   primaryFallbackOrder: [gemini, tavily]
   reserveFallbackOrder: []
   format: markdown
+  # advanced: advanced settings consumed by v0.2+ tools; v0.1 tools accept but ignore
+  advanced:
+    depth: 2
+    maxChars: 100000
+    maxDepth: 2
+    limit: 10
+    selectPaths: []
+    query: ""
+    chunksPerSource: 0
 mapsSearch:
   defaultProvider: gemini
   count: 5

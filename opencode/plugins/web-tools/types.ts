@@ -1,6 +1,19 @@
 export type WebProvider = "gemini" | "brave" | "tavily";
 export type GoogleTransport = "auto" | "vertex" | "ai-studio";
 
+export interface WebSearchAdvanced {
+  depth: "simple" | "deep";
+  answer: boolean;
+  minScore: number;
+  includeDomains: string[];
+  excludeDomains: string[];
+  country: string;
+  topic: "general" | "news" | "finance" | "tech" | "science";
+  includeImages: boolean;
+  highlights: boolean;
+  braveGoggles: string[];
+}
+
 export interface WebSearchConfig {
   defaultProvider: WebProvider;
   primaryFallbackOrder: WebProvider[];
@@ -8,6 +21,17 @@ export interface WebSearchConfig {
   count: number;
   freshness: "pd" | "pw" | "pm" | "py";
   rawContent: boolean;
+  advanced: WebSearchAdvanced;
+}
+
+export interface FetchContentAdvanced {
+  depth: number;
+  maxChars: number;
+  maxDepth: number;
+  limit: number;
+  selectPaths: string[];
+  query: string;
+  chunksPerSource: number;
 }
 
 export interface FetchContentConfig {
@@ -15,6 +39,7 @@ export interface FetchContentConfig {
   primaryFallbackOrder: Array<"gemini" | "tavily">;
   reserveFallbackOrder: Array<"gemini" | "tavily">;
   format: "markdown" | "text";
+  advanced: FetchContentAdvanced;
 }
 
 export interface MapsSearchConfig {
