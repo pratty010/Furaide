@@ -192,9 +192,11 @@
         "plugins/web-tools.ts",
         "config/web-tools.yml",
         "config/package.web-tools.json",
+        "config/AGENTS.md",
         "commands/tools-config.md",
         "docs/models/gemini-tool-fees.yml",
-        "scripts/install-web-tools.sh"
+        "scripts/install-web-tools.sh",
+        "scripts/register-web-tools-plugin.mjs"
       ],
       "globs": ["plugins/web-tools/**"]
     },

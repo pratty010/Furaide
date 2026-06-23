@@ -189,6 +189,117 @@ describe("Vertex transport", () => {
     globalThis.fetch = origFetch;
     process.env.GOOGLE_CLOUD_LOCATION = "global";
   });
+
+  test("Vertex searchMaps sends bare googleMaps tool and parses maps chunks", async () => {
+    let capturedBody;
+    globalThis.fetch = async (url, init) => {
+      capturedBody = init?.body;
+      return new Response(
+        JSON.stringify({
+          candidates: [{
+            groundingMetadata: {
+              groundingChunks: [
+                {
+                  maps: {
+                    uri: "https://maps.google.com/?cid=123",
+                    title: "Shibuya Cafe",
+                    placeId: "places/ChIJ123abc",
+                  },
+                },
+                {
+                  maps: {
+                    uri: "https://maps.google.com/?cid=456",
+                    title: "Shibuya Ramen",
+                    placeId: "places/ChIJ456def",
+                  },
+                },
+              ],
+            },
+          }],
+          usageMetadata: { promptTokenCount: 10, candidatesTokenCount: 20 },
+        }),
+        { status: 200 },
+      );
+    };
+
+    const gemini = await import("../../plugins/web-tools/providers/gemini.ts");
+    const result = await gemini.searchMaps({
+      query: "coffee shops in Shibuya",
+      lat: 35.6595,
+      lng: 139.7004,
+      transport: "vertex",
+    });
+
+    // Request body assertions
+    const body = JSON.parse(capturedBody);
+    expect(body.tools[0].googleMaps).toEqual({});
+    expect(body.toolConfig.retrievalConfig.latLng).toEqual({ latitude: 35.6595, longitude: 139.7004 });
+
+    // Response parsing assertions
+    expect(result.results).toHaveLength(2);
+    expect(result.results[0]).toEqual({
+      title: "Shibuya Cafe",
+      uri: "https://maps.google.com/?cid=123",
+      placeId: "places/ChIJ123abc",
+    });
+    expect(result.results[1].placeId).toBe("places/ChIJ456def");
+
+    globalThis.fetch = origFetch;
+  });
+});
+
+// ── AI Studio maps chunk parsing ──────────────────────────────
+describe("AI Studio maps chunk parsing", () => {
+  let origFetch;
+  let origKey;
+
+  beforeAll(() => {
+    origFetch = globalThis.fetch;
+    origKey = process.env.GEMINI_API_KEY;
+    process.env.GEMINI_API_KEY = "test-key";
+  });
+
+  afterAll(() => {
+    globalThis.fetch = origFetch;
+    if (origKey === undefined) delete process.env.GEMINI_API_KEY;
+    else process.env.GEMINI_API_KEY = origKey;
+  });
+
+  test("AI Studio searchMaps parses groundingChunks[].maps into title/uri/placeId", async () => {
+    globalThis.fetch = async () =>
+      new Response(
+        JSON.stringify({
+          candidates: [{
+            groundingMetadata: {
+              groundingChunks: [
+                {
+                  maps: {
+                    uri: "https://maps.google.com/?cid=999",
+                    title: "Senso-ji",
+                    placeId: "places/ChIJ999xyz",
+                  },
+                },
+              ],
+            },
+          }],
+          usageMetadata: { promptTokenCount: 5, candidatesTokenCount: 10 },
+        }),
+        { status: 200 },
+      );
+
+    const gemini = await import("../../plugins/web-tools/providers/gemini.ts");
+    const result = await gemini.searchMaps({
+      query: "famous temples in Asakusa",
+      transport: "ai-studio",
+    });
+
+    expect(result.results).toHaveLength(1);
+    expect(result.results[0]).toEqual({
+      title: "Senso-ji",
+      uri: "https://maps.google.com/?cid=999",
+      placeId: "places/ChIJ999xyz",
+    });
+  });
 });
 
 // ── Utility: error sanitization ────────────────────────────────

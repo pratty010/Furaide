@@ -19,9 +19,22 @@ test("frontmatter has argument-hint", async () => {
   expect(content).toMatch(/argument-hint:/);
 });
 
-test("frontmatter has agent: tanuki--general-trickster", async () => {
+test("frontmatter does NOT pin a fleet agent", async () => {
   const content = await readFile(COMMAND_PATH, "utf-8");
-  expect(content).toMatch(/agent: tanuki--general-trickster/);
+  const frontmatter = content.split("---")[1] || "";
+  expect(frontmatter).not.toMatch(/^agent:/m);
+});
+
+test("body uses named args $TOOL and $ACTION", async () => {
+  const content = await readFile(COMMAND_PATH, "utf-8");
+  expect(content).toMatch(/\$TOOL/);
+  expect(content).toMatch(/\$ACTION/);
+});
+
+test("body resolves project-level path before global", async () => {
+  const content = await readFile(COMMAND_PATH, "utf-8");
+  expect(content).toMatch(/\.\/\.opencode\/web-tools\.yml/);
+  expect(content).toMatch(/~\/.config\/opencode\/web-tools\.yml/);
 });
 
 test("body mentions Open Advanced", async () => {

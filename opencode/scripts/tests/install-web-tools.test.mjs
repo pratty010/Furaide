@@ -1,6 +1,6 @@
 import { test, expect } from "bun:test";
 import { execFileSync } from "node:child_process";
-import { readFileSync, mkdtempSync, writeFileSync, rmSync, mkdirSync } from "node:fs";
+import { readFileSync, mkdtempSync, writeFileSync, rmSync, mkdirSync, existsSync } from "node:fs";
 import { join, delimiter, dirname } from "node:path";
 import { tmpdir } from "node:os";
 import { execPath } from "node:process";
@@ -44,6 +44,114 @@ test("install-web-tools.sh succeeds with no bx/tvly stubs (CLI trust chain remov
     expect(out).toContain("complete");
     expect(readFileSync(join(dir, "web-tools.yml"), "utf8")).toContain("webSearch:");
     expect(readFileSync(join(dir, "docs/models/gemini-tool-fees.yml"), "utf8")).toContain("google_search");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("install-web-tools.sh copies plugin, command, and config files", () => {
+  const dir = mkdtempSync(join(tmpdir(), "wt-install-"));
+  try {
+    const binDir = join(dir, "bin");
+    mkdirSync(binDir, { recursive: true });
+
+    execFileSync("bash", [INSTALLER, dir], {
+      encoding: "utf8",
+      stdio: "pipe",
+      env: stubbedEnv(binDir),
+    });
+
+    // Plugin entrypoint and module tree
+    expect(existsSync(join(dir, "plugins/web-tools.ts"))).toBe(true);
+    expect(existsSync(join(dir, "plugins/web-tools"))).toBe(true);
+
+    // Slash command
+    expect(readFileSync(join(dir, "commands/tools-config.md"), "utf8")).toContain("web-tools.yml");
+
+    // Config + pricing supplement
+    expect(readFileSync(join(dir, "web-tools.yml"), "utf8")).toContain("webSearch:");
+    expect(readFileSync(join(dir, "docs/models/gemini-tool-fees.yml"), "utf8")).toContain("google_search");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("install-web-tools.sh warns and skips registration when opencode.jsonc is absent", () => {
+  const dir = mkdtempSync(join(tmpdir(), "wt-install-"));
+  try {
+    const binDir = join(dir, "bin");
+    mkdirSync(binDir, { recursive: true });
+
+    const out = execFileSync("bash", [INSTALLER, dir], {
+      encoding: "utf8",
+      stdio: "pipe",
+      env: stubbedEnv(binDir),
+    });
+
+    // Installer must complete successfully and warn about the missing config
+    expect(out).toContain("complete");
+    expect(out).toContain("opencode.jsonc not found");
+    expect(existsSync(join(dir, "opencode.jsonc"))).toBe(false);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("install-web-tools.sh registers plugin in existing opencode.jsonc", () => {
+  const dir = mkdtempSync(join(tmpdir(), "wt-install-"));
+  try {
+    const binDir = join(dir, "bin");
+    mkdirSync(binDir, { recursive: true });
+
+    // Pre-create an opencode.jsonc without the plugin entry
+    writeFileSync(
+      join(dir, "opencode.jsonc"),
+      JSON.stringify({
+        $schema: "https://opencode.ai/config.json",
+        plugin: ["./plugins/nio.js"],
+        instructions: ["./rules/*.md"],
+      }, null, 2) + "\n",
+    );
+
+    execFileSync("bash", [INSTALLER, dir], {
+      encoding: "utf8",
+      stdio: "pipe",
+      env: stubbedEnv(binDir),
+    });
+
+    const json = JSON.parse(readFileSync(join(dir, "opencode.jsonc"), "utf8"));
+    expect(json.plugin).toContain("./plugins/nio.js");
+    expect(json.plugin).toContain("./plugins/web-tools.ts");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("install-web-tools.sh is idempotent when plugin already registered", () => {
+  const dir = mkdtempSync(join(tmpdir(), "wt-install-"));
+  try {
+    const binDir = join(dir, "bin");
+    mkdirSync(binDir, { recursive: true });
+
+    writeFileSync(
+      join(dir, "opencode.jsonc"),
+      JSON.stringify({
+        $schema: "https://opencode.ai/config.json",
+        plugin: ["./plugins/nio.js", "./plugins/web-tools.ts"],
+        instructions: ["./rules/*.md"],
+      }, null, 2) + "\n",
+    );
+
+    const before = readFileSync(join(dir, "opencode.jsonc"), "utf8");
+    execFileSync("bash", [INSTALLER, dir], {
+      encoding: "utf8",
+      stdio: "pipe",
+      env: stubbedEnv(binDir),
+    });
+    const after = readFileSync(join(dir, "opencode.jsonc"), "utf8");
+
+    // File unchanged when plugin already present
+    expect(after).toBe(before);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

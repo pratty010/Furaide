@@ -75,21 +75,52 @@ Run `bash opencode/scripts/install-fleet.sh --list` for the full machine-readabl
 
 ## Web Tools
 
-The web-tools plugin (`plugins/web-tools.ts`) registers three model-callable tools with cost-aware provider budgets:
+The web-tools plugin (`plugins/web-tools.ts`) registers three model-callable tools:
 
 | Tool | Default provider | Purpose |
-|------|-----------------|---------|
-| `web_search` | Brave (via Tavily) | Web and news search with domain and freshness controls |
-| `fetch_content` | Jina AI | Full-page extraction for JS-rendered and large responses |
-| `maps_search` | Google Maps API | Place search and geolocation queries |
+|---|---|---|
+| `web_search` | Brave | Web and news search with domain and freshness controls |
+| `fetch_content` | Gemini (URL context) | Full-page extraction for JS-rendered and large responses |
+| `maps_search` | Gemini Maps Grounding | Place and location queries via Google Maps |
 
-Transport is set via `google.transport` in the plugin's YAML config (not `opencode.jsonc`):
+Transport is set via `google.transport` in `web-tools.yml` (not in `opencode.jsonc`):
 
-- `auto` — tries AI Studio first, falls back to Vertex AI on 429/5xx
-- `vertex` — Vertex AI REST only (Bearer token via google-auth-library ADC)
-- `ai-studio` — AI Studio REST only (uses `GEMINI_API_KEY` env var)
+- `auto` — AI Studio if `GEMINI_API_KEY` or `GOOGLE_API_KEY` is set; otherwise Vertex AI if `GOOGLE_CLOUD_PROJECT` + ADC are present. Selection is at plugin init, not per-call fallback.
+- `ai-studio` — AI Studio REST only (uses `GEMINI_API_KEY` env var).
+- `vertex` — Vertex AI REST only (Bearer token via google-auth-library ADC).
 
 For interactive tool-level budgets, default providers, and transport changes, use `/tools-config`.
+
+### Manual install layout (for testing outside the fleet installer)
+
+```text
+~/.config/opencode/                 # or ./.opencode/
+├── opencode.jsonc                  # must include "./plugins/web-tools.ts" in "plugin"
+├── package.json                    # deps merged from package.web-tools.json
+├── web-tools.yml                   # config
+├── commands/
+│   └── tools-config.md             # slash command
+├── plugins/
+│   ├── web-tools.ts                # plugin entrypoint
+│   └── web-tools/                  # provider/tool modules
+└── docs/models/
+    └── gemini-tool-fees.yml
+```
+
+`bash scripts/install-web-tools.sh <target-dir>` performs all of the above (plugin + command + config copy, package merge, `opencode.jsonc` registration, `bun install`).
+
+### Troubleshooting `/tools-config` not appearing
+
+1. Restart OpenCode completely — custom commands often need a restart to register.
+2. Ensure no `opencode.json`/`opencode.jsonc` in the current project shadows the global/local config and is missing the `command` lookup. OpenCode issue #18987 reports markdown commands silently dropping when an unrelated `opencode.json` is present.
+3. Verify the directory is named `commands/` (plural). The official OpenCode docs use `commands/`; a `command/` directory will not be scanned.
+4. Custom commands can take ~1 minute to appear on startup if a slow/broken MCP is loaded. Disable suspect MCPs to confirm.
+5. Command errors with "agent not found" — `/tools-config` runs in the active agent (no fleet agent required). If you installed only web-tools without the fleet, ensure your active agent has Read/Write/Edit tool access.
+6. Command appears but the agent reports it cannot find `web-tools.yml` — the command resolves the config path in this order: `./.opencode/web-tools.yml` (project), then `~/.config/opencode/web-tools.yml` (global). Confirm your install placed the file at one of these paths.
+
+### Vertex endpoint fallback
+
+`vertex-endpoint.ts` targets the GA `v1` API path (the version used by the official Vertex Python SDK). If your Vertex account requires `v1beta1` for Maps Grounding specifically, flip the `apiVersion` argument in `vertexUrl()` and rebuild.
 
 ---
 

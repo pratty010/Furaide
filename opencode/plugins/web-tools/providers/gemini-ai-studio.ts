@@ -209,12 +209,11 @@ export async function searchMapsAiStudio(args: GeminiSearchMapsArgs): Promise<Ma
 
   return {
     results: chunks.slice(0, count).map((c: any) => {
-      const uri = c.web?.uri ?? "";
-      const cid = uri.match(/cid=(\d+)/)?.[1];
+      const maps = c.maps ?? {};
       return {
-        title: c.web?.title ?? "",
-        uri,
-        placeId: cid ?? undefined,
+        title: maps.title ?? "",
+        uri: maps.uri ?? "",
+        placeId: maps.placeId ?? undefined,
       };
     }),
     metadata: {
