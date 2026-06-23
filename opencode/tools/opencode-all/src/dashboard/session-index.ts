@@ -1,4 +1,5 @@
-import { listArchivedSessionFiles, listSessions } from "../db.ts";
+import { existsSync, statSync } from "node:fs";
+import { listArchivedSessionFiles, listSessions, defaultArchiveRoot, defaultDbPath } from "../db.ts";
 import type { DirectoryRow, SessionRow, Tab } from "../db.ts";
 
 export type SessionIndex = {
@@ -13,6 +14,20 @@ export type BuildSessionIndexOptions = {
   archiveRoot?: string;
   cwd: string;
 };
+
+let cachedIndex: { key: string; index: SessionIndex } | null = null;
+
+function sourceKey(options: BuildSessionIndexOptions): string {
+  const dbPath = options.dbPath || defaultDbPath();
+  const archiveRoot = options.archiveRoot || defaultArchiveRoot();
+  const dbMtime = existsSync(dbPath) ? statSync(dbPath).mtimeMs : 0;
+  const archiveMtime = existsSync(archiveRoot) ? statSync(archiveRoot).mtimeMs : 0;
+  return `${dbPath}:${dbMtime}:${archiveRoot}:${archiveMtime}:${options.cwd}`;
+}
+
+export function clearSessionIndexCache(): void {
+  cachedIndex = null;
+}
 
 function emptyIndex(): SessionIndex {
   return {
@@ -64,6 +79,8 @@ export function removeArchivedFromIndex(index: SessionIndex, id: string): Sessio
 }
 
 export function buildSessionIndex(options: BuildSessionIndexOptions): SessionIndex {
+  const key = sourceKey(options);
+  if (cachedIndex?.key === key) return cachedIndex.index;
   const index = emptyIndex();
   const active = listSessions({ tab: "active", cwd: options.cwd, dbPath: options.dbPath });
   for (const row of active) addActiveToIndex(index, row);
@@ -72,6 +89,7 @@ export function buildSessionIndex(options: BuildSessionIndexOptions): SessionInd
     if (index.active.has(row.id)) continue;
     addArchivedToIndex(index, row);
   }
+  cachedIndex = { key, index };
   return index;
 }
 
