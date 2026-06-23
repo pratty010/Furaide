@@ -184,6 +184,21 @@ describe("archive path and archived messages", () => {
     expect(rows).toHaveLength(0);
     delete process.env.XDG_DATA_HOME;
   });
+
+  test("listArchivedSessionFiles writes and reuses archive meta sidecar", () => {
+    process.env.XDG_DATA_HOME = root;
+    const exportsDir = join(root, "opencode", "tools", "opencode-all", "exports");
+    mkdirSync(exportsDir, { recursive: true });
+    const archivePath = join(exportsDir, "ses_safe.json");
+    writeFileSync(archivePath, JSON.stringify({
+      info: { id: "ses_safe", title: "Safe", directory: "/repo", time: { updated: 100, created: 50 }, cost: 1, tokens: { input: 2, output: 3 } },
+      messages: Array.from({ length: 100 }, () => ({ parts: [{ type: "text", text: "heavy" }] })),
+    }));
+    const rows = listArchivedSessionFiles({ archiveRoot: exportsDir, cwd: "/repo" });
+    expect(rows.map(row => row.id)).toEqual(["ses_safe"]);
+    expect(readFileSync(`${archivePath}.meta`, "utf8")).toContain('"info"');
+    delete process.env.XDG_DATA_HOME;
+  });
 });
 
 describe("hard archive CLI helpers", () => {
