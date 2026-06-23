@@ -1,6 +1,24 @@
-import { test, expect, describe, beforeAll, afterAll } from "bun:test";
+import { test, expect, describe, beforeAll, afterAll, mock } from "bun:test";
 
-describe("Gemini error sanitization", () => {
+// ── Vertex auth mock ──────────────────────────────────────────
+// Intercepts the import inside vertex-auth.ts so getVertexAccessToken
+// returns a fake token without touching disk or needing real credentials.
+mock.module("google-auth-library", () => ({
+  GoogleAuth: class {
+    constructor() {}
+    async getClient() {
+      return {
+        getAccessToken: async () => ({
+          token: "fake-token",
+          res: { data: { expires_in: 3600 } },
+        }),
+      };
+    }
+  },
+}));
+
+// ── AI Studio transport ───────────────────────────────────────
+describe("AI Studio transport", () => {
   let originalFetch;
   let originalKey;
 
@@ -67,7 +85,122 @@ describe("Gemini error sanitization", () => {
     expect(String(observedUrl)).not.toContain("key=");
     expect(String(observedUrl)).not.toContain("test-key");
   });
+});
 
+// ── Vertex transport ──────────────────────────────────────────
+describe("Vertex transport", () => {
+  let origFetch;
+  let origProject;
+  let origLocation;
+  let origCreds;
+  let origKey;
+
+  beforeAll(() => {
+    origFetch = globalThis.fetch;
+    origProject = process.env.GOOGLE_CLOUD_PROJECT;
+    origLocation = process.env.GOOGLE_CLOUD_LOCATION;
+    origCreds = process.env.GOOGLE_APPLICATION_CREDENTIALS;
+    origKey = process.env.GEMINI_API_KEY;
+
+    process.env.GOOGLE_CLOUD_PROJECT = "test-proj";
+    process.env.GOOGLE_CLOUD_LOCATION = "global";
+    process.env.GOOGLE_APPLICATION_CREDENTIALS = "/tmp/fake-credentials.json";
+  });
+
+  afterAll(() => {
+    globalThis.fetch = origFetch;
+    if (origProject === undefined) delete process.env.GOOGLE_CLOUD_PROJECT;
+    else process.env.GOOGLE_CLOUD_PROJECT = origProject;
+    if (origLocation === undefined) delete process.env.GOOGLE_CLOUD_LOCATION;
+    else process.env.GOOGLE_CLOUD_LOCATION = origLocation;
+    if (origCreds === undefined) delete process.env.GOOGLE_APPLICATION_CREDENTIALS;
+    else process.env.GOOGLE_APPLICATION_CREDENTIALS = origCreds;
+    if (origKey === undefined) delete process.env.GEMINI_API_KEY;
+    else process.env.GEMINI_API_KEY = origKey;
+  });
+
+  test("Vertex searchWeb uses AI Platform endpoint and Bearer auth", async () => {
+    let capturedUrl, capturedHeaders, capturedBody;
+    globalThis.fetch = async (url, init) => {
+      capturedUrl = url;
+      capturedHeaders = init?.headers;
+      capturedBody = init?.body;
+      return new Response(
+        JSON.stringify({
+          candidates: [{ groundingMetadata: { groundingChunks: [] } }],
+          usageMetadata: { promptTokenCount: 0, candidatesTokenCount: 0 },
+        }),
+        { status: 200 },
+      );
+    };
+
+    const gemini = await import("../../plugins/web-tools/providers/gemini.ts");
+    await gemini.searchWeb({ query: "test", transport: "vertex" });
+
+    expect(String(capturedUrl)).toStartWith("https://aiplatform.googleapis.com");
+    const h = new Headers(capturedHeaders);
+    expect(h.get("Authorization")).toBe("Bearer fake-token");
+    const body = JSON.parse(capturedBody);
+    expect(body.tools[0]).toHaveProperty("googleSearch");
+
+    globalThis.fetch = origFetch;
+  });
+
+  test("Vertex searchMaps includes latLng in request body", async () => {
+    let capturedBody;
+    globalThis.fetch = async (url, init) => {
+      capturedBody = init?.body;
+      return new Response(
+        JSON.stringify({
+          candidates: [{ groundingMetadata: { groundingChunks: [] } }],
+          usageMetadata: { promptTokenCount: 0, candidatesTokenCount: 0 },
+        }),
+        { status: 200 },
+      );
+    };
+
+    const gemini = await import("../../plugins/web-tools/providers/gemini.ts");
+    await gemini.searchMaps({
+      query: "restaurants near Shibuya",
+      lat: 35.6595,
+      lng: 139.7004,
+      transport: "vertex",
+    });
+
+    const body = JSON.parse(capturedBody);
+    expect(body.toolConfig.retrievalConfig.latLng).toEqual({ latitude: 35.6595, longitude: 139.7004 });
+    expect(body.contents[0].parts[0].text).not.toContain("(near 35.6595");
+
+    globalThis.fetch = origFetch;
+  });
+
+  test("Vertex region uses regional endpoint", async () => {
+    process.env.GOOGLE_CLOUD_LOCATION = "us-central1";
+
+    let capturedUrl;
+    globalThis.fetch = async (url, init) => {
+      capturedUrl = url;
+      return new Response(
+        JSON.stringify({
+          candidates: [{ groundingMetadata: { groundingChunks: [] } }],
+          usageMetadata: { promptTokenCount: 0, candidatesTokenCount: 0 },
+        }),
+        { status: 200 },
+      );
+    };
+
+    const gemini = await import("../../plugins/web-tools/providers/gemini.ts");
+    await gemini.searchWeb({ query: "test", transport: "vertex" });
+
+    expect(String(capturedUrl)).toStartWith("https://us-central1-aiplatform.googleapis.com");
+
+    globalThis.fetch = origFetch;
+    process.env.GOOGLE_CLOUD_LOCATION = "global";
+  });
+});
+
+// ── Utility: error sanitization ────────────────────────────────
+describe("Utility: error sanitization", () => {
   test("sanitized error body truncates at 500 chars", async () => {
     const { truncateErrorBody } = await import("../../plugins/web-tools/util/validate.ts");
     const out = truncateErrorBody("a".repeat(2000));
