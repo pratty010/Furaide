@@ -8,10 +8,13 @@ import {
 } from "../src/dashboard/session-index.ts";
 import {
   clampCursor,
+  clearVisibleRowsMemo,
   createInitialState,
   currentSession,
   getVisibleRows,
+  loadSelectedMessages,
   reloadState,
+  reloadStateFast,
 } from "../src/dashboard/state.ts";
 import type { UiSession, UiState } from "../src/dashboard/state.ts";
 
@@ -144,6 +147,14 @@ describe("visible rows", () => {
     expect(folders.length).toBeGreaterThan(0);
     expect(sessionRows.length).toBeGreaterThan(0);
   });
+
+  test("getVisibleRows returns same array reference for unchanged state", () => {
+    clearVisibleRowsMemo();
+    const state = expandFolderWithSessions(makeState());
+    const a = getVisibleRows(state);
+    const b = getVisibleRows(state);
+    expect(a).toBe(b);
+  });
 });
 
 describe("currentSession", () => {
@@ -192,5 +203,25 @@ describe("reloadState", () => {
     const result = reloadState(withMessages);
     expect(result.messageRows).not.toEqual(dummy);
     expect(Array.isArray(result.messageRows)).toBe(true);
+  });
+});
+
+describe("debounced metadata helpers", () => {
+  test("reloadStateFast does not load messages", () => {
+    const state = makeState();
+    const expanded = expandFolderWithSessions(state);
+    const visible = getVisibleRows(expanded);
+    const cursor = visible.findIndex(row => "id" in row && row.id === "ses_0");
+    const result = reloadStateFast({ ...expanded, cursor, messageRows: [] });
+    expect(result.messageRows).toEqual([]);
+  });
+
+  test("loadSelectedMessages loads messages for selected session", () => {
+    const state = makeState();
+    const expanded = expandFolderWithSessions(state);
+    const visible = getVisibleRows(expanded);
+    const cursor = visible.findIndex(row => "id" in row && row.id === "ses_0");
+    const result = loadSelectedMessages({ ...expanded, cursor, messageRows: [] });
+    expect(result.messageRows.map(row => row.text)).toEqual(["active user message", "active assistant message"]);
   });
 });

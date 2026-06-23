@@ -64,6 +64,7 @@ export type UiState = {
   searchResults: SearchResult[];
   focus: PaneFocus;
   messageRows: ArchivedMessageRow[];
+  freshDirectory?: string;
 };
 
 export const tabs: Tab[] = ["active", "archived"];
@@ -81,7 +82,26 @@ export function sortFolders(rows: DirectoryRow[], baseCwd: string): DirectoryRow
   );
 }
 
+let visibleRowsMemo: { key: string; rows: Array<DirectoryRow | UiSession> } | null = null;
+
+export function clearVisibleRowsMemo(): void {
+  visibleRowsMemo = null;
+}
+
+function visibleRowsKey(state: UiState): string {
+  return JSON.stringify({
+    tab: state.tab,
+    directory: state.directory || "",
+    query: state.query,
+    sessions: state.sessions.map(s => `${s.id}:${s.timeUpdated}:${s.timeArchived ?? ""}`).join("|"),
+    folders: state.folders.map(f => `${f.directory}:${f.active}:${f.archived}:${f.latestUpdated}`).join("|"),
+    expanded: [...state.expandedFolders].sort().join("|"),
+  });
+}
+
 export function getVisibleRows(state: UiState): Array<DirectoryRow | UiSession> {
+  const key = visibleRowsKey(state);
+  if (visibleRowsMemo?.key === key) return visibleRowsMemo.rows;
   const rows: Array<DirectoryRow | UiSession> = [];
   const visibleSessions = state.directory
     ? state.sessions.filter(s => s.directory === state.directory)
@@ -98,6 +118,7 @@ export function getVisibleRows(state: UiState): Array<DirectoryRow | UiSession> 
       rows.push(...folderSessions);
     }
   }
+  visibleRowsMemo = { key, rows };
   return rows;
 }
 
@@ -111,7 +132,7 @@ export function selectedVisibleSession(state: UiState): UiSession | undefined {
   return currentSession(state);
 }
 
-export function reloadState(state: UiState): UiState {
+export function reloadStateFast(state: UiState): UiState {
   const baseCwd = cwd();
   let folders = sortFolders(directoriesForTab(state.index, state.tab), baseCwd);
   if (state.inputMode === "search" && state.query) {
@@ -121,15 +142,20 @@ export function reloadState(state: UiState): UiState {
   const allSessions = [...state.index.active.values(), ...state.index.archived.values()];
   const visible = getVisibleRows({ ...state, folders, sessions, allSessions });
   const cursor = Math.min(state.cursor, Math.max(0, visible.length - 1));
-  const nextBase = { ...state, folders, sessions, allSessions, cursor };
-  const selected = selectedVisibleSession(nextBase);
+  return { ...state, folders, sessions, allSessions, cursor, listScroll: Math.min(state.listScroll, cursor) };
+}
+
+export function loadSelectedMessages(state: UiState): UiState {
+  const selected = selectedVisibleSession(state);
   let messageRows: ArchivedMessageRow[] = [];
   if (selected) {
-    messageRows = selected.timeArchived == null
-      ? readRecentMessages(selected.id)
-      : readArchivedMessages(selected.id);
+    messageRows = selected.timeArchived == null ? readRecentMessages(selected.id) : readArchivedMessages(selected.id);
   }
-  return { ...state, folders, sessions, allSessions, cursor, listScroll: Math.min(state.listScroll, cursor), messageRows, messageScroll: 0 };
+  return { ...state, messageRows, messageScroll: 0 };
+}
+
+export function reloadState(state: UiState): UiState {
+  return loadSelectedMessages(reloadStateFast(state));
 }
 
 export function createInitialState(index: SessionIndex, viewport: Viewport): UiState {

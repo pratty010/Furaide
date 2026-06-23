@@ -1,3 +1,4 @@
+import { existsSync } from "node:fs";
 import {
   currentSession,
   selectFolderAtCursor,
@@ -6,11 +7,12 @@ import {
   tabs,
   clampCursor,
   reloadState,
+  reloadStateFast,
 } from "./state.ts";
 import type { SearchResult, UiState, UiSession } from "./state.ts";
 
 function moveSessionCursor(state: UiState, cursor: number): UiState {
-  return reloadState(clampCursor({ ...state, cursor }));
+  return reloadStateFast(clampCursor({ ...state, cursor }));
 }
 import type { DirectoryRow } from "../db.ts";
 import {
@@ -35,6 +37,41 @@ export type ActionChip = {
   danger?: boolean;
   primary?: boolean;
 };
+
+let searchResultsMemo: { key: string; results: SearchResult[] } | null = null;
+let actionChipsMemo: { key: string; chips: ActionChip[] } | null = null;
+
+export function clearActionMemo(): void {
+  searchResultsMemo = null;
+  actionChipsMemo = null;
+}
+
+function searchResultsKey(state: UiState): string {
+  const query = state.query.trim().toLowerCase();
+  const sessionKey = state.allSessions
+    .map(s => `${s.id}:${s.title || ""}:${s.directory}:${s.timeArchived ?? ""}`)
+    .join("|");
+  return `${query}||${sessionKey}`;
+}
+
+function actionChipsKey(state: UiState): string {
+  const row = getVisibleRows(state)[state.cursor];
+  const rowKey = row
+    ? ("id" in row
+      ? `session:${(row as UiSession).id}:${(row as UiSession).timeArchived ?? ""}`
+      : `folder:${(row as DirectoryRow).directory}`)
+    : "none";
+  return JSON.stringify({
+    row: rowKey,
+    pendingAction: state.pendingAction,
+    pendingChoice: state.pendingChoice,
+    inputMode: state.inputMode,
+    focus: state.focus,
+    tab: state.tab,
+    folders: state.folders.map(f => f.directory).sort().join("|"),
+    expandedAll: state.folders.length > 0 && state.folders.every(f => state.expandedFolders.has(f.directory)),
+  });
+}
 
 function sessionRowsInDirectory(state: UiState, directory: string): UiSession[] {
   return rowsForTab(state.index, state.tab, directory);
@@ -217,7 +254,7 @@ export function actionContext(state: UiState): { isFolder: boolean; isSession: b
   return { isFolder: !!isFolder, isSession: !!isSession, isArchived };
 }
 
-export function actionChips(state: UiState): ActionChip[] {
+const actionChipsImpl = (state: UiState): ActionChip[] => {
   if (state.pendingAction) {
     return [
       { id: "confirm", label: "[y/Enter] confirm", key: "y|Enter", primary: true },
@@ -238,6 +275,7 @@ export function actionChips(state: UiState): ActionChip[] {
   if (state.inputMode === "search") {
     return [
       { id: "open", label: "Enter open", key: "Enter", primary: true },
+      { id: "refresh", label: "R refresh", key: "R|r" },
       { id: "wheel", label: "wheel scroll", mouse: true },
       { id: "cancel", label: "Esc cancel", key: "Esc" },
     ];
@@ -245,6 +283,7 @@ export function actionChips(state: UiState): ActionChip[] {
 
   if (state.focus === "metadata" || state.focus === "messages") {
     return [
+      { id: "refresh", label: "R refresh", key: "R|r" },
       { id: "tab-switch", label: "Tab switch tab", key: "Tab" },
       { id: "back", label: "Esc back", key: "Esc" },
       { id: "quit", label: "q quit", key: "q" },
@@ -253,7 +292,10 @@ export function actionChips(state: UiState): ActionChip[] {
   }
 
   const row = getVisibleRows(state)[state.cursor];
-  if (!row) return [{ id: "quit", label: "q quit", key: "q" }];
+  if (!row) return [
+    { id: "refresh", label: "R refresh", key: "R|r" },
+    { id: "quit", label: "q quit", key: "q" },
+  ];
 
   if (!("id" in row)) {
     if (state.tab === "archived") {
@@ -263,6 +305,7 @@ export function actionChips(state: UiState): ActionChip[] {
         { id: "restore", label: "I restore", key: "I" },
         { id: "delete", label: "D delete", key: "D", danger: true },
         { id: "search", label: "/ search", key: "/" },
+        { id: "refresh", label: "R refresh", key: "R|r" },
         { id: "tab-switch", label: "Tab switch tab", key: "Tab" },
         { id: "back", label: "Esc back", key: "Esc" },
         { id: "quit", label: "q quit", key: "q" },
@@ -274,6 +317,8 @@ export function actionChips(state: UiState): ActionChip[] {
       { id: "toggle-all", label: "o toggle", key: "o" },
       { id: "delete", label: "D delete", key: "D", danger: true },
       { id: "search", label: "/ search", key: "/" },
+      { id: "new", label: "N/n new", key: "N|n", primary: true },
+      { id: "refresh", label: "R refresh", key: "R|r" },
       { id: "tab-switch", label: "Tab switch tab", key: "Tab" },
       { id: "back", label: "Esc back", key: "Esc" },
       { id: "quit", label: "q quit", key: "q" },
@@ -287,6 +332,7 @@ export function actionChips(state: UiState): ActionChip[] {
       { id: "import", label: "I import", key: "I" },
       { id: "delete", label: "D delete", key: "D", danger: true },
       { id: "search", label: "/ search", key: "/" },
+      { id: "refresh", label: "R refresh", key: "R|r" },
       { id: "tab-switch", label: "Tab switch tab", key: "Tab" },
       { id: "back", label: "Esc back", key: "Esc" },
       { id: "quit", label: "q quit", key: "q" },
@@ -298,14 +344,26 @@ export function actionChips(state: UiState): ActionChip[] {
     { id: "open", label: "Enter open", key: "Enter" },
     { id: "delete", label: "D delete", key: "D", danger: true },
     { id: "search", label: "/ search", key: "/" },
+    { id: "new", label: "N/n new", key: "N|n", primary: true },
+    { id: "refresh", label: "R refresh", key: "R|r" },
     { id: "tab-switch", label: "Tab switch tab", key: "Tab" },
     { id: "back", label: "Esc back", key: "Esc" },
     { id: "quit", label: "q quit", key: "q" },
     { id: "wheel", label: "wheel scroll", mouse: true },
   ];
+};
+
+export function actionChips(state: UiState): ActionChip[] {
+  const key = actionChipsKey(state);
+  if (actionChipsMemo?.key === key) return actionChipsMemo.chips;
+  const chips = actionChipsImpl(state);
+  actionChipsMemo = { key, chips };
+  return chips;
 }
 
 export function searchResultsFor(state: UiState): SearchResult[] {
+  const key = searchResultsKey(state);
+  if (searchResultsMemo?.key === key) return searchResultsMemo.results;
   const query = state.query.trim().toLowerCase();
   if (!query) {
     const active = state.allSessions
@@ -341,7 +399,9 @@ export function searchResultsFor(state: UiState): SearchResult[] {
     }
   }
 
-  return deduped.slice(0, 50);
+  const results = deduped.slice(0, 50);
+  searchResultsMemo = { key, results };
+  return results;
 }
 
 export const SEARCH_VISIBLE_WINDOW = 10;
@@ -357,6 +417,23 @@ export function searchVisibleSlice(state: UiState): SearchResult[] {
   const all = searchResultsFor(state);
   const start = Math.max(0, Math.min(state.searchScroll, Math.max(0, all.length - SEARCH_VISIBLE_WINDOW)));
   return all.slice(start, start + SEARCH_VISIBLE_WINDOW);
+}
+
+function directoryForFreshSession(state: UiState): string | undefined {
+  const folder = selectFolderAtCursor(state);
+  if (folder) return folder.directory;
+  const session = currentSession(state);
+  return session?.directory;
+}
+
+function startFreshSessionInDirectory(state: UiState): UiState {
+  if (state.tab !== "active") {
+    return { ...state, status: "new sessions only start from the Active tab" };
+  }
+  const directory = directoryForFreshSession(state);
+  if (!directory) return { ...state, status: "no directory selected" };
+  if (!existsSync(directory)) return { ...state, status: `directory not found: ${directory}` };
+  return { ...state, freshDirectory: directory, status: `opening ${directory}` };
 }
 
 function openSessionInOpencode(state: UiState, id: string, onContinue?: (id: string, fork: boolean) => void, fork = false): UiState {
@@ -559,6 +636,10 @@ export function applyKey(
       return { ...state, detailScroll: Math.max(0, state.detailScroll - 5) };
     }
     return moveSessionCursor(state, state.cursor - 5);
+  }
+
+  if (key === "N" || key === "n") {
+    return startFreshSessionInDirectory(state);
   }
 
   if (key === "Enter") {

@@ -3,7 +3,8 @@ import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { EventEmitter } from "node:events";
 import { Database } from "bun:sqlite";
-import { applyKey, buildSearchOverlay, mapKey, refreshStateFromDisk, runChildSession, type ContinueRequest } from "../src/tui.tsx";
+import { SEARCH_DEBOUNCE_MS, applyKey, buildSearchOverlay, mapKey, refreshStateFromDisk, runChildSession } from "../src/tui.tsx";
+import type { ContinueRequest } from "../src/session-runner.ts";
 import { addActiveToIndex, addArchivedToIndex, type SessionIndex } from "../src/dashboard/session-index.ts";
 import { createInitialState, currentSession, getVisibleRows, reloadState, type UiSession } from "../src/dashboard/state.ts";
 import { actionChips } from "../src/dashboard/actions.ts";
@@ -274,6 +275,10 @@ describe("enter semantics", () => {
 });
 
 describe("search mode", () => {
+  test("SEARCH_DEBOUNCE_MS is 150", () => {
+    expect(SEARCH_DEBOUNCE_MS).toBe(150);
+  });
+
   test("slash enters search mode", () => {
     let state = createInitialState(makeIndex(sessions), { height: 20, width: 100 });
     state = applyKey(state, "/");
@@ -567,6 +572,16 @@ describe("render helpers", () => {
   });
 });
 
+describe("session list virtualization", () => {
+  test("buildSessionsContent renders bounded row count", () => {
+    const many = Array.from({ length: 200 }, (_, index) => ({ ...sessions[0], id: `ses_many_${index}`, title: `Many ${index}`, directory: "/repo/many", timeUpdated: 10_000 - index }));
+    let state = createInitialState(makeIndex(many), { height: 20, width: 100 });
+    state = { ...state, expandedFolders: new Set(["/repo/many"]) };
+    const text = flatText(buildSessionsContent(state));
+    expect(text.split("\n").length).toBeLessThan(40);
+  });
+});
+
 describe("scrollable layout tree (ScrollBoxRenderable)", () => {
   test("wide layout assembles messages+metadata top row and sessions row with action bar", async () => {
     const setup = await createTestRenderer({ width: 120, height: 30 });
@@ -815,6 +830,44 @@ describe("mapKey", () => {
 
   test("mapKey ctrl+c maps to q", () => {
     expect(mapKey({ ctrl: true, name: "c" })).toBe("q");
+  });
+});
+
+describe("fresh session TUI integration", () => {
+  test("mapKey lets Ctrl+Shift+C bypass quit handling", () => {
+    expect(mapKey({ ctrl: true, shift: true, name: "c" })).toBe("Ctrl+Shift+C");
+  });
+
+  test("action bar shows N/n new for active folder and active session", () => {
+    const folderState = createInitialState(makeIndex(sessions), { height: 20, width: 100 });
+    expect(flatText(buildActionBarContent(folderState))).toContain("N/n new");
+    const sessionState = cursorOnFirstSession(folderState);
+    expect(flatText(buildActionBarContent(sessionState))).toContain("N/n new");
+  });
+
+  test("action bar shows R refresh in all row contexts", () => {
+    const folderState = createInitialState(makeIndex(sessions), { height: 20, width: 100 });
+    expect(flatText(buildActionBarContent(folderState))).toContain("R refresh");
+    const sessionState = cursorOnFirstSession(folderState);
+    expect(flatText(buildActionBarContent(sessionState))).toContain("R refresh");
+    const baseState = createInitialState(makeIndex(sessions), { height: 20, width: 100 });
+    const metadataState = { ...baseState, focus: "metadata" as const };
+    expect(flatText(buildActionBarContent(metadataState))).toContain("R refresh");
+    const searchState = { ...baseState, inputMode: "search" as const };
+    expect(flatText(buildActionBarContent(searchState))).toContain("R refresh");
+  });
+});
+
+describe("--new flag", () => {
+  test("main returns error for missing --new directory", async () => {
+    const writes: string[] = [];
+    const originalError = console.error;
+    console.error = (msg?: any) => { writes.push(String(msg)); };
+    try {
+      await expect(import("../src/tui.tsx").then(m => m.main(["--new"]))).rejects.toThrow("missing directory for --new");
+    } finally {
+      console.error = originalError;
+    }
   });
 });
 

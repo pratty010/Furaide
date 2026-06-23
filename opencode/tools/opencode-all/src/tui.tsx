@@ -1,14 +1,13 @@
 #!/usr/bin/env bun
-import { spawn } from "node:child_process";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { existsSync, readFileSync } from "node:fs";
 import { Box, BoxRenderable, ScrollBoxRenderable, TextRenderable, createCliRenderer, type CliRenderer } from "@opentui/core";
 import type { StyledText } from "@opentui/core";
-import { buildSessionIndex } from "./dashboard/session-index.ts";
-import { createInitialState, cwd, getVisibleRows, reloadState, type UiState } from "./dashboard/state.ts";
-import { applyKey } from "./dashboard/actions.ts";
+import { buildSessionIndex, clearSessionIndexCache, deserializeSessionIndex } from "./dashboard/session-index.ts";
+import { createInitialState, cwd, getVisibleRows, loadSelectedMessages, reloadState, clearVisibleRowsMemo, clampCursor, type UiState } from "./dashboard/state.ts";
+import { applyKey, clearActionMemo } from "./dashboard/actions.ts";
 import { dashboardLayout } from "./dashboard/layout.ts";
-export { applyKey, buildSearchOverlay };
+import { runChildSession, runFreshSession, type ContinueRequest } from "./session-runner.ts";
+export { applyKey, buildSearchOverlay, runChildSession, runFreshSession };
 import {
   setTheme,
   buildSessionsContent,
@@ -24,14 +23,10 @@ import {
 const theme = JSON.parse(readFileSync(new URL("../themes/friday.json", import.meta.url), "utf8"));
 setTheme(theme);
 
-export function errorMessage(error: unknown): string {
-  if (error && typeof error === "object" && "code" in error && (error as { code?: string }).code === "ENOENT") {
-    return "opencode CLI not found. Set OPENCODE_ALL_OPENCODE_BIN or install opencode.";
-  }
-  return error instanceof Error ? error.message : String(error);
-}
+export const SEARCH_DEBOUNCE_MS = 150;
 
 export function mapKey(key: any): string {
+  if (key?.ctrl && key?.shift && key?.name === "c") return "Ctrl+Shift+C";
   if (key?.ctrl && key?.name === "c") return "q";
   if (key?.ctrl && key?.name === "d") return "Ctrl+D";
   if (key?.ctrl && key?.name === "u") return "Ctrl+U";
@@ -60,34 +55,8 @@ export function refreshStateFromDisk(s: UiState, status: string): UiState {
   return { ...candidate, cursor: targetIdx, listScroll: targetIdx };
 }
 
-function opencodeBin(): string {
-  return process.env.OPENCODE_ALL_OPENCODE_BIN || "opencode";
-}
-
-export type ContinueRequest = { id: string; fork: boolean };
-
-export async function runChildSession(
-  renderer: Pick<CliRenderer, "requestRender"> & { suspend: () => unknown; resume: () => unknown },
-  req: ContinueRequest,
-  spawnImpl: typeof spawn = spawn,
-  auditImpl: (action: string, sessionId: string, status: string) => void = audit,
-): Promise<void> {
-  auditImpl("open_session", req.id, "started");
-  renderer.suspend();
-  const child = spawnImpl(opencodeBin(), ["--session", req.id, ...(req.fork ? ["--fork"] : [])], { stdio: "inherit" });
-  const status = await new Promise<string>((resolve) => {
-    child.on("exit", (code, signal) => {
-      if (signal) resolve(`signal ${signal}`);
-      else resolve(`exit ${code ?? 0}`);
-    });
-    child.on("error", (error) => resolve(`error ${errorMessage(error)}`));
-  });
-  auditImpl("open_session", req.id, status);
-  renderer.resume();
-}
-
 export async function startInteractiveTui(): Promise<void> {
-  const renderer = await createCliRenderer({ exitOnCtrlC: true, targetFps: 30, useMouse: true });
+  const renderer = await createCliRenderer({ exitOnCtrlC: false, targetFps: 30, useMouse: true });
   let state = createInitialState(buildSessionIndex({ cwd: cwd() }), { height: process.stdout.rows || 24, width: process.stdout.columns || 100 });
   state = reloadState(state);
   let layout = dashboardLayout(state.viewport.width, state.viewport.height);
@@ -95,6 +64,35 @@ export async function startInteractiveTui(): Promise<void> {
   let quitRequested = false;
   let settleLoop: (() => void) | null = null;
   let childRunning = false;
+  let freshDirectoryRequest: string | null = null;
+  let metadataTimer: ReturnType<typeof setTimeout> | null = null;
+  let searchTimer: ReturnType<typeof setTimeout> | null = null;
+  const indexWorker = new Worker(new URL("./workers/index-worker.ts", import.meta.url));
+  indexWorker.onmessage = (event) => {
+    const msg = event.data;
+    if (msg.type === "refresh-result") {
+      clearSessionIndexCache();
+      clearVisibleRowsMemo();
+      clearActionMemo();
+      state = reloadState({ ...state, index: deserializeSessionIndex(msg.index), status: "index refreshed" });
+      rebuildLayout();
+      refreshPanes();
+      renderer.requestRender();
+    }
+    if (msg.type === "error") {
+      state = { ...state, status: `refresh failed: ${msg.message}` };
+      refreshPanes();
+      renderer.requestRender();
+    }
+  };
+  function scheduleMetadataLoad() {
+    if (metadataTimer) clearTimeout(metadataTimer);
+    metadataTimer = setTimeout(() => {
+      state = loadSelectedMessages(state);
+      refreshPanes();
+      renderer.requestRender();
+    }, 150);
+  }
 
   function makeScrollPane(
     paneRenderer: CliRenderer,
@@ -280,16 +278,51 @@ export async function startInteractiveTui(): Promise<void> {
   const onKeypress = (key: any) => {
     if (childRunning) return;
     const mapped = mapKey(key);
+    if (mapped === "Ctrl+Shift+C") {
+      return;
+    }
     if (mapped === "q") {
       quitRequested = true;
       settleLoop?.();
       return;
     }
     if ((mapped === "r" || mapped === "R") && !state.inputMode && !state.pendingAction && !state.pendingChoice) {
-      state = refreshStateFromDisk(state, "index refreshed");
+      indexWorker.postMessage({ type: "refresh", cwd: cwd() });
+      state = { ...state, status: "refreshing index" };
       refreshPanes();
       renderer.requestRender();
       return;
+    }
+    if (state.inputMode === "search") {
+      if (mapped.length === 1 && mapped >= " ") {
+        state = { ...state, query: state.query + mapped };
+        refreshPanes();
+        renderer.requestRender();
+        if (searchTimer) clearTimeout(searchTimer);
+        searchTimer = setTimeout(() => {
+          if (state.inputMode !== "search") return;
+          const q = state.query;
+          state = clampCursor(reloadState({ ...state, cursor: 0, listScroll: 0, searchSelected: 0, searchScroll: 0, status: `search:${q}` }));
+          refreshPanes();
+          renderer.requestRender();
+        }, SEARCH_DEBOUNCE_MS);
+        return;
+      }
+      if (mapped === "Backspace") {
+        const q = state.query.slice(0, -1);
+        state = { ...state, query: q };
+        refreshPanes();
+        renderer.requestRender();
+        if (searchTimer) clearTimeout(searchTimer);
+        searchTimer = setTimeout(() => {
+          if (state.inputMode !== "search") return;
+          const curQ = state.query;
+          state = clampCursor(reloadState({ ...state, cursor: 0, listScroll: 0, searchSelected: 0, searchScroll: 0, status: `search:${curQ}` }));
+          refreshPanes();
+          renderer.requestRender();
+        }, SEARCH_DEBOUNCE_MS);
+        return;
+      }
     }
     const prevFocus = state.focus;
     const next = applyKey(state, mapped, (id, fork) => { continueRequest = { id, fork }; });
@@ -297,6 +330,13 @@ export async function startInteractiveTui(): Promise<void> {
       state = next;
       refreshPanes();
       if (state.focus !== prevFocus) rebuildLayout();
+      scheduleMetadataLoad();
+    }
+    if (next.freshDirectory) {
+      freshDirectoryRequest = next.freshDirectory;
+      state = { ...next, freshDirectory: undefined };
+      settleLoop?.();
+      return;
     }
     if (continueRequest) {
       settleLoop?.();
@@ -317,6 +357,21 @@ export async function startInteractiveTui(): Promise<void> {
       });
       settleLoop = null;
       if (quitRequested) break;
+      if (freshDirectoryRequest) {
+        const directory = freshDirectoryRequest;
+        freshDirectoryRequest = null;
+        childRunning = true;
+        try {
+          await runFreshSession(renderer, directory);
+        } finally {
+          childRunning = false;
+        }
+        state = refreshStateFromDisk(state, "back from session");
+        rebuildLayout();
+        refreshPanes();
+        scheduleMetadataLoad();
+        renderer.requestRender();
+      }
       if (continueRequest) {
         const req = continueRequest;
         continueRequest = null;
@@ -329,25 +384,18 @@ export async function startInteractiveTui(): Promise<void> {
         state = refreshStateFromDisk(state, "back from session");
         rebuildLayout();
         refreshPanes();
+        scheduleMetadataLoad();
         renderer.requestRender();
       }
     }
   } finally {
+    if (metadataTimer) clearTimeout(metadataTimer);
+    if (searchTimer) clearTimeout(searchTimer);
+    indexWorker.terminate();
     process.stdout.off("resize", onResize);
     renderer.keyInput.off?.("keypress", onKeypress);
     renderer.destroy();
   }
-}
-
-function dataDir(): string {
-  const base = process.env.XDG_DATA_HOME || join(process.env.HOME || ".", ".local", "share");
-  return join(base, "opencode", "tools", "opencode-all");
-}
-
-function audit(action: string, sessionId: string, status: string): void {
-  const file = join(dataDir(), "audit.log");
-  mkdirSync(dirname(file), { recursive: true, mode: 0o700 });
-  writeFileSync(file, `${JSON.stringify({ ts: new Date().toISOString(), action, session_id: sessionId, status })}\n`, { flag: "a", mode: 0o600 });
 }
 
 function printFallbackList(): void {
@@ -357,6 +405,15 @@ function printFallbackList(): void {
 }
 
 export async function main(argv = process.argv.slice(2)): Promise<void> {
+  const newIndex = argv.indexOf("--new");
+  if (newIndex >= 0) {
+    const directory = argv[newIndex + 1];
+    if (!directory) throw new Error("missing directory for --new");
+    if (!existsSync(directory)) throw new Error(`directory not found: ${directory}`);
+    const result = await runFreshSession({ suspend() {}, resume() {}, requestRender() {} }, directory);
+    if (result.exitCode !== null) process.exitCode = result.exitCode;
+    return;
+  }
   if (argv.includes("--list")) {
     printFallbackList();
     return;

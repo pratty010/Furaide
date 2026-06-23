@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { existsSync, unlinkSync } from "node:fs";
+import { join } from "node:path";
 import { Database } from "bun:sqlite";
 import {
   addActiveToIndex,
@@ -12,11 +13,14 @@ import {
   actionContext,
   actionChips,
   applyKey,
+  clearActionMemo,
   executePendingAction,
   searchResultsFor,
   type ActionChip,
 } from "../src/dashboard/actions.ts";
 
+const existingDir = import.meta.dir;
+const otherDir = join(import.meta.dir, "..", "src");
 const TEST_DB_PATH = "/tmp/opencode-all-actions-test-empty.db";
 
 let savedDbPath: string | undefined;
@@ -77,7 +81,7 @@ afterAll(() => {
 const sessions: UiSession[] = Array.from({ length: 6 }, (_, index) => ({
   id: `ses_${index}`,
   title: `Session ${index}`,
-  directory: index < 3 ? "/repo/current" : "/repo/other",
+  directory: index < 3 ? existingDir : otherDir,
   path: "",
   agent: index % 2 === 0 ? "build" : "plan",
   model: `model-${index}`,
@@ -93,8 +97,8 @@ const sessions: UiSession[] = Array.from({ length: 6 }, (_, index) => ({
 }));
 
 const archivedSessions: UiSession[] = [
-  { ...sessions[0], timeArchived: 999, directory: "/repo/current" },
-  { ...sessions[1], timeArchived: 998, directory: "/repo/other" },
+  { ...sessions[0], timeArchived: 999, directory: existingDir },
+  { ...sessions[1], timeArchived: 998, directory: otherDir },
 ];
 
 const vp = { height: 20, width: 100 };
@@ -238,20 +242,20 @@ describe("actionChips", () => {
   test("search mode returns search-only chips", () => {
     const state = { ...makeState(), inputMode: "search" as const, query: "" };
     const chips = actionChips(state);
-    expect(chipIds(chips)).toEqual(["open", "wheel", "cancel"]);
-    expect(chipLabels(chips)).toEqual(["Enter open", "wheel scroll", "Esc cancel"]);
+    expect(chipIds(chips)).toEqual(["open", "refresh", "wheel", "cancel"]);
+    expect(chipLabels(chips)).toEqual(["Enter open", "R refresh", "wheel scroll", "Esc cancel"]);
   });
 
   test("metadata focus returns generic focus chips", () => {
     const state = { ...makeState(), focus: "metadata" as const };
     const chips = actionChips(state);
-    expect(chipIds(chips)).toEqual(["tab-switch", "back", "quit", "wheel"]);
+    expect(chipIds(chips)).toEqual(["refresh", "tab-switch", "back", "quit", "wheel"]);
   });
 
   test("messages focus returns generic focus chips", () => {
     const state = { ...makeState(), focus: "messages" as const };
     const chips = actionChips(state);
-    expect(chipIds(chips)).toEqual(["tab-switch", "back", "quit", "wheel"]);
+    expect(chipIds(chips)).toEqual(["refresh", "tab-switch", "back", "quit", "wheel"]);
   });
 
   test("action chips do not advertise unsupported mouse click actions", () => {
@@ -896,5 +900,88 @@ describe("choice overlay key contract", () => {
     expect(result.pendingChoice).toBeNull();
     expect(result.pendingDirectory).toBeUndefined();
     expect(result.pendingCount).toBeUndefined();
+  });
+});
+
+describe("fresh session keybindings", () => {
+  test("N on active folder sets freshDirectory", () => {
+    let state = cursorOnFirstFolder(makeState());
+    const folder = getVisibleRows(state)[state.cursor] as any;
+    const result = applyKey(state, "N");
+    expect(result.freshDirectory).toBe(folder.directory);
+    expect(result.status).toBe(`opening ${folder.directory}`);
+  });
+
+  test("n (lowercase) on active folder also sets freshDirectory", () => {
+    let state = cursorOnFirstFolder(makeState());
+    const folder = getVisibleRows(state)[state.cursor] as any;
+    const result = applyKey(state, "n");
+    expect(result.freshDirectory).toBe(folder.directory);
+    expect(result.status).toBe(`opening ${folder.directory}`);
+  });
+
+  test("N in archived tab is blocked", () => {
+    let state = makeState(archivedSessions);
+    state = { ...state, tab: "archived" as const };
+    const result = applyKey(state, "N");
+    expect(result.freshDirectory).toBeUndefined();
+    expect(result.status).toBe("new sessions only start from the Active tab");
+  });
+
+  test("active folder and session rows advertise N/n new", () => {
+    const folderState = cursorOnFirstFolder(makeState());
+    expect(chipLabels(actionChips(folderState))).toContain("N/n new");
+    const sessionState = cursorOnFirstSession(makeState());
+    expect(chipLabels(actionChips(sessionState))).toContain("N/n new");
+  });
+
+  test("N in search mode appends to query instead of starting fresh session", () => {
+    let state = makeState();
+    state = applyKey(state, "/");
+    state = applyKey(state, "N");
+    expect(state.inputMode).toBe("search");
+    expect(state.query).toBe("N");
+    expect(state.freshDirectory).toBeUndefined();
+  });
+});
+
+describe("memoized derived state", () => {
+  test("searchResultsFor returns same array reference for unchanged state", () => {
+    clearActionMemo();
+    const state = { ...makeState(sessions), inputMode: "search" as const, query: "Session" };
+    const a = searchResultsFor(state);
+    const b = searchResultsFor(state);
+    expect(a).toBe(b);
+  });
+
+  test("actionChips returns same array reference for unchanged state", () => {
+    clearActionMemo();
+    const state = cursorOnFirstSession(makeState());
+    const a = actionChips(state);
+    const b = actionChips(state);
+    expect(a).toBe(b);
+  });
+
+  test("clearActionMemo invalidates cached results", () => {
+    clearActionMemo();
+    const state = cursorOnFirstSession(makeState());
+    const a = actionChips(state);
+    clearActionMemo();
+    const b = actionChips(state);
+    expect(a).not.toBe(b);
+  });
+});
+
+describe("cursor movement fast path", () => {
+  test("rapid j/k movement does not refresh message rows synchronously", () => {
+    let state = makeState();
+    state = expandFolderWithSessions(state);
+    state = cursorOnFirstSession(state);
+    const initialMessages = state.messageRows;
+    const beforeKeys: string[] = ["j", "j", "j", "k", "j"];
+    for (const key of beforeKeys) {
+      state = applyKey(state, key);
+    }
+    expect(state.messageRows).toBe(initialMessages);
   });
 });

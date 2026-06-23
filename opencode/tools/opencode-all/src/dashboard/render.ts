@@ -212,7 +212,11 @@ export function buildSessionsContent(state: UiState): StyledText {
   const archivedTab = state.tab === "archived" ? "[Archived]" : " Archived ";
   chunks.push({ text: `${activeTab} ${archivedTab}  ${state.cursor + 1}/${Math.max(visible.length, 1)}\n`, fg: tone("text"), bg: tone("surfaceAlt"), bold: true });
 
-  for (let i = 0; i < visible.length; i++) {
+  const maxRows = Math.max(4, Math.floor(state.viewport.height * 0.45));
+  const start = Math.max(0, Math.min(state.listScroll, Math.max(0, visible.length - maxRows)));
+  const end = Math.min(visible.length, start + maxRows + 2);
+
+  for (let i = start; i < end; i++) {
     const item = visible[i];
     const isDir = item && !("id" in item);
     const isSelected = i === state.cursor;
