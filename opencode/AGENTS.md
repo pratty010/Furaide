@@ -28,6 +28,8 @@ This is the opencode config dir (`~/.config/opencode/`) for a 12-specialist + 15
 - Use structural XML delimiters that collide with model reasoning tokens: no `<Scalars>...</Scalars>` or `<thinking>...</thinking>` in prompts/templates.
 - Commit sensitive files (`.env`, credentials, tokens). `komainu.js` blocks hardcoded keys.
 - Remove `nio.js` or `migawari.js` from the `opencode.jsonc` plugin array; those plugins block this.
+- Use native `websearch` for breaking news or time-sensitive queries — Exa's independent index has documented coverage gaps for <24h content and obscure domains. Prefer the plugin's `web_search`.
+- Use native `webfetch` on JS-rendered SPA pages (React / Svelte / Vue docs, SaaS dashboards) — it cannot execute JavaScript and returns empty or garbled content. Prefer the plugin's `fetch_content`.
 
 ### ASK FIRST
 - Irreversible or outward-facing actions: delete, publish, send, push to main/master.
@@ -45,6 +47,8 @@ This is the opencode config dir (`~/.config/opencode/`) for a 12-specialist + 15
 - Approve per phase, not at the end.
 - If a plan exceeds the output window, chunk it (Part 1/N, confirm). Never compress to fit.
 - Delegate UP for scope (10+ files, 3+ independent subtasks); delegate DOWN when the model is over-qualified; execute inline for 3 files or fewer with tight data deps.
+- Prefer the plugin's `web_search` for repeated or batched multi-step searches in one session — the native tool's shared Exa MCP quota burns quickly with 402 / 429 errors; the plugin's Brave → Tavily chain has cost budgets and automatic failover.
+- Prefer the plugin's `fetch_content` for pages likely larger than 5MB — native `webfetch` has a hardcoded 5MB response cap with no user override; the plugin handles larger responses.
 
 ---
 
