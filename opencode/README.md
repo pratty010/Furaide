@@ -65,11 +65,31 @@ After install, edit runtime models in the installed `opencode.json` or `opencode
 | 6 | Rules | no | on | Memory contract and other rules wired via `instructions` glob. |
 | 7 | Reference Docs | no | off | OPERATOR guide, architecture overview, manifest schema, model family guides. |
 | 8 | Brand Builder / Kitsune | yes | off | Opt-in; in development. 9 brand agents + plugin + commands + skills. Needs `bun install`. |
-| 9 | Web Tools | yes | on | Lean web-search/fetch/maps plugin with provider budgets and interactive config. |
+| 9 | Web Tools | yes | on | 3 tools (web_search, fetch_content, maps_search) with google.transport: auto and /tools-config. |
 
 Run `bash opencode/scripts/install-fleet.sh --list` for the full machine-readable view.
 
 > **Superpowers** (the @obra skill collection) is **not** auto-loaded. It was removed from `opencode.jsonc` to avoid third-party network hits on install. Install it manually via `bash common/install-skills.sh --ecosystem opencode` if you want it.
+
+---
+
+## Web Tools
+
+The web-tools plugin (`plugins/web-tools.ts`) registers three model-callable tools with cost-aware provider budgets:
+
+| Tool | Default provider | Purpose |
+|------|-----------------|---------|
+| `web_search` | Brave (via Tavily) | Web and news search with domain and freshness controls |
+| `fetch_content` | Jina AI | Full-page extraction for JS-rendered and large responses |
+| `maps_search` | Google Maps API | Place search and geolocation queries |
+
+Transport is set via `google.transport` in the plugin's YAML config (not `opencode.jsonc`):
+
+- `auto` — tries AI Studio first, falls back to Vertex AI on 429/5xx
+- `vertex` — Vertex AI REST only (Bearer token via google-auth-library ADC)
+- `ai-studio` — AI Studio REST only (uses `GEMINI_API_KEY` env var)
+
+For interactive tool-level budgets, default providers, and transport changes, use `/tools-config`.
 
 ---
 

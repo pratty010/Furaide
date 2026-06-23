@@ -16,6 +16,12 @@ Not auto-loaded. Pull when editing fleet wiring, scripts, or file relationships.
 | `scripts/workflow-state.mjs` | Sole writer of `state.json` | Specialists call at phase boundaries; never write state directly |
 | `scripts/lib/state-lock.mjs` | File-based locking for workflow state | Used by `workflow-state.mjs` for CAS safety |
 | `docs/manifest-schema.md` | Schema for agent frontmatter manifest fields | `permission.task` allow-list is generated from `permitted_subagents` |
+| `plugins/web-tools/providers/gemini-ai-studio.ts` | AI Studio REST transport | `google.transport: ai-studio` in plugin YAML |
+| `plugins/web-tools/providers/gemini-vertex.ts` | Vertex AI REST transport (Bearer ADC) | `google.transport: vertex` in plugin YAML |
+| `plugins/web-tools/providers/vertex-auth.ts` | Vertex OAuth helper (google-auth-library) | Called by `gemini-vertex.ts` on 401 |
+| `plugins/web-tools/providers/vertex-endpoint.ts` | Vertex URL builder (global vs regional) | Called by `gemini-vertex.ts`; reads model region |
+| `plugins/web-tools/providers/transport-select.ts` | auto / vertex / ai-studio selector | Reads `google.transport` from plugin YAML |
+| `commands/tools-config.md` | Interactive web-tools config editor | Writes tool budgets and transport to plugin runtime |
 
 **After editing routing or runtime model config:** run `bun test` to verify model consistency.
 
