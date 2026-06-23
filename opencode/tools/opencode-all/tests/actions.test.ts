@@ -971,3 +971,17 @@ describe("memoized derived state", () => {
     expect(a).not.toBe(b);
   });
 });
+
+describe("cursor movement fast path", () => {
+  test("rapid j/k movement does not refresh message rows synchronously", () => {
+    let state = makeState();
+    state = expandFolderWithSessions(state);
+    state = cursorOnFirstSession(state);
+    const initialMessages = state.messageRows;
+    const beforeKeys: string[] = ["j", "j", "j", "k", "j"];
+    for (const key of beforeKeys) {
+      state = applyKey(state, key);
+    }
+    expect(state.messageRows).toBe(initialMessages);
+  });
+});

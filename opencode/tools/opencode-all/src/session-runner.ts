@@ -35,19 +35,20 @@ async function runOpencode(
   args: string[],
   spawnImpl: typeof spawn,
   auditImpl: (action: string, target: string, status: string) => void,
-): Promise<void> {
+): Promise<{ status: string; exitCode: number | null }> {
   auditImpl(action, target, "started");
   renderer.suspend();
   const child = spawnImpl(opencodeBin(), args, { stdio: "inherit" });
-  const status = await new Promise<string>((resolve) => {
+  const result = await new Promise<{ status: string; exitCode: number | null }>((resolve) => {
     child.on("exit", (code, signal) => {
-      if (signal) resolve(`signal ${signal}`);
-      else resolve(`exit ${code ?? 0}`);
+      if (signal) resolve({ status: `signal ${signal}`, exitCode: null });
+      else resolve({ status: `exit ${code ?? 0}`, exitCode: code ?? 0 });
     });
-    child.on("error", (error) => resolve(`error ${errorMessage(error)}`));
+    child.on("error", (error) => resolve({ status: `error ${errorMessage(error)}`, exitCode: 1 }));
   });
-  auditImpl(action, target, status);
+  auditImpl(action, target, result.status);
   renderer.resume();
+  return result;
 }
 
 export async function runChildSession(
@@ -55,8 +56,8 @@ export async function runChildSession(
   req: ContinueRequest,
   spawnImpl: typeof spawn = spawn,
   auditImpl: (action: string, target: string, status: string) => void = audit,
-): Promise<void> {
-  await runOpencode(renderer, "open_session", req.id, ["--session", req.id, ...(req.fork ? ["--fork"] : [])], spawnImpl, auditImpl);
+): Promise<{ status: string; exitCode: number | null }> {
+  return runOpencode(renderer, "open_session", req.id, ["--session", req.id, ...(req.fork ? ["--fork"] : [])], spawnImpl, auditImpl);
 }
 
 export async function runFreshSession(
@@ -64,6 +65,6 @@ export async function runFreshSession(
   directory: string,
   spawnImpl: typeof spawn = spawn,
   auditImpl: (action: string, target: string, status: string) => void = audit,
-): Promise<void> {
-  await runOpencode(renderer, "open_session_fresh", directory, [directory], spawnImpl, auditImpl);
+): Promise<{ status: string; exitCode: number | null }> {
+  return runOpencode(renderer, "open_session_fresh", directory, [directory], spawnImpl, auditImpl);
 }

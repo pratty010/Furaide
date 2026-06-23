@@ -407,7 +407,8 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
     const directory = argv[newIndex + 1];
     if (!directory) throw new Error("missing directory for --new");
     if (!existsSync(directory)) throw new Error(`directory not found: ${directory}`);
-    await runFreshSession({ suspend() {}, resume() {}, requestRender() {} }, directory);
+    const result = await runFreshSession({ suspend() {}, resume() {}, requestRender() {} }, directory);
+    if (result.exitCode !== null) process.exitCode = result.exitCode;
     return;
   }
   if (argv.includes("--list")) {

@@ -7,11 +7,12 @@ import {
   tabs,
   clampCursor,
   reloadState,
+  reloadStateFast,
 } from "./state.ts";
 import type { SearchResult, UiState, UiSession } from "./state.ts";
 
 function moveSessionCursor(state: UiState, cursor: number): UiState {
-  return reloadState(clampCursor({ ...state, cursor }));
+  return reloadStateFast(clampCursor({ ...state, cursor }));
 }
 import type { DirectoryRow } from "../db.ts";
 import {
