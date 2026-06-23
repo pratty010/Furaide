@@ -1,14 +1,13 @@
 #!/usr/bin/env bun
-import { spawn } from "node:child_process";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { readFileSync } from "node:fs";
 import { Box, BoxRenderable, ScrollBoxRenderable, TextRenderable, createCliRenderer, type CliRenderer } from "@opentui/core";
 import type { StyledText } from "@opentui/core";
 import { buildSessionIndex } from "./dashboard/session-index.ts";
 import { createInitialState, cwd, getVisibleRows, reloadState, type UiState } from "./dashboard/state.ts";
 import { applyKey } from "./dashboard/actions.ts";
 import { dashboardLayout } from "./dashboard/layout.ts";
-export { applyKey, buildSearchOverlay };
+import { runChildSession, runFreshSession, type ContinueRequest } from "./session-runner.ts";
+export { applyKey, buildSearchOverlay, runChildSession, runFreshSession };
 import {
   setTheme,
   buildSessionsContent,
@@ -23,13 +22,6 @@ import {
 
 const theme = JSON.parse(readFileSync(new URL("../themes/friday.json", import.meta.url), "utf8"));
 setTheme(theme);
-
-export function errorMessage(error: unknown): string {
-  if (error && typeof error === "object" && "code" in error && (error as { code?: string }).code === "ENOENT") {
-    return "opencode CLI not found. Set OPENCODE_ALL_OPENCODE_BIN or install opencode.";
-  }
-  return error instanceof Error ? error.message : String(error);
-}
 
 export function mapKey(key: any): string {
   if (key?.ctrl && key?.name === "c") return "q";
@@ -58,32 +50,6 @@ export function refreshStateFromDisk(s: UiState, status: string): UiState {
   const targetIdx = visible.findIndex(r => "id" in r && (r as any).id === selectedId);
   if (targetIdx < 0) return candidate;
   return { ...candidate, cursor: targetIdx, listScroll: targetIdx };
-}
-
-function opencodeBin(): string {
-  return process.env.OPENCODE_ALL_OPENCODE_BIN || "opencode";
-}
-
-export type ContinueRequest = { id: string; fork: boolean };
-
-export async function runChildSession(
-  renderer: Pick<CliRenderer, "requestRender"> & { suspend: () => unknown; resume: () => unknown },
-  req: ContinueRequest,
-  spawnImpl: typeof spawn = spawn,
-  auditImpl: (action: string, sessionId: string, status: string) => void = audit,
-): Promise<void> {
-  auditImpl("open_session", req.id, "started");
-  renderer.suspend();
-  const child = spawnImpl(opencodeBin(), ["--session", req.id, ...(req.fork ? ["--fork"] : [])], { stdio: "inherit" });
-  const status = await new Promise<string>((resolve) => {
-    child.on("exit", (code, signal) => {
-      if (signal) resolve(`signal ${signal}`);
-      else resolve(`exit ${code ?? 0}`);
-    });
-    child.on("error", (error) => resolve(`error ${errorMessage(error)}`));
-  });
-  auditImpl("open_session", req.id, status);
-  renderer.resume();
 }
 
 export async function startInteractiveTui(): Promise<void> {
@@ -337,17 +303,6 @@ export async function startInteractiveTui(): Promise<void> {
     renderer.keyInput.off?.("keypress", onKeypress);
     renderer.destroy();
   }
-}
-
-function dataDir(): string {
-  const base = process.env.XDG_DATA_HOME || join(process.env.HOME || ".", ".local", "share");
-  return join(base, "opencode", "tools", "opencode-all");
-}
-
-function audit(action: string, sessionId: string, status: string): void {
-  const file = join(dataDir(), "audit.log");
-  mkdirSync(dirname(file), { recursive: true, mode: 0o700 });
-  writeFileSync(file, `${JSON.stringify({ ts: new Date().toISOString(), action, session_id: sessionId, status })}\n`, { flag: "a", mode: 0o600 });
 }
 
 function printFallbackList(): void {
