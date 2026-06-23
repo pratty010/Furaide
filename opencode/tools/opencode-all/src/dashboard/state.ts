@@ -64,6 +64,7 @@ export type UiState = {
   searchResults: SearchResult[];
   focus: PaneFocus;
   messageRows: ArchivedMessageRow[];
+  freshDirectory?: string;
 };
 
 export const tabs: Tab[] = ["active", "archived"];

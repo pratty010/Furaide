@@ -1,3 +1,4 @@
+import { existsSync } from "node:fs";
 import {
   currentSession,
   selectFolderAtCursor,
@@ -274,6 +275,7 @@ export function actionChips(state: UiState): ActionChip[] {
       { id: "toggle-all", label: "o toggle", key: "o" },
       { id: "delete", label: "D delete", key: "D", danger: true },
       { id: "search", label: "/ search", key: "/" },
+      { id: "new", label: "N new", key: "N", primary: true },
       { id: "tab-switch", label: "Tab switch tab", key: "Tab" },
       { id: "back", label: "Esc back", key: "Esc" },
       { id: "quit", label: "q quit", key: "q" },
@@ -298,6 +300,7 @@ export function actionChips(state: UiState): ActionChip[] {
     { id: "open", label: "Enter open", key: "Enter" },
     { id: "delete", label: "D delete", key: "D", danger: true },
     { id: "search", label: "/ search", key: "/" },
+    { id: "new", label: "N new", key: "N", primary: true },
     { id: "tab-switch", label: "Tab switch tab", key: "Tab" },
     { id: "back", label: "Esc back", key: "Esc" },
     { id: "quit", label: "q quit", key: "q" },
@@ -357,6 +360,23 @@ export function searchVisibleSlice(state: UiState): SearchResult[] {
   const all = searchResultsFor(state);
   const start = Math.max(0, Math.min(state.searchScroll, Math.max(0, all.length - SEARCH_VISIBLE_WINDOW)));
   return all.slice(start, start + SEARCH_VISIBLE_WINDOW);
+}
+
+function directoryForFreshSession(state: UiState): string | undefined {
+  const folder = selectFolderAtCursor(state);
+  if (folder) return folder.directory;
+  const session = currentSession(state);
+  return session?.directory;
+}
+
+function startFreshSessionInDirectory(state: UiState): UiState {
+  if (state.tab !== "active") {
+    return { ...state, status: "new sessions only start from the Active tab" };
+  }
+  const directory = directoryForFreshSession(state);
+  if (!directory) return { ...state, status: "no directory selected" };
+  if (!existsSync(directory)) return { ...state, status: `directory not found: ${directory}` };
+  return { ...state, freshDirectory: directory, status: `opening ${directory}` };
 }
 
 function openSessionInOpencode(state: UiState, id: string, onContinue?: (id: string, fork: boolean) => void, fork = false): UiState {
@@ -559,6 +579,10 @@ export function applyKey(
       return { ...state, detailScroll: Math.max(0, state.detailScroll - 5) };
     }
     return moveSessionCursor(state, state.cursor - 5);
+  }
+
+  if (key === "N" || key === "Alt+Enter") {
+    return startFreshSessionInDirectory(state);
   }
 
   if (key === "Enter") {

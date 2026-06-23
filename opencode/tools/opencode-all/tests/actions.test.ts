@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { existsSync, unlinkSync } from "node:fs";
+import { join } from "node:path";
 import { Database } from "bun:sqlite";
 import {
   addActiveToIndex,
@@ -17,6 +18,8 @@ import {
   type ActionChip,
 } from "../src/dashboard/actions.ts";
 
+const existingDir = import.meta.dir;
+const otherDir = join(import.meta.dir, "..", "src");
 const TEST_DB_PATH = "/tmp/opencode-all-actions-test-empty.db";
 
 let savedDbPath: string | undefined;
@@ -77,7 +80,7 @@ afterAll(() => {
 const sessions: UiSession[] = Array.from({ length: 6 }, (_, index) => ({
   id: `ses_${index}`,
   title: `Session ${index}`,
-  directory: index < 3 ? "/repo/current" : "/repo/other",
+  directory: index < 3 ? existingDir : otherDir,
   path: "",
   agent: index % 2 === 0 ? "build" : "plan",
   model: `model-${index}`,
@@ -93,8 +96,8 @@ const sessions: UiSession[] = Array.from({ length: 6 }, (_, index) => ({
 }));
 
 const archivedSessions: UiSession[] = [
-  { ...sessions[0], timeArchived: 999, directory: "/repo/current" },
-  { ...sessions[1], timeArchived: 998, directory: "/repo/other" },
+  { ...sessions[0], timeArchived: 999, directory: existingDir },
+  { ...sessions[1], timeArchived: 998, directory: otherDir },
 ];
 
 const vp = { height: 20, width: 100 };
@@ -896,5 +899,47 @@ describe("choice overlay key contract", () => {
     expect(result.pendingChoice).toBeNull();
     expect(result.pendingDirectory).toBeUndefined();
     expect(result.pendingCount).toBeUndefined();
+  });
+});
+
+describe("fresh session keybindings", () => {
+  test("N on active folder sets freshDirectory", () => {
+    let state = cursorOnFirstFolder(makeState());
+    const folder = getVisibleRows(state)[state.cursor] as any;
+    const result = applyKey(state, "N");
+    expect(result.freshDirectory).toBe(folder.directory);
+    expect(result.status).toBe(`opening ${folder.directory}`);
+  });
+
+  test("Alt+Enter on active session uses session directory", () => {
+    let state = cursorOnFirstSession(makeState());
+    const session = getVisibleRows(state)[state.cursor] as any;
+    const result = applyKey(state, "Alt+Enter");
+    expect(result.freshDirectory).toBe(session.directory);
+    expect(result.status).toBe(`opening ${session.directory}`);
+  });
+
+  test("N in archived tab is blocked", () => {
+    let state = makeState(archivedSessions);
+    state = { ...state, tab: "archived" as const };
+    const result = applyKey(state, "N");
+    expect(result.freshDirectory).toBeUndefined();
+    expect(result.status).toBe("new sessions only start from the Active tab");
+  });
+
+  test("active folder and session rows advertise N new", () => {
+    const folderState = cursorOnFirstFolder(makeState());
+    expect(chipLabels(actionChips(folderState))).toContain("N new");
+    const sessionState = cursorOnFirstSession(makeState());
+    expect(chipLabels(actionChips(sessionState))).toContain("N new");
+  });
+
+  test("N in search mode appends to query instead of starting fresh session", () => {
+    let state = makeState();
+    state = applyKey(state, "/");
+    state = applyKey(state, "N");
+    expect(state.inputMode).toBe("search");
+    expect(state.query).toBe("N");
+    expect(state.freshDirectory).toBeUndefined();
   });
 });
