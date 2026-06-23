@@ -275,6 +275,7 @@ const actionChipsImpl = (state: UiState): ActionChip[] => {
   if (state.inputMode === "search") {
     return [
       { id: "open", label: "Enter open", key: "Enter", primary: true },
+      { id: "refresh", label: "R refresh", key: "R|r" },
       { id: "wheel", label: "wheel scroll", mouse: true },
       { id: "cancel", label: "Esc cancel", key: "Esc" },
     ];
@@ -282,6 +283,7 @@ const actionChipsImpl = (state: UiState): ActionChip[] => {
 
   if (state.focus === "metadata" || state.focus === "messages") {
     return [
+      { id: "refresh", label: "R refresh", key: "R|r" },
       { id: "tab-switch", label: "Tab switch tab", key: "Tab" },
       { id: "back", label: "Esc back", key: "Esc" },
       { id: "quit", label: "q quit", key: "q" },
@@ -290,7 +292,10 @@ const actionChipsImpl = (state: UiState): ActionChip[] => {
   }
 
   const row = getVisibleRows(state)[state.cursor];
-  if (!row) return [{ id: "quit", label: "q quit", key: "q" }];
+  if (!row) return [
+    { id: "refresh", label: "R refresh", key: "R|r" },
+    { id: "quit", label: "q quit", key: "q" },
+  ];
 
   if (!("id" in row)) {
     if (state.tab === "archived") {
@@ -300,6 +305,7 @@ const actionChipsImpl = (state: UiState): ActionChip[] => {
         { id: "restore", label: "I restore", key: "I" },
         { id: "delete", label: "D delete", key: "D", danger: true },
         { id: "search", label: "/ search", key: "/" },
+        { id: "refresh", label: "R refresh", key: "R|r" },
         { id: "tab-switch", label: "Tab switch tab", key: "Tab" },
         { id: "back", label: "Esc back", key: "Esc" },
         { id: "quit", label: "q quit", key: "q" },
@@ -311,7 +317,8 @@ const actionChipsImpl = (state: UiState): ActionChip[] => {
       { id: "toggle-all", label: "o toggle", key: "o" },
       { id: "delete", label: "D delete", key: "D", danger: true },
       { id: "search", label: "/ search", key: "/" },
-      { id: "new", label: "N new", key: "N", primary: true },
+      { id: "new", label: "N/n new", key: "N|n", primary: true },
+      { id: "refresh", label: "R refresh", key: "R|r" },
       { id: "tab-switch", label: "Tab switch tab", key: "Tab" },
       { id: "back", label: "Esc back", key: "Esc" },
       { id: "quit", label: "q quit", key: "q" },
@@ -325,6 +332,7 @@ const actionChipsImpl = (state: UiState): ActionChip[] => {
       { id: "import", label: "I import", key: "I" },
       { id: "delete", label: "D delete", key: "D", danger: true },
       { id: "search", label: "/ search", key: "/" },
+      { id: "refresh", label: "R refresh", key: "R|r" },
       { id: "tab-switch", label: "Tab switch tab", key: "Tab" },
       { id: "back", label: "Esc back", key: "Esc" },
       { id: "quit", label: "q quit", key: "q" },
@@ -336,7 +344,8 @@ const actionChipsImpl = (state: UiState): ActionChip[] => {
     { id: "open", label: "Enter open", key: "Enter" },
     { id: "delete", label: "D delete", key: "D", danger: true },
     { id: "search", label: "/ search", key: "/" },
-    { id: "new", label: "N new", key: "N", primary: true },
+    { id: "new", label: "N/n new", key: "N|n", primary: true },
+    { id: "refresh", label: "R refresh", key: "R|r" },
     { id: "tab-switch", label: "Tab switch tab", key: "Tab" },
     { id: "back", label: "Esc back", key: "Esc" },
     { id: "quit", label: "q quit", key: "q" },
@@ -629,7 +638,7 @@ export function applyKey(
     return moveSessionCursor(state, state.cursor - 5);
   }
 
-  if (key === "N" || key === "Alt+Enter") {
+  if (key === "N" || key === "n" || key === "Alt+Enter") {
     return startFreshSessionInDirectory(state);
   }
 

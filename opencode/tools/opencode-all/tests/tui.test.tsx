@@ -838,11 +838,23 @@ describe("fresh session TUI integration", () => {
     expect(mapKey({ meta: true, name: "return" })).toBe("Alt+Enter");
   });
 
-  test("action bar shows N new for active folder and active session", () => {
+  test("action bar shows N/n new for active folder and active session", () => {
     const folderState = createInitialState(makeIndex(sessions), { height: 20, width: 100 });
-    expect(flatText(buildActionBarContent(folderState))).toContain("N new");
+    expect(flatText(buildActionBarContent(folderState))).toContain("N/n new");
     const sessionState = cursorOnFirstSession(folderState);
-    expect(flatText(buildActionBarContent(sessionState))).toContain("N new");
+    expect(flatText(buildActionBarContent(sessionState))).toContain("N/n new");
+  });
+
+  test("action bar shows R refresh in all row contexts", () => {
+    const folderState = createInitialState(makeIndex(sessions), { height: 20, width: 100 });
+    expect(flatText(buildActionBarContent(folderState))).toContain("R refresh");
+    const sessionState = cursorOnFirstSession(folderState);
+    expect(flatText(buildActionBarContent(sessionState))).toContain("R refresh");
+    const baseState = createInitialState(makeIndex(sessions), { height: 20, width: 100 });
+    const metadataState = { ...baseState, focus: "metadata" as const };
+    expect(flatText(buildActionBarContent(metadataState))).toContain("R refresh");
+    const searchState = { ...baseState, inputMode: "search" as const };
+    expect(flatText(buildActionBarContent(searchState))).toContain("R refresh");
   });
 });
 

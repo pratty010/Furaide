@@ -45,12 +45,13 @@ Safety and reliability. Centered confirmation modals, compact metadata formattin
 |-----|---------|--------|
 | `Enter` | Active session | Open child session |
 | `Enter` | Archived session | Blocked. Use `I` to import first |
-| `N` | Active folder or active session | Start fresh session in that directory |
+| `N` / `n` | Active folder or active session | Start fresh session in that directory |
 | `Alt+Enter` | Active folder or active session | Start fresh session in that directory |
 | `Tab` | Any | Switch between Active / Archive tabs |
 | `D` / `d` | Active session | Open archive / delete choice |
 | `I` | Archive tab | Import the selected archive |
 | `D` / `d` | Archive tab | Delete the selected archive |
+| `R` / `r` | Any | Refresh session list (worker-backed) |
 | `/` | Any | Enter search mode |
 | `ArrowUp` / `ArrowDown` | Search | Navigate search results |
 | `j` / `k` | Normal mode | Move selection up / down |

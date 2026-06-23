@@ -242,20 +242,20 @@ describe("actionChips", () => {
   test("search mode returns search-only chips", () => {
     const state = { ...makeState(), inputMode: "search" as const, query: "" };
     const chips = actionChips(state);
-    expect(chipIds(chips)).toEqual(["open", "wheel", "cancel"]);
-    expect(chipLabels(chips)).toEqual(["Enter open", "wheel scroll", "Esc cancel"]);
+    expect(chipIds(chips)).toEqual(["open", "refresh", "wheel", "cancel"]);
+    expect(chipLabels(chips)).toEqual(["Enter open", "R refresh", "wheel scroll", "Esc cancel"]);
   });
 
   test("metadata focus returns generic focus chips", () => {
     const state = { ...makeState(), focus: "metadata" as const };
     const chips = actionChips(state);
-    expect(chipIds(chips)).toEqual(["tab-switch", "back", "quit", "wheel"]);
+    expect(chipIds(chips)).toEqual(["refresh", "tab-switch", "back", "quit", "wheel"]);
   });
 
   test("messages focus returns generic focus chips", () => {
     const state = { ...makeState(), focus: "messages" as const };
     const chips = actionChips(state);
-    expect(chipIds(chips)).toEqual(["tab-switch", "back", "quit", "wheel"]);
+    expect(chipIds(chips)).toEqual(["refresh", "tab-switch", "back", "quit", "wheel"]);
   });
 
   test("action chips do not advertise unsupported mouse click actions", () => {
@@ -912,6 +912,14 @@ describe("fresh session keybindings", () => {
     expect(result.status).toBe(`opening ${folder.directory}`);
   });
 
+  test("n (lowercase) on active folder also sets freshDirectory", () => {
+    let state = cursorOnFirstFolder(makeState());
+    const folder = getVisibleRows(state)[state.cursor] as any;
+    const result = applyKey(state, "n");
+    expect(result.freshDirectory).toBe(folder.directory);
+    expect(result.status).toBe(`opening ${folder.directory}`);
+  });
+
   test("Alt+Enter on active session uses session directory", () => {
     let state = cursorOnFirstSession(makeState());
     const session = getVisibleRows(state)[state.cursor] as any;
@@ -928,11 +936,11 @@ describe("fresh session keybindings", () => {
     expect(result.status).toBe("new sessions only start from the Active tab");
   });
 
-  test("active folder and session rows advertise N new", () => {
+  test("active folder and session rows advertise N/n new", () => {
     const folderState = cursorOnFirstFolder(makeState());
-    expect(chipLabels(actionChips(folderState))).toContain("N new");
+    expect(chipLabels(actionChips(folderState))).toContain("N/n new");
     const sessionState = cursorOnFirstSession(makeState());
-    expect(chipLabels(actionChips(sessionState))).toContain("N new");
+    expect(chipLabels(actionChips(sessionState))).toContain("N/n new");
   });
 
   test("N in search mode appends to query instead of starting fresh session", () => {
