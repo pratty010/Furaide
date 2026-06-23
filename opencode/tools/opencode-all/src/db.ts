@@ -19,6 +19,7 @@ export type ActiveMessageRow = {
 };
 
 const MAX_ARCHIVE_BYTES = 100 * 1024 * 1024;
+const ARCHIVE_PREVIEW_MAX_BYTES = 1024 * 1024;
 const SPAWN_TIMEOUT_MS = 30_000;
 
 export function isSafeSessionId(id: string): boolean {
@@ -143,6 +144,9 @@ export function readArchivedMessages(id: string, maxMessages = 200): ArchivedMes
   if (!existsSync(file)) return [];
   try {
     const size = statSync(file).size;
+    if (size > ARCHIVE_PREVIEW_MAX_BYTES) {
+      return [{ role: "system", time: 0, text: `archive too large for preview (${size} bytes)` }];
+    }
     if (size > MAX_ARCHIVE_BYTES) return [{ role: "system", time: 0, text: `archive too large (${size} bytes)` }];
     const raw = JSON.parse(readFileSync(file, "utf8"));
     const messages = Array.isArray(raw?.messages) ? raw.messages : [];

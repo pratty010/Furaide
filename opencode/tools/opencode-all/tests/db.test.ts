@@ -199,6 +199,16 @@ describe("archive path and archived messages", () => {
     expect(readFileSync(`${archivePath}.meta`, "utf8")).toContain('"info"');
     delete process.env.XDG_DATA_HOME;
   });
+
+  test("readArchivedMessages skips large archive preview", () => {
+    process.env.XDG_DATA_HOME = root;
+    const file = defaultArchivePath("ses_big");
+    mkdirSync(join(root, "opencode", "tools", "opencode-all", "exports"), { recursive: true });
+    writeFileSync(file, JSON.stringify({ info: { id: "ses_big", title: "Big", directory: "/repo" }, messages: [] }) + "x".repeat(1024 * 1024 + 1));
+    const rows = readArchivedMessages("ses_big");
+    expect(rows[0]?.text).toContain("archive too large for preview");
+    delete process.env.XDG_DATA_HOME;
+  });
 });
 
 describe("hard archive CLI helpers", () => {
