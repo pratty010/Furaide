@@ -3,7 +3,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { Box, BoxRenderable, ScrollBoxRenderable, TextRenderable, createCliRenderer, type CliRenderer } from "@opentui/core";
 import type { StyledText } from "@opentui/core";
 import { buildSessionIndex } from "./dashboard/session-index.ts";
-import { createInitialState, cwd, getVisibleRows, reloadState, type UiState } from "./dashboard/state.ts";
+import { createInitialState, cwd, getVisibleRows, loadSelectedMessages, reloadState, type UiState } from "./dashboard/state.ts";
 import { applyKey } from "./dashboard/actions.ts";
 import { dashboardLayout } from "./dashboard/layout.ts";
 import { runChildSession, runFreshSession, type ContinueRequest } from "./session-runner.ts";
@@ -63,6 +63,15 @@ export async function startInteractiveTui(): Promise<void> {
   let settleLoop: (() => void) | null = null;
   let childRunning = false;
   let freshDirectoryRequest: string | null = null;
+  let metadataTimer: ReturnType<typeof setTimeout> | null = null;
+  function scheduleMetadataLoad() {
+    if (metadataTimer) clearTimeout(metadataTimer);
+    metadataTimer = setTimeout(() => {
+      state = loadSelectedMessages(state);
+      refreshPanes();
+      renderer.requestRender();
+    }, 150);
+  }
 
   function makeScrollPane(
     paneRenderer: CliRenderer,
@@ -265,6 +274,7 @@ export async function startInteractiveTui(): Promise<void> {
       state = next;
       refreshPanes();
       if (state.focus !== prevFocus) rebuildLayout();
+      scheduleMetadataLoad();
     }
     if (next.freshDirectory) {
       freshDirectoryRequest = next.freshDirectory;
@@ -303,6 +313,7 @@ export async function startInteractiveTui(): Promise<void> {
         state = refreshStateFromDisk(state, "back from session");
         rebuildLayout();
         refreshPanes();
+        scheduleMetadataLoad();
         renderer.requestRender();
       }
       if (continueRequest) {
@@ -317,10 +328,12 @@ export async function startInteractiveTui(): Promise<void> {
         state = refreshStateFromDisk(state, "back from session");
         rebuildLayout();
         refreshPanes();
+        scheduleMetadataLoad();
         renderer.requestRender();
       }
     }
   } finally {
+    if (metadataTimer) clearTimeout(metadataTimer);
     process.stdout.off("resize", onResize);
     renderer.keyInput.off?.("keypress", onKeypress);
     renderer.destroy();

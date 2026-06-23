@@ -112,7 +112,7 @@ export function selectedVisibleSession(state: UiState): UiSession | undefined {
   return currentSession(state);
 }
 
-export function reloadState(state: UiState): UiState {
+export function reloadStateFast(state: UiState): UiState {
   const baseCwd = cwd();
   let folders = sortFolders(directoriesForTab(state.index, state.tab), baseCwd);
   if (state.inputMode === "search" && state.query) {
@@ -122,15 +122,20 @@ export function reloadState(state: UiState): UiState {
   const allSessions = [...state.index.active.values(), ...state.index.archived.values()];
   const visible = getVisibleRows({ ...state, folders, sessions, allSessions });
   const cursor = Math.min(state.cursor, Math.max(0, visible.length - 1));
-  const nextBase = { ...state, folders, sessions, allSessions, cursor };
-  const selected = selectedVisibleSession(nextBase);
+  return { ...state, folders, sessions, allSessions, cursor, listScroll: Math.min(state.listScroll, cursor) };
+}
+
+export function loadSelectedMessages(state: UiState): UiState {
+  const selected = selectedVisibleSession(state);
   let messageRows: ArchivedMessageRow[] = [];
   if (selected) {
-    messageRows = selected.timeArchived == null
-      ? readRecentMessages(selected.id)
-      : readArchivedMessages(selected.id);
+    messageRows = selected.timeArchived == null ? readRecentMessages(selected.id) : readArchivedMessages(selected.id);
   }
-  return { ...state, folders, sessions, allSessions, cursor, listScroll: Math.min(state.listScroll, cursor), messageRows, messageScroll: 0 };
+  return { ...state, messageRows, messageScroll: 0 };
+}
+
+export function reloadState(state: UiState): UiState {
+  return loadSelectedMessages(reloadStateFast(state));
 }
 
 export function createInitialState(index: SessionIndex, viewport: Viewport): UiState {
