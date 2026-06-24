@@ -58,16 +58,16 @@ tmp/
 .worktrees/
 
 # ── openclaw — future-work reference data (contains live secrets, never commit) ──
-openclaw/_reference/
+harnesses/openclaw/_reference/
 
 # ── pi-agent — runtime artifacts + personal config ────────────────────────────
-pi-agent/node_modules/
-pi-agent/src/state/
-pi-agent/config/system.yml
-pi-agent/*.db*
-pi-agent/.pi/
-pi-agent/bun.lock
-pi-agent/knowledge/
+harnesses/pi-agent/node_modules/
+harnesses/pi-agent/src/state/
+harnesses/pi-agent/config/system.yml
+harnesses/pi-agent/*.db*
+harnesses/pi-agent/.pi/
+harnesses/pi-agent/bun.lock
+harnesses/pi-agent/knowledge/
 
 # ── graphify-out — keep graph artifacts, exclude runtime/personal data ────────
 graphify-out/cache/
@@ -109,27 +109,23 @@ graphify-out/chunks.json
 graphify-out/prompt_chunk_*.txt
 
 # ── OpenCode tool runtime/test artifacts ──────────────────────────────────────
-opencode/tools/opencode-all/.tmp-db/
-opencode/tools/opencode-all/exports/
-opencode/brand-builder-plugin/brand-builder/data/test-*/
-opencode/brand-builder-plugin/brand-builder/data/*.db-journal
-opencode/brand-builder-plugin/brand-builder/data/*.sqlite
-opencode/brand-builder-plugin/brand-builder/data/*.sqlite-*
+harnesses/opencode/tools/opencode-all/.tmp-db/
+harnesses/opencode/tools/opencode-all/exports/
 
 # Local-only shelved work under OpenCode harness
 harnesses/opencode/future-work/
 
 # ── Claude / Satori local runtime artifacts ──────────────────────────────────
-claude-code/cli/.satori/
-claude-code/config/statusline-sidecar.json
-claude-code/cli/.satori/debug/
+harnesses/claude-code/cli/.satori/
+harnesses/claude-code/config/statusline-sidecar.json
+harnesses/claude-code/cli/.satori/debug/
 
 # ── Screenshots ───────────────────────────────────────────────────────────────
-opencode/docs/imgs/Screenshot *.png
+harnesses/opencode/docs/imgs/Screenshot *.png
 
 # ── OpenCLAW — generated binary/report files per workspace ────────────────────
-openclaw/agents/*/docs/*.pdf
-openclaw/agents/*/docs/*.zip
-openclaw/agents/*/reports/
+harnesses/openclaw/agents/*/docs/*.pdf
+harnesses/openclaw/agents/*/docs/*.zip
+harnesses/openclaw/agents/*/reports/
 
 
