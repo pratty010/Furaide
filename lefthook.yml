@@ -36,7 +36,7 @@ commit-msg:
         fi
 
 pre-push:
-  parallel: true
+  parallel: false
   jobs:
     - name: shellcheck
       glob: "*.sh"
