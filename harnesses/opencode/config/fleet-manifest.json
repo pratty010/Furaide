@@ -154,7 +154,7 @@
       "label": "Reference Docs",
       "description": "OPERATOR guide, architecture overview, manifest schema, agent template, model family guides, and shared GitHub workflow guide. Reference only, not required at runtime.",
       "atomic": false,
-      "coupling": "reference only; GITHUB.md and github-setup-check.sh sourced from common/ at install time",
+      "coupling": "reference only; GITHUB.md and github-setup-check.sh sourced from repo-root docs/ and scripts/ at install time",
       "requires_bun": false,
       "default_on": false,
       "target_subdirs": [
@@ -169,11 +169,11 @@
       ],
       "common_files": [
         {
-          "src": "../common/docs/GITHUB.md",
+          "src": "../../../docs/GITHUB.md",
           "dst": "docs/GITHUB.md"
         },
         {
-          "src": "../common/scripts/github-setup-check.sh",
+          "src": "../../../scripts/github-setup-check.sh",
           "dst": "scripts/github-setup-check.sh"
         }
       ],

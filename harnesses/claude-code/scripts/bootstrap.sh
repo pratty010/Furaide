@@ -24,8 +24,9 @@
 #   bash bootstrap.sh --no-config --yes # steps 0-3, unattended
 
 set -euo pipefail
-REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"   # = claude-code/
-COMMON="$(cd "$REPO/../common" && pwd)"
+REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"   # = harnesses/claude-code/
+ROOT="$(cd "$REPO/../.." && pwd)"
+SCRIPTS_DIR="$ROOT/scripts"
 SATORI_HOME="${SATORI_HOME:-$HOME/.satori}"
 
 GREEN='\033[0;32m'; YELLOW='\033[1;33m'; NC='\033[0m'
@@ -130,13 +131,13 @@ fi
 
 # ── 2) Common skills ──────────────────────────────────────────────────────────
 if confirm "Install common skills → ~/.agents/skills (+ symlink ~/.claude/skills)?"; then
-  bash "$COMMON/install-common.sh" --global
+  bash "$SCRIPTS_DIR/install-vendored-skills.sh" --global
   ok "common skills installed"
 fi
 
 if [[ "$WITH_SKILLS" -eq 1 ]]; then
   if confirm "Install extended skill manifest (heavier, git-clones repos)?"; then
-    bash "$COMMON/install-skills.sh" --ecosystem claude-code
+    bash "$SCRIPTS_DIR/install-external-skills.sh" --ecosystem claude-code
     ok "extended skill manifest installed"
   fi
 fi

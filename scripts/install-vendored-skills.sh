@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# install-common.sh — F.R.I.D.A.Y. shared skills installer
+# install-vendored-skills.sh — F.R.I.D.A.Y. shared skills installer
 #
-# Copies skills from common/skills/ to ~/.agents/skills/ (source of truth).
+# Copies skills from skills/ to ~/.agents/skills/ (source of truth).
 # For global and project modes, creates symlinks in ~/.claude/skills/ pointing to ~/.agents/.
 # Use --relink to replace pre-existing real directories with symlinks.
 #
@@ -13,14 +13,14 @@
 # Called by both claude-code/scripts/bootstrap.sh and opencode/scripts/install-fleet.sh.
 #
 # Usage:
-#   bash common/install-common.sh --global              # → ~/.agents/skills/ + ~/.claude/skills/
-#   bash common/install-common.sh --project <dir>       # → <dir>/.agents/skills/ + <dir>/.claude/skills/
-#   bash common/install-common.sh --custom <path>       # → <path>/skills/
+#   bash scripts/install-vendored-skills.sh --global              # → ~/.agents/skills/ + ~/.claude/skills/
+#   bash scripts/install-vendored-skills.sh --project <dir>       # → <dir>/.agents/skills/ + <dir>/.claude/skills/
+#   bash scripts/install-vendored-skills.sh --custom <path>       # → <path>/skills/
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SKILLS_SRC="$SCRIPT_DIR/skills"
+SKILLS_SRC="$(cd "$SCRIPT_DIR/../skills" && pwd)"
 
 # ── Colors ────────────────────────────────────────────────────────────────
 RST=$'\033[0m'; BOLD=$'\033[1m'; DIM=$'\033[2m'
@@ -85,7 +85,7 @@ case "$MODE" in
     ;;
 esac
 
-printf '\n%s\n' "${BOLD}Installing shared skills from common/skills/${RST}"
+printf '\n%s\n' "${BOLD}Installing shared skills from skills/${RST}"
 printf '  Source:  %s\n' "$SKILLS_SRC"
 printf '  Target:  %s\n' "$AGENTS_DEST"
 [[ -n "$CLAUDE_DEST" ]] && printf '  Also:    %s\n\n' "$CLAUDE_DEST"

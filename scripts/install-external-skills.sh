@@ -22,7 +22,7 @@ set -euo pipefail
 
 # ── Paths ─────────────────────────────────────────────────────────────────
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-MANIFEST="$SCRIPT_DIR/skills-manifest.json"
+MANIFEST="$(cd "$SCRIPT_DIR/../packages/manifests" && pwd)/skills-manifest.json"
 REPOS_DIR="${AGENTS_SKILL_REPOS:-$HOME/.agents/skill-repos}"
 AGENTS_DIR="${AGENTS_SKILLS:-$HOME/.agents/skills}"
 CLAUDE_DIR="${CLAUDE_SKILLS:-$HOME/.claude/skills}"

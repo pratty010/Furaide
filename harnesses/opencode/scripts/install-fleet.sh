@@ -758,8 +758,8 @@ fi
 
 # ── Common skills (B6) ────────────────────────────────────────────────────────
 if [[ "$NO_COMMON_SKILLS" -eq 0 ]]; then
-  COMMON_DIR="$(cd "$FLEET_ROOT/../common" 2>/dev/null && pwd)" || COMMON_DIR=""
-  if [[ -n "$COMMON_DIR" && -f "$COMMON_DIR/install-common.sh" ]]; then
+  SHARED_SCRIPTS_DIR="$(cd "$FLEET_ROOT/../.." && pwd)/scripts"  # → repo-root scripts/
+  if [[ -f "$SHARED_SCRIPTS_DIR/install-vendored-skills.sh" ]]; then
     printf '\n'
     _bold "Shared skills (bx, html-preview, brave-search, plan)"
     if [[ -t 0 ]]; then
@@ -772,11 +772,11 @@ if [[ "$NO_COMMON_SKILLS" -eq 0 ]]; then
     fi
     case "$_skill_scope" in
       g|G)
-        if [[ "$DRY_RUN" -eq 0 ]]; then bash "$COMMON_DIR/install-common.sh" --global
-        else printf '  [dry-run] bash common/install-common.sh --global\n'; fi ;;
+        if [[ "$DRY_RUN" -eq 0 ]]; then bash "$SHARED_SCRIPTS_DIR/install-vendored-skills.sh" --global
+        else printf '  [dry-run] bash scripts/install-vendored-skills.sh --global\n'; fi ;;
       p|P)
-        if [[ "$DRY_RUN" -eq 0 ]]; then bash "$COMMON_DIR/install-common.sh" --project "$PWD"
-        else printf '  [dry-run] bash common/install-common.sh --project %s\n' "$PWD"; fi ;;
+        if [[ "$DRY_RUN" -eq 0 ]]; then bash "$SHARED_SCRIPTS_DIR/install-vendored-skills.sh" --project "$PWD"
+        else printf '  [dry-run] bash scripts/install-vendored-skills.sh --project %s\n' "$PWD"; fi ;;
       *) _info "Common skills skipped." ;;
     esac
     if [[ -t 0 ]]; then
@@ -787,7 +787,7 @@ if [[ "$NO_COMMON_SKILLS" -eq 0 ]]; then
       _extra_skills="n"
     fi
     if [[ "$_extra_skills" =~ ^[Yy] && "$DRY_RUN" -eq 0 ]]; then
-      bash "$COMMON_DIR/install-skills.sh" --ecosystem opencode
+      bash "$SHARED_SCRIPTS_DIR/install-external-skills.sh" --ecosystem opencode
     fi
   fi
 fi

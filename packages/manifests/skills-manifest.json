@@ -16,8 +16,8 @@
       "type": "git",
       "url": "https://github.com/pratty010/Furaide.git",
       "clone_to": "~/.agents/skill-repos/friday",
-      "skills_dir": "common/skills",
-      "notes": "F.R.I.D.A.Y. native skills vendored in common/skills/. install-common.sh handles these directly — no clone needed.",
+      "skills_dir": "skills",
+      "notes": "F.R.I.D.A.Y. native skills vendored in skills/. scripts/install-vendored-skills.sh handles these directly — no clone needed.",
       "ecosystem": ["claude-code", "opencode", "pi-agent"]
     },
     "builtin": {
@@ -277,14 +277,14 @@
 
     "hanko": {
       "label": "Hanko (common/vendor)",
-      "description": "Installed via common/install-common.sh --global. Executed by the hanko--git-seal subagent.",
+      "description": "Installed via scripts/install-vendored-skills.sh --global. Executed by the hanko--git-seal subagent.",
       "install_target": "common",
       "ecosystem": ["claude-code"],
       "skills": [
         {
           "name": "github",
           "source": "friday",
-          "description": "GitHub workflow recipes — the six standard F.R.I.D.A.Y. git/GitHub workflows. Installed via common/install-common.sh; executed by the hanko--git-seal subagent."
+          "description": "GitHub workflow recipes — the six standard F.R.I.D.A.Y. git/GitHub workflows. Installed via scripts/install-vendored-skills.sh; executed by the hanko--git-seal subagent."
         }
       ]
     },
