@@ -184,8 +184,8 @@ git checkout -b feat/your-feature-name
 ### 2. Make changes, test locally
 
 ```bash
-bun test          # if in opencode/
-uv run pytest     # if in claude-code/cli/
+bun test          # if in harnesses/opencode/
+uv run pytest     # if in harnesses/claude-code/cli/
 ```
 
 ### 3. Commit with conventional message
@@ -223,8 +223,8 @@ Once checks pass: GitHub web UI → PR → "Squash and merge" → Confirm.
 | `gitleaks` | All staged files | A secret pattern is detected |
 | `validate-json` | `*.json` files | JSON is malformed |
 | `validate-yaml` | `*.yml` / `*.yaml` files | YAML is malformed |
-| `bun test` | opencode/** changes | Tests fail with `--bail` |
-| `pytest` | claude-code/** changes | Tests fail |
+| `bun test` | harnesses/opencode/** changes | Tests fail with `--bail` |
+| `pytest` | harnesses/claude-code/** changes | Tests fail |
 | `conventional` | Commit message | Doesn't match Conventional Commits pattern |
 
 **Skipping a check for a false positive:**
@@ -243,7 +243,7 @@ lefthook run pre-commit   # verify
 
 ## CI Gates: What Runs on a PR to Master
 
-1. **`test-claude-code`** — if `claude-code/` or `.github/` changed
+1. **`test-claude-code`** — if `harnesses/claude-code/` or `.github/` changed
    - Runs `uv sync --frozen`
    - Runs `uv run pytest -x -q --tb=short`
 
@@ -251,7 +251,7 @@ lefthook run pre-commit   # verify
 
 **Debugging:**
 ```bash
-cd claude-code/cli && uv sync --frozen && uv run pytest -x -q --tb=short
+cd harnesses/claude-code/cli && uv sync --frozen && uv run pytest -x -q --tb=short
 ```
 
 ---
@@ -311,9 +311,9 @@ git checkout dev && git rebase origin/master
 LEFTHOOK_EXCLUDE=gitleaks git commit -m "chore: add test fixtures"
 ```
 
-### bun tests fail in pre-commit but `opencode/` has no test runner
+### bun tests fail in pre-commit but `harnesses/opencode/` has no test runner
 
-`opencode/` is agent definitions — there is no `bun-tests` job in `lefthook.yml`. Only `pytest` runs (for `claude-code/`). If you see a bun-test job, it was added in error.
+`harnesses/opencode/` is agent definitions — there is no `bun-tests` job in `lefthook.yml`. Only `pytest` runs (for `harnesses/claude-code/`). If you see a bun-test job, it was added in error.
 
 ---
 
@@ -352,5 +352,5 @@ gh pr list
 
 - **Branch protection standard:** `github-branch-protection.md` in project memory
 - **Setup checks:** `bash <scope>/scripts/github-setup-check.sh`
-- **Claude Code git agent:** `hanko--git-seal` subagent + `github` skill (`claude-code/config/agents/`, `common/skills/github/`)
-- **OpenCode git agent:** `@hanko` subagent (`opencode/agents/hanko.md`)
+- **Claude Code git agent:** `hanko--git-seal` subagent + `github` skill (`harnesses/claude-code/config/agents/`, `common/skills/github/`)
+- **OpenCode git agent:** `@hanko` subagent (`harnesses/opencode/agents/hanko.md`)

@@ -178,4 +178,4 @@ Or delete the extension directory from Pi's extensions path manually.
 
 ## Part of F.R.I.D.A.Y.
 
-Other components: `opencode/` (30-agent core fleet), `claude-code/` (Satori + Hanko), `common/` (shared skills + docs), `openclaw/` (stateful assistant personas).
+Other components: `harnesses/opencode/` (30-agent core fleet), `harnesses/claude-code/` (Satori + Hanko), `harnesses/openclaw/` (stateful assistant personas).

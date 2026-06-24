@@ -236,7 +236,7 @@
         {
           "name": "superpowers",
           "source": "superpowers",
-          "description": "Full @obra superpowers collection — install directly into opencode skills dir. See opencode/README.md for opt-in instructions."
+          "description": "Full @obra superpowers collection — install directly into opencode skills dir. See harnesses/opencode/README.md for opt-in instructions."
         }
       ]
     },

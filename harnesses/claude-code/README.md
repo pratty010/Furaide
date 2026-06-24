@@ -314,4 +314,4 @@ config/
 
 ## 📚 See also
 
-The full collection lives at [pratty010/Furaide](https://github.com/pratty010/Furaide). Other components: `opencode/` (30-shikigami core fleet), `common/` (shared skills + docs), `pi-agent/`, `openclaw/`.
+The full collection lives at [pratty010/Furaide](https://github.com/pratty010/Furaide). Other components: `harnesses/opencode/` (30-shikigami core fleet), `harnesses/pi-agent/`, `harnesses/openclaw/`.
