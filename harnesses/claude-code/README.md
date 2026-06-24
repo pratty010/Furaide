@@ -196,8 +196,8 @@ Satori reads optional config from `~/.satori/config.json` (or `$SATORI_HOME/conf
 Satori observes skills, so you need skills installed for it to observe anything. Bootstrap offers to run the common installer. You can also run it separately:
 
 ```bash
-bash ~/Furaidē/common/install-common.sh --global      # bx, html-preview, brave-search, plan
-bash ~/Furaidē/common/install-skills.sh --ecosystem claude-code  # superpowers, notebooklm, …
+bash ~/Furaidē/scripts/install-vendored-skills.sh --global      # bx, html-preview, brave-search, plan
+bash ~/Furaidē/scripts/install-external-skills.sh --ecosystem claude-code  # superpowers, notebooklm, …
 ```
 
 ### Config bundle
@@ -274,7 +274,7 @@ For testing upcoming features on the `dev` branch:
 
 3. **Local Plugin Smoke Testing**
    To test modifications to local plugins/skills before they are merged:
-   - **For skills**: modify the source under `common/skills/` and re-run `bootstrap.sh`.
+   - **For skills**: modify the source under `skills/` and re-run `bootstrap.sh`.
    - **For Claude Code plugins**: because `/plugin marketplace add` fetches the marketplace metadata from the default branch on GitHub, live marketplace commands resolve to the remote repo. For local plugin development, use the checked-out copy with local bootstrap, then run Claude Code while capturing event payloads:
 
      ```bash
@@ -306,7 +306,7 @@ config/
   CLAUDE.md                      # global config (installed → ~/.claude/)
   statusline-command.sh          # statusline helper (installed → ~/.claude/)
 
-**Adding a new skill:** add to `common/skills/`, then update `common/skills-manifest.json`.
+**Adding a new skill:** add to `skills/`, then update `packages/manifests/skills-manifest.json`.
 
 **Adding a new plugin:** create `plugins/<name>/.claude-plugin/plugin.json`, then register it in `/.claude-plugin/marketplace.json` at the repo root.
 
