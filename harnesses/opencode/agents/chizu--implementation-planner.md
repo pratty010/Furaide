@@ -21,4 +21,4 @@ permission:
     "*": deny
 ---
 
-{file:../common/agents/chizu--implementation-planner/core.md}
+{file:../../packages/agent-cores/planner/core.md}

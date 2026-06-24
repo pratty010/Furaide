@@ -67,7 +67,7 @@ After install, edit runtime models in the installed `opencode.json` or `opencode
 
 Run `bash harnesses/opencode/scripts/install-fleet.sh --list` for the full machine-readable view.
 
-> **Superpowers** (the @obra skill collection) is **not** auto-loaded. It was removed from `opencode.jsonc` to avoid third-party network hits on install. Install it manually via `bash scripts/install-skills.sh --ecosystem opencode` if you want it.
+> **Superpowers** (the @obra skill collection) is **not** auto-loaded. It was removed from `opencode.jsonc` to avoid third-party network hits on install. Install it manually via `bash scripts/install-external-skills.sh --ecosystem opencode` if you want it.
 
 ---
 

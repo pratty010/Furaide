@@ -177,7 +177,7 @@ See [harnesses/openclaw/README.md](harnesses/openclaw/README.md).
 ### Shared skills only
 
 ```bash
-bash scripts/install-common.sh --global   # installs to ~/.agents/skills/
+bash scripts/install-vendored-skills.sh --global   # installs to ~/.agents/skills/
 # or: --project <dir>  --custom <path>
 ```
 

@@ -190,4 +190,4 @@ Remove the `agentDir` reference from your OpenCLAW config (`openclaw.json` → `
 
 - Full OpenCLAW documentation: [docs.openclaw.ai](https://docs.openclaw.ai)
 - Config schema reference: see `openclaw/_reference/openclaw_default.json` (local only, gitignored)
-- Related: `common/docs/models/gemini.md` and `common/docs/models/openai.md` for model-specific prompting guides used by OpenCLAW personas
+- Related: `docs/models/gemini.md` and `docs/models/openai.md` for model-specific prompting guides used by OpenCLAW personas

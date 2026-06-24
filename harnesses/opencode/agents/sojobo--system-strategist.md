@@ -21,4 +21,4 @@ permission:
     "*": deny
 ---
 
-{file:../common/agents/strategist/core.md}
+{file:../../packages/agent-cores/strategist/core.md}

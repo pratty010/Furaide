@@ -169,9 +169,9 @@ The user confirmed full removal of the user-data directory. The `vault.py` conte
 
 ### NOT touched (confirmed unrelated)
 
-- `opencode/skills/omokage/SKILL.md` — brand-builder progress_feedback skill. Name collision with the plugin, but entirely different concept. The skill is part of the brand-builder domain and stays.
-- `opencode/brand-builder-plugin/brand-builder/workflows/michibiki.md` and `references/synthesis-and-clarification.md` + `intent-routing.md` — reference `omokage` as a brand-builder workflow stage (progress_feedback). Unrelated to the session-vault plugin. Stays.
-- `opencode/brand-builder-plugin/brand-builder/README.md` — lists `omokage` as a brand command. Unrelated. Stays.
+- `harnesses/opencode/future-work/skills/omokage/SKILL.md` — brand-builder progress_feedback skill. Name collision with the plugin, but entirely different concept. The skill is part of the brand-builder domain and stays.
+- `harnesses/opencode/future-work/brand-builder-plugin/brand-builder/workflows/michibiki.md` and `references/synthesis-and-clarification.md` + `intent-routing.md` — reference `omokage` as a brand-builder workflow stage (progress_feedback). Unrelated to the session-vault plugin. Stays.
+- `harnesses/opencode/future-work/brand-builder-plugin/brand-builder/README.md` — lists `omokage` as a brand command. Unrelated. Stays.
 
 ### Verification
 

@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
-# install-skills.sh — F.R.I.D.A.Y. skill installer
+# install-external-skills.sh — F.R.I.D.A.Y. external skill installer
 #
 # Installs Claude Code workflow skills from skills-manifest.json.
 # Creates symlinks in ~/.claude/skills/ (and optionally ~/.agents/skills/).
 #
 # Usage:
-#   bash scripts/install-skills.sh               # interactive
-#   bash scripts/install-skills.sh --all          # install all non-builtin sets without prompts
-#   bash scripts/install-skills.sh --list         # show what would be installed, then exit
-#   bash scripts/install-skills.sh --project      # install into ./.claude/skills/ (project-local)
-#   bash scripts/install-skills.sh --agents-only  # only link into ~/.agents/skills/, skip ~/.claude/
+#   bash scripts/install-external-skills.sh               # interactive
+#   bash scripts/install-external-skills.sh --all          # install all non-builtin sets without prompts
+#   bash scripts/install-external-skills.sh --list         # show what would be installed, then exit
+#   bash scripts/install-external-skills.sh --project      # install into ./.claude/skills/ (project-local)
+#   bash scripts/install-external-skills.sh --agents-only  # only link into ~/.agents/skills/, skip ~/.claude/
 #
 # Symlink chain:
 #   ~/.agents/skill-repos/<source>/   ← cloned git repos (source of truth)

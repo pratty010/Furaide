@@ -23,4 +23,4 @@ permission:
     "*": deny
 ---
 
-{file:../common/agents/shiranui--migration-guide/core.md}
+{file:../../packages/agent-cores/shiranui/core.md}

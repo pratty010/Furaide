@@ -93,7 +93,7 @@
 - **Shell scripts:** Semgrep `r/bash` is the only scanner that adds value over vulnerability scanning. Highest-value target is hook scripts.
 - **TypeScript but not an application:** Agent harnesses, not a web app. OWASP Top 10 mostly irrelevant; focus on command injection, file traversal, secret exposure in logs.
 - **Monorepo scanning time:** `trivy fs .` must skip `node_modules/`, `.git/`, `.worktrees/`, `graphify-out/`.
-- **Low SCA value components:** `openclaw/` and `pi-agent/` may have minimal lockfiles. Use path filtering where needed.
+- **Low SCA value components:** `harnesses/openclaw/` and `harnesses/pi-agent/` may have minimal lockfiles. Use path filtering where needed.
 - **False positives:** Gitleaks flags `.env.example`, test fixtures, placeholder tokens. Use per-path allowlist, not global skips.
 - **Worktree support:** Ensure `.worktrees/` is handled correctly in skip lists.
 

@@ -731,7 +731,7 @@ brand_targets="${COMP_TARGETS[brand-builder]:-}"
 if [[ -n "$brand_targets" ]]; then
   for target_dir in $brand_targets; do
     _warn "Brand Builder requires bun install:"
-    printf '    cd %s/brand-builder-plugin && bun install\n' "$target_dir"
+    printf '    cd %s/future-work/brand-builder-plugin && bun install\n' "$target_dir"
   done
 fi
 

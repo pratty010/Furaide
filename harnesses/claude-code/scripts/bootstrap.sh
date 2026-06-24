@@ -14,7 +14,7 @@
 #   --yes, -y     Run all steps unattended (no prompts)
 #   --minimal     Run only steps 0-1 (migration + Satori CLI)
 #   --no-config   Run steps 0-3, skip step 4 (config bundle)
-#   --with-skills After step 2, also run install-skills.sh --ecosystem claude-code
+#   --with-skills After step 2, also run install-external-skills.sh --ecosystem claude-code
 #   -h, --help    Print this usage and exit
 #
 # Usage examples:

@@ -352,5 +352,5 @@ gh pr list
 
 - **Branch protection standard:** `github-branch-protection.md` in project memory
 - **Setup checks:** `bash <scope>/scripts/github-setup-check.sh`
-- **Claude Code git agent:** `hanko--git-seal` subagent + `github` skill (`harnesses/claude-code/config/agents/`, `common/skills/github/`)
+- **Claude Code git agent:** `hanko--git-seal` subagent + `github` skill (`harnesses/claude-code/config/agents/`, `skills/github/`)
 - **OpenCode git agent:** `@hanko` subagent (`harnesses/opencode/agents/hanko.md`)

@@ -330,7 +330,7 @@ From the March announcement, "Versioning Roadmap" section.
 
 This repo has several TypeScript-heavy components. The relevant facts differ per component.
 
-### 9.1 opencode-all (`opencode/tools/opencode-all/`)
+### 9.1 opencode-all (`harnesses/opencode/tools/opencode-all/`)
 
 - Runtime is Bun, not Node.js. The `typescript` package is a devDependency for typechecking only.
 - TS7 does not speed up the running TUI. Bun executes the TS directly.
@@ -338,18 +338,18 @@ This repo has several TypeScript-heavy components. The relevant facts differ per
 - The `types` field is `["bun-types"]`. Confirm `bun-types` still resolves under `tsgo` once `@typescript/native-preview` is used in CI.
 - Action: try replacing `typescript` with `@typescript/native-preview` in CI typecheck to cut typecheck time. Validate `bun-types` compatibility first.
 
-### 9.2 brand-builder-plugin (`opencode/brand-builder-plugin/`)
+### 9.2 brand-builder-plugin (`harnesses/opencode/future-work/brand-builder-plugin/`)
 
 - Has its own `bun install` and its own deps.
 - Same Bun runtime situation as opencode-all.
 - Action: audit `tsconfig.json` for `moduleResolution: "node"` or `module: "commonjs"`. Migrate to `bundler` or `nodenext` before adopting TS7.
 
-### 9.3 claude-code skills and plugins (`claude-code/`)
+### 9.3 claude-code skills and plugins (`harnesses/claude-code/`)
 
 - The `github` skill and `satori` plugin are mostly Markdown and shell. TypeScript surface is small.
 - Any TS utility scripts should be checked against the CommonJS mixing rule in section 6.4 if they use `module.exports`.
 
-### 9.4 OpenCode fleet installer scripts (`opencode/scripts/`)
+### 9.4 OpenCode fleet installer scripts (`harnesses/opencode/scripts/`)
 
 - Installer tests are in `scripts/tests/` and run under Bun. They are JS, not TS-heavy.
 - No direct TS7 impact.
