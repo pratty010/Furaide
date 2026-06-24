@@ -2,27 +2,25 @@
 
 ## What this directory is
 
-Source tree for the OpenCode fleet. Install-target runtime files live under `config/`. Three kinds of deliverables: fleet config (agents, plugins, scripts), optional brand-builder bundle (Kitsune domain), standalone companion tools (`tools/opencode-all/`).
+Source tree for the OpenCode fleet. Install-target runtime files live under `config/`. Three kinds of deliverables: fleet config (agents, plugins, scripts), standalone companion tools (`tools/opencode-all/`), and future-work/domain experiments.
 
 ## Directory map
 
 - `config/` — install-target source files (`AGENTS.md`, `fleet-manifest.json`, `opencode.jsonc`)
-- `agents/` — 39 shikigami definitions (12 specialists + 16 subagents + 2 escape-hatch + 9 brand-builder)
+- `agents/` — 30 shikigami definitions (12 specialists + 16 subagents + 2 escape-hatch)
 - `plugins/` — 4 gate plugins (nio, nurikabe, komainu, migawari)
 - `scripts/` — installer, uninstaller, workflow state engine, agent support scripts
 - `rules/` — memory contract and other rules
 - `docs/` — architecture, workflows, operator guide, routing manifest, model guides
-- `command/` — brand-builder slash commands
-- `skills/` — brand-builder skills
-- `brand-builder-plugin/` — opt-in plugin with its own deps
+- `commands/` — active runtime: `tools-config.md` (web-tools config command)
 - `tools/opencode-all/` — standalone companion tool (shipped independently)
+- `future-work/` — shelved domain experiments (e.g. brand-builder), gitignored
 
 ## Commands
 
 - `bun test scripts/tests/` — run installer/config tests
 - `bash scripts/install-fleet.sh --dry-run` — preview installation
 - `bash scripts/install-fleet.sh --list` — list installable components
-- Brand-builder may need `cd brand-builder-plugin && bun install` for its own deps
 
 ## Editing rules
 
@@ -36,7 +34,7 @@ Source tree for the OpenCode fleet. Install-target runtime files live under `con
 
 **Always**: Run `bun test scripts/tests/` after changing installer, manifest, config, agent inventory, or plugin wiring.
 
-**Ask first**: Before removing docs, rules, plugins, or opt-in brand-builder assets.
+**Ask first**: Before removing docs, rules, or plugins.
 
 **Never**: Patch `node_modules`. Remove gate plugins casually. Edit installed user paths as if they were source.
 

@@ -2,30 +2,29 @@
 
 > *"Thirty spirits. Five plugins. The fleet is ready."*
 
-Furaidē's [OpenCode](https://opencode.ai) configuration: a 30-agent fleet of named shikigami specialists, four gate plugins, the web-tools plugin, and Kitsune's brand-builder domain (opt-in, in development). Part of the [F.R.I.D.A.Y.](https://github.com/pratty010/Furaide) collection.
+Furaidē's [OpenCode](https://opencode.ai) configuration: a 30-agent fleet of named shikigami specialists, four gate plugins, and the web-tools plugin. Part of the [F.R.I.D.A.Y.](https://github.com/pratty010/Furaide) collection.
 
 There is no marketplace: the installer is the distribution. One command clones and installs:
 
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/pratty010/Furaide/main/opencode/scripts/install-fleet-bootstrap.sh)
+bash <(curl -fsSL https://raw.githubusercontent.com/pratty010/Furaide/main/harnesses/opencode/scripts/install-fleet-bootstrap.sh)
 ```
 
 Or if you already have the repo:
 
 ```bash
-bash opencode/scripts/install-fleet.sh
+bash harnesses/opencode/scripts/install-fleet.sh
 ```
 
 The installer now runs as an interactive wizard with one model-resolution checkpoint before writes:
 
 1. **Core bundle** (always default on): workflow gates, model failover, security gate, specialist agents, agent support scripts, rules, and reference docs.
-2. **Brand Builder / Kitsune** (optional, default **No**): the opt-in 9-agent brand domain. Skip unless you want it.
-3. **Location** (independent choice): global (`~/.config/opencode/`), project (`./.opencode/`), or a custom absolute path.
-4. **Mode** (independent choice): copy (default; writable, self-contained) or link (`ln -sfn` from the repo; useful for development).
-5. **Model resolution**: the installer runs `opencode models --refresh` (falls back to `opencode models`), compares local availability to the fleet routing manifest, and only asks once if any model remap is required.
-6. **Preflight summary**: before any write, the installer prints the resolved paths, file counts, mode, and per-component coupling.
-7. **Conflict handling**: existing files at the target path are backed up to `kura_backup/<timestamp>/` before overwrite, so nothing is silently overwritten.
-8. **Install receipt**: every target root gets `.furaide-install-receipt.json`, which records selected components, merged config keys, and model-map summary for later uninstall or rollback.
+2. **Location** (independent choice): global (`~/.config/opencode/`), project (`./.opencode/`), or a custom absolute path.
+3. **Mode** (independent choice): copy (default; writable, self-contained) or link (`ln -sfn` from the repo; useful for development).
+4. **Model resolution**: the installer runs `opencode models --refresh` (falls back to `opencode models`), compares local availability to the fleet routing manifest, and only asks once if any model remap is required.
+5. **Preflight summary**: before any write, the installer prints the resolved paths, file counts, mode, and per-component coupling.
+6. **Conflict handling**: existing files at the target path are backed up to `kura_backup/<timestamp>/` before overwrite, so nothing is silently overwritten.
+7. **Install receipt**: every target root gets `.furaide-install-receipt.json`, which records selected components, merged config keys, and model-map summary for later uninstall or rollback.
 
 After install, edit runtime models in the installed `opencode.json` or `opencode.jsonc` under `agent.<name>.model`. Fallback chains remain in `docs/routing-manifest.json`.
 
@@ -56,7 +55,7 @@ After install, edit runtime models in the installed `opencode.json` or `opencode
 ## Components
 
 | # | Component | Atomic | Default | Description |
-|---|-----------|--------|---------|-------------|
+|--|-----------|--------|---------|-------------|
 | 1 | Workflow Gates | yes | on | Nio + Nurikabe gate plugins + workflow state engine. Tightly coupled; cannot be split. |
 | 2 | Model Failover | yes | on | Migawari plugin + routing manifest. Tightly coupled; cannot be split. |
 | 3 | Security Gate | no | on | Komainu plugin: 35+ dangerous-pattern checks on every Edit/Write. Standalone. |
@@ -64,12 +63,11 @@ After install, edit runtime models in the installed `opencode.json` or `opencode
 | 5 | Agent Support Scripts | no | on | Verification and safety scripts called by agents via Karakuri. |
 | 6 | Rules | no | on | Memory contract and other rules wired via `instructions` glob. |
 | 7 | Reference Docs | no | off | OPERATOR guide, architecture overview, manifest schema, model family guides. |
-| 8 | Brand Builder / Kitsune | yes | off | Opt-in; in development. 9 brand agents + plugin + commands + skills. Needs `bun install`. |
-| 9 | Web Tools | yes | on | 3 tools (web_search, fetch_content, maps_search) with google.transport: auto and /tools-config. |
+| 8 | Web Tools | yes | on | 3 tools (web_search, fetch_content, maps_search) with google.transport: auto and /tools-config. |
 
-Run `bash opencode/scripts/install-fleet.sh --list` for the full machine-readable view.
+Run `bash harnesses/opencode/scripts/install-fleet.sh --list` for the full machine-readable view.
 
-> **Superpowers** (the @obra skill collection) is **not** auto-loaded. It was removed from `opencode.jsonc` to avoid third-party network hits on install. Install it manually via `bash common/install-skills.sh --ecosystem opencode` if you want it.
+> **Superpowers** (the @obra skill collection) is **not** auto-loaded. It was removed from `opencode.jsonc` to avoid third-party network hits on install. Install it manually via `bash scripts/install-skills.sh --ecosystem opencode` if you want it.
 
 ---
 
@@ -180,24 +178,6 @@ For interactive tool-level budgets, default providers, and transport changes, us
 | Komainu(Security Patterns) | Screens edits for dangerous patterns |
 | Migawari(Model Failover) | Cross-vendor fallback chain from routing-manifest.json |
 
-### Brand Builder / Kitsune Domain (opt-in, in development)
-
-Install with `scripts/install-fleet.sh` (brand-builder component). Not loaded by default.
-
-Brand Builder remains opt-in only. The installer does not enable it unless you explicitly select it.
-
-| Shikigami | Role |
-|-----------|------|
-| Kitsune(Brand Builder) | Brand-builder orchestrator |
-| Kuda-gitsune(Diagnostician) | Current-state scoring and role-fit judgment |
-| Akashi(GitHub Proof) | GitHub portfolio evaluation |
-| Hyakume(ATS Discoverability) | ATS keyword coverage audit |
-| Kodama(Growth Planner) | Growth roadmap and gap analysis |
-| Kurabokko(Knowledge Steward) | Artifact intake and memory hygiene |
-| Migaki(LinkedIn Optimizer) | LinkedIn section diagnosis and rewrite |
-| Kataribe(Narrative Brand) | Brand strategy and website brief |
-| Amanojaku(Anti-Voice Reviewer) | Adversarial claim-grounding reviewer |
-
 ---
 
 ## Tests
@@ -210,12 +190,12 @@ bun test scripts/tests/
 
 ## Uninstall
 
-The OpenCode uninstaller removes OpenCode-owned shikigami files, gate plugins, and configs. It can also clean up shared `common/` skills used across harnesses.
+The OpenCode uninstaller removes OpenCode-owned shikigami files, gate plugins, and configs. It can also clean up shared skills used across harnesses.
 
 If `.furaide-install-receipt.json` is present, uninstall uses it first to decide which components and config keys to remove. If the receipt is absent, it falls back to manifest-driven cleanup.
 
 ```bash
-bash opencode/scripts/uninstall-fleet.sh
+bash harnesses/opencode/scripts/uninstall-fleet.sh
 ```
 
 ### Flags
@@ -227,7 +207,7 @@ bash opencode/scripts/uninstall-fleet.sh
 | `--global` | Run uninstall on global scope (`~/.config/opencode/`). |
 | `--project` | Run uninstall on project-local scope (`./.opencode/`). |
 | `--custom <dir>` | Run uninstall on a custom absolute directory. |
-| `--include-shared-skills` | Directly remove shared `common/` skills without prompting. |
+| `--include-shared-skills` | Directly remove shared skills without prompting. |
 
 ---
 
@@ -240,7 +220,7 @@ Check out the `dev` branch and run the installer in symlink mode:
 
 ```bash
 git clone -b dev https://github.com/pratty010/Furaide.git ~/furaide-dev
-cd ~/furaide-dev/opencode
+cd ~/furaide-dev/harnesses/opencode
 bash scripts/install-fleet.sh --project --link
 ```
 
@@ -249,7 +229,7 @@ Using `--link` symlinks configuration files to your checked-out repository inste
 Alternatively, run the remote bootstrap installer pointing to the `dev` branch:
 
 ```bash
-FURAIDE_BRANCH=dev bash <(curl -fsSL https://raw.githubusercontent.com/pratty010/Furaide/dev/opencode/scripts/install-fleet-bootstrap.sh)
+FURAIDE_BRANCH=dev bash <(curl -fsSL https://raw.githubusercontent.com/pratty010/Furaide/dev/harnesses/opencode/scripts/install-fleet-bootstrap.sh)
 ```
 
 ### 2. Running Tests

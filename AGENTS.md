@@ -2,7 +2,7 @@
 
 ## What this repo is
 
-5-component monorepo: `opencode/`, `claude-code/`, `pi-agent/`, `openclaw/`, `common/`. `graphify-out/` holds the architecture knowledge graph — consult it before broad codebase work.
+5-component monorepo with harness integrations under `harnesses/` and shared resources at root. `graphify-out/` holds the architecture knowledge graph — consult it before broad codebase work.
 
 ## Before editing
 
@@ -14,11 +14,10 @@
 
 | Component | What it is | Local guide |
 |---|---|---|
-| `opencode/` | 30-agent OpenCode fleet + installer | `opencode/AGENTS.md` |
-| `claude-code/` | Satori plugin + github skill bundle | `claude-code/AGENTS.md` |
-| `pi-agent/` | Pi coding-agent extension package | `pi-agent/AGENTS.md` |
-| `openclaw/` | OpenCLAW persona workspace configs | `openclaw/AGENTS.md` |
-| `common/` | Shared skills, docs, installer scripts | `common/README.md` |
+| `harnesses/opencode/` | 30-agent OpenCode fleet + installer | `harnesses/opencode/AGENTS.md` |
+| `harnesses/claude-code/` | Satori plugin + github skill bundle | `harnesses/claude-code/AGENTS.md` |
+| `harnesses/pi-agent/` | Pi coding-agent extension package | `harnesses/pi-agent/AGENTS.md` |
+| `harnesses/openclaw/` | OpenCLAW persona workspace configs | `harnesses/openclaw/AGENTS.md` |
 
 ## Commands
 
@@ -34,5 +33,5 @@ No monorepo-wide test command. Each component has its own correctness gate — r
 
 ## Cross-component rules
 
-- If changing shared contracts (`common/`, root docs, cross-harness naming), inspect all affected READMEs and AGENTS files
+- If changing shared contracts (`docs/`, `scripts/`, `skills/`, root files, cross-harness naming), inspect all affected READMEs and AGENTS files
 - If changing installer paths, check docs + scripts + tests together
