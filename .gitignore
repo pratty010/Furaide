@@ -114,6 +114,9 @@ opencode/brand-builder-plugin/brand-builder/data/*.db-journal
 opencode/brand-builder-plugin/brand-builder/data/*.sqlite
 opencode/brand-builder-plugin/brand-builder/data/*.sqlite-*
 
+# Local-only shelved work under OpenCode harness
+harnesses/opencode/future-work/
+
 # ── Claude / Satori local runtime artifacts ──────────────────────────────────
 claude-code/cli/.satori/
 claude-code/config/statusline-sidecar.json
