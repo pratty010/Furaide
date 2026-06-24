@@ -105,6 +105,8 @@ graphify-out/.graphify_cached.json
 graphify-out/.graphify_chunk_*.json
 graphify-out/.graphify_uncached.txt
 graphify-out/.needs_update
+graphify-out/chunks.json
+graphify-out/prompt_chunk_*.txt
 
 # ── OpenCode tool runtime/test artifacts ──────────────────────────────────────
 opencode/tools/opencode-all/.tmp-db/
