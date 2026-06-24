@@ -30,7 +30,8 @@ _err()   { printf '%b\n' "${RED}[error]${RST} $*" >&2; }
 backup_existing() {
   local path="$1"
   if [[ -e "$path" ]]; then
-    local backup_dir="$TARGET_DIR/kura_backup/$(date +%Y%m%d-%H%M%S)"
+    local backup_dir
+    backup_dir="$TARGET_DIR/kura_backup/$(date +%Y%m%d-%H%M%S)"
     mkdir -p "$backup_dir"
     cp "$path" "$backup_dir/"
     _warn "backed up existing $path -> $backup_dir/"
