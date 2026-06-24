@@ -4,7 +4,8 @@ import { join } from 'node:path';
 import { AGENT_RENAME_MAP, LEGACY_AGENT_ALIASES, ALL_AGENT_TARGETS } from '../lib/agent-fleet-map.mjs';
 
 const ROOTS = ['config/AGENTS.md', 'config/fleet-manifest.json', 'docs/routing-manifest.json', 'scripts/install-fleet.sh', 'scripts/install-fleet-bootstrap.sh', 'scripts/merge-config.mjs'];
-const DIRS = ['agents', 'commands', 'docs'];
+const DIRS = ['agents', 'commands'];
+const ACTIVE_DOC_SUBDIRS = ['docs/architecture.md', 'docs/OPERATOR.md', 'docs/agent-description-rubric.md', 'docs/agent-template.md', 'docs/manifest-schema.md', 'docs/workflows.md', 'docs/models', 'docs/routing-manifest.json'];
 const DOC_ALLOWLIST = new Set(['docs/agent-description-rubric.md', 'docs/archive/agent-fleet-structural-findings.md']);
 
 function walk(dir) {
@@ -17,12 +18,25 @@ function walk(dir) {
   return out;
 }
 
+function collectActiveDocs() {
+  // Only check active fleet docs; historical specs/plans under docs/superpowers/ may contain legacy references
+  const out = [];
+  for (const item of ACTIVE_DOC_SUBDIRS) {
+    try {
+      const st = statSync(item);
+      if (st.isDirectory()) out.push(...walk(item));
+      else out.push(item);
+    } catch {}
+  }
+  return out;
+}
+
 function escapeRegex(s) {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 test('no stale old stems or legacy aliases remain outside approved historical docs', () => {
-  const files = [...ROOTS, ...DIRS.flatMap(walk)].filter(file => !DOC_ALLOWLIST.has(file));
+  const files = [...ROOTS, ...DIRS.flatMap(walk), ...collectActiveDocs()].filter(file => !DOC_ALLOWLIST.has(file));
   const staleTokens = [
     ...AGENT_RENAME_MAP.map(entry => entry.current),
     ...Object.keys(LEGACY_AGENT_ALIASES),

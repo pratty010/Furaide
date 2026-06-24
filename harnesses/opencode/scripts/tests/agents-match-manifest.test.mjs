@@ -11,9 +11,6 @@ const configAgents = config.agent ?? {};
 const allAgents = {
   ...manifest.specialists,
   ...manifest.subagents,
-  ...Object.fromEntries(
-    Object.entries(manifest.brand_builder_subagents ?? {}).filter(([k]) => !k.startsWith('_'))
-  ),
 };
 
 for (const [name, entry] of Object.entries(allAgents)) {
@@ -25,16 +22,14 @@ for (const [name, entry] of Object.entries(allAgents)) {
   });
 }
 
-test('manifest covers all 39 agent config entries', () => {
+test('manifest covers all 30 agent config entries', () => {
   // opencode.jsonc must be the source of truth for runtime model assignments,
   // but the routing manifest must enumerate them so the canonical check has
-  // something to compare against.
+  // something to compare against. Brand-builder assets are shelved under
+  // future-work/ and are no longer part of the active fleet.
   const manifestNames = new Set([
     ...Object.keys(manifest.specialists ?? {}),
     ...Object.keys(manifest.subagents ?? {}),
-    ...Object.entries(manifest.brand_builder_subagents ?? {})
-      .filter(([k]) => !k.startsWith('_'))
-      .map(([k]) => k),
   ]);
   const configNames = new Set(Object.keys(configAgents));
   for (const name of configNames) {
@@ -43,5 +38,5 @@ test('manifest covers all 39 agent config entries', () => {
   for (const name of manifestNames) {
     expect(configNames.has(name), `${name} is in manifest but not in opencode.jsonc`).toBe(true);
   }
-  expect(configNames.size).toBe(39);
+  expect(configNames.size).toBe(30);
 });

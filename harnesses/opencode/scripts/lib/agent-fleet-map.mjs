@@ -8,7 +8,6 @@ export const AGENT_RENAME_MAP = [
   { current: 'daidarabotchi', next: 'daidarabotchi--infra-shaper', group: 'specialist' },
   { current: 'yumemi', next: 'yumemi--story-smith', group: 'specialist' },
   { current: 'mujina', next: 'mujina--brand-shapeshifter', group: 'specialist' },
-  { current: 'kitsune', next: 'kitsune--brand-orchestrator', group: 'other' },
   { current: 'planner', next: 'chizu--implementation-planner', group: 'specialist' },
   { current: 'shiranui', next: 'shiranui--migration-guide', group: 'specialist' },
   { current: 'sojobō', next: 'sojobo--system-strategist', group: 'specialist' },
@@ -29,14 +28,6 @@ export const AGENT_RENAME_MAP = [
   { current: 'tengu', next: 'tengu--visual-artisan', group: 'subagent' },
   { current: 'mizuchi', next: 'mizuchi--data-current', group: 'subagent' },
   { current: 'hanko', next: 'hanko--git-seal', group: 'subagent' },
-  { current: 'akashi', next: 'akashi--proof-keeper', group: 'other' },
-  { current: 'amanojaku', next: 'amanojaku--voice-contrarian', group: 'other' },
-  { current: 'hyakume', next: 'hyakume--ats-watchman', group: 'other' },
-  { current: 'kataribe', next: 'kataribe--narrative-teller', group: 'other' },
-  { current: 'kodama', next: 'kodama--growth-echo', group: 'other' },
-  { current: 'kudagitsune', next: 'kudagitsune--fit-diviner', group: 'other' },
-  { current: 'kurabokko', next: 'kurabokko--knowledge-keeper', group: 'other' },
-  { current: 'migaki', next: 'migaki--profile-polisher', group: 'other' },
   { current: 'kappa', next: 'tanuki--codemod-runner', group: 'subagent' },
 ];
 

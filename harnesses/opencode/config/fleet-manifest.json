@@ -200,37 +200,6 @@
         "scripts/register-web-tools-plugin.mjs"
       ],
       "globs": ["plugins/web-tools/**"]
-    },
-    {
-      "id": "brand-builder",
-      "label": "Brand Builder / Kitsune (opt-in)",
-      "description": "Kitsune's full domain: 9 brand agents, brand plugin, commands, and skills. Requires bun install. Opens a per-project SQLite DB on init.",
-      "atomic": true,
-      "coupling": "brand-builder-plugin depends on its own node_modules; brand agents depend on brand commands and skills",
-      "requires_bun": true,
-      "default_on": false,
-      "target_subdirs": [
-        "agents",
-        "command",
-        "skills",
-        "brand-builder-plugin"
-      ],
-      "files": [
-        "agents/akashi--proof-keeper.md",
-        "agents/amanojaku--voice-contrarian.md",
-        "agents/hyakume--ats-watchman.md",
-        "agents/kataribe--narrative-teller.md",
-        "agents/kitsune--brand-orchestrator.md",
-        "agents/kodama--growth-echo.md",
-        "agents/kudagitsune--fit-diviner.md",
-        "agents/kurabokko--knowledge-keeper.md",
-        "agents/migaki--profile-polisher.md"
-      ],
-      "globs": [
-        "command/*.md",
-        "skills/**",
-        "brand-builder-plugin/**"
-      ]
     }
   ]
 }
