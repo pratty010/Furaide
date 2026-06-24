@@ -1,0 +1,7 @@
+[allowlist]
+paths = [
+  "(.*)/test(s)?/fixtures/.*",
+  "docs/examples/.*",
+  "graphify-out/.*",
+  "harnesses/opencode/future-work/.*",
+]

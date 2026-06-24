@@ -1,0 +1,11 @@
+scan:
+  skip-dirs:
+    - node_modules
+    - .git
+    - .worktrees
+    - graphify-out
+  scanners:
+    - vuln
+    - secret
+    - misconfig
+  severity: HIGH,CRITICAL

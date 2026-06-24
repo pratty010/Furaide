@@ -34,3 +34,16 @@ commit-msg:
           echo "Types: feat fix chore docs refactor test ci build perf style revert"
           exit 1
         fi
+
+pre-push:
+  parallel: true
+  jobs:
+    - name: shellcheck
+      glob: "*.sh"
+      run: shellcheck --rcfile .shellcheckrc {push_files}
+
+    - name: semgrep-diff
+      run: semgrep scan --config=r/bash --config=r/typescript --baseline-commit origin/dev
+
+    - name: trivy-quick
+      run: trivy fs --config trivy.yaml --scanners vuln --severity CRITICAL .
