@@ -6,10 +6,10 @@
 #   Tier 2 (prompt): user data — ~/.mekiki, config files (with backup restore offer)
 #
 # Usage:
-#   bash claude-code/scripts/uninstall.sh            # interactive tier-2 prompts
-#   bash claude-code/scripts/uninstall.sh --dry-run  # print what would be removed, change nothing
-#   bash claude-code/scripts/uninstall.sh --purge    # remove everything, no prompts
-#   bash claude-code/scripts/uninstall.sh -h         # help
+#   bash harnesses/claude-code/scripts/uninstall.sh            # interactive tier-2 prompts
+#   bash harnesses/claude-code/scripts/uninstall.sh --dry-run  # print what would be removed, change nothing
+#   bash harnesses/claude-code/scripts/uninstall.sh --purge    # remove everything, no prompts
+#   bash harnesses/claude-code/scripts/uninstall.sh -h         # help
 #
 # Environment overrides:
 #   MEKIKI_HOME       (default: ~/.mekiki)

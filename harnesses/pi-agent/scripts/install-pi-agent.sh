@@ -2,7 +2,7 @@
 # install-pi-agent.sh — F.R.I.D.A.Y. pi-agent installer
 #
 # Usage:
-#   bash ~/F.R.I.D.A.Y/pi-agent/scripts/install-pi-agent.sh
+#   bash ~/F.R.I.D.A.Y/harnesses/pi-agent/scripts/install-pi-agent.sh
 #
 # Prerequisites: bun, pi CLI (https://pi.dev)
 

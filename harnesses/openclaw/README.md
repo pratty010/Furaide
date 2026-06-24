@@ -15,7 +15,7 @@ OpenCLAW is a separate runtime from opencode and claude-code. It is a persistent
 These are **persona workspace configs**, not a runtime package. Each workspace defines a character's SOUL, IDENTITY, MEMORY, and tools: pure markdown, no build step.
 
 ```
-openclaw/
+harnesses/openclaw/
   agents/
     workspace-kinyo/      · Kinyo persona: general assistant with GOSHIN v2 security
     workspace-koda/       · Koda persona: code-focused
@@ -77,7 +77,7 @@ Create your own `openclaw.json` in `~/.config/openclaw/` or a path of your choic
     "list": [
       {
         "name": "kinyo",
-        "agentDir": "/path/to/openclaw/agents/workspace-kinyo",
+        "agentDir": "/path/to/harnesses/openclaw/agents/workspace-kinyo",
         "model": "claude-opus-4-8",
         "profile": "default"
       }
@@ -132,7 +132,7 @@ The agent reads all files in its `agentDir` at session start. The agent updates 
 ```json
 {
   "name": "kinyo",
-  "agentDir": "/path/to/Furaidē/openclaw/agents/workspace-kinyo",
+  "agentDir": "/path/to/Furaidē/harnesses/openclaw/agents/workspace-kinyo",
   "model": "claude-opus-4-8",
   "profile": "default"
 }
@@ -141,7 +141,7 @@ The agent reads all files in its `agentDir` at session start. The agent updates 
 **Copy a workspace to author a new persona:**
 
 ```bash
-cp -r openclaw/agents/workspace-kinyo openclaw/agents/workspace-myagent
+cp -r harnesses/openclaw/agents/workspace-kinyo harnesses/openclaw/agents/workspace-myagent
 # Edit SOUL.md, IDENTITY.md, MEMORY.md, AGENTS.md, TOOLS.md
 # Add to openclaw.json → agents.list
 ```
@@ -152,7 +152,7 @@ cp -r openclaw/agents/workspace-kinyo openclaw/agents/workspace-myagent
 
 1. Copy an existing workspace as a template:
    ```bash
-   cp -r openclaw/agents/workspace-kinyo openclaw/agents/workspace-myagent
+   cp -r harnesses/openclaw/agents/workspace-kinyo harnesses/openclaw/agents/workspace-myagent
    ```
 2. Edit `SOUL.md` to define the core identity, values, and voice.
 3. Edit `IDENTITY.md` to define the public persona and interaction style.
@@ -160,7 +160,7 @@ cp -r openclaw/agents/workspace-kinyo openclaw/agents/workspace-myagent
 5. Update `AGENTS.md` and `TOOLS.md` to match the new persona's capabilities.
 6. Add the workspace to `openclaw.json` under `agents.list`:
    ```json
-   { "name": "myagent", "agentDir": "/path/to/openclaw/agents/workspace-myagent", "model": "claude-sonnet-4-6", "profile": "default" }
+   { "name": "myagent", "agentDir": "/path/to/harnesses/openclaw/agents/workspace-myagent", "model": "claude-sonnet-4-6", "profile": "default" }
    ```
 7. Restart OpenCLAW.
 
@@ -189,5 +189,5 @@ Remove the `agentDir` reference from your OpenCLAW config (`openclaw.json` → `
 ## 📚 Reference
 
 - Full OpenCLAW documentation: [docs.openclaw.ai](https://docs.openclaw.ai)
-- Config schema reference: see `openclaw/_reference/openclaw_default.json` (local only, gitignored)
+- Config schema reference: see `harnesses/openclaw/_reference/openclaw_default.json` (local only, gitignored)
 - Related: `docs/models/gemini.md` and `docs/models/openai.md` for model-specific prompting guides used by OpenCLAW personas

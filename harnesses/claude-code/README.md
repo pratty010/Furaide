@@ -80,7 +80,7 @@ A two-phase process: bootstrap local assets, then register the plugin in Claude 
 
 ```bash
 git clone https://github.com/pratty010/Furaide.git ~/Furaidē
-bash ~/Furaidē/claude-code/scripts/bootstrap.sh
+bash ~/Furaidē/harnesses/claude-code/scripts/bootstrap.sh
 ```
 
 The bootstrap script is interactive by default (Y/n prompt per step). Pass `--yes`/`-y` to run unattended:
@@ -123,13 +123,13 @@ Flags: `--yes`/`-y` (non-interactive), `--minimal` (steps 1-2 only), `--no-confi
 Or call the CLI directly:
 
 ```bash
-bun run ~/Furaidē/claude-code/cli/src/satori/src/cli/index.ts dream
-bun run ~/Furaidē/claude-code/cli/src/satori/src/cli/index.ts dream --scheduled  # respects cadence config
-bun run ~/Furaidē/claude-code/cli/src/satori/src/cli/index.ts profile --json
-bun run ~/Furaidē/claude-code/cli/src/satori/src/cli/index.ts report --serve
-bun run ~/Furaidē/claude-code/cli/src/satori/src/cli/index.ts improve <name>
-bun run ~/Furaidē/claude-code/cli/src/satori/src/cli/index.ts mark <id> accepted
-bun run ~/Furaidē/claude-code/cli/src/satori/src/cli/index.ts reset --projections-only
+bun run ~/Furaidē/harnesses/claude-code/cli/src/satori/src/cli/index.ts dream
+bun run ~/Furaidē/harnesses/claude-code/cli/src/satori/src/cli/index.ts dream --scheduled  # respects cadence config
+bun run ~/Furaidē/harnesses/claude-code/cli/src/satori/src/cli/index.ts profile --json
+bun run ~/Furaidē/harnesses/claude-code/cli/src/satori/src/cli/index.ts report --serve
+bun run ~/Furaidē/harnesses/claude-code/cli/src/satori/src/cli/index.ts improve <name>
+bun run ~/Furaidē/harnesses/claude-code/cli/src/satori/src/cli/index.ts mark <id> accepted
+bun run ~/Furaidē/harnesses/claude-code/cli/src/satori/src/cli/index.ts reset --projections-only
 ```
 
 ### Git/GitHub: hanko--git-seal + github skill
@@ -206,8 +206,8 @@ bash ~/Furaidē/scripts/install-external-skills.sh --ecosystem claude-code  # su
 
 ```bash
 # Manually:
-cp ~/Furaidē/claude-code/config/CLAUDE.md ~/.claude/CLAUDE.md
-cp ~/Furaidē/claude-code/config/statusline-command.sh ~/.claude/statusline-command.sh
+cp ~/Furaidē/harnesses/claude-code/config/CLAUDE.md ~/.claude/CLAUDE.md
+cp ~/Furaidē/harnesses/claude-code/config/statusline-command.sh ~/.claude/statusline-command.sh
 # Then merge relevant keys from config/settings.json manually
 ```
 
@@ -217,7 +217,7 @@ See [`config/README.md`](config/README.md) for per-file notes.
 
 ### Why `.claude-plugin/` is at the repo root
 
-Claude Code's marketplace command fetches `.claude-plugin/marketplace.json` from the repository root. That path is part of the discovery protocol: `/plugin marketplace add pratty010/Furaide` reads the repo-root copy, and each plugin `source` path is relative to that root (e.g. `./claude-code/plugins/satori`). The file is a small JSON index; the actual plugin code lives in `plugins/` here.
+Claude Code's marketplace command fetches `.claude-plugin/marketplace.json` from the repository root. That path is part of the discovery protocol: `/plugin marketplace add pratty010/Furaide` reads the repo-root copy, and each plugin `source` path is relative to that root (e.g. `./harnesses/claude-code/plugins/satori`). The file is a small JSON index; the actual plugin code lives in `plugins/` here.
 
 It stays at the root by design. Moving it under `claude-code/` would break the `owner/repo` install shorthand, which only resolves a marketplace at the repository root.
 
@@ -226,7 +226,7 @@ It stays at the root by design. Moving it under `claude-code/` would break the `
 ## 🗑️ Uninstall
 
 ```bash
-bash ~/Furaidē/claude-code/scripts/uninstall.sh
+bash ~/Furaidē/harnesses/claude-code/scripts/uninstall.sh
 ```
 
 Default: interactive (prompts for user data). Flags: `--dry-run` (print what would be removed, no changes), `--purge` (remove everything with no prompts).
@@ -260,14 +260,14 @@ For testing upcoming features on the `dev` branch:
 
    ```bash
    git clone -b dev https://github.com/pratty010/Furaide.git ~/furaide-dev
-   bash ~/furaide-dev/claude-code/scripts/bootstrap.sh
+   bash ~/furaide-dev/harnesses/claude-code/scripts/bootstrap.sh
    ```
 
 2. **Run Tests**
    Ensure dependencies are synced and the test suite passes:
 
    ```bash
-   cd ~/furaide-dev/claude-code/cli/src/satori
+   cd ~/furaide-dev/harnesses/claude-code/cli/src/satori
    bun install
    bun test
    ```

@@ -5,11 +5,11 @@ import { resolve } from "node:path";
 
 const COMMAND_PATH = resolve(import.meta.dirname, "../../commands/tools-config.md");
 
-test("command file exists at opencode/commands/tools-config.md", () => {
+test("command file exists at harnesses/opencode/commands/tools-config.md", () => {
   expect(existsSync(COMMAND_PATH)).toBe(true);
 });
 
-test("command file is NOT at opencode/command/", () => {
+test("command file is NOT at harnesses/opencode/command/", () => {
   const wrongPath = resolve(import.meta.dirname, "../../command/tools-config.md");
   expect(existsSync(wrongPath)).toBe(false);
 });

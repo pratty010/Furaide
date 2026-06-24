@@ -47,7 +47,7 @@ Missing keys and binaries emit a clear error message instead of crashing.
 
 ```bash
 git clone https://github.com/pratty010/Furaide.git ~/Furaidē
-bash ~/Furaidē/pi-agent/scripts/install-pi-agent.sh
+bash ~/Furaidē/harnesses/pi-agent/scripts/install-pi-agent.sh
 ```
 
 Prerequisites: [bun](https://bun.sh) + [Pi CLI](https://pi.dev) v0.72.1+.
@@ -61,7 +61,7 @@ pi install git:github.com/pratty010/Furaide
 ### Manual
 
 ```bash
-cd ~/Furaidē/pi-agent
+cd ~/Furaidē/harnesses/pi-agent
 bun install
 pi install .
 ```
@@ -123,7 +123,7 @@ web_search "latest transformer architectures 2026"
 ## 🗂️ Structure
 
 ```
-pi-agent/
+harnesses/pi-agent/
   package.json                  # Pi package manifest (name: friday-furaidee)
   tsconfig.json                 # NodeNext + allowImportingTsExtensions; typecheck only
   AGENTS.md                     # Dev guide: rules, gates, conventions

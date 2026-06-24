@@ -10,7 +10,7 @@
 # ~/.agents/skills/<name>  ← real copy (source of truth)
 # ~/.claude/skills/<name>  → symlink to ~/.agents/skills/<name>
 #
-# Called by both claude-code/scripts/bootstrap.sh and opencode/scripts/install-fleet.sh.
+# Called by both harnesses/claude-code/scripts/bootstrap.sh and harnesses/opencode/scripts/install-fleet.sh.
 #
 # Usage:
 #   bash scripts/install-vendored-skills.sh --global              # → ~/.agents/skills/ + ~/.claude/skills/

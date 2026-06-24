@@ -2,7 +2,7 @@
 # install-fleet-bootstrap.sh — one-command curl-pipe installer for Furaidē's Fleet
 #
 # Usage (no clone needed):
-#   bash <(curl -fsSL https://raw.githubusercontent.com/pratty010/Furaide/main/opencode/scripts/install-fleet-bootstrap.sh)
+#   bash <(curl -fsSL https://raw.githubusercontent.com/pratty010/Furaide/main/harnesses/opencode/scripts/install-fleet-bootstrap.sh)
 #
 # Or with flags passed through to install-fleet.sh:
 #   bash <(curl -fsSL ...) -- --all --global
@@ -30,4 +30,4 @@ else
 fi
 
 # ── Pass through to install-fleet.sh ─────────────────────────────────────────
-exec bash "$FLEET_DEST/opencode/scripts/install-fleet.sh" "$@"
+exec bash "$FLEET_DEST/harnesses/opencode/scripts/install-fleet.sh" "$@"

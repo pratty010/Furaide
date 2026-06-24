@@ -42,7 +42,7 @@ Replace `<active-model-id>` with the actual model ID (e.g. `claude-haiku-4-5-202
 **Lefthook gates (pre-commit)**:
 - `gitleaks` — blocks secrets in staged files
 - `validate-json` / `validate-yaml` — blocks malformed JSON/YAML
-- `pytest` — runs on `claude-code/**` changes
+- `pytest` — runs on `harnesses/claude-code/**` changes
 - `conventional` — rejects non-Conventional-Commits messages
 
 **Never** `--no-verify` or `--force`. False-positive gitleaks escape: `LEFTHOOK_EXCLUDE=gitleaks git commit -m "..."`.

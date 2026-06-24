@@ -18,7 +18,7 @@ bash scripts/install.sh
 
 ```bash
 git clone https://github.com/pratty010/Furaide.git ~/Furaidē
-cd ~/Furaidē/opencode/tools/opencode-all
+cd ~/Furaidē/harnesses/opencode/tools/opencode-all
 bun install
 chmod +x src/tui.tsx
 mkdir -p ~/.local/bin
@@ -85,16 +85,16 @@ Copies sources to `~/.local/share/opencode/tools/opencode-all`, runs `bun instal
 
 ```bash
 git clone https://github.com/pratty010/Furaide.git ~/Furaidē
-cd ~/Furaidē/opencode/tools/opencode-all
+cd ~/Furaidē/harnesses/opencode/tools/opencode-all
 bun install
 chmod +x src/tui.tsx
 mkdir -p ~/.local/bin
 ln -sfn "$PWD/src/tui.tsx" ~/.local/bin/opencode-all
 ```
 
-From the fleet repo. This tool ships in `opencode/tools/opencode-all` but installs independently from the fleet config. No `install-fleet.sh` required.
+From the fleet repo. This tool ships in `harnesses/opencode/tools/opencode-all` but installs independently from the fleet config. No `install-fleet.sh` required.
 
-Development install. Clone the repo, `cd opencode/tools/opencode-all`, then `bun install`. Use `ln -sfn "$PWD/src/tui.tsx" ~/.local/bin/opencode-all` for live iteration.
+Development install. Clone the repo, `cd harnesses/opencode/tools/opencode-all`, then `bun install`. Use `ln -sfn "$PWD/src/tui.tsx" ~/.local/bin/opencode-all` for live iteration.
 
 ## 🧪 Verification
 
@@ -152,4 +152,4 @@ Major UI changes should be validated with `bash scripts/test-fixture.sh` (fixtur
 
 ## 📚 Part of F.R.I.D.A.Y.
 
-Part of the [Furaidē monorepo](https://github.com/pratty010/Furaide). See [`opencode/README.md`](../README.md) for the full fleet overview.
+Part of the [Furaidē monorepo](https://github.com/pratty010/Furaide). See [`harnesses/opencode/README.md`](../README.md) for the full fleet overview.
