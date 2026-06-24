@@ -1,10 +1,10 @@
 opencode:
   - changed-files:
-    - any-glob-to-any-file: 'opencode/**'
+    - any-glob-to-any-file: 'harnesses/opencode/**'
 
 claude-code:
   - changed-files:
-    - any-glob-to-any-file: 'claude-code/**'
+    - any-glob-to-any-file: 'harnesses/claude-code/**'
 
 ci:
   - changed-files:

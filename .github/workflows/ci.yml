@@ -21,9 +21,9 @@ jobs:
         with:
           filters: |
             opencode:
-              - 'opencode/**'
+              - 'harnesses/opencode/**'
             claude-code:
-              - 'claude-code/**'
+              - 'harnesses/claude-code/**'
             github-config:
               - '.github/**'
               - 'lefthook.yml'
@@ -37,7 +37,7 @@ jobs:
       - uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true
-          cache-dependency-glob: "claude-code/cli/uv.lock"
-      - run: cd claude-code/cli && uv sync --frozen
-      - run: cd claude-code/cli && uv run pytest -x -q --tb=short
+          cache-dependency-glob: "harnesses/claude-code/cli/uv.lock"
+      - run: cd harnesses/claude-code/cli && uv sync --frozen
+      - run: cd harnesses/claude-code/cli && uv run pytest -x -q --tb=short
 

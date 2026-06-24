@@ -13,7 +13,7 @@ updates:
     labels: ["dependencies", "ci"]
 
   - package-ecosystem: "npm"
-    directory: "/opencode"
+    directory: "/harnesses/opencode"
     schedule:
       interval: "weekly"
       day: "monday"
@@ -26,7 +26,7 @@ updates:
     labels: ["dependencies", "opencode"]
 
   - package-ecosystem: "pip"
-    directory: "/claude-code/cli"
+    directory: "/harnesses/claude-code/cli"
     schedule:
       interval: "weekly"
       day: "tuesday"

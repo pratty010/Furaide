@@ -7,7 +7,7 @@
   "plugins": [
     {
       "name": "satori",
-      "source": "./claude-code/plugins/satori",
+      "source": "./harnesses/claude-code/plugins/satori",
       "description": "Satori (覚 · Capability Overseer): watches how you work across harnesses and surfaces skill usage, gaps, and improvement suggestions."
     }
   ]
