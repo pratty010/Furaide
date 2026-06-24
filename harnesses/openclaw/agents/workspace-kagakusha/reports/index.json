@@ -1,0 +1,118 @@
+{
+  "schemaVersion": "2.0",
+  "generatedAt": "2026-02-10T12:14:16Z",
+  "cards": {
+    "indian-market-reaction-to-us-india-trade-deal-february-2026": {
+      "topic": "Indian Market Reaction to US-India Trade Deal (February 2026)",
+      "reportDate": "2026-02-10",
+      "summary": "Indian financial markets have shown a modest positive response to the US-India interim trade agreement announced on February 6, 2026. While analysts project a small GDP growth boost from tariff reductions, specific reports detailing sharp index surges or real-time trading data are not yet available, suggesting market reactions are tempered by the deal's interim nature and pending implementation.",
+      "latestConfidence": "medium",
+      "tags": [
+        "india",
+        "trade",
+        "markets",
+        "macroeconomy",
+        "us-india"
+      ],
+      "coverage": {
+        "hasSokkou": true,
+        "hasKensho": false
+      },
+      "variants": {
+        "sokkou": [
+          {
+            "title": "Indian Market Reaction to US-India Trade Deal (February 2026)",
+            "path": "reports/2026-02-10/Indian Market Reaction to US-India Trade Deal (February 2026).md",
+            "confidence": "medium",
+            "sourceCount": 9,
+            "searchBudgetUsed": null,
+            "wordCount": 537
+          }
+        ],
+        "kensho": []
+      },
+      "distilled": {
+        "status": true,
+        "distilledAt": "2026-02-10T12:14:16Z"
+      }
+    },
+    "indias-current-trade-situation": {
+      "topic": "India's Current Trade Situation",
+      "reportDate": "2026-02-09",
+      "summary": "India's merchandise trade balance remains in deficit, reported at -$25.04 billion in December 2025, with a widening current account deficit. Key exports include services, textiles, and pharmaceuticals, while major imports are mineral fuels, precious stones, and machinery. A recent US-India trade deal in February 2026 is expected to reduce tariffs and impact bilateral trade dynamics.",
+      "latestConfidence": "medium",
+      "tags": [
+        "india",
+        "trade",
+        "markets",
+        "macroeconomy",
+        "finance",
+        "us-india"
+      ],
+      "coverage": {
+        "hasSokkou": true,
+        "hasKensho": true
+      },
+      "variants": {
+        "sokkou": [
+          {
+            "title": "India's Current Trade Situation",
+            "path": "reports/2026-02-09/India's Current Trade Situation.md",
+            "confidence": "medium",
+            "sourceCount": 7,
+            "searchBudgetUsed": null,
+            "wordCount": 481
+          }
+        ],
+        "kensho": [
+          {
+            "title": "India's Current Trade Situation (Deep Dive)",
+            "path": "reports/2026-02-09/India's Current Trade Situation (Deep Dive).md",
+            "confidence": "medium",
+            "sourceCount": 9,
+            "searchBudgetUsed": null,
+            "wordCount": 711,
+            "subagentsUsed": 4
+          }
+        ]
+      },
+      "distilled": {
+        "status": true,
+        "distilledAt": "2026-02-10T12:14:16Z"
+      }
+    },
+    "mutual-funds-in-india-an-overview": {
+      "topic": "Mutual Funds in India - An Overview",
+      "reportDate": "2026-02-09",
+      "summary": "In India, a mutual fund is a professionally managed investment vehicle that pools money from numerous investors to purchase a diversified portfolio of securities like stocks and bonds. Regulated by the Securities and Exchange Board of India (SEBI), they offer a transparent and accessible way for individuals to invest, with options to start with as little as ₹100-500. SEBI categorizes funds to ensure clarity and protect investors.",
+      "latestConfidence": "high",
+      "tags": [
+        "india",
+        "markets",
+        "mutual-funds",
+        "finance"
+      ],
+      "coverage": {
+        "hasSokkou": true,
+        "hasKensho": false
+      },
+      "variants": {
+        "sokkou": [
+          {
+            "title": "Mutual Funds in India - An Overview",
+            "path": "reports/2026-02-09/Mutual Funds in India - An Overview.md",
+            "confidence": "high",
+            "sourceCount": 7,
+            "searchBudgetUsed": null,
+            "wordCount": 505
+          }
+        ],
+        "kensho": []
+      },
+      "distilled": {
+        "status": true,
+        "distilledAt": "2026-02-10T12:14:16Z"
+      }
+    }
+  }
+}
