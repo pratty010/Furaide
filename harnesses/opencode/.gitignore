@@ -1,4 +1,0 @@
-# Brand builder SQLite runtime data (not covered by root gitignore)
-brand-builder-plugin/brand-builder/data/*.db
-brand-builder-plugin/brand-builder/data/*.db-shm
-brand-builder-plugin/brand-builder/data/*.db-wal
