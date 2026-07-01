@@ -9,6 +9,11 @@
       "name": "satori",
       "source": "./harnesses/claude-code/plugins/satori",
       "description": "Satori (覚 · Capability Overseer): watches how you work across harnesses and surfaces skill usage, gaps, and improvement suggestions."
+    },
+    {
+      "name": "kuma",
+      "source": "./harnesses/claude-code/plugins/kuma",
+      "description": "Kuma: delegate review and task execution to opencode-go, opencode (OpenCode Zen), and ollama-cloud from Claude Code."
     }
   ]
 }
