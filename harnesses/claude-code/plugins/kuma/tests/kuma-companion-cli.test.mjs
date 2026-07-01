@@ -43,3 +43,25 @@ test("status prints a message when no jobs are recorded", () => {
     fs.rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test("task fails clearly when no backend/model default is configured", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "kuma-cli-test-"));
+  try {
+    const result = runCli(["task", "do something"], { KUMA_PLUGIN_DATA: dir });
+    assert.notEqual(result.status, 0);
+    assert.ok(result.stderr.includes("/kuma:setup"));
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("review fails clearly when no backend/model default is configured", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "kuma-cli-test-"));
+  try {
+    const result = runCli(["review"], { KUMA_PLUGIN_DATA: dir });
+    assert.notEqual(result.status, 0);
+    assert.ok(result.stderr.includes("/kuma:setup"));
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});

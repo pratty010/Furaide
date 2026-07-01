@@ -2,10 +2,9 @@
 import { parseArgs } from "./lib/args.mjs";
 import { binaryAvailable } from "./lib/process.mjs";
 import { createBackend, BACKEND_NAMES } from "./lib/backend.mjs";
-import { setConfig, getConfig } from "./lib/state.mjs";
+import { setConfig, getConfig, findLastResumableJob, listJobs, generateJobId } from "./lib/state.mjs";
 import { mergeBackendListings, enrichWithBaseLlm, saveModelIndex, loadModelIndex, V1_PROVIDERS } from "./lib/models.mjs";
 import { renderStatusTable, renderResult } from "./lib/render.mjs";
-import { listJobs } from "./lib/state.mjs";
 import { createJob, markRunning, markDone, markError, markCancelled, isJobActive } from "./lib/job.mjs";
 import { resolveReviewTarget, collectDiffShortstat } from "./lib/git.mjs";
 
@@ -143,6 +142,121 @@ async function runCancel(args) {
   console.log(`Job ${jobId} cancelled.`);
 }
 
+function resolveDefaultsOrFail(options) {
+  const config = getConfig(cwd);
+  const backend = options.backend ?? config.defaultBackend;
+  const model = options.model ?? config.defaultModel;
+  if (!backend || !model) {
+    console.error("Missing --backend/--model and no defaults configured. Run `/kuma:setup` first.");
+    process.exitCode = 1;
+    return null;
+  }
+  return { backend, model };
+}
+
+function resolveProviderForModel(model) {
+  const { entries } = loadModelIndex(cwd);
+  const match = entries.find((e) => e.model === model);
+  return match?.provider ?? "opencode-go";
+}
+
+async function runReview(args) {
+  const { options } = parseArgs(args, {
+    valueOptions: ["backend", "model", "base", "scope", "mode"],
+    booleanOptions: ["wait", "background"]
+  });
+
+  const resolved = resolveDefaultsOrFail(options);
+  if (!resolved) return;
+  const { backend: backendName, model } = resolved;
+  const provider = resolveProviderForModel(model);
+
+  const target = resolveReviewTarget(cwd, { scope: options.scope, base: options.base });
+  const stat = collectDiffShortstat(cwd, target);
+
+  const promptPrefix = options.mode === "adversarial"
+    ? "Perform an adversarial code review. Assume the diff is trying to hide a bug. "
+    : "Perform a code review. ";
+  const prompt = `${promptPrefix}Target: ${target.label}. ${JSON.stringify(stat)}. Respond with the review-output JSON schema (verdict, summary, findings, next_steps).`;
+
+  const job = createJob(cwd, { kind: "review", provider, model, backend: backendName, resumable: false });
+  const backend = createBackend(backendName);
+  markRunning(cwd, job.id, { pid: null });
+  try {
+    const execution = await backend.sendPrompt({
+      provider,
+      model,
+      prompt,
+      onSpawn: (pid) => markRunning(cwd, job.id, { pid })
+    });
+    markDone(cwd, job.id, { result: { rawOutput: execution.rawOutput } });
+    console.log(renderResult({ ...job, status: "done", result: { rawOutput: execution.rawOutput } }));
+  } catch (error) {
+    markError(cwd, job.id, { errorMessage: error.message });
+    console.error(`Review failed: ${error.message}`);
+    process.exitCode = 1;
+  }
+}
+
+async function runTask(args) {
+  const { options, positionals } = parseArgs(args, {
+    valueOptions: ["backend", "model"],
+    booleanOptions: ["wait", "background", "resume", "fresh"]
+  });
+
+  const resolved = resolveDefaultsOrFail(options);
+  if (!resolved) return;
+  const { backend: backendName, model } = resolved;
+  const provider = resolveProviderForModel(model);
+  const prompt = positionals.join(" ");
+
+  if (!options.fresh) {
+    const existingActive = listJobs(cwd).find((j) => isJobActive(j) && j.kind === "task");
+    if (existingActive) {
+      console.error(
+        `A task job (${existingActive.id}) is already active for this workspace. Use \`/kuma:cancel ${existingActive.id}\` or wait for it to finish before starting another.`
+      );
+      process.exitCode = 1;
+      return;
+    }
+  }
+
+  // Kuma owns the session handle rather than waiting for the backend to hand one back:
+  // neither adapter's `sendPrompt` returns a generated session id (opencode/pi don't surface
+  // one in a way we can parse reliably), so Kuma pre-generates a handle and always passes it
+  // via `--session <handle>`, making resume deterministic instead of best-effort.
+  let sessionHandle = null;
+  if (options.resume) {
+    const lastResumable = findLastResumableJob(cwd);
+    sessionHandle = lastResumable?.sessionHandle ?? null;
+  }
+  if (!sessionHandle) {
+    sessionHandle = generateJobId("session");
+  }
+
+  const job = createJob(cwd, { kind: "task", provider, model, backend: backendName, resumable: true });
+  const backend = createBackend(backendName);
+  markRunning(cwd, job.id, { pid: null });
+  try {
+    const execution = await backend.sendPrompt({
+      provider,
+      model,
+      prompt,
+      sessionHandle,
+      onSpawn: (pid) => markRunning(cwd, job.id, { pid })
+    });
+    markDone(cwd, job.id, {
+      result: { rawOutput: execution.rawOutput },
+      sessionHandle
+    });
+    console.log(execution.rawOutput);
+  } catch (error) {
+    markError(cwd, job.id, { errorMessage: error.message });
+    console.error(`Task failed: ${error.message}`);
+    process.exitCode = 1;
+  }
+}
+
 async function main() {
   switch (subcommand) {
     case "setup":
@@ -161,9 +275,10 @@ async function main() {
       await runCancel(rest);
       break;
     case "review":
+      await runReview(rest);
+      break;
     case "task":
-      console.error(`"${subcommand}" is implemented in Task 4.2`);
-      process.exitCode = 1;
+      await runTask(rest);
       break;
     default:
       console.error("Usage: kuma-companion.mjs <setup|models|review|task|status|result|cancel> [...args]");
