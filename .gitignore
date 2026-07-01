@@ -15,6 +15,8 @@ desktop.ini
 *.swo
 *~
 .cursor/
+.opencode/
+opencode.json
 
 # ── Secrets — never commit these ─────────────────────────────────────────────
 .env
@@ -30,7 +32,6 @@ desktop.ini
 .secrets/
 secrets/
 issues/
-opencode.json
 
 # ── Python ───────────────────────────────────────────────────────────────────
 __pycache__/
@@ -70,13 +71,6 @@ harnesses/pi-agent/.pi/
 harnesses/pi-agent/bun.lock
 harnesses/pi-agent/knowledge/
 
-# ── graphify-out — keep graph artifacts, exclude runtime/personal data ────────
-graphify-out/cache/
-graphify-out/cost.json
-graphify-out/.graphify_python
-graphify-out/.graphify_root
-graphify-out/.graphify_ast.json
-
 # ── Test / coverage outputs ───────────────────────────────────────────────────
 coverage/
 .nyc_output/
@@ -97,6 +91,11 @@ junit.xml
 *.temp
 
 # ── Graphify transient outputs (tracked outputs: graph.json, graph.html, GRAPH_REPORT.md, manifest.json) ──
+graphify-out/cache/
+graphify-out/cost.json
+graphify-out/.graphify_python
+graphify-out/.graphify_root
+graphify-out/.graphify_ast.json
 graphify-out/.graphify_detect.json
 graphify-out/.graphify_extract.json
 graphify-out/.graphify_semantic.json
@@ -122,7 +121,7 @@ harnesses/claude-code/config/statusline-sidecar.json
 harnesses/claude-code/cli/.satori/debug/
 
 # ── Screenshots ───────────────────────────────────────────────────────────────
-harnesses/opencode/docs/imgs/Screenshot *.png
+harnesses/opencode/docs/imgs/*.png
 
 # ── OpenCLAW — generated binary/report files per workspace ────────────────────
 harnesses/openclaw/agents/*/docs/*.pdf
