@@ -1,0 +1,11 @@
+#!/usr/bin/env node
+const args = process.argv.slice(2);
+if (args.includes("--list-models")) {
+  process.stdout.write("opencode-go deepseek-v4-pro\nopencode big-pickle\nanthropic claude-sonnet\n");
+  process.exit(0);
+}
+if (args.includes("-p")) {
+  process.stdout.write(`${JSON.stringify({ event: "assistant_message", text: "done" })}\n`);
+  process.exit(0);
+}
+process.exit(1);
