@@ -1,0 +1,9 @@
+{
+  "name": "kuma",
+  "version": "0.1.0",
+  "description": "Delegate review and task execution to opencode-go, opencode (OpenCode Zen), and ollama-cloud from Claude Code.",
+  "author": {
+    "name": "pratty010",
+    "url": "https://github.com/pratty010/Furaide"
+  }
+}
