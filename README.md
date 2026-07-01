@@ -66,7 +66,7 @@ Harness integrations and shared resources that wire Furaidē into AI coding harn
 |-----------|---------|-------------|
 | `harnesses/opencode/` | [OpenCode](https://opencode.ai) | 30-agent fleet: 12 domain specialists, 16 shared subagents, 4 always-on gate guardians, web-tools plugin (3 tools, AI Studio / Vertex AI auto transport) |
 | `harnesses/opencode/tools/opencode-all/` | OpenCode | Standalone OpenTUI session dashboard companion tool for OpenCode |
-| `harnesses/claude-code/` | [Claude Code](https://claude.ai/code) | Satori plugin (capability analytics) + `github` skill / `hanko--git-seal` agent (git workflow) |
+| `harnesses/claude-code/` | [Claude Code](https://claude.ai/code) | Satori plugin (capability analytics), Kuma plugin (delegates review/task to opencode-go, opencode, ollama-cloud) + `github` skill / `hanko--git-seal` agent (git workflow) |
 | `harnesses/pi-agent/` | [pi.dev](https://pi.dev) | Extension package: web-RAG tools, `/usage` cost tracking, animated TUI, friday and chimu themes, GSD skills |
 | `harnesses/openclaw/` | [OpenCLAW](https://docs.openclaw.ai) | Persona workspace configs for four pre-built identities: kinyo, koda, kagakusha, tengan |
 | `docs/` | All of the above | Shared cross-harness docs: GITHUB.md, agent-template.md |
@@ -80,7 +80,7 @@ Furaidē/
 ├── harnesses/
 │   ├── opencode/      # 30-agent OpenCode fleet
 │   │   └── tools/     # Standalone companion tools (opencode-all, …)
-│   ├── claude-code/   # Satori plugin + github skill / hanko--git-seal agent
+│   ├── claude-code/   # Satori + Kuma plugins + github skill / hanko--git-seal agent
 │   ├── pi-agent/      # Pi extension (friday-furaidee)
 │   └── openclaw/      # OpenCLAW persona workspaces
 ├── docs/              # Shared cross-harness docs
