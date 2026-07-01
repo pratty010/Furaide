@@ -78,6 +78,7 @@ Controller policy: the main session orchestrates only: analysis, delegation, rev
 | 2026-07-02 | Part 1 Task 2 implemented; probe run exit 8 | `scripts/dev/canaries/v2-dispatch-probe.mjs`; JSON: `{"a_depth2":false,"b_depth3":false,"c_deny_enforced":true,"samples":{"d2":"Unknown agent type: _v2-impl is not a valid agent type\n","d3":"chain\n","dn":"Unknown agent type: _v2-spec is not a valid agent type\n"}}` |
 | 2026-07-02 | Part 1 Task 3 implemented; red/green verified | `scripts/lint-dispatch-graph.mjs`, `scripts/tests/dispatch-graph.test.mjs`; red: module not found; green: 4 pass |
 | 2026-07-02 | Part 1 Task 4 completed; canary results recorded and canaries removed | `scripts/dev/canaries/RESULTS.md`; hub-and-spoke through `kantoku`, state machines unchanged, deny-enforcement passed |
+81: | 2026-07-02 | Part 1 Task 5 completed by impl-complex | Task 5 completed: 12 files moved to ignored `future-work/agents/` for local reference only, 11 retired from active fleet, active survivor inventory verified exactly 7 (bakeneko, daikoku, fudo, hanko, oni, tsuchigumo, tsukumogami). Future-work paths must not be staged. |
 
 ## Open Risks
 
