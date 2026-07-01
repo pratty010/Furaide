@@ -33,11 +33,11 @@ Multi-level scopes are allowed: `feat(mekiki/judge): ...`, `fix(mekiki/transcrip
 
 **SSH signing** — commits are automatically signed. Never use `--no-gpg-sign`.
 
-**Co-Authored-By trailer** — append to every commit message body:
+**Co-Authored-By trailer** — append to every agent-made commit message body. The author name must identify the active platform/harness and model/agent identity, not always Claude:
 ```
-Co-Authored-By: Claude <active-model-id> <noreply@anthropic.com>
+Co-Authored-By: <platform-or-harness> <agent-or-model-id> <noreply@agents.local>
 ```
-Replace `<active-model-id>` with the actual model ID (e.g. `claude-haiku-4-5-20251001`).
+Examples: `Co-Authored-By: OpenCode openai/gpt-5.5 <noreply@agents.local>`, `Co-Authored-By: Claude Code claude-haiku-4-5-20251001 <noreply@anthropic.com>`. Use the current harness/model when known; otherwise use the invoking harness name and best available model identifier.
 
 **Lefthook gates (pre-commit)**:
 - `gitleaks` — blocks secrets in staged files
@@ -71,7 +71,7 @@ git add <file1> <file2> ...
 git commit -m "$(cat <<'EOF'
 type(scope): description
 
-Co-Authored-By: Claude <model-id> <noreply@anthropic.com>
+Co-Authored-By: <platform-or-harness> <agent-or-model-id> <noreply@agents.local>
 EOF
 )"
 

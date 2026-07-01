@@ -44,9 +44,9 @@ Before asking for commit approval: always run `git status` and `git diff --stat`
 <commit_format>
 Every commit message must:
 1. Match: `^(feat|fix|chore|docs|refactor|test|ci|build|perf|style|revert)(\(.+\))?: .{1,100}$`
-2. Include a blank line + Co-Authored-By trailer in the body:
+2. Include a blank line + Co-Authored-By trailer in the body. The trailer must identify the active platform/harness and model/agent identity:
    ```
-   Co-Authored-By: Claude claude-haiku-4-5-20251001 <noreply@anthropic.com>
+   Co-Authored-By: Claude Code claude-haiku-4-5-20251001 <noreply@anthropic.com>
    ```
 
 Reject and ask for a corrected message if it doesn't match Conventional Commits format.

@@ -116,7 +116,7 @@ The `hanko--git-seal` subagent (model: Haiku) invokes `Skill(github)` to load th
 - Read-only ops (status/diff/log/pr view) run without approval
 - Mutating ops (commit/push/PR creation/merge) always ask first
 - Never pushes to `master`; never uses `--force` or `--no-verify`
-- Appends `Co-Authored-By: Claude <model-id> <noreply@anthropic.com>` to every commit
+- Appends a `Co-Authored-By` trailer to every agent-made commit using the active platform/harness plus model/agent identity, for example `Co-Authored-By: OpenCode openai/gpt-5.5 <noreply@agents.local>` or `Co-Authored-By: Claude Code claude-haiku-4-5-20251001 <noreply@anthropic.com>`
 
 **How it operates:**
 1. Reads workflow recipes from `Skill(github)`

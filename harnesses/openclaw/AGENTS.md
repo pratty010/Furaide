@@ -1,31 +1,35 @@
-# 🎭 openclaw/ — Repo Agent Guide
+# 🎭 openclaw/, Repo Agent Guide
 
 ## What this directory is
 
-Persona workspace configs for the OpenCLAW runtime, not a software package. Each workspace defines a character's SOUL, IDENTITY, MEMORY, and tools.
+Persona workspace configs for the OpenCLAW runtime. Not a software package. Each workspace directory defines a character via SOUL, IDENTITY, MEMORY, AGENTS, TOOLS, and HEARTBEAT markdown files.
 
-## Commands / verification
+## Commands and verification
 
-No build step. No automated tests. Edits are markdown/config review. Validate paths and persona references manually.
+No build step, no automated tests, no lint. Edits are markdown and config review. Validate paths and persona references by reading.
+
+To add a new persona: `cp -r agents/workspace-kinyo agents/workspace-<name>` and rewrite the files in place. Do not copy `_reference/`.
 
 ## Directory map
 
-- `agents/workspace-kinyo/` — Kinyo persona (general assistant, GOSHIN v2 security)
-- `agents/workspace-koda/` — Koda persona (code-focused)
-- `agents/workspace-kagakusha/` — Kagakusha persona (research specialist)
-- `agents/workspace-tengan/` — Tengan persona (lightweight general)
-- `_reference/` — local-only, gitignored (live configs with real credentials)
+- `agents/workspace-kinyo/`: Kinyo, general assistant with the GOSHIN v2 security protocol
+- `agents/workspace-koda/`: Koda, code-focused
+- `agents/workspace-kagakusha/`: Kagakusha, research specialist
+- `agents/workspace-tengan/`: Tengan, lightweight general
+- Each workspace contains: `SOUL.md`, `IDENTITY.md`, `MEMORY.md`, `AGENTS.md`, `TOOLS.md`, `HEARTBEAT.md`
+- `_reference/`: local-only, gitignored. Live `openclaw.json` configs with real credentials. Never commit.
 
 ## Editing rules
 
-- Persona files are content-first; preserve voice, memory patterns, and GOSHIN security patterns
-- Workspace directories are safe to commit; `_reference/` must never be committed
-- If changing persona file structure (adding/removing SOUL/MEMORY/etc files), update README accordingly
+- Persona files are content-first. Preserve the voice, memory patterns, and GOSHIN security patterns in `workspace-kinyo`.
+- Workspace directories are safe to commit. `_reference/` is not.
+- If you change the persona file structure (adding or removing SOUL/IDENTITY/etc files), update the README and the other workspaces to match.
+- OpenCLAW is a separate runtime from opencode and claude-code. It does not share their toolchain.
 
 ## Always / Ask first / Never
 
-**Always**: Preserve SOUL/IDENTITY/MEMORY/AGENTS/TOOLS/HEARTBEAT pattern unless explicitly redesigning the workspace format.
+**Always**: Preserve the SOUL/IDENTITY/MEMORY/AGENTS/TOOLS/HEARTBEAT pattern unless you are explicitly redesigning the workspace format.
 
-**Ask first**: Before deleting a workspace. Before changing documented security behavior (e.g., GOSHIN v2).
+**Ask first**: Before deleting a workspace, or before changing documented GOSHIN v2 security behavior.
 
-**Never**: Commit `_reference/` contents. Commit real credentials or tokens. Commit live `openclaw.json` configs.
+**Never**: Commit `_reference/` contents. Commit real credentials, tokens, or live `openclaw.json` configs.

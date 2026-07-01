@@ -1,44 +1,63 @@
-# ⛩️ opencode/ — Repo Agent Guide
+# ⛩️ opencode/, Repo Agent Guide
 
 ## What this directory is
 
-Source tree for the OpenCode fleet. Install-target runtime files live under `config/`. Three kinds of deliverables: fleet config (agents, plugins, scripts), standalone companion tools (`tools/opencode-all/`), and future-work/domain experiments.
+Source tree for the OpenCode fleet. Three deliverables: fleet config (install-target source under `config/`, plus agent, plugin, and rule definitions), a standalone TUI companion under `tools/opencode-all/`, and shelved domain experiments under `future-work/`.
 
 ## Directory map
 
-- `config/` — install-target source files (`AGENTS.md`, `fleet-manifest.json`, `opencode.jsonc`)
-- `agents/` — 30 shikigami definitions (12 specialists + 16 subagents + 2 escape-hatch)
-- `plugins/` — 4 gate plugins (nio, nurikabe, komainu, migawari)
-- `scripts/` — installer, uninstaller, workflow state engine, agent support scripts
-- `rules/` — memory contract and other rules
-- `docs/` — architecture, workflows, operator guide, routing manifest, model guides
-- `commands/` — active runtime: `tools-config.md` (web-tools config command)
-- `tools/opencode-all/` — standalone companion tool (shipped independently)
-- `future-work/` — shelved domain experiments (e.g. brand-builder), gitignored
+- `config/`: install-target source. `fleet-manifest.json` (33 components), `opencode.jsonc` (runtime plugin registry), `AGENTS.md` (installed user guide), `web-tools.yml`, `package.web-tools.json`
+- `agents/`: 30 shikigami agent definitions (`.md` with frontmatter)
+- `plugins/`: 4 gate plugins (`nio.js`, `nurikabe.js`, `komainu.js`, `migawari.js`), plus `web-tools.ts` and its `web-tools/` subdir
+- `scripts/`: installers (`install-fleet.sh`, `uninstall-fleet.sh`, `install-web-tools.sh`), `workflow-state.mjs`, support modules (`merge-config.mjs`, `merge-package-fragment.mjs`, `model-resolve.mjs`)
+- `scripts/tests/`: harness test suite (Node `.test.mjs`)
+- `rules/`: memory contract and other rules
+- `docs/`: architecture, workflows, operator guide, manifest schema, agent template, `routing-manifest.json`, model guides, `superpowers/specs/` design docs
+- `commands/`: `tools-config.md` only
+- `tools/opencode-all/`: standalone TUI (`src/tui.tsx`), shipped independently as `@furaide/opencode-all`
+- `future-work/`: gitignored. Has its own `agents/`, `brand-builder-plugin/`, `commands/`, `skills/`
 
 ## Commands
 
-- `bun test scripts/tests/` — run installer/config tests
-- `bash scripts/install-fleet.sh --dry-run` — preview installation
-- `bash scripts/install-fleet.sh --list` — list installable components
+Run from this directory (`harnesses/opencode/`):
+
+- `bun test scripts/tests/` for harness installer, config, and agent-integration tests
+- `bash scripts/install-fleet.sh --list` to list installable components
+- `bash scripts/install-fleet.sh --dry-run` to preview the install plan
+- `bash scripts/install-fleet.sh [--global|--project|--custom <dir>] [--link] [--all] [--no-common-skills] [-y]` to install
+
+Run from `tools/opencode-all/` (separate package, own test suite):
+
+- `bun test tests` for the full opencode-all suite
+- `bun run test:sanitize`, `test:db`, `test:tui`, or `test:index` for focused runs
+
+## Workflow
+
+- Run `bun test scripts/tests/` after touching installer, manifest, `opencode.jsonc`, agent inventory, or plugin wiring.
+- There is no CI job for opencode tests. CI only runs `harnesses/claude-code/cli` pytest. Opencode correctness is gated by repo-root lefthook pre-push hooks: `shellcheck`, `semgrep-diff`, `trivy-quick`, run sequentially. Pushes take about 8 minutes.
+- GitHub push protection blocks commits containing secrets. Never stage anything under `harnesses/openclaw/_reference/` or `future-work/`.
 
 ## Editing rules
 
-- `config/fleet-manifest.json` is the installer source of truth — edit here, not in installer code
-- `config/opencode.jsonc` is the runtime config source copied into installs
-- `config/AGENTS.md` is the installed fleet usage guide, not this repo guide
-- When moving paths, update scripts + tests + README together
-- Gate plugins and routing manifest paths are runtime-sensitive (nio.js, nurikabe.js exec `scripts/workflow-state.mjs` at runtime)
+- `config/fleet-manifest.json` is the installer source of truth. Add or remove components here, never patch installer code to special-case them.
+- Manifest component flags that matter: `atomic` (installed as a group), `requires_bun` (skipped when bun is missing), `non-atomic` (independent).
+- `config/opencode.jsonc` registers all 5 plugins (`nio`, `nurikabe`, `komainu`, `migawari`, `web-tools`). Order is runtime-sensitive.
+- `config/AGENTS.md` is the installed fleet guide copied into user installs, not a repo guide. This file is the repo guide.
+- `plugins/nio.js` and `plugins/nurikabe.js` exec `scripts/workflow-state.mjs` at runtime via `bun scriptPath read --cwd process.cwd() --workflow <id>`. Moving those paths breaks the workflow gates silently.
+- `docs/routing-manifest.json` defines fallback chains for the migawari failover gate. Keep it in sync with `opencode.jsonc`.
+- When moving paths, update `install-fleet.sh`, `fleet-manifest.json`, `scripts/tests/`, and relevant READMEs together.
+- `docs/superpowers/specs/` are planning-stage docs, not shipped runtime behavior.
 
 ## Always / Ask first / Never
 
-**Always**: Run `bun test scripts/tests/` after changing installer, manifest, config, agent inventory, or plugin wiring.
+**Always**: Run `bun test scripts/tests/` after edits to installer, manifest, `opencode.jsonc`, agents, plugins, or `workflow-state.mjs`. Re-run the `tools/opencode-all` tests after touching that subtree.
 
-**Ask first**: Before removing docs, rules, or plugins.
+**Ask first**: Before removing docs, rules, plugins, or any path used by `routing-manifest.json`.
 
-**Never**: Patch `node_modules`. Remove gate plugins casually. Edit installed user paths as if they were source.
+**Never**: Patch `node_modules`. Edit installed user paths as source. Re-enable parallel pre-push hooks (sequential is required to avoid trivy plus semgrep worktree races).
 
-## Roadmap awareness
+## Cross-component
 
-- `tools/opencode-all/` is shipped and independent
-- `docs/superpowers/specs/2026-06-18-web-tools-v0.1-design.md` is planning-stage work, not shipped runtime behavior
+- Shared `skills/` and `docs/` live at repo root, not here. `install-fleet.sh --no-common-skills` skips the shared-skills installation prompt.
+- `harnesses/claude-code/cli/` is a separate harness with its own pytest tests and `uv` toolchain. Do not mix into opencode changes.
+- Repo root `lefthook.yml`, `.shellcheckrc`, and `trivy.yaml` apply across all harnesses. Changing them affects pi-agent, openclaw, and claude-code too.
