@@ -76,6 +76,7 @@ Controller policy: the main session orchestrates only: analysis, delegation, rev
 | 2026-07-02 | Review protocol corrected | Combine spec-compliance and code-quality review in one `general` subagent pass. If review finds issues, route fixes to `impl-simple` or `impl-complex` by scope, then re-review with `general`. |
 | 2026-07-02 | Part 1 Task 1 completed by impl-simple | `agents/_v2-leaf.md`, `agents/_v2-impl.md`, `agents/_v2-spec.md` |
 | 2026-07-02 | Part 1 Task 2 implemented; probe run exit 8 | `scripts/dev/canaries/v2-dispatch-probe.mjs`; JSON: `{"a_depth2":false,"b_depth3":false,"c_deny_enforced":true,"samples":{"d2":"Unknown agent type: _v2-impl is not a valid agent type\n","d3":"chain\n","dn":"Unknown agent type: _v2-spec is not a valid agent type\n"}}` |
+| 2026-07-02 | Part 1 Task 3 implemented; red/green verified | `scripts/lint-dispatch-graph.mjs`, `scripts/tests/dispatch-graph.test.mjs`; red: module not found; green: 4 pass |
 
 ## Open Risks
 
