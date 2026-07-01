@@ -1,9 +1,9 @@
-import { ensureGitRepository } from "./git.mjs";
+import { ensureGitRepository } from "./git.mjs"
 
 export function resolveWorkspaceRoot(cwd) {
   try {
-    return ensureGitRepository(cwd);
+    return ensureGitRepository(cwd)
   } catch {
-    return cwd;
+    return cwd
   }
 }

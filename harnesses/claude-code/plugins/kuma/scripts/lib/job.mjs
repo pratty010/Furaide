@@ -1,13 +1,13 @@
-import { upsertJob, generateJobId } from "./state.mjs";
+import { generateJobId, upsertJob } from "./state.mjs"
 
-export const JOB_KINDS = ["review", "task"];
-export const JOB_STATUSES = ["queued", "running", "done", "error", "cancelled"];
+export const JOB_KINDS = ["review", "task"]
+export const JOB_STATUSES = ["queued", "running", "done", "error", "cancelled"]
 
 export function createJob(cwd, { kind, provider, model, backend, resumable = false }) {
   if (!JOB_KINDS.includes(kind)) {
-    throw new Error(`Unknown job kind: ${kind}`);
+    throw new Error(`Unknown job kind: ${kind}`)
   }
-  const id = generateJobId(kind);
+  const id = generateJobId(kind)
   const job = {
     id,
     kind,
@@ -21,14 +21,14 @@ export function createJob(cwd, { kind, provider, model, backend, resumable = fal
     sessionHandle: null,
     pid: null,
     result: null,
-    errorMessage: null
-  };
-  upsertJob(cwd, job);
-  return job;
+    errorMessage: null,
+  }
+  upsertJob(cwd, job)
+  return job
 }
 
 export function markRunning(cwd, id, { pid, phaseHint = null } = {}) {
-  return upsertJob(cwd, { id, status: "running", phase: phaseHint, pid });
+  return upsertJob(cwd, { id, status: "running", phase: phaseHint, pid })
 }
 
 export function markDone(cwd, id, { result, sessionHandle = null } = {}) {
@@ -39,18 +39,25 @@ export function markDone(cwd, id, { result, sessionHandle = null } = {}) {
     pid: null,
     result,
     resultReady: true,
-    sessionHandle
-  });
+    sessionHandle,
+  })
 }
 
 export function markError(cwd, id, { errorMessage } = {}) {
-  return upsertJob(cwd, { id, status: "error", phase: "error", pid: null, errorMessage, resultReady: true });
+  return upsertJob(cwd, {
+    id,
+    status: "error",
+    phase: "error",
+    pid: null,
+    errorMessage,
+    resultReady: true,
+  })
 }
 
 export function markCancelled(cwd, id) {
-  return upsertJob(cwd, { id, status: "cancelled", phase: "cancelled", pid: null });
+  return upsertJob(cwd, { id, status: "cancelled", phase: "cancelled", pid: null })
 }
 
 export function isJobActive(job) {
-  return job.status === "queued" || job.status === "running";
+  return job.status === "queued" || job.status === "running"
 }
