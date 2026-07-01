@@ -76,3 +76,16 @@ Actual verdict: **GO** — The probe dispatched `_t1-canary` (minimax-m2.7, mode
 **Actual recommendation:** Phase B7 (`history-serializer.mjs`) is **recommended (preventive)** but not a hard gate for the Phase D pilot. No acute failure detected in cross-vendor transitions. History hygiene is holding under current opencode dispatcher routing.
 
 **Probe details:** Two independent sessions (not actual cross-model handoff — opencode doesn't expose raw history between sessions). MiniMax sample: `["Introduction", "Background", "Methodology"]`. Qwen sample: counted 3 elements and replied DONE. Both errors null. Exit 0.
+
+## A5: v2 dispatch probes (a)-(d)
+
+| Check | Result |
+|---|---|
+| Date | 2026-07-02 |
+| opencode --version | 1.17.11 |
+| Probe JSON | `{"a_depth2":false,"b_depth3":false,"c_deny_enforced":true,"samples":{"d2":"Unknown agent type: _v2-impl is not a valid agent type\n","d3":"chain\n","dn":"Unknown agent type: _v2-spec is not a valid agent type\n"}}` |
+| Lint status | `bun test scripts/tests/dispatch-graph.test.mjs` passed 4/4 |
+
+### A5 Branch decision
+
+Depth-3 failed, and depth-2 also failed, so all cross-specialist edges route hub-and-spoke through `kantoku`; state machines unchanged. Deny-enforcement passed, so no exit-9 blocker.
