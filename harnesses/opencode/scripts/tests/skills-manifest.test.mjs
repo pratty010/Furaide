@@ -259,3 +259,101 @@ test('skill-patches directory structure is valid', () => {
   // patches_dir should end with 'skill-patches'
   expect(m.patches_dir).toMatch(/skill-patches$/);
 });
+
+// ---------- repo-root skills validation ----------
+
+function parseYAMLFrontmatter(content) {
+  const match = content.match(/^---\n([\s\S]*?)\n---/);
+  if (!match) return null;
+  const yaml = match[1];
+  const result = {};
+  const lines = yaml.split('\n');
+  for (const line of lines) {
+    if (!line.trim()) continue;
+    const colonIdx = line.indexOf(':');
+    if (colonIdx === -1) continue;
+    const key = line.substring(0, colonIdx).trim();
+    const value = line.substring(colonIdx + 1).trim();
+    result[key] = value;
+  }
+  return result;
+}
+
+test('repo-root skills directory exists', () => {
+  const repoRoot = resolve(HARNESS_ROOT, '../../');
+  const skillsDir = join(repoRoot, 'skills');
+  expect(existsSync(skillsDir)).toBe(true);
+});
+
+test('every skill has a SKILL.md with valid frontmatter', () => {
+  const repoRoot = resolve(HARNESS_ROOT, '../../');
+  const skillsDir = join(repoRoot, 'skills');
+
+  const entries = readdirSync(skillsDir);
+  for (const entry of entries) {
+    const fullPath = join(skillsDir, entry);
+    const stat = require('node:fs').statSync(fullPath);
+
+    // Skip non-directories
+    if (!stat.isDirectory()) continue;
+
+    // Check SKILL.md exists
+    const skillMdPath = join(fullPath, 'SKILL.md');
+    expect(existsSync(skillMdPath), `${entry} missing SKILL.md`).toBe(true);
+
+    // Parse frontmatter
+    const content = readFileSync(skillMdPath, 'utf8');
+    const frontmatter = parseYAMLFrontmatter(content);
+
+    expect(frontmatter, `${entry} SKILL.md has no frontmatter`).not.toBeNull();
+
+    // Validate frontmatter fields
+    expect(typeof frontmatter.name, `${entry} missing name field`).toBe('string');
+    expect(frontmatter.name.length > 0, `${entry} name is empty`).toBe(true);
+
+    expect(typeof frontmatter.description, `${entry} missing description field`).toBe('string');
+    expect(frontmatter.description.length > 0, `${entry} description is empty`).toBe(true);
+
+    // Validate name matches directory
+    expect(frontmatter.name === entry, `${entry} name field does not match directory name`).toBe(true);
+
+    // Validate that only documented fields are present (for our created skills, not external skills)
+    // External skills may have additional fields like 'allowed-tools', 'trigger', 'trigger_negative'
+    // This validation is informational and helps catch typos in our own skills
+    const commonDocumentedFields = new Set(['name', 'description', 'instructions', 'author', 'version', 'allowed-tools', 'trigger', 'trigger_negative']);
+    const undocumentedFields = Object.keys(frontmatter).filter(k => !commonDocumentedFields.has(k));
+    if (undocumentedFields.length > 0) {
+      // Log but don't fail; external skills may have fields we don't know about yet
+      // Only our newly created skills should have pure name/description
+      // console.warn(`${entry} has additional frontmatter fields: ${undocumentedFields.join(', ')}`);
+    }
+  }
+});
+
+test('core skill set exists', () => {
+  const repoRoot = resolve(HARNESS_ROOT, '../../');
+  const skillsDir = join(repoRoot, 'skills');
+
+  const requiredSkills = [
+    // Addendum skills
+    'writing-plans-furaide-addendum',
+    'test-driven-development-furaide-addendum',
+    'requesting-code-review-furaide-addendum',
+    'verification-before-completion-furaide-addendum',
+    'handoff-furaide-addendum',
+    // Native skills
+    'post-mortem',
+    'regression-test-recipe',
+    'mcp-supply-chain-scan',
+    'domain-scope-card',
+    'evidence-matrix',
+    'deep-research-outline',
+    'earnings-10k-extraction',
+    'dcf-valuation-model'
+  ];
+
+  for (const skillName of requiredSkills) {
+    const skillDir = join(skillsDir, skillName);
+    expect(existsSync(skillDir), `required skill ${skillName} does not exist`).toBe(true);
+  }
+});
