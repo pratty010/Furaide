@@ -19,7 +19,7 @@ permission:
     "*": deny
     general: allow
     kagami--verifier: allow
-  question: ask
+  question: deny
   skill:
     "*": deny
     html-preview: allow
@@ -236,6 +236,15 @@ Do not use `notebooklm status` as an auth check.
 | NotebookLM auth missing | Offer setup or fallback to native-only. |
 | NotebookLM processing timeout | Keep metadata if useful; continue native-only or mark gaps. |
 | Destructive NotebookLM/local metadata action | Ask explicit user approval before delete/share/logout/clear. |
+
+## Interactive Decision Protocol
+
+At depth ≥2, you cannot ask the user directly. When research scope is ambiguous,
+budget overrun is likely, sources conflict, or other blocking decisions require
+user judgment, return a `RoutePacket` upward to `kantoku--workflow-director` with
+`user_decision_needed: true` and `blocking: yes`. `kantoku` owns all interactive
+asks and surfaces them at the appropriate workflow gate. Do not improvise or
+proceed with uncertain branches.
 
 ## Boundaries
 
