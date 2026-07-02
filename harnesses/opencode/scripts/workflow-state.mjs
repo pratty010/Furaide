@@ -315,6 +315,9 @@ function canResumeBlockedState(state, to) {
 }
 
 function assertAllowedTransition(state, config, to) {
+  if (state.workflow_id === 'wf4' && state.phase === 'DELIVERY' && state.previous_phase === 'QUICK_ANSWER') {
+    die(`invalid transition for ${state.workflow_id}: ${state.phase} -> ${to}`);
+  }
   const allowed = config.edges[state.phase] || [];
   if (allowed.includes(to) || canResumeBlockedState(state, to)) return;
   die(`invalid transition for ${state.workflow_id}: ${state.phase} -> ${to}`);
@@ -423,6 +426,7 @@ async function cmdInit(args) {
       next_action: null,
       governing_file: null,
       blocked_from_phase: null,
+      previous_phase: null,
       rev: 1,
       sessions: [session],
     };
@@ -493,6 +497,7 @@ async function cmdAdvance(args) {
     state.phase = to;
     state.workflow_states = state.workflow_states || [...config.states];
     state.blocked_from_phase = to === 'BLOCKED_CLARIFY' ? fromPhase : null;
+    state.previous_phase = fromPhase;
     if (!state.sessions.includes(session)) state.sessions.push(session);
     state.rev += 1;
 
