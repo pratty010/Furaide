@@ -1,0 +1,229 @@
+#!/usr/bin/env node
+/**
+ * pull-external-skills.mjs
+ * Fetches external skills pinned in config/skills-manifest.json.
+ *
+ * Modes:
+ *   --check   Verify each pinned SHA is reachable via `gh api`, report drift
+ *             against already-installed copies.
+ *   --pull    Shallow-clone each repo at the pinned commit into a temp dir,
+ *             copy listed skill dirs into install_target, write receipt.json.
+ *
+ * Usage:
+ *   node scripts/pull-external-skills.mjs --check
+ *   node scripts/pull-external-skills.mjs --pull
+ */
+
+import { existsSync, mkdirSync, cpSync, writeFileSync, readFileSync, rmSync } from 'node:fs';
+import { resolve, join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { execSync, spawnSync } from 'node:child_process';
+import { tmpdir } from 'node:os';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const HARNESS_ROOT = resolve(__dirname, '..');
+const MANIFEST_PATH = join(HARNESS_ROOT, 'config/skills-manifest.json');
+
+// ---------- helpers ----------
+
+function loadManifest() {
+  // Reuse jsonc.mjs if it exists (our manifest is plain JSON but future-proof)
+  const jsoncPath = join(HARNESS_ROOT, 'scripts/lib/jsonc.mjs');
+  if (existsSync(jsoncPath)) {
+    const { parseJsonc } = await importJsonc(jsoncPath);
+    return parseJsonc(readFileSync(MANIFEST_PATH, 'utf8'));
+  }
+  return JSON.parse(readFileSync(MANIFEST_PATH, 'utf8'));
+}
+
+// Dynamic import wrapper (top-level await not available in all runtimes)
+function importJsonc(path) {
+  return import(path);
+}
+
+function expandHome(p) {
+  if (p.startsWith('~/')) {
+    return join(process.env.HOME ?? process.env.USERPROFILE ?? '', p.slice(2));
+  }
+  return p;
+}
+
+function run(cmd, opts = {}) {
+  return spawnSync(cmd, { shell: true, encoding: 'utf8', ...opts });
+}
+
+function ghApiPin(repo, pin) {
+  const result = run(`gh api repos/${repo}/commits/${pin} --jq .sha`);
+  if (result.status !== 0) return null;
+  return result.stdout.trim();
+}
+
+function log(msg) {
+  process.stdout.write(msg + '\n');
+}
+
+function err(msg) {
+  process.stderr.write('[pull-external-skills] ' + msg + '\n');
+}
+
+// ---------- --check mode ----------
+
+async function checkMode(manifest) {
+  log('Checking pinned SHAs…\n');
+  const installTarget = expandHome(manifest.install_target);
+  let allOk = true;
+
+  for (const src of manifest.sources) {
+    log(`  repo: ${src.repo}  pin: ${src.pin.slice(0, 12)}…`);
+
+    const resolved = ghApiPin(src.repo, src.pin);
+    if (!resolved) {
+      err(`  FAIL: ${src.repo}@${src.pin} not reachable via gh api`);
+      allOk = false;
+    } else if (resolved !== src.pin) {
+      err(`  WARN: ${src.repo} resolved to different SHA ${resolved}`);
+    } else {
+      log(`    pin reachable ✓`);
+    }
+
+    for (const skill of src.skills) {
+      const installed = join(installTarget, skill);
+      if (!existsSync(installed)) {
+        log(`    ${skill}: NOT INSTALLED`);
+      } else {
+        // Check receipt
+        const receiptPath = join(installTarget, 'receipt.json');
+        if (existsSync(receiptPath)) {
+          const receipt = JSON.parse(readFileSync(receiptPath, 'utf8'));
+          const entry = receipt[skill];
+          if (entry && entry.pin !== src.pin) {
+            log(`    ${skill}: DRIFT (installed ${entry.pin?.slice(0, 12)}, manifest ${src.pin.slice(0, 12)})`);
+          } else {
+            log(`    ${skill}: ok`);
+          }
+        } else {
+          log(`    ${skill}: installed (no receipt)`);
+        }
+      }
+    }
+    log('');
+  }
+
+  if (allOk) {
+    log('All pins reachable.');
+  } else {
+    process.exit(1);
+  }
+}
+
+// ---------- --pull mode ----------
+
+async function pullMode(manifest) {
+  const installTarget = expandHome(manifest.install_target);
+  mkdirSync(installTarget, { recursive: true });
+
+  const receipt = existsSync(join(installTarget, 'receipt.json'))
+    ? JSON.parse(readFileSync(join(installTarget, 'receipt.json'), 'utf8'))
+    : {};
+
+  for (const src of manifest.sources) {
+    log(`\nPulling ${src.repo}@${src.pin.slice(0, 12)}…`);
+
+    // Verify pin reachable
+    const resolved = ghApiPin(src.repo, src.pin);
+    if (!resolved) {
+      err(`Cannot reach ${src.repo}@${src.pin} — skipping`);
+      continue;
+    }
+
+    // Shallow clone into temp dir
+    const tmpDir = join(tmpdir(), `pull-skills-${Date.now()}`);
+    mkdirSync(tmpDir, { recursive: true });
+
+    try {
+      const cloneUrl = `https://github.com/${src.repo}.git`;
+      // Clone without history; then checkout the exact pin
+      const cloneResult = run(
+        `git clone --depth 1 --no-single-branch ${cloneUrl} ${tmpDir}/repo`,
+        { stdio: 'pipe' }
+      );
+
+      if (cloneResult.status !== 0) {
+        // Fall back: full clone then checkout
+        err(`Shallow clone failed, trying full clone: ${cloneResult.stderr?.trim()}`);
+        const fullClone = run(`git clone ${cloneUrl} ${tmpDir}/repo`, { stdio: 'pipe' });
+        if (fullClone.status !== 0) {
+          err(`Failed to clone ${src.repo}: ${fullClone.stderr?.trim()}`);
+          continue;
+        }
+      }
+
+      // Checkout the exact pin
+      const checkout = run(`git -C ${tmpDir}/repo checkout ${src.pin}`, { stdio: 'pipe' });
+      if (checkout.status !== 0) {
+        err(`Failed to checkout ${src.pin} in ${src.repo}: ${checkout.stderr?.trim()}`);
+        continue;
+      }
+
+      // Copy each skill dir/file into install_target
+      const date = new Date().toISOString();
+      for (const skill of src.skills) {
+        // Skills may live as <skill>.md or <skill>/ directory
+        const srcDir = join(tmpDir, 'repo', skill);
+        const srcFile = join(tmpDir, 'repo', skill + '.md');
+        const destDir = join(installTarget, skill);
+
+        if (existsSync(srcDir)) {
+          if (existsSync(destDir)) rmSync(destDir, { recursive: true, force: true });
+          cpSync(srcDir, destDir, { recursive: true });
+          log(`  copied ${skill}/ → ${installTarget}`);
+        } else if (existsSync(srcFile)) {
+          mkdirSync(destDir, { recursive: true });
+          cpSync(srcFile, join(destDir, skill + '.md'));
+          log(`  copied ${skill}.md → ${installTarget}/${skill}/`);
+        } else {
+          err(`  skill not found in repo: ${skill} (checked ${srcDir} and ${srcFile})`);
+          continue;
+        }
+
+        receipt[skill] = { repo: src.repo, pin: src.pin, date };
+      }
+    } finally {
+      rmSync(tmpDir, { recursive: true, force: true });
+    }
+  }
+
+  writeFileSync(join(installTarget, 'receipt.json'), JSON.stringify(receipt, null, 2) + '\n');
+  log(`\nreceipt.json written to ${installTarget}`);
+  log('Done.');
+}
+
+// ---------- entry ----------
+
+async function main() {
+  const args = process.argv.slice(2);
+  const mode = args[0];
+
+  if (mode !== '--check' && mode !== '--pull') {
+    err('Usage: pull-external-skills.mjs --check | --pull');
+    process.exit(1);
+  }
+
+  if (!existsSync(MANIFEST_PATH)) {
+    err(`Manifest not found: ${MANIFEST_PATH}`);
+    process.exit(1);
+  }
+
+  const manifest = loadManifest();
+
+  if (mode === '--check') {
+    await checkMode(manifest);
+  } else {
+    await pullMode(manifest);
+  }
+}
+
+main().catch(e => {
+  err(String(e));
+  process.exit(1);
+});
