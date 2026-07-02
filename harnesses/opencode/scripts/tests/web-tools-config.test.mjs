@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 
 test("web-tools config loads defaults when file is missing", async () => {
-  const { loadWebToolsConfig } = await import("../../plugins/web-tools/config.ts");
+  const { loadWebToolsConfig } = await import("../../plugins/tools/web-tools/config.ts");
   const config = await loadWebToolsConfig({ configDir: "/tmp/does-not-exist" });
 
   expect(config.webSearch.defaultProvider).toBe("brave");
@@ -13,13 +13,13 @@ test("web-tools config loads defaults when file is missing", async () => {
 });
 
 test("default google.transport is auto when config file is missing", async () => {
-  const { loadWebToolsConfig } = await import("../../plugins/web-tools/config.ts");
+  const { loadWebToolsConfig } = await import("../../plugins/tools/web-tools/config.ts");
   const config = await loadWebToolsConfig({ configDir: "/tmp/does-not-exist" });
   expect(config.google.transport).toBe("auto");
 });
 
 test("user setting google.transport to vertex is preserved", async () => {
-  const { loadWebToolsConfig } = await import("../../plugins/web-tools/config.ts");
+  const { loadWebToolsConfig } = await import("../../plugins/tools/web-tools/config.ts");
   const dir = mkdtempSync(join(tmpdir(), "wt-google-"));
   writeFileSync(join(dir, "web-tools.yml"), "google:\n  transport: vertex\n");
   const config = await loadWebToolsConfig({ configDir: dir });
@@ -27,7 +27,7 @@ test("user setting google.transport to vertex is preserved", async () => {
 });
 
 test("user setting google.transport to ai-studio is preserved", async () => {
-  const { loadWebToolsConfig } = await import("../../plugins/web-tools/config.ts");
+  const { loadWebToolsConfig } = await import("../../plugins/tools/web-tools/config.ts");
   const dir = mkdtempSync(join(tmpdir(), "wt-google-"));
   writeFileSync(join(dir, "web-tools.yml"), "google:\n  transport: ai-studio\n");
   const config = await loadWebToolsConfig({ configDir: dir });
@@ -35,7 +35,7 @@ test("user setting google.transport to ai-studio is preserved", async () => {
 });
 
 test("invalid google.transport value clamps to auto", async () => {
-  const { loadWebToolsConfig } = await import("../../plugins/web-tools/config.ts");
+  const { loadWebToolsConfig } = await import("../../plugins/tools/web-tools/config.ts");
   const dir = mkdtempSync(join(tmpdir(), "wt-google-"));
   writeFileSync(join(dir, "web-tools.yml"), "google:\n  transport: garbage\n");
   const config = await loadWebToolsConfig({ configDir: dir });
@@ -43,7 +43,7 @@ test("invalid google.transport value clamps to auto", async () => {
 });
 
 test("non-string google.transport clamps to auto", async () => {
-  const { loadWebToolsConfig } = await import("../../plugins/web-tools/config.ts");
+  const { loadWebToolsConfig } = await import("../../plugins/tools/web-tools/config.ts");
   const dir = mkdtempSync(join(tmpdir(), "wt-google-"));
   writeFileSync(join(dir, "web-tools.yml"), "google:\n  transport: 123\n");
   const config = await loadWebToolsConfig({ configDir: dir });
@@ -51,7 +51,7 @@ test("non-string google.transport clamps to auto", async () => {
 });
 
 test("advanced defaults present for webSearch and fetchContent", async () => {
-  const { loadWebToolsConfig } = await import("../../plugins/web-tools/config.ts");
+  const { loadWebToolsConfig } = await import("../../plugins/tools/web-tools/config.ts");
   const config = await loadWebToolsConfig({ configDir: "/tmp/does-not-exist" });
   expect(config.webSearch.advanced.depth).toBe("simple");
   expect(config.webSearch.advanced.topic).toBe("general");
@@ -72,7 +72,7 @@ test("advanced defaults present for webSearch and fetchContent", async () => {
 });
 
 test("user override depth under fetchContent.advanced", async () => {
-  const { loadWebToolsConfig } = await import("../../plugins/web-tools/config.ts");
+  const { loadWebToolsConfig } = await import("../../plugins/tools/web-tools/config.ts");
   const dir = mkdtempSync(join(tmpdir(), "wt-adv-"));
   writeFileSync(join(dir, "web-tools.yml"), "fetchContent:\n  advanced:\n    depth: 2\n");
   const config = await loadWebToolsConfig({ configDir: dir });
@@ -80,7 +80,7 @@ test("user override depth under fetchContent.advanced", async () => {
 });
 
 test("user override topic=garbage clamps to general", async () => {
-  const { loadWebToolsConfig } = await import("../../plugins/web-tools/config.ts");
+  const { loadWebToolsConfig } = await import("../../plugins/tools/web-tools/config.ts");
   const dir = mkdtempSync(join(tmpdir(), "wt-adv-"));
   writeFileSync(join(dir, "web-tools.yml"), "webSearch:\n  advanced:\n    topic: garbage\n");
   const config = await loadWebToolsConfig({ configDir: dir });
@@ -88,7 +88,7 @@ test("user override topic=garbage clamps to general", async () => {
 });
 
 test("user override minScore=2 clamps to 1", async () => {
-  const { loadWebToolsConfig } = await import("../../plugins/web-tools/config.ts");
+  const { loadWebToolsConfig } = await import("../../plugins/tools/web-tools/config.ts");
   const dir = mkdtempSync(join(tmpdir(), "wt-adv-"));
   writeFileSync(join(dir, "web-tools.yml"), "webSearch:\n  advanced:\n    minScore: 2\n");
   const config = await loadWebToolsConfig({ configDir: dir });
@@ -96,7 +96,7 @@ test("user override minScore=2 clamps to 1", async () => {
 });
 
 test("user override maxChars=99999999 clamps to 1_000_000", async () => {
-  const { loadWebToolsConfig } = await import("../../plugins/web-tools/config.ts");
+  const { loadWebToolsConfig } = await import("../../plugins/tools/web-tools/config.ts");
   const dir = mkdtempSync(join(tmpdir(), "wt-adv-"));
   writeFileSync(join(dir, "web-tools.yml"), "fetchContent:\n  advanced:\n    maxChars: 99999999\n");
   const config = await loadWebToolsConfig({ configDir: dir });
@@ -104,7 +104,7 @@ test("user override maxChars=99999999 clamps to 1_000_000", async () => {
 });
 
 test("user override depth=999 clamps to 10", async () => {
-  const { loadWebToolsConfig } = await import("../../plugins/web-tools/config.ts");
+  const { loadWebToolsConfig } = await import("../../plugins/tools/web-tools/config.ts");
   const dir = mkdtempSync(join(tmpdir(), "wt-adv-"));
   writeFileSync(join(dir, "web-tools.yml"), "fetchContent:\n  advanced:\n    depth: 999\n");
   const config = await loadWebToolsConfig({ configDir: dir });
@@ -112,7 +112,7 @@ test("user override depth=999 clamps to 10", async () => {
 });
 
 test("includeDomains preserves unique non-empty", async () => {
-  const { loadWebToolsConfig } = await import("../../plugins/web-tools/config.ts");
+  const { loadWebToolsConfig } = await import("../../plugins/tools/web-tools/config.ts");
   const dir = mkdtempSync(join(tmpdir(), "wt-adv-"));
   writeFileSync(join(dir, "web-tools.yml"), "webSearch:\n  advanced:\n    includeDomains: [\"foo.com\"]\n");
   const config = await loadWebToolsConfig({ configDir: dir });
@@ -120,7 +120,7 @@ test("includeDomains preserves unique non-empty", async () => {
 });
 
 test("includeDomains filters empty and trims duplicates", async () => {
-  const { loadWebToolsConfig } = await import("../../plugins/web-tools/config.ts");
+  const { loadWebToolsConfig } = await import("../../plugins/tools/web-tools/config.ts");
   const dir = mkdtempSync(join(tmpdir(), "wt-adv-"));
   writeFileSync(join(dir, "web-tools.yml"), "webSearch:\n  advanced:\n    includeDomains: [\"\", \" foo.com \", \"foo.com\", \"foo.com\"]\n");
   const config = await loadWebToolsConfig({ configDir: dir });
@@ -128,7 +128,7 @@ test("includeDomains filters empty and trims duplicates", async () => {
 });
 
 test("country trims to empty string when only whitespace", async () => {
-  const { loadWebToolsConfig } = await import("../../plugins/web-tools/config.ts");
+  const { loadWebToolsConfig } = await import("../../plugins/tools/web-tools/config.ts");
   const dir = mkdtempSync(join(tmpdir(), "wt-adv-"));
   writeFileSync(join(dir, "web-tools.yml"), "webSearch:\n  advanced:\n    country: \" \"\n");
   const config = await loadWebToolsConfig({ configDir: dir });

@@ -88,8 +88,8 @@ test('installer applies resolved model map to target config', { timeout: 60000 }
 
     const out = readJson(cfg);
     expect(out.plugin).toContain('./plugins/my-existing.js');
-    expect(out.plugin).toContain('./plugins/nio.js');
-    expect(out.plugin).toContain('./plugins/komainu.js');
+    expect(out.plugin).toContain('./plugins/gates/nio.js');
+    expect(out.plugin).toContain('./plugins/gates/komainu.js');
     expect(out.agent['my-wiring-test-agent']).toEqual({ model: 'anthropic/claude-3.5-sonnet' });
     expect(out.agent['tsukumogami--code-forgemaster']).toBeDefined();
     expect(out.agent['oni--red-team-reviewer']).toEqual({ model: 'openai/gpt-5.5' });

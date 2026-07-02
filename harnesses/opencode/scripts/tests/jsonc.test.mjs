@@ -70,12 +70,12 @@ test('stripJsoncComments: strips // after a quoted key with trailing whitespace'
   // The classic "opencode.jsonc with $schema on its own line" pattern.
   const input = `{
   "$schema": "https://opencode.ai/config.json", // provider whitelist schema
-  "plugin": ["./plugins/nio.js"]
+  "plugin": ["./plugins/gates/nio.js"]
 }`;
   const stripped = stripJsoncComments(input);
   const obj = JSON.parse(stripped);
   expect(obj.$schema).toBe('https://opencode.ai/config.json');
-  expect(obj.plugin).toEqual(['./plugins/nio.js']);
+  expect(obj.plugin).toEqual(['./plugins/gates/nio.js']);
 });
 
 test('stripJsoncComments: leaves plain JSON unchanged', () => {
@@ -86,13 +86,13 @@ test('stripJsoncComments: leaves plain JSON unchanged', () => {
 test('parseJsonc: returns parsed object for JSONC input', () => {
   const input = `{
   // comment
-  "plugin": ["./plugins/nio.js"],
+  "plugin": ["./plugins/gates/nio.js"],
   "agent": {
     "oni--red-team-reviewer": { "model": "openai/gpt-5.5" }
   }
 }`;
   const obj = parseJsonc(input);
-  expect(obj.plugin).toEqual(['./plugins/nio.js']);
+  expect(obj.plugin).toEqual(['./plugins/gates/nio.js']);
   expect(obj.agent['oni--red-team-reviewer'].model).toBe('openai/gpt-5.5');
 });
 

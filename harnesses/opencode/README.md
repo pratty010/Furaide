@@ -73,7 +73,7 @@ Run `bash harnesses/opencode/scripts/install-fleet.sh --list` for the full machi
 
 ## Web Tools
 
-The web-tools plugin (`plugins/web-tools.ts`) registers three model-callable tools:
+The web-tools plugin (`plugins/tools/web-tools.ts`) registers three model-callable tools:
 
 | Tool | Default provider | Purpose |
 |---|---|---|
@@ -93,7 +93,7 @@ For interactive tool-level budgets, default providers, and transport changes, us
 
 ```text
 ~/.config/opencode/                 # or ./.opencode/
-├── opencode.jsonc                  # must include "./plugins/web-tools.ts" in "plugin"
+├── opencode.jsonc                  # must include "./plugins/tools/web-tools.ts" in "plugin"
 ├── package.json                    # deps merged from package.web-tools.json
 ├── web-tools.yml                   # config
 ├── commands/

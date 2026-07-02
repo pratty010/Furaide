@@ -2,7 +2,7 @@ import { test, expect, describe } from "bun:test";
 
 describe("untrusted boundary marker", () => {
   test("web_search results have _untrusted flag", async () => {
-    const { executeWebSearchTool } = await import("../../plugins/web-tools/tools/web-search.ts");
+    const { executeWebSearchTool } = await import("../../plugins/tools/web-tools/tools/web-search.ts");
     const mockRuntime = {
       config: {
         webSearch: {
@@ -37,7 +37,7 @@ describe("untrusted boundary marker", () => {
   });
 
   test("fetch_content results have _untrusted flag", async () => {
-    const { executeFetchContentTool } = await import("../../plugins/web-tools/tools/fetch-content.ts");
+    const { executeFetchContentTool } = await import("../../plugins/tools/web-tools/tools/fetch-content.ts");
     const mockRuntime = {
       config: {
         fetchContent: {
@@ -67,7 +67,7 @@ describe("untrusted boundary marker", () => {
   });
 
   test("maps_search results have _untrusted flag", async () => {
-    const { executeMapsSearchTool } = await import("../../plugins/web-tools/tools/maps-search.ts");
+    const { executeMapsSearchTool } = await import("../../plugins/tools/web-tools/tools/maps-search.ts");
     const mockRuntime = {
       config: { mapsSearch: { defaultProvider: "gemini", count: 3 } },
       usage: { recordFromSearch: async () => {} },
@@ -85,7 +85,7 @@ describe("untrusted boundary marker", () => {
   });
 
   test("fetch_content in map mode also carries _untrusted", async () => {
-    const { executeFetchContentTool } = await import("../../plugins/web-tools/tools/fetch-content.ts");
+    const { executeFetchContentTool } = await import("../../plugins/tools/web-tools/tools/fetch-content.ts");
     const mockRuntime = {
       config: {
         fetchContent: {
@@ -118,7 +118,7 @@ describe("untrusted boundary marker", () => {
 
 describe("tool input validation", () => {
   test("web_search rejects query starting with '-'", async () => {
-    const { executeWebSearchTool } = await import("../../plugins/web-tools/tools/web-search.ts");
+    const { executeWebSearchTool } = await import("../../plugins/tools/web-tools/tools/web-search.ts");
     const mockRuntime = {
       config: {
         webSearch: { defaultProvider: "brave", primaryFallbackOrder: ["brave"], reserveFallbackOrder: [], count: 2, freshness: "pm", rawContent: false },
@@ -134,7 +134,7 @@ describe("tool input validation", () => {
   });
 
   test("web_search rejects oversized query", async () => {
-    const { executeWebSearchTool } = await import("../../plugins/web-tools/tools/web-search.ts");
+    const { executeWebSearchTool } = await import("../../plugins/tools/web-tools/tools/web-search.ts");
     const mockRuntime = {
       config: {
         webSearch: { defaultProvider: "brave", primaryFallbackOrder: ["brave"], reserveFallbackOrder: [], count: 2, freshness: "pm", rawContent: false },
@@ -150,7 +150,7 @@ describe("tool input validation", () => {
   });
 
   test("web_search clamps excessive count", async () => {
-    const { executeWebSearchTool } = await import("../../plugins/web-tools/tools/web-search.ts");
+    const { executeWebSearchTool } = await import("../../plugins/tools/web-tools/tools/web-search.ts");
     let receivedCount = -1;
     const mockRuntime = {
       config: {
@@ -173,7 +173,7 @@ describe("tool input validation", () => {
   });
 
   test("fetch_content rejects SSRF loopback URL", async () => {
-    const { executeFetchContentTool } = await import("../../plugins/web-tools/tools/fetch-content.ts");
+    const { executeFetchContentTool } = await import("../../plugins/tools/web-tools/tools/fetch-content.ts");
     const mockRuntime = {
       config: {
         fetchContent: { defaultProvider: "gemini", primaryFallbackOrder: ["gemini"], reserveFallbackOrder: [], format: "markdown" },
@@ -191,7 +191,7 @@ describe("tool input validation", () => {
   });
 
   test("fetch_content rejects more than 5 URLs", async () => {
-    const { executeFetchContentTool } = await import("../../plugins/web-tools/tools/fetch-content.ts");
+    const { executeFetchContentTool } = await import("../../plugins/tools/web-tools/tools/fetch-content.ts");
     const mockRuntime = {
       config: {
         fetchContent: { defaultProvider: "gemini", primaryFallbackOrder: ["gemini"], reserveFallbackOrder: [], format: "markdown" },
@@ -208,7 +208,7 @@ describe("tool input validation", () => {
   });
 
   test("maps_search rejects invalid lat/lng", async () => {
-    const { executeMapsSearchTool } = await import("../../plugins/web-tools/tools/maps-search.ts");
+    const { executeMapsSearchTool } = await import("../../plugins/tools/web-tools/tools/maps-search.ts");
     const mockRuntime = {
       config: { mapsSearch: { defaultProvider: "gemini", count: 3 } },
       usage: { recordFromSearch: async () => {} },

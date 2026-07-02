@@ -1,7 +1,7 @@
 import { test, expect } from "bun:test";
 
 test("web_search tool executes with mock runtime", async () => {
-  const { executeWebSearchTool } = await import("../../plugins/web-tools/tools/web-search.ts");
+  const { executeWebSearchTool } = await import("../../plugins/tools/web-tools/tools/web-search.ts");
 
   const mockRuntime = {
     config: {
@@ -41,7 +41,7 @@ test("web_search tool executes with mock runtime", async () => {
 });
 
 test("web_search omits metadata from public result", async () => {
-  const { executeWebSearchTool } = await import("../../plugins/web-tools/tools/web-search.ts");
+  const { executeWebSearchTool } = await import("../../plugins/tools/web-tools/tools/web-search.ts");
 
   const mockRuntime = {
     config: {
@@ -73,7 +73,7 @@ test("web_search omits metadata from public result", async () => {
 });
 
 test("web_search caches identical requests", async () => {
-  const { executeWebSearchTool } = await import("../../plugins/web-tools/tools/web-search.ts");
+  const { executeWebSearchTool } = await import("../../plugins/tools/web-tools/tools/web-search.ts");
 
   let callCount = 0;
   const mockRuntime = {
@@ -116,7 +116,7 @@ test("web_search caches identical requests", async () => {
 });
 
 test("web_search uses NormalizedWebSearchRequest", async () => {
-  const { normalizeWebSearchArgs } = await import("../../plugins/web-tools/tools/web-search.ts");
+  const { normalizeWebSearchArgs } = await import("../../plugins/tools/web-tools/tools/web-search.ts");
 
   const config = {
     defaultProvider: "brave",
@@ -143,7 +143,7 @@ test("web_search uses NormalizedWebSearchRequest", async () => {
 });
 
 test("effectiveOrder deduplicates and follows config priority", async () => {
-  const { effectiveOrder } = await import("../../plugins/web-tools/order.ts");
+  const { effectiveOrder } = await import("../../plugins/tools/web-tools/order.ts");
 
   const order = effectiveOrder("brave", ["brave", "tavily", "gemini"], []);
   expect(order).toEqual(["brave", "tavily", "gemini"]);
@@ -156,14 +156,14 @@ test("effectiveOrder deduplicates and follows config priority", async () => {
 });
 
 test("effectiveOrder empty reserve does not crash", async () => {
-  const { effectiveOrder } = await import("../../plugins/web-tools/order.ts");
+  const { effectiveOrder } = await import("../../plugins/tools/web-tools/order.ts");
   const order = effectiveOrder("gemini", [], []);
   expect(order).toEqual(["gemini"]);
 });
 
 test("recordFromSearch and recordFromFetch mutate DB", async () => {
-  const { openTestDb } = await import("../../plugins/web-tools/db.ts");
-  const { createUsageTracker } = await import("../../plugins/web-tools/provider-usage.ts");
+  const { openTestDb } = await import("../../plugins/tools/web-tools/db.ts");
+  const { createUsageTracker } = await import("../../plugins/tools/web-tools/provider-usage.ts");
 
   const db = openTestDb();
   const usage = createUsageTracker(db);
@@ -181,9 +181,9 @@ test("recordFromSearch and recordFromFetch mutate DB", async () => {
 });
 
 test("provider wrappers throw real errors not stubs", async () => {
-  const brave = await import("../../plugins/web-tools/providers/brave.ts");
-  const tavily = await import("../../plugins/web-tools/providers/tavily.ts");
-  const gemini = await import("../../plugins/web-tools/providers/gemini.ts");
+  const brave = await import("../../plugins/tools/web-tools/providers/brave.ts");
+  const tavily = await import("../../plugins/tools/web-tools/providers/tavily.ts");
+  const gemini = await import("../../plugins/tools/web-tools/providers/gemini.ts");
 
   const expectRealError = async (fn) => {
     try { await fn; } catch (e) {

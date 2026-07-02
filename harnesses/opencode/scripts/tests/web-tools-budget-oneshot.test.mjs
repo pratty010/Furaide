@@ -44,7 +44,7 @@ describe("checkBudget one-shot warning preambles", () => {
   const budgets = { geminiUsd: 5.0, braveRequests: 2000, tavilyCredits: 1000 };
 
   test("warn80 preamble suppressed once shown", async () => {
-    const { checkBudget } = await import("../../plugins/web-tools/provider-usage.ts");
+    const { checkBudget } = await import("../../plugins/tools/web-tools/provider-usage.ts");
     const first = checkBudget(budgets, makeSnapshot({ estimated_cost_usd: 4.0 }), "gemini");
     expect(first.warningLevel).toBe("warn80");
     expect(first.preamble).toContain("80%");
@@ -55,7 +55,7 @@ describe("checkBudget one-shot warning preambles", () => {
   });
 
   test("warn90 preamble suppressed once shown", async () => {
-    const { checkBudget } = await import("../../plugins/web-tools/provider-usage.ts");
+    const { checkBudget } = await import("../../plugins/tools/web-tools/provider-usage.ts");
     const first = checkBudget(budgets, makeSnapshot({ estimated_cost_usd: 4.5 }), "gemini");
     expect(first.preamble).toContain("90%");
 
@@ -65,7 +65,7 @@ describe("checkBudget one-shot warning preambles", () => {
   });
 
   test("exceeded preamble suppressed once shown, block remains", async () => {
-    const { checkBudget } = await import("../../plugins/web-tools/provider-usage.ts");
+    const { checkBudget } = await import("../../plugins/tools/web-tools/provider-usage.ts");
     const first = checkBudget(budgets, makeSnapshot({ estimated_cost_usd: 5.0 }), "gemini");
     expect(first.blocked).toBe(true);
     expect(first.preamble).toContain("Budget exceeded");
@@ -77,7 +77,7 @@ describe("checkBudget one-shot warning preambles", () => {
   });
 
   test("brave exceeded preamble suppressed once shown", async () => {
-    const { checkBudget } = await import("../../plugins/web-tools/provider-usage.ts");
+    const { checkBudget } = await import("../../plugins/tools/web-tools/provider-usage.ts");
     const first = checkBudget(budgets, makeSnapshot({ provider: "brave", units_used: 1900 }), "brave");
     expect(first.blocked).toBe(true);
 
@@ -87,7 +87,7 @@ describe("checkBudget one-shot warning preambles", () => {
   });
 
   test("warning still emitted when not yet shown", async () => {
-    const { checkBudget } = await import("../../plugins/web-tools/provider-usage.ts");
+    const { checkBudget } = await import("../../plugins/tools/web-tools/provider-usage.ts");
     const result = checkBudget(budgets, makeSnapshot({ estimated_cost_usd: 4.0, warning_80_shown: 0 }), "gemini");
     expect(result.preamble).toContain("80%");
   });
@@ -97,7 +97,7 @@ describe("checkAndRecord atomic budget + one-shot preamble", () => {
   const budgets = { geminiUsd: 5.0, braveRequests: 2000, tavilyCredits: 1000 };
 
   test("repeated calls after threshold only emit preamble once", async () => {
-    const { createUsageTracker } = await import("../../plugins/web-tools/provider-usage.ts");
+    const { createUsageTracker } = await import("../../plugins/tools/web-tools/provider-usage.ts");
     const db = freshDb();
     db.prepare(`
       insert into provider_usage (provider, month, calls, units_used, estimated_cost_usd, tokens_input, tokens_output, suppressed, last_call_at)
@@ -124,7 +124,7 @@ describe("checkAndRecord atomic budget + one-shot preamble", () => {
   });
 
   test("escalation from warn80 to warn90 emits a new preamble", async () => {
-    const { createUsageTracker } = await import("../../plugins/web-tools/provider-usage.ts");
+    const { createUsageTracker } = await import("../../plugins/tools/web-tools/provider-usage.ts");
     const db = freshDb();
     db.prepare(`
       insert into provider_usage (provider, month, calls, units_used, estimated_cost_usd, tokens_input, tokens_output, suppressed, last_call_at)
@@ -150,7 +150,7 @@ describe("checkAndRecord atomic budget + one-shot preamble", () => {
   });
 
   test("does not block when budget not exceeded", async () => {
-    const { createUsageTracker } = await import("../../plugins/web-tools/provider-usage.ts");
+    const { createUsageTracker } = await import("../../plugins/tools/web-tools/provider-usage.ts");
     const db = freshDb();
     const usage = createUsageTracker(db, budgets);
     const r = await usage.checkAndRecord({
@@ -164,7 +164,7 @@ describe("checkAndRecord atomic budget + one-shot preamble", () => {
   });
 
   test("blocks and emits exceeded preamble at threshold", async () => {
-    const { createUsageTracker } = await import("../../plugins/web-tools/provider-usage.ts");
+    const { createUsageTracker } = await import("../../plugins/tools/web-tools/provider-usage.ts");
     const db = freshDb();
     db.prepare(`
       insert into provider_usage (provider, month, calls, units_used, estimated_cost_usd, tokens_input, tokens_output, suppressed, last_call_at)

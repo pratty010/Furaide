@@ -6,7 +6,7 @@
 
 v2 migration in progress — see `docs/superpowers/specs/2026-06-30-opencode-harness-redesign-design.md`. Current fleet: 7 carried-over specialists/subagents + overridden `general`/`explore`/`scout`.
 
-The web-tools plugin (registered in `opencode.jsonc` as `./plugins/web-tools.ts`) exposes three model-callable tools — `web_search`, `fetch_content`, and `maps_search` — with cost-aware provider fallback, usage budgets, and user-configurable defaults via `/tools-config`. It does not replace or subsume the `scout` agent, which continues to own code- and library-documentation CLI lookup (`ctx7`, `gh`).
+The web-tools plugin (registered in `opencode.jsonc` as `./plugins/tools/web-tools.ts`) exposes three model-callable tools — `web_search`, `fetch_content`, and `maps_search` — with cost-aware provider fallback, usage budgets, and user-configurable defaults via `/tools-config`. It does not replace or subsume the `scout` agent, which continues to own code- and library-documentation CLI lookup (`ctx7`, `gh`).
 
 ---
 

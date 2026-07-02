@@ -5,14 +5,14 @@ import { tmpdir } from "node:os";
 
 describe("validateConfig", () => {
   test("returns defaults for non-object input", async () => {
-    const { validateConfig } = await import("../../plugins/web-tools/config.ts");
+    const { validateConfig } = await import("../../plugins/tools/web-tools/config.ts");
     const cfg = validateConfig(null);
     expect(cfg.webSearch.defaultProvider).toBe("brave");
     expect(cfg.budgets.geminiUsd).toBe(5.0);
   });
 
   test("filters unknown providers from fallback order", async () => {
-    const { validateConfig } = await import("../../plugins/web-tools/config.ts");
+    const { validateConfig } = await import("../../plugins/tools/web-tools/config.ts");
     const cfg = validateConfig({
       webSearch: {
         primaryFallbackOrder: ["brave", "evil", "tavily", 42, "gemini"],
@@ -22,7 +22,7 @@ describe("validateConfig", () => {
   });
 
   test("rejects unknown defaultProvider", async () => {
-    const { validateConfig } = await import("../../plugins/web-tools/config.ts");
+    const { validateConfig } = await import("../../plugins/tools/web-tools/config.ts");
     const cfg = validateConfig({
       webSearch: { defaultProvider: "evil-search" },
     });
@@ -30,33 +30,33 @@ describe("validateConfig", () => {
   });
 
   test("clamps count to [1, 20]", async () => {
-    const { validateConfig } = await import("../../plugins/web-tools/config.ts");
+    const { validateConfig } = await import("../../plugins/tools/web-tools/config.ts");
     expect(validateConfig({ webSearch: { count: 999 } }).webSearch.count).toBe(20);
     expect(validateConfig({ webSearch: { count: 0 } }).webSearch.count).toBe(1);
     expect(validateConfig({ webSearch: { count: 7 } }).webSearch.count).toBe(7);
   });
 
   test("clamps negative budgets to 0", async () => {
-    const { validateConfig } = await import("../../plugins/web-tools/config.ts");
+    const { validateConfig } = await import("../../plugins/tools/web-tools/config.ts");
     const cfg = validateConfig({ budgets: { geminiUsd: -5, braveRequests: -1 } });
     expect(cfg.budgets.geminiUsd).toBe(0);
     expect(cfg.budgets.braveRequests).toBe(0);
   });
 
   test("rejects unknown freshness value", async () => {
-    const { validateConfig } = await import("../../plugins/web-tools/config.ts");
+    const { validateConfig } = await import("../../plugins/tools/web-tools/config.ts");
     const cfg = validateConfig({ webSearch: { freshness: "hour" } });
     expect(cfg.webSearch.freshness).toBe("pm");
   });
 
   test("rejects unknown format", async () => {
-    const { validateConfig } = await import("../../plugins/web-tools/config.ts");
+    const { validateConfig } = await import("../../plugins/tools/web-tools/config.ts");
     const cfg = validateConfig({ fetchContent: { format: "html" } });
     expect(cfg.fetchContent.format).toBe("markdown");
   });
 
   test("clamps TTL and accepts cache.maxEntries", async () => {
-    const { validateConfig } = await import("../../plugins/web-tools/config.ts");
+    const { validateConfig } = await import("../../plugins/tools/web-tools/config.ts");
     const cfg = validateConfig({
       cache: { ttl: { webSearchMs: -1, fetchContentMs: 5_000 }, maxEntries: 1024 },
     });
@@ -66,7 +66,7 @@ describe("validateConfig", () => {
   });
 
   test("loadWebToolsConfig tolerates malformed yaml", async () => {
-    const { loadWebToolsConfig } = await import("../../plugins/web-tools/config.ts");
+    const { loadWebToolsConfig } = await import("../../plugins/tools/web-tools/config.ts");
     const dir = mkdtempSync(join(tmpdir(), "wt-cfg-"));
     try {
       writeFileSync(join(dir, "web-tools.yml"), "this: is: not: valid: yaml: ::");
@@ -78,7 +78,7 @@ describe("validateConfig", () => {
   });
 
   test("loadWebToolsConfig applies validation on loaded file", async () => {
-    const { loadWebToolsConfig } = await import("../../plugins/web-tools/config.ts");
+    const { loadWebToolsConfig } = await import("../../plugins/tools/web-tools/config.ts");
     const dir = mkdtempSync(join(tmpdir(), "wt-cfg-"));
     try {
       writeFileSync(

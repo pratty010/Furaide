@@ -1,11 +1,12 @@
-// Nurikabe (Delivery Gate) — The wall-spirit that holds the reply at the checkpoint until the verdict clears.
+// Niō (Gate Enforcer) — Furaidē's guardian gate-spirit — bars tools when the workflow verdict turns critical.
 // Part of Furaidē's shikigami — F.R.I.D.A.Y. collection (https://github.com/pratty010/F.R.I.D.A.Y)
 /**
- * nurikabe.js
- * opencode plugin: fail-closed response delivery gate.
- * Blocks agent response delivery when active workflow has critical/warn-unresolved verdict.
- * No-op when no workflow is active. Mirrors gate-enforcer verdict-reading logic exactly.
+ * nio.js
+ * opencode plugin: fail-closed gate enforcement.
+ * Blocks mutating/external tools when the active workflow has an unresolved critical verdict.
+ * Fails CLOSED (blocks) if the verdict cannot be read.
  */
+
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -13,13 +14,30 @@ import { dirname, join, resolve } from 'node:path';
 import process from 'node:process';
 
 // __FLEET_ROOT__ is populated by install-fleet.sh with this scope's install root.
-// Fallback: plugin's own parent dir (../ from plugins/), then cwd (legacy).
+// Fallback: plugin's own grandparent dir (../../ from plugins/gates/), then cwd (legacy).
 const _TEMPLATE = '__FLEET_ROOT__';
-const _SELF_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const _SELF_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const FLEET_ROOT = _TEMPLATE.startsWith('__FLEET') ? _SELF_ROOT : _TEMPLATE;
 
+const BLOCKED_TOOLS = new Set([
+  'workflow-advance',
+  'deliver',
+  'bash',
+  'edit',
+  'webfetch',
+  'websearch',
+  'task',
+]);
+
+/**
+ * __test_hookFor — exported for unit tests only.
+ * ctx: { readVerdict: () => 'ok'|'warn'|'critical'|'warn-unresolved'|null }
+ * Returns the hook function.
+ */
 export function __test_hookFor(ctx) {
-  return async function stopBefore() {
+  return async function toolExecuteBefore({ tool }) {
+    if (!BLOCKED_TOOLS.has(tool)) return; // non-mutating tools always allowed
+
     let verdict;
     try {
       verdict = ctx.readVerdict();
@@ -29,28 +47,33 @@ export function __test_hookFor(ctx) {
 
     if (verdict === null || verdict === undefined) {
       throw new Error(
-        'delivery-gate fail-closed: cannot read workflow verdict before response delivery',
+        `gate-enforcer fail-closed: cannot read workflow verdict for tool "${tool}"`,
       );
     }
 
     if (verdict === 'critical' || verdict === 'warn-unresolved') {
       throw new Error(
-        `delivery-gate: blocked response delivery — active workflow has unresolved ${verdict} verdict. Resolve gate before delivering.`,
+        `gate-enforcer: blocked "${tool}" — active workflow has unresolved ${verdict} verdict`,
       );
     }
     // ok or warn: allow
   };
 }
 
+/**
+ * Read the active workflow verdict for the current process cwd.
+ * Returns 'ok' when no workflow is active (no .opencode-active-workflow file).
+ * Returns null (fail-closed) when a workflow is active but the state cannot be read.
+ */
 function getActiveWorkflowVerdict() {
   const activeFile = join(process.cwd(), '.opencode-active-workflow');
-  if (!existsSync(activeFile)) return 'ok';
+  if (!existsSync(activeFile)) return 'ok'; // no active workflow → unblocked
 
   let workflowId;
   try {
     workflowId = readFileSync(activeFile, 'utf8').trim();
   } catch {
-    return null;
+    return null; // unreadable → fail closed
   }
 
   if (!workflowId) return 'ok';
@@ -68,19 +91,16 @@ function getActiveWorkflowVerdict() {
     if (verdicts.includes('warn-unresolved')) return 'warn-unresolved';
     return 'ok';
   } catch {
-    return null;
+    return null; // unreadable → fail closed
   }
 }
 
-const realHook = __test_hookFor({ readVerdict: getActiveWorkflowVerdict });
+const realCtx = { readVerdict: getActiveWorkflowVerdict };
+const realHook = __test_hookFor(realCtx);
 
 export default {
-  name: 'delivery-gate',
+  name: 'gate-enforcer',
   hooks: {
-    // Stop hook: fires before agent delivers its text response.
-    // Verify exact event key against opencode plugin API:
-    //   candidates: 'response.before' | 'stop' | 'session.stop'
-    // Fallback if no Stop hook: add 'deliver' to gate-enforcer BLOCKED_TOOLS instead.
-    'response.before': realHook,
+    'tool.execute.before': realHook,
   },
 };

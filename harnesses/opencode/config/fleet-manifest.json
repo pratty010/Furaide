@@ -5,9 +5,9 @@
     {
       "id": "workflow-gates",
       "label": "Workflow Gates",
-      "description": "Fail-closed gate plugins (Nio, Nurikabe) and the workflow state engine they exec. Cannot be split.",
+      "description": "Fail-closed gate plugins (Nio, Nurikabe), workflow hook plugins, and the workflow state engine they exec/read. Cannot be split.",
       "atomic": true,
-      "coupling": "nio.js and nurikabe.js exec scripts/workflow-state.mjs at runtime",
+      "coupling": "nio.js/nurikabe.js exec scripts/workflow-state.mjs at runtime; hook plugins read workflow state/state-path runtime helpers",
       "requires_bun": false,
       "default_on": true,
       "target_subdirs": [
@@ -16,8 +16,10 @@
         "docs"
       ],
       "files": [
-        "plugins/nio.js",
-        "plugins/nurikabe.js",
+        "plugins/gates/nio.js",
+        "plugins/gates/nurikabe.js",
+        "plugins/hooks/audit-logger.js",
+        "plugins/hooks/compaction-injector.js",
         "scripts/workflow-state.mjs",
         "scripts/state-path.mjs",
         "docs/workflows.md"
@@ -39,7 +41,7 @@
         "docs"
       ],
       "files": [
-        "plugins/migawari.js",
+        "plugins/failover/migawari.js",
         "docs/routing-manifest.json"
       ],
       "globs": []
@@ -56,7 +58,7 @@
         "plugins"
       ],
       "files": [
-        "plugins/komainu.js"
+        "plugins/gates/komainu.js"
       ],
       "globs": []
     },
@@ -175,7 +177,7 @@
       "default_on": true,
       "target_subdirs": ["plugins", "config", "commands", "docs", "scripts"],
       "files": [
-        "plugins/web-tools.ts",
+        "plugins/tools/web-tools.ts",
         "config/web-tools.yml",
         "config/package.web-tools.json",
         "config/AGENTS.md",
@@ -184,7 +186,7 @@
         "scripts/install-web-tools.sh",
         "scripts/register-web-tools-plugin.mjs"
       ],
-      "globs": ["plugins/web-tools/**"]
+      "globs": ["plugins/tools/web-tools/**"]
     }
   ]
 }

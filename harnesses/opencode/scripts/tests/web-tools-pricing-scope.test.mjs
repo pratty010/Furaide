@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 
 describe("pricing cache scoping", () => {
   test("reads from configDir, not homedir", async () => {
-    const { loadPricingHelper } = await import("../../plugins/web-tools/pricing.ts");
+    const { loadPricingHelper } = await import("../../plugins/tools/web-tools/pricing.ts");
     const dir = mkdtempSync(join(tmpdir(), "wt-cache-scope-"));
     try {
       const freshFetchedAt = Date.now() - 1000;
@@ -29,7 +29,7 @@ describe("pricing cache scoping", () => {
   });
 
   test("stale cache (>24h) falls back to defaults", async () => {
-    const { loadPricingHelper } = await import("../../plugins/web-tools/pricing.ts");
+    const { loadPricingHelper } = await import("../../plugins/tools/web-tools/pricing.ts");
     const dir = mkdtempSync(join(tmpdir(), "wt-cache-scope-"));
     try {
       const staleFetchedAt = Date.now() - 2 * 86_400_000;
@@ -53,7 +53,7 @@ describe("pricing cache scoping", () => {
   });
 
   test("malformed cache falls back to defaults", async () => {
-    const { loadPricingHelper } = await import("../../plugins/web-tools/pricing.ts");
+    const { loadPricingHelper } = await import("../../plugins/tools/web-tools/pricing.ts");
     const dir = mkdtempSync(join(tmpdir(), "wt-cache-scope-"));
     try {
       writeFileSync(join(dir, "web-tools-pricing-cache.json"), "{ not valid json");
@@ -71,7 +71,7 @@ describe("pricing cache scoping", () => {
   });
 
   test("missing cache falls back to defaults", async () => {
-    const { loadPricingHelper } = await import("../../plugins/web-tools/pricing.ts");
+    const { loadPricingHelper } = await import("../../plugins/tools/web-tools/pricing.ts");
     const dir = mkdtempSync(join(tmpdir(), "wt-cache-scope-"));
     try {
       const pricing = loadPricingHelper({ configDir: dir, docsDir: dir });

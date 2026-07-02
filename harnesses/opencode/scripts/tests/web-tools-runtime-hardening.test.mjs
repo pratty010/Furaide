@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 
 describe("tightenPermissions surfaces unexpected failures", () => {
   test("silently returns on ENOENT", async () => {
-    const { tightenPermissions } = await import("../../plugins/web-tools/util/runtime-helpers.ts");
+    const { tightenPermissions } = await import("../../plugins/tools/web-tools/util/runtime-helpers.ts");
     const errSpy = spyOn(console, "error").mockImplementation(() => {});
     try {
       const dir = mkdtempSync(join(tmpdir(), "wt-tp-"));
@@ -18,7 +18,7 @@ describe("tightenPermissions surfaces unexpected failures", () => {
   });
 
   test("silently returns on a real file (success path)", async () => {
-    const { tightenPermissions } = await import("../../plugins/web-tools/util/runtime-helpers.ts");
+    const { tightenPermissions } = await import("../../plugins/tools/web-tools/util/runtime-helpers.ts");
     const errSpy = spyOn(console, "error").mockImplementation(() => {});
     try {
       const dir = mkdtempSync(join(tmpdir(), "wt-tp-"));
@@ -32,7 +32,7 @@ describe("tightenPermissions surfaces unexpected failures", () => {
   });
 
   test("surfaces unexpected statSync error via console.error", async () => {
-    const { tightenPermissions } = await import("../../plugins/web-tools/util/runtime-helpers.ts");
+    const { tightenPermissions } = await import("../../plugins/tools/web-tools/util/runtime-helpers.ts");
     const fs = await import("node:fs");
     const statSpy = spyOn(fs, "statSync").mockImplementation((p) => {
       const err = new Error(`simulated EIO on ${p}`);
@@ -64,7 +64,7 @@ describe("tightenPermissions surfaces unexpected failures", () => {
     });
     const errSpy = spyOn(console, "error").mockImplementation(() => {});
     try {
-      const { tightenPermissions } = await import("../../plugins/web-tools/util/runtime-helpers.ts");
+      const { tightenPermissions } = await import("../../plugins/tools/web-tools/util/runtime-helpers.ts");
       const dir = mkdtempSync(join(tmpdir(), "wt-tp-"));
       const file = join(dir, "data.db");
       writeFileSync(file, "x");
@@ -82,7 +82,7 @@ describe("tightenPermissions surfaces unexpected failures", () => {
 
 describe("resolveDataDir falls back when homedir is unavailable", () => {
   test("returns homedir-based path under normal conditions", async () => {
-    const { resolveDataDir } = await import("../../plugins/web-tools/util/runtime-helpers.ts");
+    const { resolveDataDir } = await import("../../plugins/tools/web-tools/util/runtime-helpers.ts");
     const path = resolveDataDir();
     expect(path.length).toBeGreaterThan(0);
     if (process.platform !== "win32") {
@@ -95,7 +95,7 @@ describe("resolveDataDir falls back when homedir is unavailable", () => {
     const spy = spyOn(os, "homedir").mockImplementation(() => "");
     const errSpy = spyOn(console, "error").mockImplementation(() => {});
     try {
-      const { resolveDataDir } = await import("../../plugins/web-tools/util/runtime-helpers.ts");
+      const { resolveDataDir } = await import("../../plugins/tools/web-tools/util/runtime-helpers.ts");
       const path = resolveDataDir();
       expect(path).toContain("opencode-web-tools");
     } finally {
@@ -111,7 +111,7 @@ describe("resolveDataDir falls back when homedir is unavailable", () => {
     });
     const errSpy = spyOn(console, "error").mockImplementation(() => {});
     try {
-      const { resolveDataDir } = await import("../../plugins/web-tools/util/runtime-helpers.ts");
+      const { resolveDataDir } = await import("../../plugins/tools/web-tools/util/runtime-helpers.ts");
       const path = resolveDataDir();
       expect(path).toContain("opencode-web-tools");
       expect(errSpy).toHaveBeenCalled();

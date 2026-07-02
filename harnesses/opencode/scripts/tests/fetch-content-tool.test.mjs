@@ -1,7 +1,7 @@
 import { test, expect, describe, beforeAll, afterAll } from "bun:test";
 
 test("fetch_content tool executes with mock runtime", async () => {
-  const { executeFetchContentTool } = await import("../../plugins/web-tools/tools/fetch-content.ts");
+  const { executeFetchContentTool } = await import("../../plugins/tools/web-tools/tools/fetch-content.ts");
 
   const mockRuntime = {
     config: {
@@ -42,7 +42,7 @@ test("fetch_content tool executes with mock runtime", async () => {
 });
 
 test("fetch_content omits content in map mode", async () => {
-  const { executeFetchContentTool } = await import("../../plugins/web-tools/tools/fetch-content.ts");
+  const { executeFetchContentTool } = await import("../../plugins/tools/web-tools/tools/fetch-content.ts");
 
   const mockRuntime = {
     config: {
@@ -80,7 +80,7 @@ test("fetch_content omits content in map mode", async () => {
 });
 
 test("fetch_content caches identical requests", async () => {
-  const { executeFetchContentTool } = await import("../../plugins/web-tools/tools/fetch-content.ts");
+  const { executeFetchContentTool } = await import("../../plugins/tools/web-tools/tools/fetch-content.ts");
 
   let callCount = 0;
   const mockRuntime = {
@@ -119,7 +119,7 @@ test("fetch_content caches identical requests", async () => {
 });
 
 test("fetch_content NormalizedFetchContentRequest defaults", async () => {
-  const { normalizeFetchContentArgs } = await import("../../plugins/web-tools/tools/fetch-content.ts");
+  const { normalizeFetchContentArgs } = await import("../../plugins/tools/web-tools/tools/fetch-content.ts");
 
   const config = {
     defaultProvider: "gemini",
@@ -135,7 +135,7 @@ test("fetch_content NormalizedFetchContentRequest defaults", async () => {
 
 describe("fetch_content DNS rebinding integration", () => {
   test("rejects URL when runtime.resolveHost maps to private IP", async () => {
-    const { executeFetchContentTool } = await import("../../plugins/web-tools/tools/fetch-content.ts");
+    const { executeFetchContentTool } = await import("../../plugins/tools/web-tools/tools/fetch-content.ts");
 
     const mockRuntime = {
       config: {
@@ -155,7 +155,7 @@ describe("fetch_content DNS rebinding integration", () => {
   });
 
   test("accepts URL when runtime.resolveHost maps to public IP", async () => {
-    const { executeFetchContentTool } = await import("../../plugins/web-tools/tools/fetch-content.ts");
+    const { executeFetchContentTool } = await import("../../plugins/tools/web-tools/tools/fetch-content.ts");
 
     const mockRuntime = {
       config: {
@@ -195,7 +195,7 @@ describe("Gemini fetchContent mode validation", () => {
   });
 
   test("rejects crawl mode before API key check", async () => {
-    const gemini = await import("../../plugins/web-tools/providers/gemini.ts");
+    const gemini = await import("../../plugins/tools/web-tools/providers/gemini.ts");
 
     await expect(gemini.fetchContent({
       urls: ["https://example.com"],
@@ -204,7 +204,7 @@ describe("Gemini fetchContent mode validation", () => {
   });
 
   test("rejects map mode before API key check", async () => {
-    const gemini = await import("../../plugins/web-tools/providers/gemini.ts");
+    const gemini = await import("../../plugins/tools/web-tools/providers/gemini.ts");
 
     await expect(gemini.fetchContent({
       urls: ["https://example.com"],
@@ -213,7 +213,7 @@ describe("Gemini fetchContent mode validation", () => {
   });
 
   test("accepts extract mode (fails on API key, not mode)", async () => {
-    const gemini = await import("../../plugins/web-tools/providers/gemini.ts");
+    const gemini = await import("../../plugins/tools/web-tools/providers/gemini.ts");
 
     await expect(gemini.fetchContent({
       urls: ["https://example.com"],
@@ -222,7 +222,7 @@ describe("Gemini fetchContent mode validation", () => {
   });
 
   test("defaults to extract mode when no mode given", async () => {
-    const gemini = await import("../../plugins/web-tools/providers/gemini.ts");
+    const gemini = await import("../../plugins/tools/web-tools/providers/gemini.ts");
 
     await expect(gemini.fetchContent({
       urls: ["https://example.com"],

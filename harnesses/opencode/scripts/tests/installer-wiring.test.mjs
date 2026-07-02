@@ -71,12 +71,12 @@ test('install-fleet.sh: --all --custom <tmp> wires agent model mappings into tar
     // User plugin preserved
     expect(out.plugin).toContain('./plugins/my-existing.js');
     // Fleet plugins added
-    expect(out.plugin).toContain('./plugins/nio.js');
-    expect(out.plugin).toContain('./plugins/komainu.js');
+    expect(out.plugin).toContain('./plugins/gates/nio.js');
+    expect(out.plugin).toContain('./plugins/gates/komainu.js');
     // .ts plugin entries must be registered too (adversarial-review blocker:
     // previous filter `plugins/*.js` skipped them, so web-tools never landed
     // in the target's plugin array).
-    expect(out.plugin).toContain('./plugins/web-tools.ts');
+    expect(out.plugin).toContain('./plugins/tools/web-tools.ts');
     // User agent preserved
     expect(out.agent['my-wiring-test-agent']).toEqual({ model: 'anthropic/claude-3.5-sonnet' });
     // Fleet agent model mappings wired

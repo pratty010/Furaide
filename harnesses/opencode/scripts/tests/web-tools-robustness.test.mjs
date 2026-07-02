@@ -3,14 +3,14 @@ import { test, expect, spyOn } from "bun:test";
 // ── Strong hash (SHA-256) replaces collision-prone short hash ──────
 
 test("hashString produces consistent output for same input", async () => {
-  const { hashString } = await import("../../plugins/web-tools/util/hash.ts");
+  const { hashString } = await import("../../plugins/tools/web-tools/util/hash.ts");
   const a = hashString("https://example.com/page");
   const b = hashString("https://example.com/page");
   expect(a).toBe(b);
 });
 
 test("hashString distinguishes similar URLs", async () => {
-  const { hashString } = await import("../../plugins/web-tools/util/hash.ts");
+  const { hashString } = await import("../../plugins/tools/web-tools/util/hash.ts");
   const urls = [
     "https://example.com/page",
     "https://example.com/page?q=1",
@@ -24,13 +24,13 @@ test("hashString distinguishes similar URLs", async () => {
 });
 
 test("hashString output is hex and reasonable length", async () => {
-  const { hashString } = await import("../../plugins/web-tools/util/hash.ts");
+  const { hashString } = await import("../../plugins/tools/web-tools/util/hash.ts");
   const h = hashString("https://example.com");
   expect(h).toMatch(/^[0-9a-f]{16}$/);
 });
 
 test("hashString empty input does not crash", async () => {
-  const { hashString } = await import("../../plugins/web-tools/util/hash.ts");
+  const { hashString } = await import("../../plugins/tools/web-tools/util/hash.ts");
   const h = hashString("");
   expect(h).toMatch(/^[0-9a-f]{16}$/);
 });
@@ -38,14 +38,14 @@ test("hashString empty input does not crash", async () => {
 // ── hashRequest uses the same strong hash ────────────────────────
 
 test("hashRequest produces same hash for same sorted parts", async () => {
-  const { hashRequest } = await import("../../plugins/web-tools/util/hash.ts");
+  const { hashRequest } = await import("../../plugins/tools/web-tools/util/hash.ts");
   const a = hashRequest({ query: "hello", count: 5 });
   const b = hashRequest({ count: 5, query: "hello" });
   expect(a).toBe(b);
 });
 
 test("hashRequest distinguishes different queries", async () => {
-  const { hashRequest } = await import("../../plugins/web-tools/util/hash.ts");
+  const { hashRequest } = await import("../../plugins/tools/web-tools/util/hash.ts");
   const a = hashRequest({ query: "hello", count: 5 });
   const b = hashRequest({ query: "world", count: 5 });
   expect(a).not.toBe(b);
@@ -54,7 +54,7 @@ test("hashRequest distinguishes different queries", async () => {
 // ── Error sink writes to stderr on rejection ──────────────────────
 
 test("errorSink writes to console.error with context prefix", async () => {
-  const { errorSink } = await import("../../plugins/web-tools/util/error-sink.ts");
+  const { errorSink } = await import("../../plugins/tools/web-tools/util/error-sink.ts");
   const spy = spyOn(console, "error").mockImplementation(() => {});
   try {
     errorSink("test-context")("Something went wrong");
@@ -65,7 +65,7 @@ test("errorSink writes to console.error with context prefix", async () => {
 });
 
 test("errorSink handles Error objects", async () => {
-  const { errorSink } = await import("../../plugins/web-tools/util/error-sink.ts");
+  const { errorSink } = await import("../../plugins/tools/web-tools/util/error-sink.ts");
   const spy = spyOn(console, "error").mockImplementation(() => {});
   try {
     errorSink("test")(new Error("boom"));
@@ -78,7 +78,7 @@ test("errorSink handles Error objects", async () => {
 // ── Fire-and-forget error propagation via error sink ──────────────
 
 test("web_search .catch is reachable when recordWebSearch rejects", async () => {
-  const { executeWebSearchTool } = await import("../../plugins/web-tools/tools/web-search.ts");
+  const { executeWebSearchTool } = await import("../../plugins/tools/web-tools/tools/web-search.ts");
   const spy = spyOn(console, "error").mockImplementation(() => {});
 
   try {
@@ -114,7 +114,7 @@ test("web_search .catch is reachable when recordWebSearch rejects", async () => 
 });
 
 test("fetch_content .catch is reachable when recordFetchContent rejects", async () => {
-  const { executeFetchContentTool } = await import("../../plugins/web-tools/tools/fetch-content.ts");
+  const { executeFetchContentTool } = await import("../../plugins/tools/web-tools/tools/fetch-content.ts");
   const spy = spyOn(console, "error").mockImplementation(() => {});
 
   try {
@@ -150,7 +150,7 @@ test("maps_search .catch is reachable when recordFromSearch rejects", async () =
   // After the fix, `recordFromSearch` is no longer called, so this scenario
   // is unreachable. This test now pins the new contract: a rejecting
   // `recordFromSearch` is silently ignored because it is never invoked.
-  const { executeMapsSearchTool } = await import("../../plugins/web-tools/tools/maps-search.ts");
+  const { executeMapsSearchTool } = await import("../../plugins/tools/web-tools/tools/maps-search.ts");
   const spy = spyOn(console, "error").mockImplementation(() => {});
 
   try {
@@ -184,7 +184,7 @@ test("maps_search .catch is reachable when recordFromSearch rejects", async () =
 // ── DB recording creates distinct rows for similar URLs ──────────
 
 test("recordWebSearch creates distinct rows for similar URLs", async () => {
-  const { openTestDb, recordWebSearch } = await import("../../plugins/web-tools/db.ts");
+  const { openTestDb, recordWebSearch } = await import("../../plugins/tools/web-tools/db.ts");
   const db = openTestDb();
 
   const request = { query: "test", count: 3, freshness: "pm", rawContent: false };
@@ -203,7 +203,7 @@ test("recordWebSearch creates distinct rows for similar URLs", async () => {
 });
 
 test("recordFetchContent creates distinct rows for different URLs", async () => {
-  const { openTestDb, recordFetchContent } = await import("../../plugins/web-tools/db.ts");
+  const { openTestDb, recordFetchContent } = await import("../../plugins/tools/web-tools/db.ts");
   const db = openTestDb();
 
   await recordFetchContent(db, { urls: ["https://a.com", "https://b.com"], mode: "extract", format: "markdown" }, {

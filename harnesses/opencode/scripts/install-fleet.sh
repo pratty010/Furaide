@@ -27,6 +27,13 @@ _warn()  { printf '%b\n' "${YLW}[warn]${RST}  $*"; }
 _err()   { printf '%b\n' "${RED}[error]${RST} $*" >&2; }
 _bold()  { printf '%b\n' "${BOLD}$*${RST}"; }
 
+normalize_plugin_rel() {
+  local plugin_path="$1"
+  plugin_path="${plugin_path#./}"
+  plugin_path="${plugin_path#plugins/}"
+  printf './plugins/%s\n' "$plugin_path"
+}
+
 # ── Paths ─────────────────────────────────────────────────────────────────────
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 FLEET_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
@@ -338,7 +345,7 @@ merge_config() {
     # Use merge-config.mjs for .jsonc (strips line comments, modifies, writes back)
     if command -v bun &>/dev/null; then
       local mjs_args=()
-      for p in "${plugins_to_add[@]}"; do mjs_args+=("$(basename "$p")"); done
+      for p in "${plugins_to_add[@]}"; do mjs_args+=("$p"); done
       [[ "$has_rules" -eq 1 ]] && mjs_args+=("--rules")
       if [[ "$has_agents_source" -eq 1 && -n "$resolved_model_map_json" ]]; then
         mjs_args+=("--agents-json" "$resolved_model_map_json")
@@ -354,7 +361,7 @@ merge_config() {
     # bun not available — print manual instructions
     _warn ".jsonc detected — bun not found. Append manually to $cfg_jsonc:"
     for p in "${plugins_to_add[@]}"; do
-      printf '    %b"./plugins/%s",%b\n' "$YLW" "$(basename "$p")" "$RST"
+      printf '    %b"%s",%b\n' "$YLW" "$(normalize_plugin_rel "$p")" "$RST"
     done
     if [[ "$has_rules" -eq 1 ]]; then
       printf '    %b"./rules/*.md"%b\n' "$YLW" "$RST"
@@ -374,7 +381,7 @@ merge_config() {
   if [[ "$DRY_RUN" -eq 1 ]]; then
     printf '  %b[dry-run]%b config merge into %s\n' "$DIM" "$RST" "${cfg:-$cfg_json}"
     for p in "${plugins_to_add[@]}"; do
-      printf '    add plugin: ./plugins/%s\n' "$(basename "$p")"
+      printf '    add plugin: %s\n' "$(normalize_plugin_rel "$p")"
     done
     if [[ "$has_rules" -eq 1 ]]; then
       printf '    add instructions: ./rules/*.md\n'
@@ -388,7 +395,8 @@ merge_config() {
   # Build jq filter to add plugins (dedup) and (optionally) agent model mappings
   local jq_expr='. '
   for p in "${plugins_to_add[@]}"; do
-    local rel="./plugins/$(basename "$p")"
+    local rel
+    rel="$(normalize_plugin_rel "$p")"
     jq_expr+="| if (.plugin // []) | map(. == \"$rel\") | any then . else .plugin += [\"$rel\"] end "
   done
   if [[ "$has_rules" -eq 1 ]]; then
@@ -436,7 +444,7 @@ write_install_receipt() {
   tmp=$(mktemp)
   receipt_components_json=$(printf '%s' "$components_raw" | awk 'NF' | sort -u | jq -R . | jq -s .)
   receipt_files_json=$(printf '%s' "$files_raw" | awk 'NF' | sort -u | jq -R . | jq -s .)
-  receipt_plugins_json=$(printf '%s' "$plugins_raw" | tr ' ' '\n' | awk 'NF' | sed 's|.*/||' | sed 's|^|./plugins/|' | sort -u | jq -R . | jq -s .)
+  receipt_plugins_json=$(printf '%s' "$plugins_raw" | tr ' ' '\n' | awk 'NF' | while IFS= read -r p; do [[ -n "$p" ]] && normalize_plugin_rel "$p"; done | sort -u | jq -R . | jq -s .)
   if [[ "$has_agents" -eq 1 ]]; then
     receipt_agent_keys_json=$(echo "$MODEL_MAP_JSON" | jq 'keys')
   else

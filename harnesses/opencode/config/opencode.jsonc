@@ -3,11 +3,13 @@
   "autoupdate": false,
   "lsp": true,
   "plugin": [
-    "./plugins/nio.js",
-    "./plugins/nurikabe.js",
-    "./plugins/komainu.js",
-    "./plugins/migawari.js",
-    "./plugins/web-tools.ts"
+    "./plugins/gates/nio.js",
+    "./plugins/gates/nurikabe.js",
+    "./plugins/gates/komainu.js",
+    "./plugins/failover/migawari.js",
+    "./plugins/tools/web-tools.ts",
+    "./plugins/hooks/audit-logger.js",
+    "./plugins/hooks/compaction-injector.js"
   ],
   "instructions": [
     "./rules/*.md"

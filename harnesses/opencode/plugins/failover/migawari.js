@@ -14,9 +14,9 @@ import { homedir } from 'node:os';
 import process from 'node:process';
 
 // __FLEET_ROOT__ is populated by install-fleet.sh with this scope's install root.
-// Fallback: plugin's own parent dir (../ from plugins/), then cwd (legacy).
+// Fallback: plugin's own grandparent dir (../../ from plugins/failover/), then cwd (legacy).
 const _TEMPLATE = '__FLEET_ROOT__';
-const _SELF_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const _SELF_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const FLEET_ROOT = _TEMPLATE.startsWith('__FLEET') ? _SELF_ROOT : _TEMPLATE;
 
 // Load manifest once at plugin init

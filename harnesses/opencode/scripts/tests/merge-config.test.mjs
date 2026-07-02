@@ -31,7 +31,7 @@ function readJson(path) {
 // Build a minimal source opencode.jsonc with an `agent` block
 const FLEET_SOURCE = {
   '$schema': 'https://opencode.ai/config.json',
-  plugin: ['./plugins/nio.js', './plugins/komainu.js'],
+  plugin: ['./plugins/gates/nio.js', './plugins/gates/komainu.js'],
   instructions: ['./rules/*.md'],
   agent: {
     'oni--red-team-reviewer': { model: 'openai/gpt-5.5' },
@@ -46,11 +46,11 @@ test('merge-config: creates new config with agent mappings when target missing',
   const source = join(dir, 'source.jsonc');
   writeJson(source, FLEET_SOURCE);
 
-  runMerge(cfg, ['nio.js', 'komainu.js', '--rules', '--agents-source', source]);
+  runMerge(cfg, ['gates/nio.js', 'gates/komainu.js', '--rules', '--agents-source', source]);
 
   const out = readJson(cfg);
-  expect(out.plugin).toContain('./plugins/nio.js');
-  expect(out.plugin).toContain('./plugins/komainu.js');
+  expect(out.plugin).toContain('./plugins/gates/nio.js');
+  expect(out.plugin).toContain('./plugins/gates/komainu.js');
   expect(out.instructions).toContain('./rules/*.md');
   expect(out.agent['oni--red-team-reviewer']).toEqual({ model: 'openai/gpt-5.5' });
   expect(out.agent['tsukumogami--code-forgemaster']).toEqual({ model: 'opencode-go/kimi-k2.6' });
@@ -63,16 +63,16 @@ test('merge-config: idempotent — running twice yields identical result', () =>
   const source = join(dir, 'source.jsonc');
   writeJson(source, FLEET_SOURCE);
 
-  runMerge(cfg, ['nio.js', 'komainu.js', '--rules', '--agents-source', source]);
+  runMerge(cfg, ['gates/nio.js', 'gates/komainu.js', '--rules', '--agents-source', source]);
   const first = readFileSync(cfg, 'utf8');
-  runMerge(cfg, ['nio.js', 'komainu.js', '--rules', '--agents-source', source]);
+  runMerge(cfg, ['gates/nio.js', 'gates/komainu.js', '--rules', '--agents-source', source]);
   const second = readFileSync(cfg, 'utf8');
 
   expect(second).toBe(first);
   // No duplicate plugin entries
   const out = readJson(cfg);
-  expect(out.plugin.filter((p) => p === './plugins/nio.js')).toHaveLength(1);
-  expect(out.plugin.filter((p) => p === './plugins/komainu.js')).toHaveLength(1);
+  expect(out.plugin.filter((p) => p === './plugins/gates/nio.js')).toHaveLength(1);
+  expect(out.plugin.filter((p) => p === './plugins/gates/komainu.js')).toHaveLength(1);
 });
 
 test('merge-config: preserves user-defined agent not present in source', () => {
@@ -110,22 +110,37 @@ test('merge-config: handles .jsonc with line comments', () => {
   writeFileSync(cfg, `{
   // opencode config with line comments
   "$schema": "https://opencode.ai/config.json",
-  "plugin": ["./plugins/nio.js"],
+  "plugin": ["./plugins/gates/nio.js"],
   "agent": {
     "my-custom": { "model": "anthropic/claude-3.5-sonnet" }
   }
 }
 `);
 
-  runMerge(cfg, ['komainu.js', '--agents-source', source]);
+  runMerge(cfg, ['gates/komainu.js', '--agents-source', source]);
 
   const out = readJson(cfg);
-  expect(out.plugin).toContain('./plugins/nio.js');
-  expect(out.plugin).toContain('./plugins/komainu.js');
+  expect(out.plugin).toContain('./plugins/gates/nio.js');
+  expect(out.plugin).toContain('./plugins/gates/komainu.js');
   // User agent preserved
   expect(out.agent['my-custom']).toEqual({ model: 'anthropic/claude-3.5-sonnet' });
   // Fleet agents added
   expect(out.agent['oni--red-team-reviewer']).toEqual({ model: 'openai/gpt-5.5' });
+});
+
+test('merge-config: normalizes optional plugins/ prefix without flattening bucket paths', () => {
+  const dir = tmp();
+  const cfg = join(dir, 'opencode.json');
+
+  runMerge(cfg, ['plugins/gates/nio.js', './plugins/tools/web-tools.ts', 'hooks/audit-logger.js', 'nio.js']);
+
+  const out = readJson(cfg);
+  expect(out.plugin).toEqual([
+    './plugins/gates/nio.js',
+    './plugins/tools/web-tools.ts',
+    './plugins/hooks/audit-logger.js',
+    './plugins/nio.js',
+  ]);
 });
 
 test('merge-config: overwrites fleet agent model with new value (model upgrade path)', () => {
@@ -241,7 +256,7 @@ test('unmerge-config: removes fleet plugins, rules, and fleet-owned agent keys',
   writeJson(source, FLEET_SOURCE);
   writeJson(cfg, {
     '$schema': 'https://opencode.ai/config.json',
-    plugin: ['./plugins/nio.js', './plugins/komainu.js', './plugins/my-user-plugin.js'],
+    plugin: ['./plugins/gates/nio.js', './plugins/gates/komainu.js', './plugins/my-user-plugin.js'],
     instructions: ['./rules/*.md', './.claude/CLAUDE.md'],
     agent: {
       'oni--red-team-reviewer': { model: 'openai/gpt-5.5' },
@@ -250,12 +265,12 @@ test('unmerge-config: removes fleet plugins, rules, and fleet-owned agent keys',
     },
   });
 
-  runUnmerge(cfg, ['nio.js', 'komainu.js', '--rules', '--agents-source', source]);
+  runUnmerge(cfg, ['gates/nio.js', 'gates/komainu.js', '--rules', '--agents-source', source]);
 
   const out = readJson(cfg);
   // Fleet plugins removed
-  expect(out.plugin).not.toContain('./plugins/nio.js');
-  expect(out.plugin).not.toContain('./plugins/komainu.js');
+  expect(out.plugin).not.toContain('./plugins/gates/nio.js');
+  expect(out.plugin).not.toContain('./plugins/gates/komainu.js');
   // User plugin survives
   expect(out.plugin).toContain('./plugins/my-user-plugin.js');
   // Fleet rules removed
@@ -275,7 +290,7 @@ test('unmerge-config: idempotent — second run is a no-op', () => {
   const source = join(dir, 'source.jsonc');
   writeJson(source, FLEET_SOURCE);
   writeJson(cfg, {
-    plugin: ['./plugins/nio.js', './plugins/my-user.js'],
+    plugin: ['./plugins/gates/nio.js', './plugins/my-user.js'],
     instructions: ['./rules/*.md'],
     agent: {
       'oni--red-team-reviewer': { model: 'openai/gpt-5.5' },
@@ -283,9 +298,9 @@ test('unmerge-config: idempotent — second run is a no-op', () => {
     },
   });
 
-  runUnmerge(cfg, ['nio.js', '--rules', '--agents-source', source]);
+  runUnmerge(cfg, ['gates/nio.js', '--rules', '--agents-source', source]);
   const first = readFileSync(cfg, 'utf8');
-  runUnmerge(cfg, ['nio.js', '--rules', '--agents-source', source]);
+  runUnmerge(cfg, ['gates/nio.js', '--rules', '--agents-source', source]);
   const second = readFileSync(cfg, 'utf8');
 
   expect(second).toBe(first);
@@ -295,13 +310,31 @@ test('unmerge-config: idempotent — second run is a no-op', () => {
   expect(out.agent).toEqual({ 'my-custom-agent': { model: 'anthropic/claude-3.5-sonnet' } });
 });
 
+test('unmerge-config: normalizes optional plugins/ prefix without flattening bucket paths', () => {
+  const dir = tmp();
+  const cfg = join(dir, 'opencode.json');
+  writeJson(cfg, {
+    plugin: ['./plugins/gates/nio.js', './plugins/tools/web-tools.ts', './plugins/hooks/audit-logger.js', './plugins/nio.js', './plugins/my-user.js'],
+    instructions: [],
+    agent: {},
+  });
+
+  runUnmerge(cfg, ['plugins/gates/nio.js', './plugins/tools/web-tools.ts', 'nio.js']);
+
+  const out = readJson(cfg);
+  expect(out.plugin).toEqual([
+    './plugins/hooks/audit-logger.js',
+    './plugins/my-user.js',
+  ]);
+});
+
 test('unmerge-config: target missing exits 0 (nothing to unmerge)', () => {
   const dir = tmp();
   const cfg = join(dir, 'opencode.json'); // never created
   const source = join(dir, 'source.jsonc');
   writeJson(source, FLEET_SOURCE);
   // Should not throw and should exit 0
-  runUnmerge(cfg, ['nio.js', '--agents-source', source]);
+  runUnmerge(cfg, ['gates/nio.js', '--agents-source', source]);
 });
 
 test('merge/unmerge round-trip: state returns to user-only agents', () => {
@@ -320,9 +353,9 @@ test('merge/unmerge round-trip: state returns to user-only agents', () => {
   writeJson(cfg, initial);
 
   // Merge fleet
-  runMerge(cfg, ['nio.js', 'komainu.js', '--rules', '--agents-source', source]);
+  runMerge(cfg, ['gates/nio.js', 'gates/komainu.js', '--rules', '--agents-source', source]);
   // Unmerge fleet
-  runUnmerge(cfg, ['nio.js', 'komainu.js', '--rules', '--agents-source', source]);
+  runUnmerge(cfg, ['gates/nio.js', 'gates/komainu.js', '--rules', '--agents-source', source]);
 
   const final = readJson(cfg);
   // All fleet additions removed

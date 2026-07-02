@@ -43,7 +43,7 @@ Run from `tools/opencode-all/` (separate package, own test suite):
 - Manifest component flags that matter: `atomic` (installed as a group), `requires_bun` (skipped when bun is missing), `non-atomic` (independent).
 - `config/opencode.jsonc` registers all 5 plugins (`nio`, `nurikabe`, `komainu`, `migawari`, `web-tools`). Order is runtime-sensitive.
 - `config/AGENTS.md` is the installed fleet guide copied into user installs, not a repo guide. This file is the repo guide.
-- `plugins/nio.js` and `plugins/nurikabe.js` exec `scripts/workflow-state.mjs` at runtime via `bun scriptPath read --cwd process.cwd() --workflow <id>`. Moving those paths breaks the workflow gates silently.
+- `plugins/gates/nio.js` and `plugins/gates/nurikabe.js` exec `scripts/workflow-state.mjs` at runtime via `bun scriptPath read --cwd process.cwd() --workflow <id>`. Moving those paths breaks the workflow gates silently.
 - `docs/routing-manifest.json` defines fallback chains for the migawari failover gate. Keep it in sync with `opencode.jsonc`.
 - When moving paths, update `install-fleet.sh`, `fleet-manifest.json`, `scripts/tests/`, and relevant READMEs together.
 - `docs/superpowers/specs/` are planning-stage docs, not shipped runtime behavior.

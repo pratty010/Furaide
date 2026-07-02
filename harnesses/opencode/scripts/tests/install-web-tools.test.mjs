@@ -16,9 +16,9 @@ test("fleet-manifest ships web-tools component with required files", () => {
   expect(component.atomic).toBe(true);
   expect(component.requires_bun).toBe(true);
   expect(component.default_on).toBe(true);
-  expect(component.files).toContain("plugins/web-tools.ts");
+  expect(component.files).toContain("plugins/tools/web-tools.ts");
   expect(component.files).toContain("config/package.web-tools.json");
-  expect(component.globs).toContain("plugins/web-tools/**");
+  expect(component.globs).toContain("plugins/tools/web-tools/**");
 });
 
 function stubbedEnv(binDir) {
@@ -62,8 +62,8 @@ test("install-web-tools.sh copies plugin, command, and config files", () => {
     });
 
     // Plugin entrypoint and module tree
-    expect(existsSync(join(dir, "plugins/web-tools.ts"))).toBe(true);
-    expect(existsSync(join(dir, "plugins/web-tools"))).toBe(true);
+    expect(existsSync(join(dir, "plugins/tools/web-tools.ts"))).toBe(true);
+    expect(existsSync(join(dir, "plugins/tools/web-tools"))).toBe(true);
 
     // Slash command
     expect(readFileSync(join(dir, "commands/tools-config.md"), "utf8")).toContain("web-tools.yml");
@@ -108,7 +108,7 @@ test("install-web-tools.sh registers plugin in existing opencode.jsonc", () => {
       join(dir, "opencode.jsonc"),
       JSON.stringify({
         $schema: "https://opencode.ai/config.json",
-        plugin: ["./plugins/nio.js"],
+        plugin: ["./plugins/gates/nio.js"],
         instructions: ["./rules/*.md"],
       }, null, 2) + "\n",
     );
@@ -120,8 +120,8 @@ test("install-web-tools.sh registers plugin in existing opencode.jsonc", () => {
     });
 
     const json = JSON.parse(readFileSync(join(dir, "opencode.jsonc"), "utf8"));
-    expect(json.plugin).toContain("./plugins/nio.js");
-    expect(json.plugin).toContain("./plugins/web-tools.ts");
+    expect(json.plugin).toContain("./plugins/gates/nio.js");
+    expect(json.plugin).toContain("./plugins/tools/web-tools.ts");
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -137,7 +137,7 @@ test("install-web-tools.sh is idempotent when plugin already registered", () => 
       join(dir, "opencode.jsonc"),
       JSON.stringify({
         $schema: "https://opencode.ai/config.json",
-        plugin: ["./plugins/nio.js", "./plugins/web-tools.ts"],
+        plugin: ["./plugins/gates/nio.js", "./plugins/tools/web-tools.ts"],
         instructions: ["./rules/*.md"],
       }, null, 2) + "\n",
     );

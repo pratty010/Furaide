@@ -27,7 +27,7 @@
 
 import { readFileSync, writeFileSync, renameSync } from "fs";
 import { tmpdir } from "os";
-import { join, basename, dirname } from "path";
+import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import { parseJsonc } from "./lib/jsonc.mjs";
 
@@ -95,8 +95,15 @@ config.instructions ??= [];
 
 let changed = false;
 
+function normalizePluginRel(pluginArg) {
+  const normalized = String(pluginArg)
+    .replace(/^\.\//, "")
+    .replace(/^plugins\//, "");
+  return `./plugins/${normalized}`;
+}
+
 for (const pArg of pluginArgs) {
-  const rel = `./plugins/${basename(pArg)}`;
+  const rel = normalizePluginRel(pArg);
   if (!config.plugin.includes(rel)) {
     config.plugin.push(rel);
     changed = true;

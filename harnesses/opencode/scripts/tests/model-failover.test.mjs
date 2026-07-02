@@ -1,6 +1,6 @@
 import { test, expect } from 'bun:test';
 import { readFileSync } from 'node:fs';
-import { resolveChain, nextModel, classify } from '../../plugins/migawari.js';
+import { resolveChain, nextModel, classify } from '../../plugins/failover/migawari.js';
 
 const manifest = JSON.parse(readFileSync('docs/routing-manifest.json', 'utf8'));
 

@@ -5,7 +5,7 @@ import { Database } from "bun:sqlite";
 
 describe("Gemini pricing overlay", () => {
   test("createPricingHelper computes token cost + tool fee", async () => {
-    const { createPricingHelper } = await import("../../plugins/web-tools/pricing.ts");
+    const { createPricingHelper } = await import("../../plugins/tools/web-tools/pricing.ts");
 
     const pricing = createPricingHelper({
       litellm: { "gemini-3.1-flash-lite": { input_cost_per_token: 0.000000075, output_cost_per_token: 0.0000003 } },
@@ -25,7 +25,7 @@ describe("Gemini pricing overlay", () => {
   });
 
   test("pricing helper fallback model prefix lookups work", async () => {
-    const { createPricingHelper } = await import("../../plugins/web-tools/pricing.ts");
+    const { createPricingHelper } = await import("../../plugins/tools/web-tools/pricing.ts");
 
     const pricing = createPricingHelper({
       litellm: { "google/gemini-3.1-flash-lite": { input_cost_per_token: 1e-7, output_cost_per_token: 4e-7 } },
@@ -42,7 +42,7 @@ describe("Gemini pricing overlay", () => {
   });
 
   test("pricing helper throws for unknown model", async () => {
-    const { createPricingHelper } = await import("../../plugins/web-tools/pricing.ts");
+    const { createPricingHelper } = await import("../../plugins/tools/web-tools/pricing.ts");
 
     const pricing = createPricingHelper({
       litellm: {},
@@ -60,7 +60,7 @@ describe("Gemini pricing overlay", () => {
   });
 
   test("estimateGeminiCost is applied to metadata when pricing is available", async () => {
-    const { createPricingHelper } = await import("../../plugins/web-tools/pricing.ts");
+    const { createPricingHelper } = await import("../../plugins/tools/web-tools/pricing.ts");
 
     const pricing = createPricingHelper({
       litellm: { "gemini-3.1-flash-lite": { input_cost_per_token: 1e-7, output_cost_per_token: 4e-7 } },
@@ -120,7 +120,7 @@ describe("Budget enforcement", () => {
   const budgets = { geminiUsd: 5.0, braveRequests: 2000, tavilyCredits: 1000 };
 
   test("no warning when usage is below 80%", async () => {
-    const { checkBudget } = await import("../../plugins/web-tools/provider-usage.ts");
+    const { checkBudget } = await import("../../plugins/tools/web-tools/provider-usage.ts");
 
     const result = checkBudget(budgets, makeSnapshot({ estimated_cost_usd: 3.0 }), "gemini");
     expect(result.blocked).toBe(false);
@@ -129,7 +129,7 @@ describe("Budget enforcement", () => {
   });
 
   test("warn80 at 80% gemini budget", async () => {
-    const { checkBudget } = await import("../../plugins/web-tools/provider-usage.ts");
+    const { checkBudget } = await import("../../plugins/tools/web-tools/provider-usage.ts");
 
     const result = checkBudget(budgets, makeSnapshot({ estimated_cost_usd: 4.0 }), "gemini");
     expect(result.blocked).toBe(false);
@@ -139,7 +139,7 @@ describe("Budget enforcement", () => {
   });
 
   test("warn90 at 90% gemini budget", async () => {
-    const { checkBudget } = await import("../../plugins/web-tools/provider-usage.ts");
+    const { checkBudget } = await import("../../plugins/tools/web-tools/provider-usage.ts");
 
     const result = checkBudget(budgets, makeSnapshot({ estimated_cost_usd: 4.5 }), "gemini");
     expect(result.blocked).toBe(false);
@@ -148,7 +148,7 @@ describe("Budget enforcement", () => {
   });
 
   test("gemini blocked at 100% budget", async () => {
-    const { checkBudget } = await import("../../plugins/web-tools/provider-usage.ts");
+    const { checkBudget } = await import("../../plugins/tools/web-tools/provider-usage.ts");
 
     const result = checkBudget(budgets, makeSnapshot({ estimated_cost_usd: 5.0 }), "gemini");
     expect(result.blocked).toBe(true);
@@ -157,7 +157,7 @@ describe("Budget enforcement", () => {
   });
 
   test("brave warn80 at 80% requests", async () => {
-    const { checkBudget } = await import("../../plugins/web-tools/provider-usage.ts");
+    const { checkBudget } = await import("../../plugins/tools/web-tools/provider-usage.ts");
 
     const result = checkBudget(budgets, makeSnapshot({ units_used: 1600 }), "brave");
     expect(result.blocked).toBe(false);
@@ -165,7 +165,7 @@ describe("Budget enforcement", () => {
   });
 
   test("brave blocks at 90% requests", async () => {
-    const { checkBudget } = await import("../../plugins/web-tools/provider-usage.ts");
+    const { checkBudget } = await import("../../plugins/tools/web-tools/provider-usage.ts");
 
     const result = checkBudget(budgets, makeSnapshot({ units_used: 1800 }), "brave");
     expect(result.blocked).toBe(true);
@@ -173,7 +173,7 @@ describe("Budget enforcement", () => {
   });
 
   test("tavily warn80 at 80% credits", async () => {
-    const { checkBudget } = await import("../../plugins/web-tools/provider-usage.ts");
+    const { checkBudget } = await import("../../plugins/tools/web-tools/provider-usage.ts");
 
     const result = checkBudget(budgets, makeSnapshot({ units_used: 800 }), "tavily");
     expect(result.blocked).toBe(false);
@@ -181,7 +181,7 @@ describe("Budget enforcement", () => {
   });
 
   test("suppressed flag suppresses all warnings", async () => {
-    const { checkBudget } = await import("../../plugins/web-tools/provider-usage.ts");
+    const { checkBudget } = await import("../../plugins/tools/web-tools/provider-usage.ts");
 
     const result = checkBudget(budgets, makeSnapshot({ estimated_cost_usd: 5.0, suppressed: 1 }), "gemini");
     expect(result.blocked).toBe(false);
@@ -190,7 +190,7 @@ describe("Budget enforcement", () => {
   });
 
   test("null budgets never block", async () => {
-    const { checkBudget } = await import("../../plugins/web-tools/provider-usage.ts");
+    const { checkBudget } = await import("../../plugins/tools/web-tools/provider-usage.ts");
 
     const result = checkBudget(null, makeSnapshot({ estimated_cost_usd: 100 }), "gemini");
     expect(result.blocked).toBe(false);
@@ -230,7 +230,7 @@ describe("Warning state updates in DB", () => {
   }
 
   test("checkAndRecord updates warning flags on threshold crossing", async () => {
-    const { createUsageTracker } = await import("../../plugins/web-tools/provider-usage.ts");
+    const { createUsageTracker } = await import("../../plugins/tools/web-tools/provider-usage.ts");
     const budgets = { geminiUsd: 5.0, braveRequests: 2000, tavilyCredits: 1000 };
 
     const db = setupDb();
@@ -251,7 +251,7 @@ describe("Warning state updates in DB", () => {
   });
 
   test("checkAndRecord does not block when budget not exceeded", async () => {
-    const { createUsageTracker } = await import("../../plugins/web-tools/provider-usage.ts");
+    const { createUsageTracker } = await import("../../plugins/tools/web-tools/provider-usage.ts");
     const budgets = { geminiUsd: 5.0, braveRequests: 2000, tavilyCredits: 1000 };
 
     const db = setupDb();
@@ -277,7 +277,7 @@ describe("Maps usage tracking", () => {
     // Single-source-of-truth contract: recordWithBudget is the only path that
     // records usage for maps_search. recordFromSearch must not be called
     // (calling both would double-count units/cost).
-    const { executeMapsSearchTool } = await import("../../plugins/web-tools/tools/maps-search.ts");
+    const { executeMapsSearchTool } = await import("../../plugins/tools/web-tools/tools/maps-search.ts");
 
     let recordFromSearchCalls = 0;
     let recordedMetadata = null;
@@ -310,7 +310,7 @@ describe("Maps usage tracking", () => {
   });
 
   test("executeMapsSearchTool includes _warning when recordWithBudget returns preamble", async () => {
-    const { executeMapsSearchTool } = await import("../../plugins/web-tools/tools/maps-search.ts");
+    const { executeMapsSearchTool } = await import("../../plugins/tools/web-tools/tools/maps-search.ts");
 
     const mockRuntime = {
       config: { mapsSearch: { defaultProvider: "gemini", count: 3 } },
@@ -333,7 +333,7 @@ describe("Maps usage tracking", () => {
 
 describe("Warning preamble behavior", () => {
   test("web_search adds _warning when recordWithBudget returns preamble", async () => {
-    const { executeWebSearchTool } = await import("../../plugins/web-tools/tools/web-search.ts");
+    const { executeWebSearchTool } = await import("../../plugins/tools/web-tools/tools/web-search.ts");
 
     const mockRuntime = {
       config: {
@@ -361,7 +361,7 @@ describe("Warning preamble behavior", () => {
   });
 
   test("fetch_content adds _warning when recordWithBudget returns preamble", async () => {
-    const { executeFetchContentTool } = await import("../../plugins/web-tools/tools/fetch-content.ts");
+    const { executeFetchContentTool } = await import("../../plugins/tools/web-tools/tools/fetch-content.ts");
 
     const mockRuntime = {
       config: { fetchContent: { defaultProvider: "gemini", primaryFallbackOrder: ["gemini"], reserveFallbackOrder: [], format: "markdown" } },
@@ -382,7 +382,7 @@ describe("Warning preamble behavior", () => {
   });
 
   test("no preamble when recordWithBudget returns null", async () => {
-    const { executeWebSearchTool } = await import("../../plugins/web-tools/tools/web-search.ts");
+    const { executeWebSearchTool } = await import("../../plugins/tools/web-tools/tools/web-search.ts");
 
     const mockRuntime = {
       config: { webSearch: { defaultProvider: "brave", primaryFallbackOrder: ["brave"], reserveFallbackOrder: [], count: 3, freshness: "pm", rawContent: false } },
@@ -407,7 +407,7 @@ describe("Warning preamble behavior", () => {
 
 describe("InMemoryCache basic operations", () => {
   test("get/set and TTL expiration", async () => {
-    const { InMemoryCache } = await import("../../plugins/web-tools/cache.ts");
+    const { InMemoryCache } = await import("../../plugins/tools/web-tools/cache.ts");
 
     const cache = new InMemoryCache();
     cache.set("key1", "value1", 5000);
@@ -418,7 +418,7 @@ describe("InMemoryCache basic operations", () => {
   });
 
   test("size and clear", async () => {
-    const { InMemoryCache } = await import("../../plugins/web-tools/cache.ts");
+    const { InMemoryCache } = await import("../../plugins/tools/web-tools/cache.ts");
 
     const cache = new InMemoryCache();
     expect(cache.size).toBe(0);
@@ -430,7 +430,7 @@ describe("InMemoryCache basic operations", () => {
   });
 
   test("get/set typed wrappers (webSearch/fetchContent)", async () => {
-    const { InMemoryCache } = await import("../../plugins/web-tools/cache.ts");
+    const { InMemoryCache } = await import("../../plugins/tools/web-tools/cache.ts");
 
     const cache = new InMemoryCache();
     const searchData = { results: [{ title: "Test", url: "https://example.com", snippet: "desc" }] };

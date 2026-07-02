@@ -41,16 +41,16 @@ backup_existing() {
 mkdir -p "$TARGET_DIR"
 
 # --- 1. Copy plugin entrypoint and module tree ---
-_info "Copying plugins/web-tools.ts..."
-backup_existing "$TARGET_DIR/plugins/web-tools.ts"
-mkdir -p "$TARGET_DIR/plugins"
-cp "$FLEET_ROOT/plugins/web-tools.ts" "$TARGET_DIR/plugins/web-tools.ts"
+_info "Copying plugins/tools/web-tools.ts..."
+backup_existing "$TARGET_DIR/plugins/tools/web-tools.ts"
+mkdir -p "$TARGET_DIR/plugins/tools"
+cp "$FLEET_ROOT/plugins/tools/web-tools.ts" "$TARGET_DIR/plugins/tools/web-tools.ts"
 
-_info "Copying plugins/web-tools/ (provider/tool/util modules)..."
-mkdir -p "$TARGET_DIR/plugins/web-tools"
+_info "Copying plugins/tools/web-tools/ (provider/tool/util modules)..."
+mkdir -p "$TARGET_DIR/plugins/tools/web-tools"
 # Copy glob contents; if the source glob is empty this is a no-op.
-if compgen -G "$FLEET_ROOT/plugins/web-tools/*" >/dev/null; then
-  cp -R "$FLEET_ROOT/plugins/web-tools/." "$TARGET_DIR/plugins/web-tools/"
+if compgen -G "$FLEET_ROOT/plugins/tools/web-tools/*" >/dev/null; then
+  cp -R "$FLEET_ROOT/plugins/tools/web-tools/." "$TARGET_DIR/plugins/tools/web-tools/"
 fi
 
 # --- 2. Copy slash command ---
@@ -105,7 +105,7 @@ else
 fi
 
 # --- 6. Register plugin in opencode.jsonc (create if missing) ---
-PLUGIN_ENTRY='"./plugins/web-tools.ts"'
+PLUGIN_ENTRY='"./plugins/tools/web-tools.ts"'
 OPENCODE_JSON="$TARGET_DIR/opencode.jsonc"
 if [[ ! -e "$OPENCODE_JSON" ]]; then
   _warn "$OPENCODE_JSON not found. Skipping plugin registration."

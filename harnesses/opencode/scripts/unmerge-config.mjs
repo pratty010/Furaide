@@ -22,7 +22,7 @@
 
 import { readFileSync, writeFileSync, renameSync } from "fs";
 import { tmpdir } from "os";
-import { join, basename, dirname } from "path";
+import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import { parseJsonc } from "./lib/jsonc.mjs";
 
@@ -73,10 +73,17 @@ try {
 
 let changed = false;
 
+function normalizePluginRel(pluginArg) {
+  const normalized = String(pluginArg)
+    .replace(/^\.\//, "")
+    .replace(/^plugins\//, "");
+  return `./plugins/${normalized}`;
+}
+
 // ── Remove fleet plugins ─────────────────────────────────────────────────────
 if (Array.isArray(config.plugin)) {
   const before = config.plugin.length;
-  const removeSet = new Set(pluginArgs.map((a) => `./plugins/${basename(a)}`));
+  const removeSet = new Set(pluginArgs.map((a) => normalizePluginRel(a)));
   config.plugin = config.plugin.filter((p) => !removeSet.has(p));
   if (config.plugin.length !== before) changed = true;
 }
