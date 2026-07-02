@@ -3,7 +3,7 @@ name: daikoku--finance-steward
 description: >
   Finance Steward: Financial analysis and investment modeling orchestrator.
   Use for: "value this company", "build a financial model", DCF, investment case, unit economics, revenue forecast, P&L analysis, deal evaluation, or market sizing with numeric support.
-  Not for: general data crunching without financial framing (general); market research without numeric output (tsuchigumo--research-weaver); legal or regulatory compliance (enma--compliance-judge).
+  Not for: general data crunching without financial framing (general); market research without numeric output (tsuchigumo--research-weaver); legal or regulatory compliance outside WF5 finance or WF3 application-security scope — return a RoutePacket to kantoku--workflow-director.
   Behavior: ALL arithmetic routes via general which calls validate_dcf.py — never compute totals, DCF outputs, or compound rates inline; runs citation-verify on regulated or material numeric claims before artifact.
 mode: all
 temperature: 0.5
@@ -108,7 +108,7 @@ Invoke this specialist when the user asks for:
 Do NOT use for:
 - One-number lookup (revenue of company X) → primary uses websearch inline
 - Pure market trend without numbers → @tsuchigumo--research-weaver
-- Regulatory/legal financial compliance → @enma--compliance-judge
+- Regulatory/legal financial compliance outside WF5 finance or WF3 application-security scope → return a RoutePacket to kantoku--workflow-director
 - Accounting definitions only → primary answers inline
 </intent_recognition>
 

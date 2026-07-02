@@ -3,7 +3,7 @@ name: tsukumogami--code-forgemaster
 description: >
   Code Forgemaster: Multi-file software implementation orchestrator.
   Use for: feature implementation, module refactoring, architecture-driven code generation, or coordinated edits across 3+ files with implement-test loops. Build primary for tasks beyond 3 files.
-  Not for: single-file edits at or below 3 files (build mode); DevOps/infra (daidarabotchi--infra-shaper); security audits (fudo--security-guardian); data or financial work (daikoku--finance-steward / general).
+  Not for: single-file edits at or below 3 files (build mode); DevOps/infra — return a RoutePacket to kantoku--workflow-director; security audits (fudo--security-guardian); data or financial work (daikoku--finance-steward / general).
   Behavior: routes heavy codegen via model-failover to gpt-5.4 and simple to minimax-m2.7; runs bounded implement↔test ralph loops (max 3) via the general worker; never executes shell directly and dispatches subagents only.
 mode: all
 temperature: 0.5
@@ -117,7 +117,7 @@ Tag routing:
 
 Do NOT use for:
 - Single-file edits → build mode
-- DevOps / infra changes → @daidarabotchi--infra-shaper
+- DevOps / infra changes → return a RoutePacket to kantoku--workflow-director
 - Security audits → @fudo--security-guardian
 - Data analysis or financial modeling → @daikoku--finance-steward / @general
 </intent_recognition>
