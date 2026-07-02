@@ -1,34 +1,68 @@
-# Agent Description And Parameter Rubric
+# Agent Description and Frontmatter Rubric
 
-## Description Shape
+## v2 frontmatter shape
 
-Use this frontmatter shape:
+Use this shape for active v2 agents:
 
 ```yaml
+---
 description: >
-  <Role Name>: <Primary routing trigger and purpose>.
-  Use for: <specific task types and user phrases>.
+  <Operational role>: <primary routing trigger and purpose>.
+  Use for: <task types and user phrases>.
   Not for: <common misroutes and exclusions>.
-  Behavior: <output contract or critical operational rule>.
+  Behavior: <output contract or critical operating rule>.
+mode: primary | subagent | all
+temperature: <optional number>
+permission:
+  edit: allow | deny | {"path/**": allow, "*": deny}
+  bash: allow | deny | {"command *": allow, "*": deny}
+  webfetch: allow | deny
+  websearch: allow | deny
+  task:
+    "*": deny
+    <allowed-target>: allow
+  question: allow | deny | ask
+  todowrite: allow | deny
+  skill:
+    "*": deny
+    <allowed-skill>: allow
+# Manifest
+# governing_file: <spec or source-of-truth path>
+---
 ```
 
-## Description Rules
+## Hard rules
+
+- Do **not** add `name:` frontmatter. The filename is the stem.
+- Do **not** add runtime `model:` frontmatter. Runtime routing lives in `config/opencode.jsonc` and `docs/routing-manifest.json`.
+- `permission.task` starts from `"*": deny` and only allows edges from the v2 delegation table.
+- Scoped `bash` and `edit` carve-outs must end with a deny catch-all.
+- `mode` must be `primary`, `subagent`, or `all`.
+- Use `question: ask` only where the workflow explicitly permits user-facing gating.
+
+## Description rules
 
 - Lead with the operational role, not lore.
-- Optimize for routing and invocation, not flavor.
+- Optimize for routing accuracy.
 - Include at least one output or behavior contract.
-- Mention exclusions that prevent common misroutes.
-- Keep lore to zero or one short connection line only when it improves understanding.
+- Name the main exclusions that prevent common misroutes.
+- Keep prose compact. One paragraph is enough.
 
-## Parameter Review Rules
+## Anti-recursion line
 
-- `mode` must be `primary`, `subagent`, or `all`.
-- Agent `.md` files no longer carry runtime `model:` frontmatter. Runtime model assignment lives in `opencode.json(c)` under `agent.<name>.model`, and routing/fallback logic lives in `docs/routing-manifest.json`.
-- `temperature` range 0.0-1.0. Lower = focused/deterministic, higher = creative/varied. Default varies by model (0 for most, 0.55 for Qwen).
-- `top_p` range 0.0-1.0. Alternative to temperature for controlling randomness.
-- `steps` controls max agentic iterations before forced text-only response. Set when cost/loop control needed.
-- `hidden: true` hides subagent from @ autocomplete. Only for `mode: subagent` agents.
-- `permission.task` must only reference real renamed agent stems.
-- `permission` last matching rule wins: put broad rules first, narrow rules last.
-- `color` accepts hex or theme color names.
-- Provider-specific options pass through to the model (e.g., `reasoningEffort` for OpenAI).
+Every active v2 agent body must contain an explicit anti-recursion sentence. Default line:
+
+```text
+Never dispatch yourself.
+```
+
+If an agent delegates, it may add stronger wording such as “Never re-dispatch the task you were given,” but the self-dispatch ban must remain explicit.
+
+## Review checklist
+
+- filename stem matches every `permission.task` reference to it
+- no `name:` field
+- no runtime `model:` field
+- scoped permissions match the owning workflow row
+- anti-recursion line present in body
+- description includes use-for, not-for, and behavior contract

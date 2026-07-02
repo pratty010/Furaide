@@ -1,119 +1,104 @@
 # OPERATOR — Tuning Reference
 
-Not auto-loaded. Pull this when adjusting model assignments, tier discipline, or auditing the fleet.
+Not auto-loaded. Pull this when adjusting routing, budget tiers, or premium-model placement.
 
 ---
 
-## Model Configuration (Centralized)
+## Runtime pair
 
-Model assignment is split across two files at runtime:
+| File | Role |
+|---|---|
+| `config/opencode.jsonc` | Active runtime config: plugins, provider whitelist, per-agent overrides |
+| `docs/routing-manifest.json` | v10 routing source of truth: primary + fallback chains for specialists, subagents, and workers |
 
-| File | Role | Edits here affect |
-|------|------|-------------------|
-| `opencode.jsonc` | Per-agent overrides under `agent.*.model`; provider whitelist | Immediate primary model for a specific agent |
-| `docs/routing-manifest.json` | Fallback chains, heavy/simple/canary variants, tier assignments | Failover behavior via `migawari.js`; structural routing |
-
-Agent frontmatter `model:` is advisory only and not the runtime source. The installer seeds both files from the repo's `routing-manifest.json`.
+Agent frontmatter is descriptive only. Runtime model ownership lives in the pair above.
 
 ---
 
-## Model Map (from `routing-manifest.json` v9.1)
+## Budget pools (v10)
 
-Generated from `docs/routing-manifest.json`. **Do not edit this table manually** — update `routing-manifest.json` and run `bun test scripts/tests/agents-match-manifest.test.mjs` to validate.
-
-### Specialists
-
-| Agent | Primary | First Fallback | Full Fallback Chain | Notes |
-|---|---|---|---|---|
-| deep-researcher | opencode-go/kimi-k2.5 | openai/gpt-5.4-mini | gpt-5.4-mini → qwen3.6-plus → nemotron-3-super-free | |
-| financial | opencode-go/qwen3.7-max | openai/gpt-5.4 | gpt-5.4 → minimax-m2.7 → gemini-3.5-flash | |
-| legal-compliance | opencode-go/qwen3.6-plus | openai/gpt-5.4-mini | gpt-5.4-mini → glm-5 → nemotron-3-super-free | |
-| security | opencode-go/kimi-k2.6 | openai/gpt-5.3-codex | gpt-5.3-codex → glm-5 → deepseek-v4-pro | |
-| coding | opencode-go/kimi-k2.5 | openai/gpt-5.3-codex | gpt-5.3-codex → glm-5 → minimax-m2.7 | heavy→gpt-5.3-codex; simple→minimax-m2.7 |
-| devops-sre | opencode-go/kimi-k2.6 | openai/gpt-5.4-mini | gpt-5.4-mini → glm-5 → gemini-3-flash-preview | |
-| pm-spec | opencode-go/qwen3.6-plus | openai/gpt-5.4-mini | gpt-5.4-mini → glm-5 → gemini-3-flash-preview | |
-| writer | opencode-go/glm-5.1 | openai/gpt-5.4 | gpt-5.4 → qwen3.6-plus → gemini-3.5-flash | |
-| brand-builder | openai/gpt-5.4 | opencode-go/glm-5.1 | glm-5.1 → qwen3.6-plus → gemini-3.5-flash | |
-
-### Subagents
-
-| Agent | Primary | First Fallback | Full Fallback Chain |
+| Pool | Models in active v10 routes | Billing shape | Default use |
 |---|---|---|---|
-| yamabiko--source-echo | opencode-go/minimax-m2.7 | openai/gpt-5.4-mini | gpt-5.4-mini → gemini-3-flash-preview → big-pickle |
-| kagami--truth-mirror | openai/gpt-5.4-mini | opencode-go/glm-5 | glm-5 → gemini-3.5-flash → deepseek-v4-flash |
-| soroban--number-sage | opencode-go/deepseek-v4-flash | openai/gpt-5.4-mini | gpt-5.4-mini → minimax-m2.7 → gemini-3.1-flash-lite |
-| karakuri--command-runner | opencode-go/mimo-v2.5 | openai/gpt-5.3-codex | gpt-5.3-codex → gpt-5.4-mini → gemini-3.1-flash-lite |
-| mikoshi--code-pathfinder | opencode-go/qwen3.6-plus | google-vertex/gemini-3-flash-preview | gemini-3-flash-preview → glm-5 → big-pickle |
-| oni--red-team-reviewer | openai/gpt-5.5 | opencode-go/deepseek-v4-pro | deepseek-v4-pro → glm-5 → gemini-3.5-flash |
-| kotodama--prose-polisher | google-vertex/gemini-3.1-pro-preview | openai/gpt-5.4 | gpt-5.4 → qwen3.6-plus → glm-5 |
-| jorogumo--synthesis-weaver | opencode-go/glm-5 | openai/gpt-5.4-mini | gpt-5.4-mini → minimax-m2.7 → gemini-3-flash-preview |
-| tengu--visual-artisan | google-vertex/gemini-3.5-flash | opencode-go/glm-5 | glm-5 → gpt-5.4-mini → minimax-m2.7 |
-| bakeneko--bug-hunter | opencode-go/deepseek-v4-pro | openai/gpt-5.4-mini | gpt-5.4-mini → glm-5 → mimo-v2.5-pro |
-| makimono--docs-scribe | opencode-go/glm-5 | openai/gpt-5.4-mini | gpt-5.4-mini → gemini-3-flash-preview → minimax-m2.7 |
-| azukiarai--data-sifter | opencode-go/minimax-m2.7 | google-vertex/gemini-3.1-flash-lite | gemini-3.1-flash-lite → mimo-v2.5 → deepseek-v4-flash |
-| henge--format-shifter | opencode-go/mimo-v2.5 | google-vertex/gemini-3.1-flash-lite | gemini-3.1-flash-lite → minimax-m2.7 → big-pickle |
+| OpenAI flat-sub | `openai/gpt-5.5`, `openai/gpt-5.4-mini` | rate-limited, no marginal per-call cost | premium review and low-friction verification |
+| Vertex reserve | `google-vertex/gemini-3.1-pro-preview` | metered reserve | fallback reserve only |
+| opencode-go metered | `kimi-k2.6`, `kimi-k2.5`, `qwen3.7-max`, `qwen3.6-plus`, `glm-5`, `glm-5.1`, `deepseek-v4-pro`, `deepseek-v4-flash`, `mimo-v2.5`, `minimax-m2.7` | shared monthly burn | primary fleet work |
+
+Never reintroduce `gemini-2.5-*` into runtime routing.
 
 ---
 
-## Reserved Caps
+## Tier policy
 
-These 4 models are capped to control cost — each is primary for ≤1 agent and first-fallback for ≤1 other:
+### Tier 1 — reserve / high-judgment
 
-| Model | Cap | Current placement |
+Use only where a bad answer is more expensive than a premium call.
+
+| Agent | Primary | Why |
 |---|---|---|
-| opencode-go/glm-5.1 | primary ≤1 + #1-fallback ≤1 | primary: writer; fallback: brand-builder |
-| opencode-go/qwen3.7-max | primary ≤1 + #1-fallback ≤1 | primary: financial |
-| google-vertex/gemini-3.1-pro-preview | primary ≤1 + #1-fallback ≤1 | primary: kotodama--prose-polisher |
-| openai/gpt-5.5 | primary ≤1 + #1-fallback ≤1 | primary: oni--red-team-reviewer |
+| `oni--red-team-reviewer` | `openai/gpt-5.5` | adversarial review quality is worth the premium cap |
+| `daikoku--finance-steward` | `opencode-go/qwen3.7-max` | finance errors compound across the workflow |
+
+### Tier 2 — workflow specialists
+
+Top-level orchestration and domain judgment.
+
+| Agent | Primary | Fallback |
+|---|---|---|
+| `kantoku--workflow-director` | `opencode-go/kimi-k2.6` | `opencode-go/kimi-k2.5` |
+| `kyakuhon--spec-planner` | `opencode-go/qwen3.6-plus` | `opencode-go/glm-5` |
+| `tsukumogami--code-forgemaster` | `opencode-go/kimi-k2.5` | `opencode-go/glm-5.1` |
+| `fudo--security-guardian` | `opencode-go/kimi-k2.6` | `opencode-go/deepseek-v4-pro` |
+| `tsuchigumo--research-weaver` | `opencode-go/kimi-k2.5` | `opencode-go/glm-5` |
+| `daikoku--finance-steward` | `opencode-go/qwen3.7-max` | `opencode-go/kimi-k2.5` |
+
+### Tier 3 — subagent review and support
+
+| Agent | Primary | Fallback |
+|---|---|---|
+| `kagami--verifier` | `openai/gpt-5.4-mini` | `opencode-go/deepseek-v4-flash` |
+| `hanko--git-seal` | `openai/gpt-5.4-mini` | `opencode-go/mimo-v2.5` |
+| `hansei--lesson-keeper` | `opencode-go/glm-5` | `opencode-go/minimax-m2.7` |
+| `kura--knowledge-banker` | `opencode-go/deepseek-v4-flash` | `opencode-go/minimax-m2.7` |
+| `bakeneko--bug-hunter` | `opencode-go/deepseek-v4-pro` | `opencode-go/kimi-k2.5` |
+| `oni--red-team-reviewer` | `openai/gpt-5.5` | `google-vertex/gemini-3.1-pro-preview` |
+
+### Tier 4 — worker tier
+
+Workers are the cheap, high-volume execution layer. Keep them below specialist cost unless a spec change justifies otherwise.
+
+| Worker | Primary | Fallback | Use |
+|---|---|---|---|
+| `general` | `opencode-go/mimo-v2.5` | `opencode-go/minimax-m2.7` | bounded execution |
+| `explore` | `opencode-go/qwen3.6-plus` | `opencode-go/minimax-m2.7` | read-only repo mapping |
+| `scout` | `opencode-go/qwen3.6-plus` | `opencode-go/minimax-m2.7` | external docs and upstream recon |
+
+If a worker starts doing specialist-grade reasoning, promote the task upward instead of promoting the worker model ad hoc.
 
 ---
 
-## Reserve Justification
+## Reserve caps
 
-Why the reserved models are worth their cost:
+Keep these placements intentionally scarce:
 
-- **glm-5.1 (writer)** — long-form writing quality degrades markedly on workhorse models; a weak draft costs 3+ revision rounds to elevate.
-- **qwen3.7-max (financial)** — financial arithmetic errors compound; a bad DCF or unit-economics model requires full reconstruction, not correction.
-- **gemini-3.1-pro-preview (kotodama--prose-polisher)** — subagent elevating fully-drafted prose to publication quality; workhorse models flatten voice and miss structural issues that only surface on re-read.
-- **gpt-5.5 (oni--red-team-reviewer)** — a shallow adversarial review that misses blast-radius issues creates false confidence; the cost of rework deferred to post-merge far exceeds the review cost.
+| Model | Cap rule | Current v10 placement |
+|---|---|---|
+| `openai/gpt-5.5` | primary for at most one live agent | `oni--red-team-reviewer` primary |
+| `opencode-go/qwen3.7-max` | primary for at most one live agent | `daikoku--finance-steward` primary |
+| `google-vertex/gemini-3.1-pro-preview` | reserve fallback only unless a new justification is documented | `oni--red-team-reviewer` fallback |
+| `opencode-go/glm-5.1` | use as a narrow fallback, not a general worker default | `tsukumogami--code-forgemaster` fallback |
 
 ---
 
-## Audit
-
-Canonical check after any agent model edit:
+## Audit commands
 
 ```sh
-# Model-manifest consistency (expect all pass)
 bun test scripts/tests/agents-match-manifest.test.mjs
-
-# No Gemini 2.x in opencode.jsonc whitelist (expect empty — 2.x removed from whitelist entirely)
-grep 'gemini-2\.5' ~/.config/opencode/opencode.jsonc
-
-# Per-agent overrides present in opencode.jsonc (agent.*.model)
-jq '.agent | keys[]' ~/.config/opencode/opencode.jsonc
+bun test scripts/tests/routing-manifest.test.mjs scripts/tests/model-failover.test.mjs scripts/tests/model-resolve.test.mjs
+bun scripts/lint-dispatch-graph.mjs
 ```
 
----
+After changing shipped docs, manifest file lists, or plugin paths, run:
 
-## Context Load
-
-The design assumes a large roster is near-free at baseline because **a subagent runs in its own session — its body is loaded as that subagent's prompt only when it is invoked**, not concatenated into the primary's context. Only AGENTS.md (+ `instructions` glob) and the one-line-per-agent registry load at baseline. To confirm in practice: start a primary session, run `/context`, and check that agent bodies are absent from the primary's token count until a subagent is dispatched. If a future opencode version changes this, revisit the one-role-per-file decision.
-
----
-
-## Model budget (v9.1)
-
-Three pools with distinct billing types:
-
-| Pool | Models | Billing | Use for |
-|---|---|---|---|
-| OpenAI flat-sub | gpt-5.5, gpt-5.4, gpt-5.4-mini, gpt-5.3-codex | Rate-limited, $0 marginal | High-intelligence roles; kagami--truth-mirror (unmetered volume) |
-| Gemini credit ($300 one-time) | gemini-3.1-pro-preview, gemini-3.5-flash, gemini-3.1-flash-lite, gemini-3-flash-preview | Metered, burns down | Prose-wordsmith + tengu--visual-artisan only (reserve) |
-| opencode-go pool (~$60/mo) | kimi-k2.6/k2.5, glm-5.1/5, qwen3.7-max/3.6-plus, deepseek-v4-pro/flash, minimax-m2.7, mimo-v2.5/pro | Metered, shared pool | All other specialist/subagent work |
-
-**Never route to:** Gemini 2.x (`gemini-2.5-*`) — removed from whitelist entirely. Use Gemini 3.x only.
-
-### Failover policy
-
-On retryable provider errors (429/5xx/timeout/model_not_found): `plugins/failover/migawari.js` walks the fallback chain from `routing-manifest.json` cross-vendor. Each transition is logged to `~/.local/share/opencode/state/<slug>/failover.ndjson`. Run `scripts/budget-report.mjs` after 7 days to check pool burn rate.
+```sh
+bun test scripts/tests/
+```

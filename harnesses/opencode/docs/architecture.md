@@ -1,51 +1,95 @@
 # Architecture & Internals
 
-Not auto-loaded. Pull when editing fleet wiring, scripts, or file relationships.
+Not auto-loaded. Pull when editing fleet wiring, docs, manifest entries, or script ownership.
 
 ---
 
-## File Relationships
+## Runtime pair and reference set
 
-| File | Role | Synced with |
+| Path | Role | Keep in sync with |
 |---|---|---|
-| `agents/<name>.md` | Agent definition (frontmatter + body) | `permission.task` must match manifest `permitted_subagents`; no `model:` field — model lives in `opencode.jsonc` |
-| `docs/routing-manifest.json` | Canonical model routing (primary + fallback chains) | Routing + fallback source of truth; installer may write a resolved copy into the target install |
-| `docs/OPERATOR.md` | Tier discipline, model budget, reserve justification | `routing-manifest.json` should respect tier assignments here |
-| `opencode.jsonc` | Provider whitelist + plugin list + permissions + `agent` model mappings | Plugin array must include all 4 gate plugins plus `web-tools.ts`; provider whitelists must not include `gemini-2.5-*`; `agent.<name>.model` is the runtime assignment |
-| `plugins/gates/*.js / plugins/failover/*.js / plugins/tools/web-tools.ts` | Runtime gates and tools plugins (fail-closed on load error) | Gate plugins are `.js`; web-tools is `.ts` loaded directly by opencode; `migawari.js` reads `routing-manifest.json` at runtime |
-| `scripts/workflow-state.mjs` | Sole writer of `state.json` | Specialists call at phase boundaries; never write state directly |
-| `scripts/lib/state-lock.mjs` | File-based locking for workflow state | Used by `workflow-state.mjs` for CAS safety |
-| `docs/manifest-schema.md` | Schema for agent frontmatter manifest fields | `permission.task` allow-list is generated from `permitted_subagents` |
-| `plugins/tools/web-tools/providers/gemini-ai-studio.ts` | AI Studio REST transport | `google.transport: ai-studio` in plugin YAML |
-| `plugins/tools/web-tools/providers/gemini-vertex.ts` | Vertex AI REST transport (Bearer ADC) | `google.transport: vertex` in plugin YAML |
-| `plugins/tools/web-tools/providers/vertex-auth.ts` | Vertex OAuth helper (google-auth-library) | Called by `gemini-vertex.ts` on 401 |
-| `plugins/tools/web-tools/providers/vertex-endpoint.ts` | Vertex URL builder (global vs regional) | Called by `gemini-vertex.ts`; reads model region |
-| `plugins/tools/web-tools/providers/transport-select.ts` | auto / vertex / ai-studio selector | Reads `google.transport` from plugin YAML |
-| `commands/tools-config.md` | Interactive web-tools config editor | Writes tool budgets and transport to plugin runtime |
-
-**After editing routing or runtime model config:** run `bun test` to verify model consistency.
+| `config/opencode.jsonc` | Runtime plugin registry, provider whitelist, per-agent overrides, scoped permissions for built-ins | `docs/routing-manifest.json`, active plugin paths, agent stems |
+| `docs/routing-manifest.json` | v10 routing source of truth for specialists, subagents, and workers | `config/opencode.jsonc`, `docs/OPERATOR.md`, `scripts/lib/agent-fleet-map.mjs` |
+| `config/fleet-manifest.json` | Installer source of truth for shipped components and file lists | any moved/retired docs, scripts, or plugin paths |
+| `config/skills-manifest.json` | Pinned external-skills source list | `scripts/pull-external-skills.mjs`, `scripts/apply-patches.mjs`, README install steps |
+| `docs/manifest-schema.md` | v2 frontmatter and scoped-permission contract | `docs/agent-description-rubric.md`, active agent files |
+| `docs/agent-description-rubric.md` | Authoring rubric for v2 agent files | `agents/*.md`, `scripts/dev/agent-fleet-audit.mjs` |
 
 ---
 
-## Key Scripts
+## Plugin buckets
 
-| Script | Purpose | When to call |
+The active plugin tree is bucketed by responsibility:
+
+| Bucket | Paths | Notes |
 |---|---|---|
-| `scripts/workflow-state.mjs` | Sole writer of workflow state (init/read/advance/gate) | Every specialist phase boundary |
-| `scripts/citation-verify.mjs` | Check flagged claims have source IDs; verdict ok/warn/critical | Writer, deep-researcher: before advancing past draft |
-| `scripts/voice-check.mjs` | Token overlap between output and voice profile; ok/warn | Writer: before advancing past voicecheck |
-| `scripts/humanize-check.mjs` | AI-tell density gate; ok/warn/critical | Writer: final polish pass |
-| `scripts/security-severity.mjs` | Weighted severity scoring (0-15) for security findings | Security specialist: scoring findings |
-| `scripts/sql-safety-check.mjs` | Classify SQL (read/write/ddl) + safety gate | Data-analyst: before executing SQL |
-| `scripts/ctx7-docs.mjs` | Fetch library docs via ctx7 CLI (falls back to bunx) | Scout, any agent needing versioned API docs |
-| `scripts/memory-path.mjs` | Compute + validate MEMORY.md path for a cwd | Before reading/writing project memory |
-| `scripts/state-path.mjs` | Compute state directory paths for a workflow | Before accessing state files |
-| `scripts/verify-run.mjs` | Execute a verify.json command sequence, report per-command results | Coding: verification step |
-| `scripts/playbook-check.mjs` | Validate obligations map to playbook clauses | Legal-compliance: before final obligation map |
-| `scripts/action-allowlist.mjs` | Gate: proposed action must be in allowlist + have rollback | Devops-sre, @karakuri--command-runner: before destructive ops |
+| Gates | `plugins/gates/nio.js`, `plugins/gates/nurikabe.js`, `plugins/gates/komainu.js` | Workflow/tool gates and edit screening |
+| Failover | `plugins/failover/migawari.js` | Reads `docs/routing-manifest.json` at runtime |
+| Tools | `plugins/tools/web-tools.ts`, `plugins/tools/web-tools/**` | Web search/fetch/maps plus pricing/runtime helpers |
+| Hooks | `plugins/hooks/audit-logger.js`, `plugins/hooks/compaction-injector.js` | Audit log append + compaction prompt injection |
+
+`config/opencode.jsonc` must point at the bucketed paths exactly. `scripts/install-fleet.sh`, `scripts/merge-config.mjs`, tests, and README must agree on those paths.
 
 ---
 
-## Extending the Fleet
+## Skills pipeline
 
-For a new repeating workflow not covered by the current roster, consult `agency-agents` (see memory `[[agency-agents-source]]`), pick the closest match, adapt it to v9.1 frontmatter + routing conventions (`docs/manifest-schema.md`), and add it under `agents/`.
+The harness no longer relies on a bundled third-party skills snapshot in `opencode.jsonc`.
+
+| Path | Role |
+|---|---|
+| `config/skills-manifest.json` | Pins upstream repos and commits |
+| `scripts/pull-external-skills.mjs` | `--check` verifies pins; `--pull` refreshes the install target |
+| `scripts/apply-patches.mjs` | Re-applies local patch overlays after a pull |
+| repo-root `skills/` | Shared installed skill destination used across harnesses |
+
+README install steps should mention both the fleet installer and the external-skills pull path.
+
+---
+
+## Finance suite
+
+Workflow #5 has its own shipped compute surface.
+
+| Path group | Role |
+|---|---|
+| `scripts/knowledge-bank-finance.mjs` | Bank status/query/propose/write CLI |
+| `scripts/finance-artifact-registry.mjs` | Artifact ledger and durable promotion |
+| `scripts/finance-source-registry.mjs` | Source registry add/list |
+| `scripts/finance/*.py` | Deterministic finance compute, normalization, and verification CLIs run with `uv run` |
+| `research/financial/**` | Durable outputs and ledgers owned by the finance workflow |
+
+Installer packaging for the finance suite lives in the `finance` component of `config/fleet-manifest.json`.
+
+---
+
+## Dispatch and verification lint
+
+| Path | Role |
+|---|---|
+| `scripts/lint-dispatch-graph.mjs` | Enforces DAG edges, depth cap, and scoped-permission invariants |
+| `scripts/lib/agent-fleet-map.mjs` | Canonical active-stem map used by tests and audit helpers |
+| `scripts/tests/dispatch-graph.test.mjs` | Guards dispatch graph rules |
+| `scripts/tests/agent-reference-integrity.test.mjs` | Guards stale-token drift in active docs/config/agents |
+| `scripts/dev/agent-fleet-audit.mjs` | Generates a human audit table from current v2 frontmatter |
+
+Run `bun test scripts/tests/` after touching agent inventory, manifest files, plugin paths, or runtime docs.
+
+---
+
+## Active helper scripts
+
+Only the scripts below remain active in the v2 shipped reference set:
+
+| Script | Purpose |
+|---|---|
+| `scripts/workflow-state.mjs` | Sole workflow-state writer |
+| `scripts/citation-verify.mjs` | Citation gate |
+| `scripts/humanize-check.mjs` | AI-tell density check for WF4 deliverables |
+| `scripts/security-severity.mjs` | Security finding scoring |
+| `scripts/ctx7-docs.mjs` | Local ctx7 wrapper for doc retrieval |
+| `scripts/memory-path.mjs` | Memory index location + validation helper |
+| `scripts/state-path.mjs` | Workflow tmp/state path helper |
+| `scripts/verify-run.mjs` | Verification command runner |
+
+Retired workflow-owned helpers and old model-family guides move under `future-work/` when kept only as local reference.

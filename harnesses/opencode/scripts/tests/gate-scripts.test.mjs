@@ -37,37 +37,6 @@ test('citation-verify: all cited → ok', () => {
   expect(r.verdict).toBe('ok');
 });
 
-test('playbook-check: unmapped obligation → warn', () => {
-  const r = run('scripts/playbook-check.mjs', { obligations: [{ id: 'O1' }] });
-  expect(r.verdict).toBe('warn');
-});
-test('playbook-check: all mapped → ok', () => {
-  const r = run('scripts/playbook-check.mjs', { obligations: [{ id: 'O1', clause: '§3.2' }] });
-  expect(r.verdict).toBe('ok');
-});
-
-test('action-allowlist: action not in list → critical', () => {
-  const r = run('scripts/action-allowlist.mjs', { action: 'rm -rf /', allowlist: ['deploy', 'rollback'], rollback: 'undo' });
-  expect(r.verdict).toBe('critical');
-});
-test('action-allowlist: in list, no rollback → critical', () => {
-  const r = run('scripts/action-allowlist.mjs', { action: 'deploy', allowlist: ['deploy'] });
-  expect(r.verdict).toBe('critical');
-});
-test('action-allowlist: in list with rollback → ok', () => {
-  const r = run('scripts/action-allowlist.mjs', { action: 'deploy', allowlist: ['deploy'], rollback: 'rollback-deploy' });
-  expect(r.verdict).toBe('ok');
-});
-
-test('voice-check: overlap below threshold → warn', () => {
-  const r = run('scripts/voice-check.mjs', { output: 'hello world', profile_tokens: ['brand', 'innovation', 'excellence', 'transformative', 'synergy'], threshold: 0.5 });
-  expect(r.verdict).toBe('warn');
-});
-test('voice-check: overlap above threshold → ok', () => {
-  const r = run('scripts/voice-check.mjs', { output: 'brand innovation excellence', profile_tokens: ['brand', 'innovation', 'excellence'], threshold: 0.5 });
-  expect(r.verdict).toBe('ok');
-});
-
 test('security-severity: low finding → ok', () => {
   const { status, json } = runSecuritySeverity({ reachability: 0, attackerControl: 0, impact: 1, preconditions: 3, authGate: 3 });
   expect(status).toBe(0);

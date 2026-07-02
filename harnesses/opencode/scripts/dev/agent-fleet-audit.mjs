@@ -8,12 +8,13 @@ const files = readdirSync('agents').filter(file => file.endsWith('.md')).sort();
 const rows = files.map(file => {
   const body = readFileSync(join('agents', file), 'utf8');
   const mode = body.match(/^mode:\s*(.+)$/m)?.[1]?.trim() ?? 'missing';
-  const model = body.match(/^model:\s*(.+)$/m)?.[1]?.trim() ?? 'missing';
   const description = body.match(/^description:\s*>?\s*(.+)$/m)?.[1]?.trim() ?? 'missing';
-  const mentions = [...body.matchAll(/@([a-z0-9-]+)/g)].map(match => match[1]);
   const taskTargets = [...body.matchAll(/^\s{4}([a-z0-9-]+):\s*allow$/gm)].map(match => match[1]).filter(name => name !== '*');
+  const editScope = body.match(/^  edit:\s*(.+)$/m)?.[1]?.trim() ?? (body.match(/^    ".+": allow$/m) ? 'scoped' : 'missing');
+  const bashScope = body.match(/^  bash:\s*(.+)$/m)?.[1]?.trim() ?? (body.match(/^    ".+": allow$/m) ? 'scoped' : 'missing');
+  const antiRecursion = /Never dispatch yourself\.|Never re-dispatch the task you were given\./.test(body) ? 'yes' : 'no';
 
-  return `| ${file} | ${mode} | ${model} | ${description.replace(/\|/g, '/')} | ${mentions.join(', ')} | ${taskTargets.join(', ')} |`;
+  return `| ${file} | ${mode} | ${editScope} | ${bashScope} | ${description.replace(/\|/g, '/')} | ${taskTargets.join(', ')} | ${antiRecursion} |`;
 });
 
 const inventory = [
@@ -23,8 +24,8 @@ const inventory = [
   '',
   '## Inventory',
   '',
-  '| File | Mode | Model | Description | Mentions | Task Targets |',
-  '| --- | --- | --- | --- | --- | --- |',
+  '| File | Mode | Edit Scope | Bash Scope | Description | Task Targets | Anti-Recursion |',
+  '| --- | --- | --- | --- | --- | --- | --- |',
   ...rows,
   '',
 ].join('\n');

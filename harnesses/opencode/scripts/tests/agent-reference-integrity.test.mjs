@@ -5,7 +5,7 @@ import { AGENT_RENAME_MAP, LEGACY_AGENT_ALIASES, ALL_AGENT_TARGETS } from '../li
 
 const ROOTS = ['config/AGENTS.md', 'config/fleet-manifest.json', 'docs/routing-manifest.json', 'scripts/install-fleet.sh', 'scripts/install-fleet-bootstrap.sh', 'scripts/merge-config.mjs'];
 const DIRS = ['agents', 'commands'];
-const ACTIVE_DOC_SUBDIRS = ['docs/architecture.md', 'docs/OPERATOR.md', 'docs/agent-description-rubric.md', 'docs/agent-template.md', 'docs/manifest-schema.md', 'docs/workflows.md', 'docs/models', 'docs/routing-manifest.json'];
+const ACTIVE_DOC_SUBDIRS = ['docs/architecture.md', 'docs/OPERATOR.md', 'docs/agent-description-rubric.md', 'docs/manifest-schema.md', 'docs/workflows.md', 'docs/routing-manifest.json'];
 const DOC_ALLOWLIST = new Set(['docs/agent-description-rubric.md', 'docs/archive/agent-fleet-structural-findings.md', 'agents/chizu--implementation-planner.md', 'agents/shiranui--migration-guide.md', 'agents/sojobo--system-strategist.md']);
 
 function walk(dir) {
