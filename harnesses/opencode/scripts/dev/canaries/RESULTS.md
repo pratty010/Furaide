@@ -89,3 +89,16 @@ Actual verdict: **GO** — The probe dispatched `_t1-canary` (minimax-m2.7, mode
 ### A5 Branch decision
 
 Depth-3 failed, and depth-2 also failed, so all cross-specialist edges route hub-and-spoke through `kantoku`; state machines unchanged. Deny-enforcement passed, so no exit-9 blocker.
+
+## A6: Built-in override probe (Task 7)
+
+| Check | Result |
+|---|---|
+| Command | `opencode run --agent general --dangerously-skip-permissions "State your operating rules in one line."` |
+| Output | `! agent "general" is a subagent, not a primary agent. Falling back to default agent` |
+| Override successful | false |
+| Fallback used | true (config/opencode.jsonc) |
+
+### A6 Branch decision
+
+The `agents/general.md` override did not take effect because `mode: subagent` agents cannot be invoked directly via `--agent`. Fallback to `config/opencode.jsonc` model and permission blocks applied.

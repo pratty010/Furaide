@@ -81,6 +81,8 @@ Controller policy: the main session orchestrates only: analysis, delegation, rev
 | 2026-07-02 | Part 1 Task 5 completed by impl-complex | Task 5 completed: 12 files moved to ignored `future-work/agents/` for local reference only, 11 retired from active fleet, active survivor inventory verified exactly 7 (bakeneko, daikoku, fudo, hanko, oni, tsuchigumo, tsukumogami). Future-work paths must not be staged. [checkpoint: cb05ec3] |
 | 2026-07-02 | Part 1 Task 6 completed by impl-complex | Task 6 completed: scrubbed 61 matches of retired names from 7 survivor agents; updated subagent mappings to general, explore, scout, and kagami--verifier; verified zero matches remaining. |
 | 2026-07-02 | Post-Task-6 broader cleanup | Removed 6 moved-agent cross-references from active survivor agent files; broad removed-agent grep over active `agents/*.md` now returns 0 hits. |
+| 2026-07-02 | Part 1 Task 7 completed by impl-complex | Created `agents/general.md`, `agents/explore.md`, `agents/scout.md`. Override probe failed (subagent mode); fallback applied to `config/opencode.jsonc` (model, instructions, permission). Recorded in `RESULTS.md`. |
+| 2026-07-02 | Task 7 config fallback shape corrected | `config/opencode.jsonc` inline agent blocks now use `prompt` instead of `instructions` for `general`, `explore`, and `scout`. |
 
 ## Open Risks
 
