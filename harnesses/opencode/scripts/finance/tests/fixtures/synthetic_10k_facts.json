@@ -1,0 +1,159 @@
+{
+  "source_ids": [
+    "sec-facts-acme-2025"
+  ],
+  "retrieved": "2026-07-02T12:00:00Z",
+  "entity": "ACME",
+  "facts": [
+    {
+      "concept": "RevenueFromContractWithCustomerExcludingAssessedTax",
+      "label": "Revenue",
+      "value": 125.0,
+      "unit": "USD_millions",
+      "period": {
+        "start": "2025-01-01",
+        "end": "2025-12-31",
+        "type": "duration"
+      },
+      "context": "FY2025",
+      "statement": "income_statement"
+    },
+    {
+      "concept": "NetIncomeLoss",
+      "label": "Net income",
+      "value": 25.0,
+      "unit": "USD_millions",
+      "period": {
+        "start": "2025-01-01",
+        "end": "2025-12-31",
+        "type": "duration"
+      },
+      "context": "FY2025",
+      "statement": "income_statement"
+    },
+    {
+      "concept": "Assets",
+      "label": "Assets",
+      "value": 400.0,
+      "unit": "USD_millions",
+      "period": {
+        "end": "2025-12-31",
+        "type": "instant"
+      },
+      "context": "FY2025",
+      "statement": "balance_sheet"
+    },
+    {
+      "concept": "Liabilities",
+      "label": "Liabilities",
+      "value": 150.0,
+      "unit": "USD_millions",
+      "period": {
+        "end": "2025-12-31",
+        "type": "instant"
+      },
+      "context": "FY2025",
+      "statement": "balance_sheet"
+    },
+    {
+      "concept": "StockholdersEquity",
+      "label": "Stockholders equity",
+      "value": 250.0,
+      "unit": "USD_millions",
+      "period": {
+        "end": "2025-12-31",
+        "type": "instant"
+      },
+      "context": "FY2025",
+      "statement": "balance_sheet"
+    },
+    {
+      "concept": "NetCashProvidedByUsedInOperatingActivities",
+      "label": "Operating cash flow",
+      "value": 30.0,
+      "unit": "USD_millions",
+      "period": {
+        "start": "2025-01-01",
+        "end": "2025-12-31",
+        "type": "duration"
+      },
+      "context": "FY2025",
+      "statement": "cash_flow"
+    },
+    {
+      "concept": "PaymentsToAcquirePropertyPlantAndEquipment",
+      "label": "Capital expenditures",
+      "value": -12.0,
+      "unit": "USD_millions",
+      "period": {
+        "start": "2025-01-01",
+        "end": "2025-12-31",
+        "type": "duration"
+      },
+      "context": "FY2025",
+      "statement": "cash_flow"
+    },
+    {
+      "concept": "EarningsPerShareBasic",
+      "label": "Basic EPS",
+      "value": 4.0,
+      "unit": "USD_per_share",
+      "period": {
+        "start": "2025-01-01",
+        "end": "2025-12-31",
+        "type": "duration"
+      },
+      "context": "FY2025",
+      "statement": "income_statement"
+    },
+    {
+      "concept": "CommonStockSharesOutstanding",
+      "label": "Shares outstanding",
+      "value": 100.0,
+      "unit": "shares_millions",
+      "period": {
+        "end": "2025-12-31",
+        "type": "instant"
+      },
+      "context": "FY2025",
+      "statement": "balance_sheet"
+    },
+    {
+      "concept": "CashAndCashEquivalentsAtCarryingValue",
+      "label": "Cash and cash equivalents",
+      "value": 80.0,
+      "unit": "EUR_millions",
+      "period": {
+        "end": "2025-12-31",
+        "type": "instant"
+      },
+      "context": "FY2025",
+      "statement": "balance_sheet"
+    }
+  ],
+  "fx_rates": [
+    {
+      "from": "EUR",
+      "to": "USD",
+      "rate": 1.1,
+      "timestamp": "2025-12-31T16:00:00Z"
+    }
+  ],
+  "corporate_actions": [
+    {
+      "type": "split",
+      "ratio": 2.0,
+      "effective_date": "2026-01-15",
+      "applies_to": [
+        "shares_outstanding",
+        "eps_basic"
+      ]
+    },
+    {
+      "type": "dividend",
+      "cash_dividend_per_share": 0.5,
+      "currency": "USD",
+      "effective_date": "2026-02-01"
+    }
+  ]
+}

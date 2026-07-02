@@ -107,16 +107,12 @@
         "scripts"
       ],
       "files": [
-        "scripts/action-allowlist.mjs",
         "scripts/citation-verify.mjs",
         "scripts/ctx7-docs.mjs",
         "scripts/humanize-check.mjs",
         "scripts/memory-path.mjs",
-        "scripts/playbook-check.mjs",
         "scripts/security-severity.mjs",
-        "scripts/sql-safety-check.mjs",
-        "scripts/verify-run.mjs",
-        "scripts/voice-check.mjs"
+        "scripts/verify-run.mjs"
       ],
       "globs": []
     },
@@ -139,7 +135,7 @@
     {
       "id": "docs-reference",
       "label": "Reference Docs",
-      "description": "OPERATOR guide, architecture overview, manifest schema, agent template, model family guides, and shared GitHub workflow guide. Reference only, not required at runtime.",
+      "description": "OPERATOR guide, architecture overview, manifest schema, rubric, and shared GitHub workflow guide. Reference only, not required at runtime.",
       "atomic": false,
       "coupling": "reference only; GITHUB.md and github-setup-check.sh sourced from repo-root docs/ and scripts/ at install time",
       "requires_bun": false,
@@ -152,7 +148,7 @@
         "docs/OPERATOR.md",
         "docs/architecture.md",
         "docs/manifest-schema.md",
-        "docs/agent-template.md"
+        "docs/agent-description-rubric.md"
       ],
       "common_files": [
         {
@@ -164,8 +160,29 @@
           "dst": "scripts/github-setup-check.sh"
         }
       ],
+      "globs": []
+    },
+    {
+      "id": "finance",
+      "label": "Finance Compute Scripts",
+      "description": "Deterministic finance ledgers plus uv-run Python compute and verification scripts for Workflow #5. Requires a local uv toolchain; no network at runtime.",
+      "atomic": false,
+      "coupling": "knowledge-bank and registry JS ledgers coordinate with scripts/finance/** Python CLIs via shared JSON artifacts; python entrypoints are executed with uv run",
+      "requires_bun": false,
+      "default_on": true,
+      "target_subdirs": [
+        "scripts"
+      ],
+      "files": [
+        "scripts/knowledge-bank-finance.mjs",
+        "scripts/finance-artifact-registry.mjs",
+        "scripts/finance-source-registry.mjs",
+        "scripts/finance/pyproject.toml",
+        "scripts/finance/uv.lock"
+      ],
       "globs": [
-        "docs/models/**"
+        "scripts/finance/*.py",
+        "scripts/finance/tests/**"
       ]
     },
     {

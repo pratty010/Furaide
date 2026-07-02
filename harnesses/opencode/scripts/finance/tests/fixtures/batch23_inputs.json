@@ -1,0 +1,186 @@
+{
+  "ratio": {
+    "source_ids": ["ratio-fixture"],
+    "retrieved": "2026-07-02T12:00:00Z",
+    "period": "FY2025",
+    "current": {
+      "revenue": 125.0,
+      "net_income": 25.0,
+      "assets": 400.0,
+      "equity": 250.0,
+      "liabilities": 150.0,
+      "cash_from_operations": 30.0,
+      "capital_expenditures": -12.0
+    },
+    "prior": {
+      "assets": 360.0,
+      "equity": 220.0
+    }
+  },
+  "comps": {
+    "source_ids": ["comps-fixture"],
+    "retrieved": "2026-07-02T12:00:00Z",
+    "subject": {
+      "name": "Acme Corp",
+      "metrics": {
+        "ev_ebitda": 9.0,
+        "pe": 18.0
+      }
+    },
+    "peers": [
+      {"name": "Peer A", "metrics": {"ev_ebitda": 8.0, "pe": 16.0}},
+      {"name": "Peer B", "metrics": {"ev_ebitda": 10.0, "pe": 18.0}},
+      {"name": "Peer C", "metrics": {"ev_ebitda": 12.0, "pe": 20.0}},
+      {"name": "Peer D", "metrics": {"ev_ebitda": 30.0, "pe": 40.0}},
+      {"name": "Peer E", "metrics": {"ev_ebitda": 9.0, "pe": 17.0}}
+    ]
+  },
+  "dcf": {
+    "source_ids": ["dcf-fixture"],
+    "retrieved": "2026-07-02T12:00:00Z",
+    "base_case": {
+      "fcff": [20.0, 22.0, 24.0, 26.0, 28.0],
+      "wacc": 0.1,
+      "terminal_growth": 0.03
+    },
+    "sensitivity": {
+      "wacc": [0.09, 0.1, 0.11],
+      "terminal_growth": [0.02, 0.03, 0.04]
+    },
+    "scenarios": [
+      {"name": "bear", "fcff": [18.0, 19.0, 20.0, 21.0, 22.0], "wacc": 0.11, "terminal_growth": 0.02},
+      {"name": "base", "fcff": [20.0, 22.0, 24.0, 26.0, 28.0], "wacc": 0.1, "terminal_growth": 0.03},
+      {"name": "bull", "fcff": [22.0, 25.0, 28.0, 31.0, 34.0], "wacc": 0.09, "terminal_growth": 0.04}
+    ]
+  },
+  "wacc": {
+    "source_ids": ["wacc-fixture"],
+    "retrieved": "2026-07-02T12:00:00Z",
+    "risk_free_rate": 0.04,
+    "beta": 1.2,
+    "equity_risk_premium": 0.05,
+    "pre_tax_cost_of_debt": 0.06,
+    "tax_rate": 0.25,
+    "market_value_equity": 700.0,
+    "market_value_debt": 300.0
+  },
+  "technical": {
+    "source_ids": ["technical-fixture"],
+    "retrieved": "2026-07-02T12:00:00Z",
+    "prices": [
+      {"date": "2026-06-25", "close": 10.0},
+      {"date": "2026-06-26", "close": 11.0},
+      {"date": "2026-06-27", "close": 12.0},
+      {"date": "2026-06-28", "close": 11.0},
+      {"date": "2026-06-29", "close": 13.0},
+      {"date": "2026-06-30", "close": 14.0}
+    ],
+    "windows": {
+      "sma": 3,
+      "ema": 3,
+      "rsi": 5,
+      "volatility": 5
+    }
+  },
+  "macro": {
+    "source_ids": ["macro-fixture"],
+    "retrieved": "2026-07-02T12:00:00Z",
+    "series": [
+      {"date": "2025-06-01", "value": 100.0},
+      {"date": "2025-07-01", "value": 105.0},
+      {"date": "2025-08-01", "value": 110.0},
+      {"date": "2025-09-01", "value": 120.0},
+      {"date": "2025-10-01", "value": 126.0},
+      {"date": "2025-11-01", "value": 132.0},
+      {"date": "2025-12-01", "value": 138.0},
+      {"date": "2026-01-01", "value": 145.0},
+      {"date": "2026-02-01", "value": 150.0},
+      {"date": "2026-03-01", "value": 155.0},
+      {"date": "2026-04-01", "value": 160.0},
+      {"date": "2026-05-01", "value": 165.0},
+      {"date": "2026-06-01", "value": 170.0}
+    ],
+    "zscore_window": 5,
+    "lag_periods": 1
+  },
+  "freshness": {
+    "source_ids": ["freshness-fixture"],
+    "retrieved": "2026-07-02T12:00:00Z",
+    "now": "2026-07-02T00:00:00Z",
+    "threshold_days": {
+      "issuer": 120,
+      "market_data": 2,
+      "macro": 30,
+      "transcript": 14
+    },
+    "artifacts": [
+      {"id": "a1", "name": "issuer-model", "source_class": "issuer", "retrieved_at": "2026-06-15T00:00:00Z"},
+      {"id": "a2", "name": "price-snapshot", "source_class": "market_data", "retrieved_at": "2026-06-28T00:00:00Z"},
+      {"id": "a3", "name": "macro-pack", "source_class": "macro", "retrieved_at": "2026-07-05T00:00:00Z"},
+      {"id": "a4", "name": "earnings-notes", "source_class": "transcript"}
+    ]
+  },
+  "cross_source": {
+    "source_ids": ["cross-source-fixture"],
+    "retrieved": "2026-07-02T12:00:00Z",
+    "materiality_threshold": 0.1,
+    "metrics": [
+      {
+        "metric": "revenue",
+        "observations": [
+          {"source_id": "issuer-1", "period": "FY2025", "value": 100.0, "unit": "USD_millions"},
+          {"source_id": "vendor-1", "period": "FY2025", "value": 130.0, "unit": "USD_millions"}
+        ]
+      },
+      {
+        "metric": "ebitda",
+        "observations": [
+          {"source_id": "issuer-1", "period": "Q1-2026", "value": 30.0, "unit": "USD_millions"},
+          {"source_id": "vendor-1", "period": "Q2-2026", "value": 31.0, "unit": "USD_millions"}
+        ]
+      },
+      {
+        "metric": "net_income",
+        "observations": [
+          {"source_id": "issuer-1", "period": "FY2025", "value": 25.0, "unit": "USD_millions"},
+          {"source_id": "vendor-1", "period": "FY2025", "value": 25.5, "unit": "USD_millions"}
+        ]
+      }
+    ]
+  },
+  "model_validate_valid": {
+    "source_ids": ["model-validate-valid"],
+    "retrieved": "2026-07-02T12:00:00Z",
+    "expected_unit": "USD",
+    "model": {
+      "enterprise_value": 345.358924,
+      "equity_value": 265.358924,
+      "net_debt": 80.0,
+      "share_count": 100.0,
+      "diluted_share_count": 102.0,
+      "unit": "USD",
+      "discount_factors": [0.909091, 0.826446, 0.751315],
+      "revenue_projection": [125.0, 132.0, 140.0],
+      "scenario_table": [
+        {"name": "bear", "enterprise_value": 230.0},
+        {"name": "base", "enterprise_value": 345.358924},
+        {"name": "bull", "enterprise_value": 480.0}
+      ]
+    }
+  },
+  "model_validate_invalid": {
+    "source_ids": ["model-validate-invalid"],
+    "retrieved": "2026-07-02T12:00:00Z",
+    "expected_unit": "USD",
+    "model": {
+      "enterprise_value": -10.0,
+      "equity_value": 120.0,
+      "net_debt": 50.0,
+      "share_count": 0.0,
+      "diluted_share_count": 90.0,
+      "unit": "EUR",
+      "discount_factors": [0.91, 0.95, 0.8],
+      "revenue_projection": [125.0, 120.0, 130.0]
+    }
+  }
+}

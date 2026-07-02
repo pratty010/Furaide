@@ -1,6 +1,6 @@
 import { test, expect } from 'bun:test';
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
@@ -34,6 +34,79 @@ const mkWorkflow = (wf) => ({
   cwd: mkdtempSync(join(tmpdir(), `${wf}-smoke-`)),
   wf,
 });
+
+const writeJson = (filePath, value) => {
+  mkdirSync(filePath.split('/').slice(0, -1).join('/'), { recursive: true });
+  writeFileSync(filePath, JSON.stringify(value, null, 2) + '\n');
+};
+
+const runFinanceStatus = (root, subject) => {
+  const result = spawnSync('bun', ['scripts/knowledge-bank-finance.mjs', 'status', '--subject', subject, '--root', root], {
+    encoding: 'utf8',
+  });
+
+  expect(result.status).toBe(0);
+  return JSON.parse(result.stdout);
+};
+
+const seedFinanceStatusFixture = (root, subject = 'acme') => {
+  const subjectDir = join(root, 'research', 'financial', subject);
+  writeJson(join(subjectDir, 'bank-manifest.json'), {
+    subject_identity: {
+      company: 'Acme Corp',
+      ticker: 'ACME',
+      exchange: 'NYSE',
+      jurisdiction: 'US',
+      currency: 'USD',
+    },
+    last_run: {
+      mode: 'quick_update',
+      operation: 'bank_status',
+      at: '2026-07-01T12:00:00.000Z',
+    },
+    thesis_status: 'monitoring',
+    entries: [
+      {
+        id: 'entry-1',
+        subject,
+        title: 'Revenue up',
+        issuer: 'Acme Corp',
+        period: 'FY2025',
+        source_url: 'https://example.com/filing',
+        retrieved_date: '2026-07-01',
+        currency_unit: 'USD_millions',
+        confidence: 'high',
+        validation_status: 'verified',
+        producing_module: 'finance_xbrl_extract',
+      },
+    ],
+    known_conflicts: ['Margin guidance differs from transcript'],
+    open_gaps: ['No peer comps refresh'],
+  });
+  writeJson(join(subjectDir, 'artifact-registry.json'), {
+    artifacts: [
+      {
+        id: 'artifact-1',
+        name: 'latest-filing.json',
+        kind: 'filing',
+        path: 'artifacts/latest-filing.json',
+        updated_at: '2026-07-01T10:00:00.000Z',
+        validation_status: 'verified',
+      },
+    ],
+  });
+  writeJson(join(subjectDir, 'source-registry.json'), {
+    sources: [
+      {
+        id: 'src-1',
+        class: 'issuer',
+        license: 'public',
+        timestamp: '2026-07-01T09:00:00.000Z',
+        url: 'https://example.com/filing',
+      },
+    ],
+  });
+};
 
 const specialists = {
   wf1: 'deep-researcher',
@@ -236,4 +309,30 @@ test('WF5 smoke: engine-level gap loop cap falls through to SYNTHESIS and termin
   const illegal = initWorkflow('wf5');
   walk(illegal, ['INTENT_CLASSIFY', 'BANK_STATUS']);
   expectIllegalTransition(illegal, 'COMPLETE', /invalid transition for wf5: BANK_STATUS -> COMPLETE/);
+});
+
+test('WF5 smoke: BANK_STATUS fixture subject produces the expected status card', () => {
+  const root = mkdtempSync(join(tmpdir(), 'wf5-bank-status-'));
+  seedFinanceStatusFixture(root);
+
+  const card = runFinanceStatus(root, 'acme');
+
+  expect(card.subject_identity).toEqual({
+    company: 'Acme Corp',
+    ticker: 'ACME',
+    exchange: 'NYSE',
+    jurisdiction: 'US',
+    currency: 'USD',
+  });
+  expect(card.last_run).toEqual({
+    mode: 'quick_update',
+    operation: 'bank_status',
+    at: '2026-07-01T12:00:00.000Z',
+  });
+  expect(card.available_artifacts).toContain('latest-filing.json');
+  expect(card.current_thesis_status).toBe('monitoring');
+  expect(card.known_conflicts_or_open_gaps).toEqual([
+    'Margin guidance differs from transcript',
+    'No peer comps refresh',
+  ]);
 });
