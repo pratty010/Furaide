@@ -87,6 +87,7 @@ Controller policy: the main session orchestrates only: analysis, delegation, rev
 | 2026-07-02 | Part 2 Task 9 completed by impl-complex | `docs/routing-manifest.json` bumped to v10 with 15 v2 agents; routing/model trio `bun test scripts/tests/routing-manifest.test.mjs scripts/tests/model-failover.test.mjs scripts/tests/model-resolve.test.mjs` passed 18/18. |
 | 2026-07-02 | Part 2 Task 10 completed by impl-complex | agents/kantoku--workflow-director.md created; dispatch lint returned OK (existence check skipped by script); reference-integrity test failed: kyakuhon--spec-planner missing. |
 | 2026-07-02 | Part 2 Task 11 completed by impl-simple | `agents/kyakuhon--spec-planner.md` now exists at the exact path; frontmatter contract and retired/moved-name search in the new file both passed. |
+| 2026-07-02 | Part 2 Task 12 completed by impl-simple | agents/kagami--verifier.md and agents/hansei--lesson-keeper.md created; frontmatter checks passed; removed/moved-name grep returned 0 hits. |
 
 ## Open Risks
 
