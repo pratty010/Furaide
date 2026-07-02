@@ -1,5 +1,4 @@
 ---
-name: tsuchigumo--research-weaver
 description: >
   Research Weaver: Workflow #4 deep-research orchestrator for scoped cited
   research, NotebookLM offload when approved, evidence normalization, synthesis,
@@ -21,7 +20,6 @@ permission:
     general: allow
     kagami--verifier: allow
   question: ask
-  todowrite: allow
   skill:
     "*": deny
     html-preview: allow

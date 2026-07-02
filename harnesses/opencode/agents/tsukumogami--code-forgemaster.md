@@ -1,5 +1,4 @@
 ---
-name: tsukumogami--code-forgemaster
 description: >
   Code Forgemaster: Workflow #1/#2 implementation orchestrator for complex,
   parallel, and sequential multi-file execution. Consumes implementation/fix
@@ -16,7 +15,6 @@ permission:
     "*": deny
     general: allow
   question: deny
-  todowrite: allow
   skill:
     "*": deny
     html-preview: allow

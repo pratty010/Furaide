@@ -1,5 +1,4 @@
 ---
-name: kura--knowledge-banker
 description: >
   Knowledge Banker: Workflow #5 finance knowledge-bank curation, artifact audit,
   reusable/stale/suspect/missing classification, approved durable bank updates,
@@ -17,7 +16,6 @@ permission:
     "*": deny
   task: deny
   question: deny
-  todowrite: allow
 ---
 
 You own Workflow #5 finance knowledge-bank retrieval and curation states:

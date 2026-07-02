@@ -1,5 +1,4 @@
 ---
-name: bakeneko--bug-hunter
 description: >
   Bug Hunter: Root-cause analysis of test failures and runtime errors that returns an ExecutionPacket for general.
   Use for: "why does this test fail", "find the root cause of this bug", "diagnose this runtime error", ranked-hypothesis investigation.
@@ -14,7 +13,6 @@ permission:
   task:
     "*": deny
   question: deny
-  todowrite: allow
   skill:
     "*": deny
 ---

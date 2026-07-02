@@ -1,5 +1,4 @@
 ---
-name: hanko--git-seal
 description: >
   Git Seal: Version control and GitHub workflow executor for git commits, pushes, gh PR creation, and status checks.
   Use for: committing staged work to a dev/feat/fix branch, pushing to dev, opening a PR to dev, checking PR/CI status, running Conventional Commits validation.
@@ -17,7 +16,6 @@ permission:
   task:
     "*": deny
   question: ask
-  todowrite: allow
   skill:
     "*": deny
 # Manifest

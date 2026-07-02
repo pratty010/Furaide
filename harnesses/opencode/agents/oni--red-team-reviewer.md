@@ -1,5 +1,4 @@
 ---
-name: oni--red-team-reviewer
 description: >
   Red Team Reviewer: Premium adversarial review of a bounded artifact (code diff, architecture plan, research argument, compliance posture, or written deliverable).
   Use for: adversarial review, gap detection, blast-radius challenge, architecture critique, high-stakes correctness/security/argument audits.
@@ -14,7 +13,6 @@ permission:
   task:
     "*": deny
   question: deny
-  todowrite: allow
   skill:
     "*": deny
 ---

@@ -1,5 +1,4 @@
 ---
-name: daikoku--finance-steward
 description: >
   Finance Steward: Workflow #5 finance orchestrator for public-company research,
   refresh planning, assumptions, valuation routing, synthesis, and delivery.
@@ -22,7 +21,6 @@ permission:
     tsuchigumo--research-weaver: allow
     kagami--verifier: allow
   question: ask
-  todowrite: allow
   skill:
     "*": deny
     html-preview: allow

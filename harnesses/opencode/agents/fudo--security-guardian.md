@@ -1,5 +1,4 @@
 ---
-name: fudo--security-guardian
 description: >
   Security Guardian: Workflow #3 application-security analysis and remediation
   orchestrator. Owns security scope, recon, threat modeling, findings
@@ -24,7 +23,6 @@ permission:
     tsukumogami--code-forgemaster: allow
     kagami--verifier: allow
   question: ask
-  todowrite: allow
   skill:
     "*": deny
     html-preview: allow
