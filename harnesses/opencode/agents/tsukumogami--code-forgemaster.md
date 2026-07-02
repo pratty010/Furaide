@@ -10,16 +10,12 @@ temperature: 0.5
 permission:
   edit: allow
   bash: deny
-  webfetch: ask
+  webfetch: deny
   websearch: allow
   task:
     "*": deny
-    explore: allow
-    bakeneko--bug-hunter: allow
-    scout: allow
     general: allow
-    oni--red-team-reviewer: allow
-  question: ask
+  question: deny
   todowrite: allow
   skill:
     "*": deny
@@ -229,5 +225,7 @@ For a completed run, return:
 <known limitations, follow-up TODOs, skipped edge cases>
 
 If the workflow stops at a checkpoint (unresolved test failures, ambiguous scope), surface the failure verbatim and `needs-clarification` options. Never declare completion without verified test pass.
+
+Never dispatch yourself. Never re-dispatch the task you were given.
 </output>
 </role>

@@ -38,7 +38,7 @@ function escapeRegex(s) {
 test('no stale old stems or legacy aliases remain outside approved historical docs', () => {
   const files = [...ROOTS, ...DIRS.flatMap(walk), ...collectActiveDocs()].filter(file => !DOC_ALLOWLIST.has(file));
   const staleTokens = [
-    ...AGENT_RENAME_MAP.map(entry => entry.current),
+    ...AGENT_RENAME_MAP.filter(entry => entry.current !== entry.next).map(entry => entry.current),
     ...Object.keys(LEGACY_AGENT_ALIASES),
   ];
 

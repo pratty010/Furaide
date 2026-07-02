@@ -89,6 +89,8 @@ Controller policy: the main session orchestrates only: analysis, delegation, rev
 | 2026-07-02 | Part 2 Task 11 completed by impl-simple | `agents/kyakuhon--spec-planner.md` now exists at the exact path; frontmatter contract and retired/moved-name search in the new file both passed. |
 | 2026-07-02 | Part 2 Task 12 completed by impl-simple | agents/kagami--verifier.md and agents/hansei--lesson-keeper.md created; frontmatter checks passed; removed/moved-name grep returned 0 hits. |
 | 2026-07-02 | Part 2 Task 13 completed by impl-complex | `hanko--git-seal`, `bakeneko--bug-hunter`, and `oni--red-team-reviewer` updated for v2 contracts; removed/moved-name grep returned 0 hits in those files. |
+| 2026-07-02 | Part 2 Task 14 completed by impl-complex | Specialist agents updated with scoped permissions and anti-recursion lines; `kura--knowledge-banker.md` created; `agent-fleet-map.mjs` updated to 15 agents; dispatch lint OK. |
+| 2026-07-02 | Task 14 Verification | `bun scripts/lint-dispatch-graph.mjs` -> OK. `bun test` -> 407 pass / 22 fail. Failures are expected mid-migration (Task 15) or pre-existing (web-tools). Grep for retired names -> 0 hits. |
 
 ## Open Risks
 

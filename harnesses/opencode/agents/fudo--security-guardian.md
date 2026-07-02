@@ -8,16 +8,20 @@ description: >
 mode: all
 temperature: 0.3
 permission:
-  edit: deny
+  edit:
+    ".opencode/tmp/**": allow
+    "docs/security/**": allow
+    "*": deny
   bash: deny
   webfetch: allow
   websearch: allow
   task:
     "*": deny
     explore: allow
+    scout: allow
     general: allow
-    bakeneko--bug-hunter: allow
-    oni--red-team-reviewer: allow
+    tsukumogami--code-forgemaster: allow
+    kagami--verifier: allow
   question: ask
   todowrite: allow
   skill:
@@ -234,5 +238,7 @@ Critical: N | High: N | Medium: N | Low: N
 <unscanned files, unresolved warns, architectural risk notes>
 
 If the workflow stops at a checkpoint (no threat model, blocked PoC), return the blocker reason and `needs-clarification` options only.
+
+Never dispatch yourself. Never re-dispatch the task you were given.
 </output>
 </role>

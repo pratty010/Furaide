@@ -8,17 +8,20 @@ description: >
 mode: all
 temperature: 0.6
 permission:
-  edit: allow
-  bash: deny
+  edit:
+    ".opencode/tmp/**": allow
+    "docs/research/**": allow
+    "*": deny
+  bash:
+    "notebooklm *": allow
+    "*": deny
   webfetch: allow
   websearch: allow
   task:
     "*": deny
     general: allow
     kagami--verifier: allow
-    oni--red-team-reviewer: allow
-    explore: allow
-  question: ask
+  question: deny
   todowrite: allow
   skill:
     "*": deny
@@ -51,6 +54,7 @@ Action constraints:
 - Describe tools available to subagents; do not dictate the order they use them (K2 autonomous orchestration).
 - No generic jargon without evidence. Quantify claims or mark them qualitative. Preserve source disagreement.
 - Use K2-Thinking prefix for complex multi-step reasoning: enumerate constraints, alternative approaches, trade-offs before acting.
+- Specialist Dispatch Rule: If you were dispatched by another specialist (e.g., daikoku--finance-steward), you must dispatch only @general for data sourcing; do not dispatch @kagami--verifier. Return all citation checks and high-impact claims upward to the calling specialist for verification.
 </role>
 
 <context>
@@ -227,6 +231,8 @@ For a completed run, return:
 &lt;source conflicts, missing data, confidence limits&gt;
 
 If the workflow stops at a checkpoint, return only the scan summary and `needs-clarification` options.
+
+Never dispatch yourself. Never re-dispatch the task you were given.
 </output>
 
 <escalation>

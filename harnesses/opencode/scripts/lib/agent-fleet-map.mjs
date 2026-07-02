@@ -8,7 +8,12 @@ export const INTERIM_V2_FLEET = [
   'tsukumogami--code-forgemaster',
   'general',
   'explore',
-  'scout'
+  'scout',
+  'kantoku--workflow-director',
+  'kyakuhon--spec-planner',
+  'kagami--verifier',
+  'hansei--lesson-keeper',
+  'kura--knowledge-banker'
 ];
 
 export const AGENT_RENAME_MAP = [
@@ -22,6 +27,11 @@ export const AGENT_RENAME_MAP = [
   { current: 'tanuki', next: 'general', group: 'other' },
   { current: 'mikoshi', next: 'explore', group: 'other' },
   { current: 'karasutengu', next: 'scout', group: 'other' },
+  { current: 'kantoku--workflow-director', next: 'kantoku--workflow-director', group: 'specialist' },
+  { current: 'kyakuhon--spec-planner', next: 'kyakuhon--spec-planner', group: 'specialist' },
+  { current: 'kagami--verifier', next: 'kagami--verifier', group: 'subagent' },
+  { current: 'hansei--lesson-keeper', next: 'hansei--lesson-keeper', group: 'subagent' },
+  { current: 'kura--knowledge-banker', next: 'kura--knowledge-banker', group: 'subagent' },
 ];
 
 export const LEGACY_AGENT_ALIASES = {
@@ -40,11 +50,25 @@ export const LEGACY_AGENT_ALIASES = {
   designer: 'general',
 };
 
-export const ALL_AGENT_TARGETS = [...INTERIM_V2_FLEET, 'kagami--verifier'];
+export const ALL_AGENT_TARGETS = [...INTERIM_V2_FLEET];
 export const RENAME_BY_CURRENT = new Map(AGENT_RENAME_MAP.map((entry) => [entry.current, entry.next]));
 export const GROUPS = {
-  specialists: INTERIM_V2_FLEET.filter(name => ['tsukumogami--code-forgemaster', 'tsuchigumo--research-weaver', 'daikoku--finance-steward', 'fudo--security-guardian'].includes(name)),
-  subagents: INTERIM_V2_FLEET.filter(name => ['oni--red-team-reviewer', 'bakeneko--bug-hunter', 'hanko--git-seal'].includes(name)),
+  specialists: INTERIM_V2_FLEET.filter(name => [
+    'tsukumogami--code-forgemaster',
+    'tsuchigumo--research-weaver',
+    'daikoku--finance-steward',
+    'fudo--security-guardian',
+    'kantoku--workflow-director',
+    'kyakuhon--spec-planner'
+  ].includes(name)),
+  subagents: INTERIM_V2_FLEET.filter(name => [
+    'oni--red-team-reviewer',
+    'bakeneko--bug-hunter',
+    'hanko--git-seal',
+    'kagami--verifier',
+    'hansei--lesson-keeper',
+    'kura--knowledge-banker'
+  ].includes(name)),
   others: INTERIM_V2_FLEET.filter(name => ['general', 'explore', 'scout'].includes(name)),
 };
 

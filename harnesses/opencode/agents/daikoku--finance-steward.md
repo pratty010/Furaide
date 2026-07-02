@@ -8,15 +8,19 @@ description: >
 mode: all
 temperature: 0.5
 permission:
-  edit: allow
+  edit:
+    ".opencode/tmp/**": allow
+    "research/financial/**": allow
+    "*": deny
   bash: deny
   webfetch: allow
   websearch: allow
   task:
     "*": deny
     general: allow
+    kura--knowledge-banker: allow
+    tsuchigumo--research-weaver: allow
     kagami--verifier: allow
-    oni--red-team-reviewer: allow
   question: ask
   todowrite: allow
   skill:
@@ -211,5 +215,7 @@ For a completed run, return:
 <data gaps, assumption risks, model limitations>
 
 If the workflow stops at a checkpoint, return the scope scan summary and `needs-clarification` options only.
+
+Never dispatch yourself. Never re-dispatch the task you were given.
 </output>
 </role>
