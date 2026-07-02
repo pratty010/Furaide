@@ -6,9 +6,9 @@
  *   3. no `ask`-valued permission on any agent reachable at depth >= 2.
  * CLI: bun scripts/lint-dispatch-graph.mjs [--root kantoku--workflow-director]
  */
-import { readdirSync, readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { loadAgentsFromDir } from './lib/agent-md.mjs';
 
 export function analyzeGraph(agents, root) {
   const errors = [];
@@ -40,32 +40,6 @@ function flatten(obj, prefix = '') {
     else out[`${prefix}${k}`] = v;
   }
   return out;
-}
-
-export function loadAgentsFromDir(dir) {
-  const agents = {};
-  for (const f of readdirSync(dir).filter((f) => f.endsWith('.md'))) {
-    const src = readFileSync(join(dir, f), 'utf8');
-    const m = src.match(/^---\n([\s\S]*?)\n---/);
-    if (!m) continue;
-    const name = f.replace(/\.md$/, '');
-    const task = {};
-    const perms = {};
-    let inPerm = false; let inTask = false;
-    for (const line of m[1].split('\n')) {
-      if (/^permission:\s*$/.test(line)) { inPerm = true; inTask = false; continue; }
-      if (inPerm && /^  task:\s*$/.test(line)) { inTask = true; continue; }
-      if (inPerm && /^  \w/.test(line)) inTask = false;
-      if (!/^\s/.test(line)) { inPerm = false; inTask = false; }
-      const kv = line.match(/^\s+"?([@\w*.\- /]+)"?:\s*(allow|ask|deny)\s*$/);
-      if (!kv) continue;
-      const key = kv[1].replace(/^@/, '');
-      if (inTask) task[key] = kv[2];
-      else if (inPerm) perms[key] = kv[2];
-    }
-    agents[name] = { task, perms };
-  }
-  return agents;
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
