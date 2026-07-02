@@ -17,58 +17,100 @@ Part of the [F.R.I.D.A.Y.](https://github.com/pratty010/Furaide) collection.
 
 ## Install
 
-### Remote bootstrap
+The fleet installer supports remote bootstrap (no clone needed) or local-clone installation. Both paths result in the same configuration merged into your OpenCode config.
+
+### Remote bootstrap (one-liner)
 
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/pratty010/Furaide/main/harnesses/opencode/scripts/install-fleet-bootstrap.sh)
+bash <(curl -fsSL https://raw.githubusercontent.com/pratty010/Furaide/main/harnesses/opencode/scripts/install-fleet-bootstrap.sh) -- --all --project -y
 ```
 
-### From a local clone
+This clones the fleet repository into `~/.furaidee-fleet/` and runs the installer with specified flags. Omit the `--` and flags to run interactively, or see the flags table below to customize scopes and behavior.
 
-From the repo root:
+### Local clone + install
 
 ```bash
-bash harnesses/opencode/scripts/install-fleet.sh
+git clone https://github.com/pratty010/Furaide.git
+cd Furaide/harnesses/opencode
+bash scripts/install-fleet.sh --all --project -y
 ```
 
-If you want the pinned external skill set refreshed before install:
-
-```bash
-bun harnesses/opencode/scripts/pull-external-skills.mjs --check
-bun harnesses/opencode/scripts/pull-external-skills.mjs --pull
-```
-
-The fleet installer can also offer the shared-skills install step at the end unless `--no-common-skills` is set.
-
-### Common flags
+### Installation flags
 
 | Flag | Effect |
 |---|---|
-| `--list` | Print manifest components only |
-| `--dry-run` | Show copy/merge actions without writes |
-| `--all` | Install all default-on components non-interactively |
-| `--global` | Target `~/.config/opencode/` |
-| `--project` | Target `./.opencode/` |
-| `--custom <dir>` | Target an absolute config dir |
-| `--link` | Symlink to the repo instead of copying |
-| `--no-common-skills` | Skip the shared-skills prompt |
+| `--list` | Print all components and exit (no install) |
+| `--dry-run` | Show planned actions without writing files |
+| `--all` | Install all components, including opt-in (default_on: false) ones |
+| `--global` | Pre-select global scope (`~/.config/opencode/`) for all components |
+| `--project` | Pre-select project scope (`./.opencode/`) for all components |
+| `--custom <dir>` | Pre-select a custom absolute directory for all components |
+| `--link` | Symlink mode: ln -sfn instead of cp (keeps repo as the source) |
+| `--no-common-skills` | Skip the shared skills sync prompt |
+| `-y`, `--yes` | Auto-confirm model mapping changes (non-interactive safe) |
+| `-h`, `--help` | Show this help |
 
----
+### For LLM agents (non-interactive install)
 
-## What gets installed
+Use this recipe to install with zero prompts, suitable for agent-driven workflows:
 
-| Component | Notes |
-|---|---|
-| Workflow gates | `nio`, `nurikabe`, hook plugins, and `scripts/workflow-state.mjs` |
-| Security + failover | `komainu`, `migawari`, routing manifest |
-| Fleet agents | v2 specialists, subagents, and worker entries |
-| Agent support scripts | active shipped helpers only |
-| Rules | includes the memory contract |
-| Reference docs | architecture, OPERATOR, manifest schema, rubric |
-| Finance suite | Workflow #5 JS ledgers + `uv` Python compute scripts |
-| Web tools | plugin bucket, config, `/tools-config`, pricing file |
+```bash
+bash scripts/install-fleet.sh --all --project -y
+# or for global scope:
+bash scripts/install-fleet.sh --all --global -y
+```
 
-`config/fleet-manifest.json` is the installer source of truth.
+The `--all` flag installs all components including opt-in ones; `--project` (or `--global`) pre-selects the scope; `-y` auto-confirms model mappings without prompts.
+
+### What gets installed
+
+Your OpenCode session receives:
+
+- **15 fleet agents** — 6 workflow specialists, 6 review/support subagents, and 3 overridden worker-tier built-ins (`general`, `explore`, `scout`)
+- **Instructions** — `config/AGENTS.md` (runtime fleet guide) plus all files under `rules/*.md`
+- **Commands** — any `.md` files under `commands/` (e.g., `/tools-config`)
+- **4 always-on runtime plugins** — gates (`nio`, `nurikabe`, `komainu`), model failover (`migawari`)
+- **1 web-tools plugin** bucket — `web_search`, `fetch_content`, `maps_search`
+- **Shared rules and reference docs** — workflows, routing manifests, model budgets, operator guidance
+- **Skills pipeline** — synced external skills (`superpowers`, `mattpocock`, `addyosmani`) plus bundled addenda, idempotent via a version-stamped receipt
+
+### File backup and restore
+
+Pre-existing files at the installation target get backed up before being overwritten:
+
+- Backups are stored in a timestamped directory: `<target>/.kura_backup/<timestamp>/<relative-path>`
+- The install receipt records the backup location
+- On uninstall, pre-existing files are automatically restored from the backup
+- New files installed by the fleet are removed cleanly without affecting your originals
+
+This ensures nothing is silently lost during install or uninstall.
+
+### Two independent offerings
+
+This fleet installer is separate from `tools/opencode-all`, a standalone CLI dashboard that ships in the same repository. They install independently:
+
+- **Fleet installer** (`scripts/install-fleet.sh`): installs agents, plugins, and rules into your OpenCode config
+- **OpenCode-all** (`tools/opencode-all/`): a separate CLI tool with its own installation process
+
+See `tools/opencode-all/README.md` for dashboard-specific setup.
+
+### Future offering: npm distribution
+
+npm package distribution is deferred — see `future-work/npm-package/NOTES.md`.
+
+### Uninstall
+
+```bash
+bash scripts/uninstall-fleet.sh
+```
+
+The uninstaller:
+- Removes all fleet-installed files from your chosen scope
+- Restores any pre-existing files that were backed up during install
+- Unwires the fleet configuration from your OpenCode config
+- Deletes the installation receipt
+
+Pre-existing files are never silently lost.
 
 ---
 
@@ -132,8 +174,10 @@ uv run pytest tests
 
 ## Uninstall
 
+See the [Uninstall](#uninstall) section in [Install](#install) above. In brief:
+
 ```bash
-bash harnesses/opencode/scripts/uninstall-fleet.sh
+bash scripts/uninstall-fleet.sh
 ```
 
-The receipt file `.furaide-install-receipt.json` is used when present; otherwise uninstall falls back to the manifest.
+The uninstaller restores pre-existing files from backup and unwires the fleet configuration.

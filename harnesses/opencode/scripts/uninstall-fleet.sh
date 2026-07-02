@@ -70,18 +70,6 @@ while [[ $# -gt 0 ]]; do
   shift
 done
 
-# ── Deprecation notice ────────────────────────────────────────────────────────
-_bold "\n═══════════════════════════════════════════════════════════════"
-_bold "  ⚠  uninstall-fleet.sh is DEPRECATED"
-_bold "═══════════════════════════════════════════════════════════════"
-_info "The shell-based fleet installer has been retired."
-_info "To uninstall: remove the plugin entry from your opencode.json:"
-_info '    "plugin": ["@furaide/opencode-harness"]'
-_info ""
-_info "Then delete $HOME/.config/opencode/skills/ and related files as needed."
-_info "\nExiting."
-exit 0
-
 if [[ ! -f "$MANIFEST" ]]; then
   _err "Manifest not found: $MANIFEST"
   exit 1
@@ -104,12 +92,23 @@ resolve_scope_dir() {
 do_uninstall_file() {
   local rel="$1" dst_base="$2"
   local dst="$dst_base/$rel"
+  local restore_src=""
+  [[ -n "${RESTORE_ROOT:-}" ]] && restore_src="$RESTORE_ROOT/$rel"
   if [[ -f "$dst" || -L "$dst" ]]; then
     if [[ "$DRY_RUN" -eq 1 ]]; then
-      printf '  %b[dry-run]%b rm %s\n' "$DIM" "$RST" "$dst"
+      if [[ -n "$restore_src" && ( -f "$restore_src" || -L "$restore_src" ) ]]; then
+        printf '  %b[dry-run]%b restore %s -> %s\n' "$DIM" "$RST" "$restore_src" "$dst"
+      else
+        printf '  %b[dry-run]%b rm %s\n' "$DIM" "$RST" "$dst"
+      fi
     else
-      rm -f "$dst"
-      _ok "Removed file $dst"
+      if [[ -n "$restore_src" && ( -f "$restore_src" || -L "$restore_src" ) ]]; then
+        mv "$restore_src" "$dst"
+        _ok "Restored original: $dst"
+      else
+        rm -f "$dst"
+        _ok "Removed file $dst"
+      fi
     fi
   fi
   # Clean up empty parent directories up to dst_base
@@ -189,8 +188,16 @@ unwire_config() {
     return 0  # No config to unwire
   fi
 
+  # Pass the full relative path (e.g. "plugins/gates/nio.js") straight
+  # through, matching install-fleet.sh's merge_config(), which does the
+  # same. unmerge-config.mjs's normalizePluginRel() only strips a leading
+  # "./" and "plugins/" prefix -- it does NOT collapse subdirectories, so
+  # passing basename-only ("nio.js") here would produce "./plugins/nio.js"
+  # instead of "./plugins/gates/nio.js", which never matches what
+  # merge-config.mjs actually wrote and silently leaves the plugin entry
+  # in the array.
   local unwire_args=()
-  for p in "${plugins_to_remove[@]}"; do unwire_args+=("$(basename "$p")"); done
+  for p in "${plugins_to_remove[@]}"; do unwire_args+=("$p"); done
   [[ "$has_rules" -eq 1 ]] && unwire_args+=("--rules")
   if [[ "$has_agents_source" -eq 1 && -n "$agents_source_override" && -f "$agents_source_override" ]]; then
     unwire_args+=("--agents-source" "$agents_source_override")
@@ -214,7 +221,7 @@ unwire_config() {
   # Fallback manual instructions
   _warn "Bun or Node not found. Remove these manually from $cfg:"
   for p in "${plugins_to_remove[@]}"; do
-    printf '    "./plugins/%s"\n' "$(basename "$p")"
+    printf '    "./%s"\n' "${p#./}"
   done
   if [[ "$has_rules" -eq 1 ]]; then
     printf '    "./rules/*.md"\n'
@@ -318,10 +325,14 @@ for scope_spec in "${selected_scopes[@]}"; do
 
   receipt_path="$target_dir/.furaide-install-receipt.json"
   use_receipt=0
+  RESTORE_ROOT=""
   if [[ -f "$receipt_path" ]]; then
     use_receipt=1
     if jq -e '.mergedConfig.agentKeys | length > 0' "$receipt_path" >/dev/null 2>&1; then
       TARGET_AGENT_SOURCE_OVERRIDE["$target_dir"]="$(build_receipt_agent_source "$receipt_path")"
+    fi
+    if jq -e '(.backup.root // "") != ""' "$receipt_path" >/dev/null 2>&1; then
+      RESTORE_ROOT="$(jq -r '.backup.root' "$receipt_path")"
     fi
   fi
 
@@ -385,6 +396,12 @@ for scope_spec in "${selected_scopes[@]}"; do
       TARGET_HAS_AGENTS["$target_dir"]=1
     fi
   done
+
+  # If the backup root is now empty, remove it; leave unmatched backup
+  # residue in place otherwise (safety net over cleanliness).
+  if [[ -n "${RESTORE_ROOT:-}" && -d "$RESTORE_ROOT" && "$DRY_RUN" -eq 0 ]]; then
+    rmdir "$RESTORE_ROOT" 2>/dev/null || true
+  fi
 done
 
 # ── Config unwiring ───────────────────────────────────────────────────────────

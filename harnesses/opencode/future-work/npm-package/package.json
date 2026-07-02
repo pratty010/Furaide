@@ -10,7 +10,10 @@
   "files": [
     "src/**", "agents/*.md", "config/AGENTS.md", "config/skills-manifest.json",
     "config/web-tools.yml", "rules/*.md", "plugins/**", "scripts/*.mjs",
-    "scripts/lib/**", "scripts/finance/**", "skill-patches/**",
+    "scripts/lib/**", "scripts/finance/*.py", "scripts/finance/*.toml",
+    "scripts/finance/tests/*.py", "scripts/finance/tests/fixtures/**",
+    "scripts/finance/uv.lock",
+    "skill-patches/**",
     "docs/routing-manifest.json", "docs/models/gemini-tool-fees.yml", "commands/*.md"
   ],
   "peerDependencies": { "@opencode-ai/plugin": "*" }

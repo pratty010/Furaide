@@ -5,7 +5,7 @@
 # Options:
 #   --list              Print all components and exit (no install)
 #   --dry-run           Show planned actions without writing files
-#   --all               Install all components (uses --global/--project/--custom scope)
+#   --all               Install all components, including opt-in (default_on: false) ones
 #   --global            Pre-select global scope (~/.config/opencode/) for all components
 #   --project           Pre-select project scope (./.opencode/) for all components
 #   --custom <dir>      Pre-select a custom absolute directory for all components
@@ -13,6 +13,17 @@
 #   --no-common-skills  Skip shared skills prompt (B6)
 #   -y, --yes           Auto-confirm model mapping changes (non-interactive safe)
 #   -h, --help          Show this help
+#
+# Non-interactive / LLM-agent-driven installs:
+#   Passing --global, --project, or --custom <dir> alone (without --all) auto-selects
+#   that scope for every default_on:true component, zero prompts. Opt-in components
+#   (default_on:false, e.g. docs-reference) are skipped with an info line unless --all
+#   is also passed.
+#
+#   The recipe for a fully non-interactive, zero-prompt install of everything:
+#     bash scripts/install-fleet.sh --all --project -y
+#     bash scripts/install-fleet.sh --all --global -y
+#   This is the form to use for LLM-agent-driven installs.
 
 set -euo pipefail
 
@@ -80,7 +91,7 @@ while [[ $# -gt 0 ]]; do
       AUTO_CONFIRM=1
       ;;
     -h|--help)
-      sed -n '2,20p' "${BASH_SOURCE[0]}" | sed 's/^# \?//'
+      sed -n '2,26p' "${BASH_SOURCE[0]}" | sed 's/^# \?//'
       exit 0
       ;;
     *)
@@ -90,21 +101,6 @@ while [[ $# -gt 0 ]]; do
   esac
   shift
 done
-
-# ── Deprecation notice ────────────────────────────────────────────────────────
-_bold "\n═══════════════════════════════════════════════════════════════"
-_bold "  ⚠  install-fleet.sh is DEPRECATED"
-_bold "═══════════════════════════════════════════════════════════════"
-_info "The shell-based fleet installer has been retired."
-_info "The opencode harness is now delivered as an npm package."
-_info ""
-_info "  Add this line to your opencode.json:"
-_info '    "plugin": ["@furaide/opencode-harness"]'
-_info ""
-_info "OpenCode will auto-install the plugin with bun at startup."
-_info "See config/AGENTS.md for the installed user guide."
-_info "\nExiting."
-exit 0
 
 # ── Model resolution ───────────────────────────────────────────────────────────
 MODEL_RESOLVER="$FLEET_ROOT/scripts/model-resolve.mjs"
@@ -203,16 +199,18 @@ declare -A TARGET_BACKUP_CREATED
 ACTIVE_TARGET_DIR=""
 ACTIVE_COMPONENT_ID=""
 
+# Sets the global TARGET_BACKUP_ROOTS[target_dir] entry and leaves the
+# resolved value in $ENSURE_BACKUP_ROOT_RESULT. Must NOT be called via
+# command substitution ($(...)) — that forks a subshell and any writes to
+# the TARGET_BACKUP_ROOTS associative array would be lost when it exits.
 ensure_backup_root() {
   local target_dir="$1"
   local root="${TARGET_BACKUP_ROOTS[$target_dir]:-}"
-  if [[ -n "$root" ]]; then
-    printf '%s\n' "$root"
-    return
+  if [[ -z "$root" ]]; then
+    root="$target_dir/kura_backup/$INSTALL_TIMESTAMP"
+    TARGET_BACKUP_ROOTS["$target_dir"]="$root"
   fi
-  root="$target_dir/kura_backup/$INSTALL_TIMESTAMP"
-  TARGET_BACKUP_ROOTS["$target_dir"]="$root"
-  printf '%s\n' "$root"
+  ENSURE_BACKUP_ROOT_RESULT="$root"
 }
 
 record_installed_file() {
@@ -232,7 +230,8 @@ backup_existing_file() {
   [[ -n "$ACTIVE_TARGET_DIR" ]] || return 0
 
   local root rel backup_path
-  root="$(ensure_backup_root "$ACTIVE_TARGET_DIR")"
+  ensure_backup_root "$ACTIVE_TARGET_DIR"
+  root="$ENSURE_BACKUP_ROOT_RESULT"
   case "$dst" in
     "$ACTIVE_TARGET_DIR"/*) rel="${dst#"$ACTIVE_TARGET_DIR"/}" ;;
     *) return 0 ;;
@@ -506,9 +505,9 @@ ask_scope() {
 
   printf '\n%b%s%b\n' "$BOLD" "$label" "$RST"
 
-  if [[ -n "$FORCE_SCOPE" && "$INSTALL_ALL" -eq 1 ]]; then
-    if [[ "$default_on" == "false" && "$id" == "brand-builder" ]]; then
-      _warn "$label is opt-in and was skipped (use --all without --project/--global to be prompted)"
+  if [[ -n "$FORCE_SCOPE" ]]; then
+    if [[ "$default_on" == "false" && "$INSTALL_ALL" -ne 1 ]]; then
+      _info "$label is opt-in ($id) and was skipped — pass --all to include it in a non-interactive install."
       _result=()
       return
     fi
@@ -704,6 +703,21 @@ if [[ -n "$web_tools_targets" ]]; then
     if [[ -z "${TAVILY_API_KEY:-}" ]]; then
       _warn "TAVILY_API_KEY is not set; web_search/fetch_content via Tavily will fail at runtime until configured."
     fi
+  done
+fi
+
+# ── Skills pipeline sync ───────────────────────────────────────────────────────
+skills_targets="${COMP_TARGETS[skills]:-}"
+if [[ -n "$skills_targets" ]]; then
+  for target_dir in $skills_targets; do
+    sync_script="$target_dir/scripts/sync-skills.mjs"
+    if [[ "$DRY_RUN" -eq 1 ]]; then
+      printf '  %b[dry-run]%b bun %s\n' "$DIM" "$RST" "$sync_script"
+    else
+      _info "Syncing skills pipeline for $target_dir"
+      bun "$sync_script" && _ok "sync-skills.mjs complete for $target_dir" || { _err "sync-skills.mjs failed in $target_dir (see output above)"; exit 1; }
+    fi
+    _info "Manual follow-up: run 'bun $target_dir/scripts/pull-external-skills.mjs' to pull/update pinned external skills (deliberately not auto-run)."
   done
 fi
 

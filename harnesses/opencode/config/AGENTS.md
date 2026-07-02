@@ -8,6 +8,12 @@ This file is shipped into your OpenCode config as an `instructions` entry. It de
 
 ---
 
+## Setup reference
+
+See the [harness README Install section](../README.md#install) for setup, override, and uninstall instructions.
+
+---
+
 ## Mission
 
 Produce accurate, cost-aware, actionable outputs.

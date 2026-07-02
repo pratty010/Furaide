@@ -26,8 +26,12 @@ const HARNESS_VERSION = '2.0.0';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const HARNESS_ROOT = resolve(__dirname, '..');
-// Skills source: repo root, 3 levels up from scripts/
-const SKILLS_SOURCE = resolve(HARNESS_ROOT, '../../skills');
+// Skills source: bundled alongside this script (HARNESS_ROOT/skills).
+// Resolved relative to the script's own location so this works both
+// in-place in the harness repo (bun scripts/sync-skills.mjs) and after
+// the installer's "skills" fleet component copies scripts/, config/,
+// skill-patches/, and skills/ into an arbitrary target_dir.
+const SKILLS_SOURCE = resolve(HARNESS_ROOT, 'skills');
 
 // Default install target: ~/.config/opencode/skills
 function getInstallTarget() {

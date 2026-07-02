@@ -703,6 +703,8 @@ Deliverable: the entire harness (minus the never-packaged list) installs on a us
 
 ### Task 37: Package skeleton
 
+(superseded 2026-07-03 — code moved to future-work/npm-package/, see Task 41's revision note)
+
 **Files:**
 - Create: `package.json` (at `harnesses/opencode/`), `src/index.ts`, `src/load-agents.ts`
 
@@ -735,6 +737,8 @@ The `files` allow-list IS the packaging boundary — `future-work/`, `tools/`, r
 
 ### Task 38: The config hook
 
+(superseded 2026-07-03 — code moved to future-work/npm-package/, see Task 41's revision note)
+
 **Files:**
 - Create: `src/load-agents.ts`, `src/index.ts` (hook body)
 - Test: `scripts/tests/config-hook.test.mjs`
@@ -745,6 +749,8 @@ The `files` allow-list IS the packaging boundary — `future-work/`, `tools/`, r
 - [ ] **Step 4:** `bun test scripts/tests/config-hook.test.mjs` → PASS. Commit — `git commit -am "feat(package): config hook registers fleet from bundled md"`
 
 ### Task 39: Fold gates, failover, hooks, and web-tools into the package export
+
+(superseded 2026-07-03 — code moved to future-work/npm-package/, see Task 41's revision note)
 
 **Files:**
 - Modify: `src/index.ts`, `plugins/gates/*.js`, `plugins/failover/migawari.js`, `plugins/hooks/*.js`, `plugins/tools/web-tools.ts`
@@ -764,6 +770,8 @@ The `files` allow-list IS the packaging boundary — `future-work/`, `tools/`, r
 - [ ] **Step 3:** `bun test` full suite green. Commit — `git commit -am "feat(package)!: npm install path live; installer scaffolding retired"`
 
 ### Task 41: Publish flow + final packaging sweep
+
+**Revision note (2026-07-03):** npm publish is blocked (npm CLI unavailable in dev environment, @furaide npm scope never claimed/verified, OpenCode's `plugin` config array has no git/local-path support — confirmed against live opencode.ai docs). Distribution pivoted to the local-directory installer (scripts/install-fleet.sh/uninstall-fleet.sh); the npm package moved to future-work/npm-package/ as a deferred offering. Task 41's steps below are superseded by this revision — see the implementation session's full fix plan for exact scope.
 
 - [ ] **Step 1:** README for the package consumer surface: install line, what gets registered, skill sync behavior, how to override models/permissions in user config (the merge-don't-clobber rule from Task 38), uninstall (remove plugin line + delete skills receipt). This lands in the harness-root `README.md` (repo-only) AND a trimmed `config/AGENTS.md` pointer — do not create a second packaged readme.
 - [ ] **Step 2:** Publish dry-run: `npm publish --dry-run --access public` from `harnesses/opencode/`; verify name/version/files. Actual `npm publish` is a user-approved action — stop and ask before running it.

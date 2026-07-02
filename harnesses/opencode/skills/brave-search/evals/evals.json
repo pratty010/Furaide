@@ -1,0 +1,168 @@
+{
+  "skill_name": "brave-search",
+  "evals": [
+    {
+      "id": 1,
+      "name": "official-docs-web-search",
+      "prompt": "Search the web for rust async guidance, prefer the official async book, and return a compact JSON result list.",
+      "query": "Asynchronous Programming in Rust",
+      "source": "web",
+      "count": 20,
+      "max_content_chars": 220,
+      "include_domains": ["rust-lang.github.io"],
+      "expected_output": "Compact Tavily-style JSON for official Rust async resources.",
+      "assertions": [
+        "Returns compact Tavily-style JSON with query and results.",
+        "Includes no more than 20 results.",
+        "Results contain non-empty URL/title pairs."
+      ],
+      "configurations": [
+        { "name": "a_with_skill", "source_type": "bx_web" },
+        { "name": "b_legacy_baseline", "legacy_skill_name": "web-search", "source_type": "bx_web" },
+        { "name": "c_tavily_reference", "source_type": "tvly" }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "latest-web-search",
+      "prompt": "Look up the latest OpenAI API model pricing updates and return a concise JSON result list.",
+      "query": "OpenAI API pricing",
+      "source": "web",
+      "count": 20,
+      "max_content_chars": 220,
+      "freshness": "pw",
+      "expected_output": "Compact recent web-search results for a latest-information query.",
+      "assertions": [
+        "Returns compact Tavily-style JSON with query and results.",
+        "Uses a recent-date filter.",
+        "Results contain non-empty URL/title pairs."
+      ],
+      "configurations": [
+        { "name": "a_with_skill", "source_type": "bx_web" },
+        { "name": "b_legacy_baseline", "legacy_skill_name": "web-search", "source_type": "bx_web" },
+        { "name": "c_tavily_reference", "source_type": "tvly" }
+      ]
+    },
+    {
+      "id": 3,
+      "name": "explicit-news-search",
+      "prompt": "Find today's AI news coverage and return a compact JSON list of articles.",
+      "query": "AI news",
+      "source": "news",
+      "count": 5,
+      "max_content_chars": 220,
+      "freshness": "pd",
+      "expected_output": "Compact recent news-search results.",
+      "assertions": [
+        "Returns compact Tavily-style JSON with query and results.",
+        "Includes no more than 5 results.",
+        "Results contain non-empty URL/title pairs."
+      ],
+      "configurations": [
+        { "name": "a_with_skill", "source_type": "bx_news" },
+        { "name": "b_legacy_baseline", "legacy_skill_name": "news-search", "source_type": "bx_news" },
+        { "name": "c_tavily_reference", "source_type": "tvly" }
+      ]
+    },
+    {
+      "id": 4,
+      "name": "date-range-news-search",
+      "prompt": "Find climate summit news from April 1 through April 14, 2026 and return a concise JSON result list.",
+      "query": "climate summit",
+      "source": "news",
+      "count": 20,
+      "max_content_chars": 220,
+      "freshness": "2026-04-01to2026-04-14",
+      "expected_output": "Compact date-range news results.",
+      "assertions": [
+        "Returns compact Tavily-style JSON with query and results.",
+        "Uses an explicit date range.",
+        "Results contain non-empty URL/title pairs."
+      ],
+      "configurations": [
+        { "name": "a_with_skill", "source_type": "bx_news" },
+        { "name": "b_legacy_baseline", "legacy_skill_name": "news-search", "source_type": "bx_news" },
+        { "name": "c_tavily_reference", "source_type": "tvly" }
+      ]
+    },
+    {
+      "id": 5,
+      "name": "domain-included-web-search",
+      "prompt": "Search for SEC filing coverage but keep results scoped to sec.gov and reuters.com, then return compact JSON.",
+      "query": "SEC filings",
+      "source": "web",
+      "count": 20,
+      "max_content_chars": 220,
+      "include_domains": ["sec.gov", "reuters.com"],
+      "expected_output": "Compact domain-scoped search results.",
+      "assertions": [
+        "Returns compact Tavily-style JSON with query and results.",
+        "Includes only the requested domains when possible.",
+        "Results contain non-empty URL/title pairs."
+      ],
+      "configurations": [
+        { "name": "a_with_skill", "source_type": "bx_web" },
+        { "name": "b_legacy_baseline", "legacy_skill_name": "web-search", "source_type": "bx_web" },
+        { "name": "c_tavily_reference", "source_type": "tvly" }
+      ]
+    },
+    {
+      "id": 6,
+      "name": "domain-excluded-web-search",
+      "prompt": "Search for Python dependency injection tutorials, exclude medium.com, and return a compact JSON result list.",
+      "query": "python dependency injection tutorial",
+      "source": "web",
+      "count": 20,
+      "max_content_chars": 220,
+      "exclude_domains": ["medium.com"],
+      "expected_output": "Compact domain-excluded search results.",
+      "assertions": [
+        "Returns compact Tavily-style JSON with query and results.",
+        "Excludes the requested domain when possible.",
+        "Results contain non-empty URL/title pairs."
+      ],
+      "configurations": [
+        { "name": "a_with_skill", "source_type": "bx_web" },
+        { "name": "b_legacy_baseline", "legacy_skill_name": "web-search", "source_type": "bx_web" },
+        { "name": "c_tavily_reference", "source_type": "tvly" }
+      ]
+    },
+    {
+      "id": 7,
+      "name": "goggles-reranking-web-search",
+      "prompt": "Search for Python dependency injection with Brave Goggles that boost docs.python.org and downrank medium.com, then return compact JSON.",
+      "query": "python dependency injection",
+      "source": "web",
+      "count": 20,
+      "max_content_chars": 220,
+      "goggles": "$boost=5,site=docs.python.org\n$downrank=3,site=medium.com",
+      "expected_output": "Compact web-search results using Brave-specific reranking.",
+      "assertions": [
+        "Returns compact Tavily-style JSON with query and results.",
+        "Preserves non-empty URL/title pairs.",
+        "Uses the requested goggles reranking."
+      ],
+      "configurations": [
+        { "name": "a_with_skill", "source_type": "bx_web" },
+        { "name": "b_legacy_baseline", "legacy_skill_name": "web-search", "source_type": "bx_web" }
+      ]
+    },
+    {
+      "id": 8,
+      "name": "relevance-score",
+      "prompt": "Search for the best Python web framework and return results with relevance scores.",
+      "query": "best python web framework",
+      "source": "web",
+      "count": 5,
+      "max_content_chars": 220,
+      "expected_output": "Compact web-search results with relevance scores.",
+      "assertions": [
+        "Every result includes a numeric score in [0,1] and results are sorted by score descending."
+      ],
+      "configurations": [
+        { "name": "a_with_skill", "source_type": "bx_web" },
+        { "name": "b_legacy_baseline", "legacy_skill_name": "web-search", "source_type": "bx_web" }
+      ]
+    }
+  ]
+}
