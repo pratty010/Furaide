@@ -24,6 +24,7 @@ Part of the [F.R.I.D.A.Y.](https://github.com/pratty010/Furaide) monorepo.
 | Piece | What it does |
 |-------|-------------|
 | **Satori plugin** | Capability analytics shikigami. Captures skill invocations, runs dream passes, surfaces improvement suggestions |
+| **Kuma plugin** | Delegates code review and task execution to `opencode-go`, `opencode` (OpenCode Zen), and `ollama-cloud` via one-shot `opencode`/`pi` CLI backends. Commands: `/kuma:setup`, `/kuma:models`, `/kuma:review`, `/kuma:task`, `/kuma:status`, `/kuma:result`, `/kuma:cancel` |
 | **`github` skill** | Git/GitHub workflow recipes for the `hanko--git-seal` subagent |
 | **`hanko--git-seal` shikigami** | Quiet executor for all git/GitHub ops; routes through the `github` skill |
 
@@ -36,6 +37,7 @@ Satori and the `github` skill share a single engine (`cli/`) installed by `scrip
 | Component | Role |
 |-----------|------|
 | **Satori** (plugin) | Capability analytics shikigami. Captures skill invocations across harnesses, runs dream passes, surfaces improvement suggestions |
+| **Kuma** (plugin) | Delegates code review and task execution to `opencode-go`, `opencode` (OpenCode Zen), and `ollama-cloud` via one-shot CLI backends |
 | **`github` skill** | Git/GitHub workflow recipes for the `hanko--git-seal` subagent |
 | **`hanko--git-seal`** (shikigami) | Quiet executor for all git/GitHub ops; routes through the `github` skill |
 

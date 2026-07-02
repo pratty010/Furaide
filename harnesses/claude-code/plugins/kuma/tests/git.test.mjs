@@ -87,3 +87,30 @@ test("collectDiffPatch respects maxChars size cap", () => {
     assert.equal(result.truncated, true)
   })
 })
+
+test("collectDiffPatch does not throw when the diff exceeds a tiny injected maxBuffer", () => {
+  withRepo((repoDir) => {
+    fs.writeFileSync(
+      path.join(repoDir, "demo.js"),
+      `export const value = "${"x".repeat(5000)}"\n`,
+      "utf8"
+    )
+    const target = resolveReviewTarget(repoDir, { scope: "working-tree" })
+    const result = collectDiffPatch(repoDir, target, { maxBuffer: 10 })
+    assert.equal(typeof result.patch, "string")
+    assert.equal(typeof result.truncated, "boolean")
+    assert.ok(result.patch.includes("unable to collect"))
+  })
+})
+
+test("collectDiffPatch skips untracked files larger than the cap with a diagnostic note", () => {
+  withRepo((repoDir) => {
+    const largeContent = "y".repeat(30 * 1024)
+    fs.writeFileSync(path.join(repoDir, "big-untracked.txt"), largeContent, "utf8")
+    const target = resolveReviewTarget(repoDir, { scope: "working-tree" })
+    const result = collectDiffPatch(repoDir, target)
+    assert.ok(result.patch.includes("big-untracked.txt"))
+    assert.ok(result.patch.includes("skipped:"))
+    assert.equal(result.patch.includes(largeContent), false)
+  })
+})

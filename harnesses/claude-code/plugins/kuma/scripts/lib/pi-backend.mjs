@@ -1,4 +1,7 @@
 import { spawn } from "node:child_process"
+import fs from "node:fs"
+import os from "node:os"
+import path from "node:path"
 import { parseJsonLines } from "./events.mjs"
 import { binaryAvailable, terminateProcessTree } from "./process.mjs"
 
@@ -100,9 +103,16 @@ export function createPiBackend() {
 
     async getAuthStatuses() {
       const opencodeKeyPresent = Boolean(process.env.OPENCODE_API_KEY)
+      const authFilePath = path.join(os.homedir(), ".pi", "agent", "auth.json")
+      const authFilePresent = fs.existsSync(authFilePath)
+      const available = opencodeKeyPresent || authFilePresent
+      const details = []
+      if (opencodeKeyPresent) details.push("OPENCODE_API_KEY set")
+      if (authFilePresent) details.push(`${authFilePath} present`)
+      if (details.length === 0) details.push("OPENCODE_API_KEY missing, no auth.json found")
       return {
-        available: opencodeKeyPresent,
-        raw: opencodeKeyPresent ? "OPENCODE_API_KEY set" : "OPENCODE_API_KEY missing",
+        available,
+        raw: details.join("; "),
       }
     },
 

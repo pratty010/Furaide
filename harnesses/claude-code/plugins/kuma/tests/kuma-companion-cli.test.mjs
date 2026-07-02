@@ -365,6 +365,112 @@ test("bare model resolves provider from cached index", () => {
   )
 })
 
+test("resume ignores a differently-backed session and starts fresh", () => {
+  withFakeBackendsOnPath(() =>
+    withTempDir("kuma-plugin-data-", (pluginDataDir) => {
+      const workspaceDir = fs.mkdtempSync(path.join(os.tmpdir(), "kuma-workspace-"))
+      try {
+        const first = runCli(
+          ["task", "--backend", "pi", "--model", "opencode-go/deepseek-v4-pro", "do something"],
+          {
+            cwd: workspaceDir,
+            env: {
+              KUMA_PLUGIN_DATA: pluginDataDir,
+              PATH: `${fixturesDir}${path.delimiter}${process.env.PATH}`,
+            },
+          }
+        )
+        assert.equal(first.status, 0, first.stderr)
+
+        const second = runCli(
+          [
+            "task",
+            "--resume",
+            "--backend",
+            "opencode",
+            "--model",
+            "opencode-go/deepseek-v4-pro",
+            "continue",
+          ],
+          {
+            cwd: workspaceDir,
+            env: {
+              KUMA_PLUGIN_DATA: pluginDataDir,
+              PATH: `${fixturesDir}${path.delimiter}${process.env.PATH}`,
+            },
+          }
+        )
+        assert.equal(second.status, 0, second.stderr)
+
+        const jobs = withPluginDataEnv(pluginDataDir, () => listJobs(workspaceDir))
+        assert.equal(jobs.length, 2)
+        const firstJob = jobs.find((job) => job.backend === "pi")
+        const secondJob = jobs.find((job) => job.backend === "opencode")
+        assert.ok(firstJob.sessionHandle)
+        assert.ok(secondJob.sessionHandle)
+        assert.notEqual(secondJob.sessionHandle, firstJob.sessionHandle)
+      } finally {
+        fs.rmSync(workspaceDir, { recursive: true, force: true })
+      }
+    })
+  )
+})
+
+test("resume reuses the session handle when backend and provider match", () => {
+  withFakeBackendsOnPath(() =>
+    withTempDir("kuma-plugin-data-", (pluginDataDir) => {
+      const workspaceDir = fs.mkdtempSync(path.join(os.tmpdir(), "kuma-workspace-"))
+      try {
+        const first = runCli(
+          [
+            "task",
+            "--backend",
+            "opencode",
+            "--model",
+            "opencode-go/deepseek-v4-pro",
+            "do something",
+          ],
+          {
+            cwd: workspaceDir,
+            env: {
+              KUMA_PLUGIN_DATA: pluginDataDir,
+              PATH: `${fixturesDir}${path.delimiter}${process.env.PATH}`,
+            },
+          }
+        )
+        assert.equal(first.status, 0, first.stderr)
+
+        const second = runCli(
+          [
+            "task",
+            "--resume",
+            "--backend",
+            "opencode",
+            "--model",
+            "opencode-go/deepseek-v4-pro",
+            "continue",
+          ],
+          {
+            cwd: workspaceDir,
+            env: {
+              KUMA_PLUGIN_DATA: pluginDataDir,
+              PATH: `${fixturesDir}${path.delimiter}${process.env.PATH}`,
+            },
+          }
+        )
+        assert.equal(second.status, 0, second.stderr)
+
+        const jobs = withPluginDataEnv(pluginDataDir, () => listJobs(workspaceDir))
+        assert.equal(jobs.length, 2)
+        assert.ok(jobs[0].sessionHandle)
+        assert.equal(jobs[0].sessionHandle, jobs[1].sessionHandle)
+      } finally {
+        fs.rmSync(workspaceDir, { recursive: true, force: true })
+      }
+    })
+  )
+})
+
 test("active review blocks task even with --fresh", () => {
   withTempDir("kuma-plugin-data-", (pluginDataDir) => {
     const previous = process.env.KUMA_PLUGIN_DATA
@@ -456,6 +562,45 @@ test("backend/provider incompatibility fails before job creation", () => {
       fs.rmSync(workspaceDir, { recursive: true, force: true })
     }
   })
+})
+
+test("setup warns clearly when opencode returns no ollama-cloud models", () => {
+  withFakeBackendsOnPath(() =>
+    withTempDir("kuma-plugin-data-", (pluginDataDir) => {
+      const workspaceDir = fs.mkdtempSync(path.join(os.tmpdir(), "kuma-workspace-"))
+      try {
+        const result = runCli(["setup"], {
+          cwd: workspaceDir,
+          env: { KUMA_PLUGIN_DATA: pluginDataDir },
+        })
+        assert.equal(result.status, 0, result.stderr)
+        assert.ok(result.stdout.includes("ollama-cloud"))
+        assert.ok(result.stdout.includes("NOT CONFIGURED"))
+      } finally {
+        fs.rmSync(workspaceDir, { recursive: true, force: true })
+      }
+    })
+  )
+})
+
+test("setup confirms ollama-cloud when opencode returns ollama-cloud models", () => {
+  withFakeBackendsOnPath(() =>
+    withTempDir("kuma-plugin-data-", (pluginDataDir) => {
+      const workspaceDir = fs.mkdtempSync(path.join(os.tmpdir(), "kuma-workspace-"))
+      try {
+        const result = runCli(["setup"], {
+          cwd: workspaceDir,
+          env: { KUMA_PLUGIN_DATA: pluginDataDir, OPENCODE_FIXTURE_INCLUDE_OLLAMA: "1" },
+        })
+        assert.equal(result.status, 0, result.stderr)
+        assert.ok(result.stdout.includes("ollama-cloud"))
+        assert.ok(result.stdout.includes("configured"))
+        assert.ok(!result.stdout.includes("NOT CONFIGURED"))
+      } finally {
+        fs.rmSync(workspaceDir, { recursive: true, force: true })
+      }
+    })
+  )
 })
 
 test("cancel does not mark cancelled when pid is not available yet", () => {

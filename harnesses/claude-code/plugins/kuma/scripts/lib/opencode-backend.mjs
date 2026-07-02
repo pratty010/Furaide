@@ -79,8 +79,9 @@ export function createOpencodeBackend() {
   return {
     name: "opencode",
 
-    async listModels(providerFilter) {
+    async listModels(providerFilter, { refresh = false } = {}) {
       const args = providerFilter ? ["models", providerFilter] : ["models"]
+      if (refresh) args.push("--refresh")
       const { status, stdout, stderr } = await runOneShot("opencode", args)
       if (status !== 0) {
         throw new Error(`opencode models failed: ${stderr || stdout}`)

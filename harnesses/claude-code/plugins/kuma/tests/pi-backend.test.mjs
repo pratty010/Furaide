@@ -1,4 +1,6 @@
 import assert from "node:assert/strict"
+import fs from "node:fs"
+import os from "node:os"
 import path from "node:path"
 import { test } from "node:test"
 import { fileURLToPath } from "node:url"
@@ -66,12 +68,46 @@ test("sendPrompt caps oversized stdout for pi", async () => {
 test("getAuthStatuses reflects OPENCODE_API_KEY presence", async () => {
   const backend = createPiBackend()
   const previous = process.env.OPENCODE_API_KEY
-  Reflect.deleteProperty(process.env, "OPENCODE_API_KEY")
+  const previousHomedir = os.homedir
   try {
+    Reflect.deleteProperty(process.env, "OPENCODE_API_KEY")
+    // Mock homedir to a non-existent directory so auth.json is not found
+    os.homedir = () => "/nonexistent"
     const status = await backend.getAuthStatuses()
     assert.equal(status.available, false)
   } finally {
+    os.homedir = previousHomedir
     if (previous !== undefined) process.env.OPENCODE_API_KEY = previous
+  }
+})
+
+test("getAuthStatuses detects ~/.pi/agent/auth.json when present", async () => {
+  const backend = createPiBackend()
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-auth-test-"))
+  const authDir = path.join(tempDir, ".pi", "agent")
+  const authFile = path.join(authDir, "auth.json")
+
+  // Save original env var and homedir
+  const previousApiKey = process.env.OPENCODE_API_KEY
+  const previousHomedir = os.homedir
+
+  try {
+    // Unset API key and mock os.homedir()
+    Reflect.deleteProperty(process.env, "OPENCODE_API_KEY")
+    os.homedir = () => tempDir
+
+    // Create auth file
+    fs.mkdirSync(authDir, { recursive: true })
+    fs.writeFileSync(authFile, "{}")
+
+    const status = await backend.getAuthStatuses()
+    assert.equal(status.available, true)
+    assert.match(status.raw, /auth\.json present/)
+  } finally {
+    // Restore
+    os.homedir = previousHomedir
+    if (previousApiKey !== undefined) process.env.OPENCODE_API_KEY = previousApiKey
+    fs.rmSync(tempDir, { recursive: true, force: true })
   }
 })
 

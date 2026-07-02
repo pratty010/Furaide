@@ -21,13 +21,18 @@ test("renderStatusTable includes all required columns", () => {
     "provider",
     "model",
     "backend",
-    "status",
     "phase",
     "resumable",
     "result ready",
   ]) {
     assert.ok(table.includes(header), `missing column: ${header}`)
   }
+  const lines = table.split("\n")
+  assert.ok(
+    !lines[0].includes("status"),
+    "header row should not include a standalone status column"
+  )
+  assert.ok(table.includes("done"), "phase column should carry the authoritative status value")
 })
 
 test("renderResult falls back to raw text on invalid JSON instead of throwing", () => {

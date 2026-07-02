@@ -62,7 +62,8 @@ async function runSetup(args) {
   let opencodeModels = []
   let piModels = []
   try {
-    if (opencodeBin.available) opencodeModels = await opencodeBackend.listModels()
+    if (opencodeBin.available)
+      opencodeModels = await opencodeBackend.listModels(undefined, { refresh: true })
   } catch {
     /* leave empty on failure; setup should not hard-fail */
   }
@@ -95,6 +96,16 @@ async function runSetup(args) {
   console.log(`pi binary: ${piBin.available ? "found" : "NOT FOUND"}`)
   console.log(`opencode auth: ${opencodeAuth.available ? "ready" : "not ready"}`)
   console.log(`pi auth (OPENCODE_API_KEY): ${piAuth.available ? "ready" : "not ready"}`)
+  if (opencodeBin.available) {
+    const ollamaCloudCount = merged.filter((e) => e.provider === "ollama-cloud").length
+    console.log(
+      ollamaCloudCount > 0
+        ? `ollama-cloud: configured (${ollamaCloudCount} model(s) available)`
+        : "ollama-cloud: NOT CONFIGURED (opencode returned no ollama-cloud models — configure Ollama, then re-run /kuma:setup)"
+    )
+  } else {
+    console.log("ollama-cloud: unknown (opencode binary not found)")
+  }
   console.log(`model index refreshed: ${merged.length} models across ${V1_PROVIDERS.join(", ")}`)
   console.log(getConfig(cwd))
 }
@@ -352,7 +363,7 @@ async function runTask(args) {
   // via `--session <handle>`, making resume deterministic instead of best-effort.
   let sessionHandle = null
   if (options.resume) {
-    const lastResumable = findLastResumableJob(cwd)
+    const lastResumable = findLastResumableJob(cwd, { backend: backendName, provider })
     sessionHandle = lastResumable?.sessionHandle ?? null
   }
   if (!sessionHandle) {

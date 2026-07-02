@@ -1,4 +1,5 @@
 import assert from "node:assert/strict"
+import fs from "node:fs"
 import path from "node:path"
 import { test } from "node:test"
 import { fileURLToPath } from "node:url"
@@ -26,6 +27,24 @@ test("listModels parses the fake opencode's model listing", async () => {
       { provider: "opencode", model: "big-pickle" },
       { provider: "anthropic", model: "claude" },
     ])
+  })
+})
+
+test("listModels passes --refresh flag when refresh option is true", async () => {
+  await withFakeOpencodeOnPath(async () => {
+    const captureFile = path.join(__dirname, ".args-capture")
+    const previous = process.env.OPENCODE_CAPTURE_ARGS_FILE
+    process.env.OPENCODE_CAPTURE_ARGS_FILE = captureFile
+    try {
+      const backend = createOpencodeBackend()
+      await backend.listModels(undefined, { refresh: true })
+      const capturedArgs = JSON.parse(fs.readFileSync(captureFile, "utf8"))
+      assert.deepEqual(capturedArgs, ["models", "--refresh"])
+    } finally {
+      if (previous === undefined) Reflect.deleteProperty(process.env, "OPENCODE_CAPTURE_ARGS_FILE")
+      else process.env.OPENCODE_CAPTURE_ARGS_FILE = previous
+      if (fs.existsSync(captureFile)) fs.unlinkSync(captureFile)
+    }
   })
 })
 

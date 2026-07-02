@@ -2,6 +2,9 @@ import fs from "node:fs"
 import { isProbablyText } from "./fs.mjs"
 import { runCommand, runCommandChecked } from "./process.mjs"
 
+const DEFAULT_DIFF_MAX_BUFFER = 20 * 1024 * 1024
+const MAX_UNTRACKED_FILE_BYTES = 24 * 1024
+
 function git(cwd, args, options = {}) {
   return runCommand("git", args, { cwd, ...options })
 }
@@ -160,33 +163,61 @@ export function collectDiffShortstat(cwd, target) {
   return { mode: "branch", baseRef: target.baseRef, shortstat, changedFileCount, untrackedCount: 0 }
 }
 
+const DIFF_SAFETY_FLAGS = ["--binary", "--no-ext-diff", "--submodule=diff"]
+
 export function collectDiffPatch(cwd, target, options = {}) {
   const repoRoot = getRepoRoot(cwd)
   const maxChars = options.maxChars ?? 20000
+  const maxBuffer = options.maxBuffer ?? DEFAULT_DIFF_MAX_BUFFER
   let patch = ""
 
   if (target.mode === "working-tree") {
     // Collect staged changes
-    const stagedResult = gitChecked(repoRoot, ["diff", "--cached"])
-    const stagedPatch = stagedResult.stdout
-    if (stagedPatch.trim()) {
-      patch += "=== staged changes ===\n"
-      patch += stagedPatch
+    try {
+      const stagedResult = gitChecked(repoRoot, ["diff", "--cached", ...DIFF_SAFETY_FLAGS], {
+        maxBuffer,
+      })
+      const stagedPatch = stagedResult.stdout
+      if (stagedPatch.trim()) {
+        patch += "=== staged changes ===\n"
+        patch += stagedPatch
+      }
+    } catch (error) {
+      if (patch) patch += "\n"
+      patch += `=== staged changes ===\n[unable to collect staged diff: ${error.message}]\n`
     }
 
     // Collect unstaged changes
-    const unstagedResult = gitChecked(repoRoot, ["diff"])
-    const unstagedPatch = unstagedResult.stdout
-    if (unstagedPatch.trim()) {
+    try {
+      const unstagedResult = gitChecked(repoRoot, ["diff", ...DIFF_SAFETY_FLAGS], { maxBuffer })
+      const unstagedPatch = unstagedResult.stdout
+      if (unstagedPatch.trim()) {
+        if (patch) patch += "\n"
+        patch += "=== unstaged changes ===\n"
+        patch += unstagedPatch
+      }
+    } catch (error) {
       if (patch) patch += "\n"
-      patch += "=== unstaged changes ===\n"
-      patch += unstagedPatch
+      patch += `=== unstaged changes ===\n[unable to collect unstaged diff: ${error.message}]\n`
     }
 
     // Collect untracked files
     const state = getWorkingTreeState(repoRoot)
     for (const filePath of state.untracked) {
       const absolutePath = `${repoRoot}/${filePath}`
+      let stat
+      try {
+        stat = fs.statSync(absolutePath)
+      } catch {
+        if (patch) patch += "\n"
+        patch += `=== untracked: ${filePath} (skipped: unreadable) ===\n`
+        continue
+      }
+      if (stat.size > MAX_UNTRACKED_FILE_BYTES) {
+        if (patch) patch += "\n"
+        patch += `=== untracked: ${filePath} (skipped: ${stat.size} bytes exceeds ${MAX_UNTRACKED_FILE_BYTES}-byte cap) ===\n`
+        continue
+      }
       try {
         const content = fs.readFileSync(absolutePath)
         if (isProbablyText(content)) {
@@ -195,15 +226,22 @@ export function collectDiffPatch(cwd, target, options = {}) {
           patch += content.toString("utf8")
         }
       } catch {
-        // Skip files we can't read
+        if (patch) patch += "\n"
+        patch += `=== untracked: ${filePath} (skipped: unreadable) ===\n`
       }
     }
   } else {
     // Branch mode
     const mergeBase = gitChecked(repoRoot, ["merge-base", "HEAD", target.baseRef]).stdout.trim()
     const commitRange = `${mergeBase}..HEAD`
-    const diffResult = gitChecked(repoRoot, ["diff", commitRange])
-    patch = diffResult.stdout
+    try {
+      const diffResult = gitChecked(repoRoot, ["diff", commitRange, ...DIFF_SAFETY_FLAGS], {
+        maxBuffer,
+      })
+      patch = diffResult.stdout
+    } catch (error) {
+      patch = `=== branch diff ===\n[unable to collect branch diff: ${error.message}]\n`
+    }
   }
 
   // Apply size cap

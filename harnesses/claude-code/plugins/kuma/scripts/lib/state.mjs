@@ -124,8 +124,15 @@ export function listJobs(cwd) {
   return loadState(cwd).jobs
 }
 
-export function findLastResumableJob(cwd) {
-  return listJobs(cwd).find((job) => job.resumable && job.status !== "cancelled") ?? null
+export function findLastResumableJob(cwd, filter = {}) {
+  return (
+    listJobs(cwd).find((job) => {
+      if (!job.resumable || job.status === "cancelled") return false
+      if (filter.backend && job.backend !== filter.backend) return false
+      if (filter.provider && job.provider !== filter.provider) return false
+      return true
+    }) ?? null
+  )
 }
 
 export function setConfig(cwd, key, value) {

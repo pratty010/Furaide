@@ -11,8 +11,16 @@ if (process.env.OPENCODE_CAPTURE_PROMPT_FILE && args[0] === "run") {
   fs.writeFileSync(process.env.OPENCODE_CAPTURE_PROMPT_FILE, args.at(-1) ?? "", "utf8")
 }
 
+if (args[0] === "--version") {
+  process.stdout.write("opencode fixture 0.0.0\n");
+  process.exit(0);
+}
 if (args[0] === "models") {
-  process.stdout.write("opencode-go/deepseek-v4-pro\nopencode/big-pickle\nanthropic/claude\n");
+  let output = "opencode-go/deepseek-v4-pro\nopencode/big-pickle\nanthropic/claude\n";
+  if (process.env.OPENCODE_FIXTURE_INCLUDE_OLLAMA) {
+    output += "ollama-cloud/tiny\n";
+  }
+  process.stdout.write(output);
   process.exit(0);
 }
 if (args[0] === "run") {

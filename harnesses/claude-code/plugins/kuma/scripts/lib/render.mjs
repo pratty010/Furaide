@@ -6,7 +6,6 @@ const STATUS_COLUMNS = [
   "provider",
   "model",
   "backend",
-  "status",
   "phase",
   "resumable",
   "result ready",
@@ -27,7 +26,6 @@ export function renderStatusTable(jobs) {
     job.model,
     job.backend,
     job.status,
-    job.phase ?? "-",
     job.resumable ? "yes" : "no",
     job.resultReady ? "yes" : "no",
   ])
