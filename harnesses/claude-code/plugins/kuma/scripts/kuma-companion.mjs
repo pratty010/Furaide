@@ -189,9 +189,19 @@ function resolveDefaultsOrFail(options) {
 }
 
 function resolveProviderForModel(model) {
+  // If model contains a slash, split on the first one: provider/model → { provider, model }
+  const slashIndex = model.indexOf("/")
+  if (slashIndex !== -1) {
+    const provider = model.slice(0, slashIndex)
+    const bareModel = model.slice(slashIndex + 1)
+    return { provider, model: bareModel }
+  }
+
+  // Otherwise, look it up in the cached model index
   const { entries } = loadModelIndex(cwd)
   const match = entries.find((e) => e.model === model)
-  return match?.provider ?? "opencode-go"
+  const provider = match?.provider ?? "opencode-go"
+  return { provider, model }
 }
 
 async function runReview(args) {
@@ -203,7 +213,7 @@ async function runReview(args) {
   const resolved = resolveDefaultsOrFail(options)
   if (!resolved) return
   const { backend: backendName, model } = resolved
-  const provider = resolveProviderForModel(model)
+  const { provider, model: resolvedModel } = resolveProviderForModel(model)
 
   const target = resolveReviewTarget(cwd, { scope: options.scope, base: options.base })
   const stat = collectDiffShortstat(cwd, target)
@@ -217,7 +227,7 @@ async function runReview(args) {
   const job = createJob(cwd, {
     kind: "review",
     provider,
-    model,
+    model: resolvedModel,
     backend: backendName,
     resumable: false,
   })
@@ -226,10 +236,18 @@ async function runReview(args) {
   try {
     const execution = await backend.sendPrompt({
       provider,
-      model,
+      model: resolvedModel,
       prompt,
       onSpawn: (pid) => markRunning(cwd, job.id, { pid }),
     })
+    if (execution.exitCode !== 0) {
+      markError(cwd, job.id, {
+        errorMessage: `Backend exited with code ${execution.exitCode}: ${execution.stderr || execution.rawOutput || "no output"}`,
+      })
+      console.error(`Review failed: backend exited with code ${execution.exitCode}`)
+      process.exitCode = 1
+      return
+    }
     markDone(cwd, job.id, { result: { rawOutput: execution.rawOutput } })
     console.log(
       renderResult({ ...job, status: "done", result: { rawOutput: execution.rawOutput } })
@@ -250,7 +268,7 @@ async function runTask(args) {
   const resolved = resolveDefaultsOrFail(options)
   if (!resolved) return
   const { backend: backendName, model } = resolved
-  const provider = resolveProviderForModel(model)
+  const { provider, model: resolvedModel } = resolveProviderForModel(model)
   const prompt = positionals.join(" ")
 
   if (!options.fresh) {
@@ -280,7 +298,7 @@ async function runTask(args) {
   const job = createJob(cwd, {
     kind: "task",
     provider,
-    model,
+    model: resolvedModel,
     backend: backendName,
     resumable: true,
   })
@@ -289,11 +307,19 @@ async function runTask(args) {
   try {
     const execution = await backend.sendPrompt({
       provider,
-      model,
+      model: resolvedModel,
       prompt,
       sessionHandle,
       onSpawn: (pid) => markRunning(cwd, job.id, { pid }),
     })
+    if (execution.exitCode !== 0) {
+      markError(cwd, job.id, {
+        errorMessage: `Backend exited with code ${execution.exitCode}: ${execution.stderr || execution.rawOutput || "no output"}`,
+      })
+      console.error(`Task failed: backend exited with code ${execution.exitCode}`)
+      process.exitCode = 1
+      return
+    }
     markDone(cwd, job.id, {
       result: { rawOutput: execution.rawOutput },
       sessionHandle,

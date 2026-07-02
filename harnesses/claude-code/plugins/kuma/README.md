@@ -15,6 +15,8 @@ Kuma ships as part of this repo's plugin marketplace. Install via Claude Code's 
 
 This checks that the `opencode` and `pi` binaries are on PATH, checks auth readiness for each provider, and refreshes the local model index.
 
+The `--default-model` and `--model` options accept either a bare model name (resolved via the cached index) or an explicit `provider/model` string.
+
 ## Commands
 
 | Command | Purpose |

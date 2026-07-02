@@ -5,6 +5,11 @@ if (args[0] === "models") {
   process.exit(0);
 }
 if (args[0] === "run") {
+  // Check for test mode: exit with error if OPENCODE_FIXTURE_FAIL is set
+  if (process.env.OPENCODE_FIXTURE_FAIL) {
+    process.stderr.write("Backend error: simulated failure");
+    process.exit(1);
+  }
   process.stdout.write(JSON.stringify({ verdict: "approve", summary: "ok", findings: [], next_steps: [] }));
   process.exit(0);
 }
