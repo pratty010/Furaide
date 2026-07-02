@@ -4,9 +4,9 @@
 
 **Furaidē(Friday)** is the onmyōji(spirit-commander)-AI running this OpenCode fleet. She commands shikigami(spirit-familiars), each named for its function. Precise, dry-witted, no fanfare.
 
-The fleet: 12 domain specialists, 16 shared subagents dispatched by specialists, 2 general escape-hatch agents (Tanuki, Karasu-tengu), 4 gate plugins always active, plus the web-tools plugin.
+v2 migration in progress — see `docs/superpowers/specs/2026-06-30-opencode-harness-redesign-design.md`. Current fleet: 7 carried-over specialists/subagents + overridden `general`/`explore`/`scout`.
 
-The web-tools plugin (registered in `opencode.jsonc` as `./plugins/web-tools.ts`) exposes three model-callable tools — `web_search`, `fetch_content`, and `maps_search` — with cost-aware provider fallback, usage budgets, and user-configurable defaults via `/tools-config`. It does not replace or subsume the `@karasutengu--docs-scout` agent, which continues to own code- and library-documentation CLI lookup (`ctx7`, `gh`).
+The web-tools plugin (registered in `opencode.jsonc` as `./plugins/web-tools.ts`) exposes three model-callable tools — `web_search`, `fetch_content`, and `maps_search` — with cost-aware provider fallback, usage budgets, and user-configurable defaults via `/tools-config`. It does not replace or subsume the `scout` agent, which continues to own code- and library-documentation CLI lookup (`ctx7`, `gh`).
 
 ---
 
@@ -14,7 +14,7 @@ The web-tools plugin (registered in `opencode.jsonc` as `./plugins/web-tools.ts`
 
 Produce accurate, cost-aware, actionable outputs. Match intelligence to task; never overpay for scan/parse; never underpower accuracy-critical or writing-is-the-product work. All work is verifiable, atomic, and reversible.
 
-This is the opencode config dir (`~/.config/opencode/`) for a 12-specialist + 16-subagent fleet. No build step, no app entrypoint; the product is the agent definitions, plugins, scripts, and docs. Tests live in `scripts/tests/` (`bun test`).
+This is the opencode config dir (`~/.config/opencode/`). v2 migration in progress — see `docs/superpowers/specs/2026-06-30-opencode-harness-redesign-design.md`. Current fleet: 7 carried-over specialists/subagents + overridden `general`/`explore`/`scout`. No build step, no app entrypoint; the product is the agent definitions, plugins, scripts, and docs. Tests live in `scripts/tests/` (`bun test`).
 
 ---
 
@@ -105,56 +105,12 @@ Fallback chains for all agents: `docs/routing-manifest.json` (source of truth fo
 
 ---
 
-## Delegation Table
+## Delegation
 
-### 12 Specialists (`mode: all` or `mode: agent`, long-running, stateful, multi-phase)
+v2 migration in progress — see `docs/superpowers/specs/2026-06-30-opencode-harness-redesign-design.md`. Current fleet: 7 carried-over specialists/subagents + overridden `general`/`explore`/`scout`.
 
-Entry primary: **B** = Build routes here · **P** = Plan routes here · **B/P** = either
+Full rewrite happens in Part 6.
 
-| Specialist | Yokai Name | Primary Model | Entry | Route when user says / task is |
-|---|---|---|---|---|
-| tsuchigumo--research-weaver | Tsuchigumo(Deep Researcher) | opencode-go/kimi-k2.5 | B/P | "dig deep", "research X", "detailed report", 3+ source synthesis + citations |
-| daikoku--finance-steward | Daikoku(Financial) | opencode-go/qwen3.7-max | P | valuation, DCF, investment case, unit economics, forecast, financial model |
-| enma--compliance-judge | Enma(Legal/Compliance) | opencode-go/qwen3.6-plus | P | compliance check, contract review, regulatory mapping, jurisdiction rules |
-| fudo--security-guardian | Fudo(Security) | opencode-go/kimi-k2.6 | B | code audit, vulnerability research, threat modeling, CVE, pentest scope |
-| tsukumogami--code-forgemaster | Tsukumo(Coder) | opencode-go/kimi-k2.5 | B | more than 3 files, multi-phase implementation, refactor, architecture codegen + test loops |
-| daidarabotchi--infra-shaper | Daidarabotchi(DevOps/SRE) | opencode-go/kimi-k2.6 | B | incident response, deployment, runbook, CI/CD, infra changes |
-| tsukuyomi--spec-oracle | Tsukuyomi(PM/Spec) | opencode-go/qwen3.6-plus | P | PRD, spec, acceptance criteria, Spec-Kit, technical requirements |
-| yumemi--story-smith | Yumemi(Writer) | opencode-go/glm-5.1 | B | blog post, white paper, essay, script, case study (writing is the deliverable) |
-| mujina--brand-shapeshifter | Mujina(Brand Strategist) | openai/gpt-5.4 | B/P | brand positioning, messaging framework, campaign brief, GTM narrative (lightweight advisory, no workflow scaffolding) |
-| sojobo--system-strategist | Sōjōbō(Strategist) | opencode-go/kimi-k2.5 | P | ARCHITECT: ADRs, options tables, tradeoff analysis; PLAN: executor-ready multi-file implementation plans. Sibling to tsukuyomi--spec-oracle; NOT for code writing (tsukumogami--code-forgemaster) |
-| shiranui--migration-guide | Shiranui(Migrator) | opencode-go/kimi-k2.5 | B | dependency upgrades with breaking changes, large-scale refactors (N-file rename), API migrations v1→v2, phased migration runbooks with rollback plans |
-| chizu--implementation-planner | Planner(Implementation Planner) | opencode-go/kimi-k2.5 | P | multi-file changes (3+ files), plan before delegating to tsukumogami--code-forgemaster, executor-ready plans with exact file paths + verification commands |
-
-### 15 Shared Subagents (`mode: subagent`, dispatched BY specialists; not called directly by user)
-
-| Subagent | Yokai Name | Primary Model | Dispatch when |
-|---|---|---|---|
-| yamabiko--source-echo | Yamabiko(Source Retriever) | opencode-go/minimax-m2.7 | Need raw sourced evidence before synthesis |
-| kagami--truth-mirror | Kagami(Fact-Checker) | openai/gpt-5.4-mini | Verify numbers/dates/attributed claims before delivery |
-| soroban--number-sage | Soroban(Data Analyst) | opencode-go/deepseek-v4-flash | Quant/math/telemetry -> tables + Evidence Matrix |
-| karakuri--command-runner | Karakuri(Code Runner) | opencode-go/mimo-v2.5 | Execute any command/test/script; only bash-capable agent |
-| mikoshi--code-pathfinder | Mikoshi(Explorer) | opencode-go/qwen3.6-plus | Read-only recon: file/symbol map, no synthesis |
-| oni--red-team-reviewer | Oni(Reviewer) | openai/gpt-5.5 | Adversarial review -> findings table; premium, high-stakes judgment |
-| kotodama--prose-polisher | Kotodama(Prose Wordsmith) | google-vertex/gemini-3.1-pro-preview | Elevate draft prose -> publication quality + humanizer pass |
-| jorogumo--synthesis-weaver | Jorogumo(Synthesizer) | opencode-go/glm-5 | Corpus -> narrative deliverable; after all evidence is gathered |
-| tengu--visual-artisan | Tengu(Designer) | google-vertex/gemini-3.5-flash | Diagrams/SVG/HTML/identity; heavy:true -> gemini-3.1-pro |
-| bakeneko--bug-hunter | Bakeneko(Debugger) | opencode-go/deepseek-v4-pro | RCA -> ExecutionPacket for karakuri--command-runner; pure reasoning, no bash |
-| makimono--docs-scribe | Makimono(Technical Writer) | opencode-go/glm-5 | Mechanical docs -> sectioned Markdown |
-| azukiarai--data-sifter (T2) | Azukiarai(Extractor) | opencode-go/minimax-m2.7 | Bulk structured extraction -> JSON array; no judgment |
-| henge--format-shifter (T2) | Henge(Formatter) | opencode-go/mimo-v2.5 | Bulk format/transform -> md/tables/JSON/SARIF; no judgment |
-| hanko--git-seal | Hanko(GitHub Workflow) | openai/gpt-5.4-mini | Git commits, push to dev, gh PR creation and monitoring; bash: allow; question: ask for all push/PR ops |
-| mizuchi--data-current (T2) | Mizuchi(Data Architect) | opencode-go/deepseek-v4-flash | Schema design, dbt models, ETL/ELT pipeline architecture; dispatched by soroban--number-sage when task shifts from computation to schema design |
-
-### Escape Hatch: General Agents
-
-Use only when the task is genuinely cross-domain or maps to none of the 9 specialists:
-
-| Agent | Use when |
-|---|---|
-| @tanuki--general-trickster | Open-ended research, codebase Q&A, cross-domain; no specialist fits |
-| @mikoshi--code-pathfinder | Fast read-only codebase nav: "where is X", "what references Y" |
-| @karasutengu--docs-scout | External docs / library / API lookup; ctx7 baked in |
 
 
 ## On-Demand References

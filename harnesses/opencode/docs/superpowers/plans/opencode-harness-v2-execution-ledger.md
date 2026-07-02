@@ -83,6 +83,7 @@ Controller policy: the main session orchestrates only: analysis, delegation, rev
 | 2026-07-02 | Post-Task-6 broader cleanup | Removed 6 moved-agent cross-references from active survivor agent files; broad removed-agent grep over active `agents/*.md` now returns 0 hits. |
 | 2026-07-02 | Part 1 Task 7 completed by impl-complex | Created `agents/general.md`, `agents/explore.md`, `agents/scout.md`. Override probe failed (subagent mode); fallback applied to `config/opencode.jsonc` (model, instructions, permission). Recorded in `RESULTS.md`. |
 | 2026-07-02 | Task 7 config fallback shape corrected | `config/opencode.jsonc` inline agent blocks now use `prompt` instead of `instructions` for `general`, `explore`, and `scout`. |
+| 2026-07-02 | Part 1 Task 8 completed by impl-complex | Updated `config/fleet-manifest.json`, `config/opencode.jsonc`, `scripts/lib/agent-fleet-map.mjs`, and fleet tests to reflect interim v2 fleet (10 agents). Verified fleet tests pass; 5 pre-existing web-tools failures remain in baseline. |
 
 ## Open Risks
 

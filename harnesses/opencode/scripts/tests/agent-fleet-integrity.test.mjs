@@ -1,35 +1,32 @@
 import { test, expect } from 'bun:test';
 import { readFileSync, existsSync } from 'node:fs';
-import { AGENT_RENAME_MAP, LEGACY_AGENT_ALIASES, ALL_AGENT_TARGETS } from '../lib/agent-fleet-map.mjs';
+import { AGENT_RENAME_MAP, LEGACY_AGENT_ALIASES, INTERIM_V2_FLEET } from '../lib/agent-fleet-map.mjs';
 
-test('rename map covers all 30 agents with unique current and target names', () => {
-  expect(AGENT_RENAME_MAP).toHaveLength(30);
+test('rename map covers the interim v2 fleet with unique current and target names', () => {
+  expect(AGENT_RENAME_MAP).toHaveLength(INTERIM_V2_FLEET.length);
 
   const current = new Set(AGENT_RENAME_MAP.map(entry => entry.current));
   const target = new Set(AGENT_RENAME_MAP.map(entry => entry.next));
 
-  expect(current.size).toBe(30);
-  expect(target.size).toBe(30);
-  expect(ALL_AGENT_TARGETS).toHaveLength(30);
+  expect(current.size).toBe(INTERIM_V2_FLEET.length);
+  expect(target.size).toBe(INTERIM_V2_FLEET.length);
 });
 
-test('legacy alias map points to renamed targets', () => {
-  expect(LEGACY_AGENT_ALIASES['code-runner']).toBe('karakuri--command-runner');
-  expect(LEGACY_AGENT_ALIASES['explorer']).toBe('mikoshi--code-pathfinder');
-  expect(LEGACY_AGENT_ALIASES['source-retriever']).toBe('yamabiko--source-echo');
-  expect(LEGACY_AGENT_ALIASES['technical-writer']).toBe('makimono--docs-scribe');
+test('legacy alias map points to interim v2 targets', () => {
+  expect(LEGACY_AGENT_ALIASES['code-runner']).toBe('general');
+  expect(LEGACY_AGENT_ALIASES['explorer']).toBe('explore');
+  expect(LEGACY_AGENT_ALIASES['debugger']).toBe('bakeneko--bug-hunter');
 });
 
-test('all renamed agent files exist and no old filenames remain', () => {
-  for (const entry of AGENT_RENAME_MAP) {
-    expect(existsSync(`agents/${entry.next}.md`), `missing agents/${entry.next}.md`).toBe(true);
-    expect(existsSync(`agents/${entry.current}.md`), `stale agents/${entry.current}.md still exists`).toBe(false);
+test('all interim agent files exist', () => {
+  for (const name of INTERIM_V2_FLEET) {
+    expect(existsSync(`agents/${name}.md`), `missing agents/${name}.md`).toBe(true);
   }
 });
 
 test('no agent file uses invalid mode: agent', () => {
-  for (const entry of AGENT_RENAME_MAP) {
-    const body = readFileSync(`agents/${entry.next}.md`, 'utf8');
-    expect(body.includes('mode: agent'), `agents/${entry.next}.md still uses mode: agent`).toBe(false);
+  for (const name of INTERIM_V2_FLEET) {
+    const body = readFileSync(`agents/${name}.md`, 'utf8');
+    expect(body.includes('mode: agent'), `agents/${name}.md still uses mode: agent`).toBe(false);
   }
 });
