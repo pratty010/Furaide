@@ -84,6 +84,7 @@ Controller policy: the main session orchestrates only: analysis, delegation, rev
 | 2026-07-02 | Part 1 Task 7 completed by impl-complex | Created `agents/general.md`, `agents/explore.md`, `agents/scout.md`. Override probe failed (subagent mode); fallback applied to `config/opencode.jsonc` (model, instructions, permission). Recorded in `RESULTS.md`. |
 | 2026-07-02 | Task 7 config fallback shape corrected | `config/opencode.jsonc` inline agent blocks now use `prompt` instead of `instructions` for `general`, `explore`, and `scout`. |
 | 2026-07-02 | Part 1 Task 8 completed by impl-complex | Updated `config/fleet-manifest.json`, `config/opencode.jsonc`, `scripts/lib/agent-fleet-map.mjs`, and fleet tests to reflect interim v2 fleet (10 agents). Verified fleet tests pass; 5 pre-existing web-tools failures remain in baseline. |
+| 2026-07-02 | Part 2 Task 9 completed by impl-complex | `docs/routing-manifest.json` bumped to v10 with 15 v2 agents; routing/model trio `bun test scripts/tests/routing-manifest.test.mjs scripts/tests/model-failover.test.mjs scripts/tests/model-resolve.test.mjs` passed 18/18. |
 
 ## Open Risks
 

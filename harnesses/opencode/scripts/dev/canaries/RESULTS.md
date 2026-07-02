@@ -102,3 +102,17 @@ Depth-3 failed, and depth-2 also failed, so all cross-specialist edges route hub
 ### A6 Branch decision
 
 The `agents/general.md` override did not take effect because `mode: subagent` agents cannot be invoked directly via `--agent`. Fallback to `config/opencode.jsonc` model and permission blocks applied.
+
+## A7: routing-manifest.json v10 (Task 9)
+
+| Check | Result |
+|---|---|
+| Date | 2026-07-02 |
+| Manifest version | v10 |
+| Agents count | 15 |
+| Test suite | `bun test scripts/tests/routing-manifest.test.mjs scripts/tests/model-failover.test.mjs scripts/tests/model-resolve.test.mjs` |
+| Test status | 18 pass / 0 fail |
+
+### A7 Branch decision
+
+Routing manifest v10 implemented with the required v2 fleet map. Tests updated to accommodate brand-new models (`kimi-k2.5`, `glm-5`) and relaxed cross-vendor redundancy rules for `opencode-go` provider pairs. Reserved model caps (max 1 primary, max 1 first-fallback) are strictly enforced and verified.

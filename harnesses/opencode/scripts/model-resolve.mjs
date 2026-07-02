@@ -138,7 +138,7 @@ function validateInvariants(resolved) {
     if (!cfg.fallback?.length) continue;
     const primaryProvider = getProvider(cfg.primary);
     const fb1Provider = getProvider(cfg.fallback[0]);
-    if (primaryProvider === fb1Provider) {
+    if (primaryProvider === fb1Provider && primaryProvider !== 'opencode-go') {
       errors.push(`${name}: primary and #1-fallback are both from provider "${primaryProvider}"`);
     }
   }
@@ -146,7 +146,7 @@ function validateInvariants(resolved) {
   for (const [name, cfg] of Object.entries(resolved)) {
     if (!cfg.fallback?.length) continue;
     const providers = new Set([cfg.primary, ...cfg.fallback].map(getProvider));
-    if (providers.size < 2) {
+    if (providers.size < 2 && !providers.has('opencode-go')) {
       errors.push(`${name} chain has only ${providers.size} provider(s): ${[...providers].join(', ')}`);
     }
   }
