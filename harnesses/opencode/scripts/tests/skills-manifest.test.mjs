@@ -4,7 +4,7 @@
  * and that pull-external-skills.mjs exists and exports expected symbols.
  */
 import { test, expect } from 'bun:test';
-import { readFileSync, existsSync, readdirSync } from 'node:fs';
+import { readFileSync, existsSync, readdirSync, statSync } from 'node:fs';
 import { resolve, join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -90,7 +90,7 @@ test('each patch file (if any) names a skill that exists in the manifest', () =>
   for (const entry of entries) {
     const fullPath = join(patchesDir, entry);
     try {
-      const stat = require('node:fs').statSync(fullPath);
+      const stat = statSync(fullPath);
       // Only check directories; skip README.md and other files
       if (!stat.isDirectory()) {
         continue;
@@ -292,7 +292,7 @@ test('every skill has a SKILL.md with valid frontmatter', () => {
   const entries = readdirSync(skillsDir);
   for (const entry of entries) {
     const fullPath = join(skillsDir, entry);
-    const stat = require('node:fs').statSync(fullPath);
+    const stat = statSync(fullPath);
 
     // Skip non-directories
     if (!stat.isDirectory()) continue;
@@ -386,7 +386,7 @@ test('sync-skills: first run copies skills and writes receipt', async () => {
     expect(exists(receiptPath)).toBe(true);
 
     // Check receipt contains version
-    const receipt = JSON.parse(require('node:fs').readFileSync(receiptPath, 'utf8'));
+    const receipt = JSON.parse(readFileSync(receiptPath, 'utf8'));
     expect(receipt.version).toBe('2.0.0');
     expect(Array.isArray(receipt.skills)).toBe(true);
     expect(receipt.skills.length).toBeGreaterThan(0);

@@ -151,6 +151,7 @@ async function pullMode(manifest) {
       if (cloneResult.status !== 0) {
         // Fall back: full clone then checkout
         err(`Shallow clone failed, trying full clone: ${cloneResult.stderr?.trim()}`);
+        rmSync(join(tmpDir, 'repo'), { recursive: true, force: true });
         const fullClone = run(`git clone ${cloneUrl} ${tmpDir}/repo`, { stdio: 'pipe' });
         if (fullClone.status !== 0) {
           err(`Failed to clone ${src.repo}: ${fullClone.stderr?.trim()}`);

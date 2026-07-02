@@ -54,7 +54,7 @@ function err(msg) {
 
 // Check if a patch is already applied to the target dir
 function isAlreadyApplied(patchPath, targetDir) {
-  const result = run(`git apply --directory="${targetDir}" --reverse --check < "${patchPath}"`, {
+  const result = run(`git apply --directory="${targetDir}" --unsafe-paths --reverse --check < "${patchPath}"`, {
     cwd: REPO_ROOT,
     stdio: 'pipe',
   });
@@ -63,7 +63,7 @@ function isAlreadyApplied(patchPath, targetDir) {
 
 // Check if a patch would apply cleanly
 function wouldApplyCleanly(patchPath, targetDir) {
-  const result = run(`git apply --directory="${targetDir}" --check < "${patchPath}"`, {
+  const result = run(`git apply --directory="${targetDir}" --unsafe-paths --check < "${patchPath}"`, {
     cwd: REPO_ROOT,
     stdio: 'pipe',
   });
@@ -72,7 +72,7 @@ function wouldApplyCleanly(patchPath, targetDir) {
 
 // Apply a patch to the target dir
 function applyPatch(patchPath, targetDir) {
-  const result = run(`git apply --directory="${targetDir}" < "${patchPath}"`, {
+  const result = run(`git apply --directory="${targetDir}" --unsafe-paths < "${patchPath}"`, {
     cwd: REPO_ROOT,
     stdio: 'pipe',
   });
