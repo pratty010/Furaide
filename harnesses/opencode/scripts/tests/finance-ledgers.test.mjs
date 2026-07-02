@@ -3,6 +3,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync, existsSync
 import { dirname, join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { spawnSync } from 'node:child_process';
+import { missingArtifactNames } from '../lib/finance-store.mjs';
 
 const HARNESS_ROOT = '/d/Everything/Furaidē/.worktrees/opencode-harness-v2/harnesses/opencode';
 const SUBJECT = 'acme';
@@ -161,6 +162,25 @@ test('knowledge-bank-finance status emits the bank status card fields', () => {
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
+});
+
+test('missingArtifactNames returns real names without a leading none placeholder', () => {
+  const audit = {
+    artifacts: [
+      { name: 'income_statement', status: 'missing' },
+      { name: 'latest-filing.json', status: 'reusable' },
+    ],
+  };
+
+  expect(missingArtifactNames(audit)).toEqual(['income_statement']);
+});
+
+test('missingArtifactNames returns none when nothing is missing', () => {
+  const audit = {
+    artifacts: [{ name: 'latest-filing.json', status: 'reusable' }],
+  };
+
+  expect(missingArtifactNames(audit)).toEqual(['none']);
 });
 
 test('knowledge-bank-finance query reads existing entries', () => {

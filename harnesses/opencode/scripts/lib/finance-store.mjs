@@ -183,6 +183,14 @@ export function summarizeArtifactStatuses(artifacts, nowIso) {
   return { artifacts: classified, summary };
 }
 
+export function missingArtifactNames(audit) {
+  const missing = audit.artifacts
+    .filter((artifact) => artifact.status === 'missing')
+    .map((artifact) => artifact.name)
+    .filter(Boolean);
+  return missing.length === 0 ? ['none'] : missing;
+}
+
 export function latestSourceRefreshByClass(sources) {
   const output = {};
 

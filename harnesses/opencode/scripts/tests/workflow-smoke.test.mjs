@@ -311,6 +311,31 @@ test('WF5 smoke: engine-level gap loop cap falls through to SYNTHESIS and termin
   expectIllegalTransition(illegal, 'COMPLETE', /invalid transition for wf5: BANK_STATUS -> COMPLETE/);
 });
 
+test('WF5 smoke: engine-level model_validate loop cap falls through to BLOCKED_CLARIFY', () => {
+  const flow = initWorkflow('wf5');
+  walk(flow, [
+    'INTENT_CLASSIFY',
+    'MODE_SELECTION',
+    'BANK_STATUS',
+    'ARTIFACT_AUDIT',
+    'REUSE_DECISION',
+    'SOURCE_SCREENING',
+    'SOURCE_GATHERING',
+    'EXTRACTION',
+    'NORMALIZE',
+    'MODULE_EXECUTION',
+    'MODEL_COMPUTE',
+    'MODEL_VALIDATE',
+    'MODEL_COMPUTE',
+    'MODEL_VALIDATE',
+    'MODEL_COMPUTE',
+    'MODEL_VALIDATE',
+  ]);
+  expectIllegalTransition(flow, 'MODEL_COMPUTE', /loop cap reached for model_validate/);
+  walk(flow, ['BLOCKED_CLARIFY', 'MODE_SELECTION']);
+  expect(flow.state.phase).toBe('MODE_SELECTION');
+});
+
 test('WF5 smoke: BANK_STATUS fixture subject produces the expected status card', () => {
   const root = mkdtempSync(join(tmpdir(), 'wf5-bank-status-'));
   seedFinanceStatusFixture(root);

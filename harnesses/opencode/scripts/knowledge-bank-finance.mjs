@@ -7,6 +7,7 @@ import {
   defaultSourceRegistry,
   ensureSubjectDir,
   latestSourceRefreshByClass,
+  missingArtifactNames,
   parseArgs,
   readJson,
   readStdinJson,
@@ -33,7 +34,7 @@ function buildStatus(store) {
     subject_identity: manifest.subject_identity,
     last_run: manifest.last_run,
     available_artifacts: artifactRegistry.artifacts.map((artifact) => artifact.name),
-    missing_artifacts: audit.summary.missing > 0 ? ['none', ...audit.artifacts.filter((artifact) => artifact.status === 'missing').map((artifact) => artifact.name).filter(Boolean)] : ['none'],
+    missing_artifacts: missingArtifactNames(audit),
     stale_or_suspect_artifacts: audit.artifacts
       .filter((artifact) => artifact.status === 'stale' || artifact.status === 'suspect')
       .map((artifact) => artifact.name),
