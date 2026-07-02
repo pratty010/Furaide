@@ -70,11 +70,17 @@ while [[ $# -gt 0 ]]; do
   shift
 done
 
-# ── Dependency checks ─────────────────────────────────────────────────────────
-if ! command -v jq &>/dev/null; then
-  _err "jq is required."
-  exit 1
-fi
+# ── Deprecation notice ────────────────────────────────────────────────────────
+_bold "\n═══════════════════════════════════════════════════════════════"
+_bold "  ⚠  uninstall-fleet.sh is DEPRECATED"
+_bold "═══════════════════════════════════════════════════════════════"
+_info "The shell-based fleet installer has been retired."
+_info "To uninstall: remove the plugin entry from your opencode.json:"
+_info '    "plugin": ["@furaide/opencode-harness"]'
+_info ""
+_info "Then delete $HOME/.config/opencode/skills/ and related files as needed."
+_info "\nExiting."
+exit 0
 
 if [[ ! -f "$MANIFEST" ]]; then
   _err "Manifest not found: $MANIFEST"

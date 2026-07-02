@@ -62,6 +62,16 @@ export function __test_hookFor(deps = {}) {
   };
 }
 
+/** Factory returning the plugin object — used by the package export in src/index.ts */
+export async function createAuditLoggerPlugin() {
+  return {
+    name: 'audit-logger',
+    hooks: {
+      [HOOK_EVENT]: __test_hookFor({}),
+    },
+  };
+}
+
 export const AuditLoggerPlugin = async (ctx = {}) => ({
   [HOOK_EVENT]: __test_hookFor({ ctx }),
 });

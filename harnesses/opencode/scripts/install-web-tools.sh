@@ -8,6 +8,13 @@
 # if not already present, and runs `bun install` when dependencies change.
 set -euo pipefail
 
+# ── Deprecation notice ────────────────────────────────────────────────────────
+# install-web-tools.sh is retained as a convenience for manual file-only copies
+# in development environments.  The production delivery mechanism is the npm
+# package.  This script no longer merges package fragments or registers plugins
+# — those scaffolding scripts have been retired.
+# ──────────────────────────────────────────────────────────────────────────────
+
 TARGET_DIR="${1:-}"
 if [[ -z "$TARGET_DIR" ]]; then
   echo "Usage: $0 <target-opencode-config-dir>" >&2
@@ -86,43 +93,12 @@ else
   _warn "Google tools unavailable: set Vertex (GOOGLE_APPLICATION_CREDENTIALS + GOOGLE_CLOUD_PROJECT) or AI Studio (GEMINI_API_KEY / GOOGLE_API_KEY)"
 fi
 
-# --- 5. Merge package fragment and run bun install on change ---
-_info "Merging package fragment..."
-MERGE_OUT=$(bun "$FLEET_ROOT/scripts/merge-package-fragment.mjs" \
-  "$TARGET_DIR/package.json" \
-  "$FLEET_ROOT/config/package.web-tools.json" 2>&1) || {
-    _err "package fragment merge failed"
-    echo "$MERGE_OUT"
-    exit 1
-  }
-echo "$MERGE_OUT"
-
-if echo "$MERGE_OUT" | grep -q "CHANGED"; then
-  _info "Dependencies changed. Running bun install..."
-  (cd "$TARGET_DIR" && bun install 2>&1) || { _err "bun install failed in $TARGET_DIR"; exit 1; }
-else
-  _info "Dependencies already up to date."
-fi
-
-# --- 6. Register plugin in opencode.jsonc (create if missing) ---
-PLUGIN_ENTRY='"./plugins/tools/web-tools.ts"'
-OPENCODE_JSON="$TARGET_DIR/opencode.jsonc"
-if [[ ! -e "$OPENCODE_JSON" ]]; then
-  _warn "$OPENCODE_JSON not found. Skipping plugin registration."
-  _warn "Create $OPENCODE_JSON with \"plugin\": [$PLUGIN_ENTRY] and \"instructions\": [\"./rules/*.md\"] before running OpenCode."
-else
-  if grep -F "$PLUGIN_ENTRY" "$OPENCODE_JSON" >/dev/null 2>&1; then
-    _info "Plugin already registered in $OPENCODE_JSON"
-  else
-    _info "Registering plugin in $OPENCODE_JSON"
-    backup_existing "$OPENCODE_JSON"
-    # Use node to safely mutate JSONC: strip line comments, parse, mutate, write back.
-    # This preserves the original key order and formatting style for non-comment lines.
-    node "$FLEET_ROOT/scripts/register-web-tools-plugin.mjs" "$OPENCODE_JSON" "$PLUGIN_ENTRY" \
-      || { _err "Failed to register plugin in $OPENCODE_JSON"; exit 1; }
-    _info "Registered $PLUGIN_ENTRY in $OPENCODE_JSON"
-  fi
-fi
+# --- 5. Package fragment merge (retired) ---
+# The package fragment merge and plugin registration scaffolding has been retired.
+# The web-tools plugin is now delivered as part of the npm package
+# @furaide/opencode-harness.  Add this line to your opencode.json:
+#   "plugin": ["@furaide/opencode-harness"]
+_info "Package fragment merge retired — web-tools dependencies are bundled in the npm package."
 
 _info "Web Tools installation complete."
 _info "Next: restart OpenCode in $TARGET_DIR and run /tools-config to verify."

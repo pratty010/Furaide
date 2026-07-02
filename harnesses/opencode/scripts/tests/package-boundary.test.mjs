@@ -20,7 +20,6 @@ const FORBIDDEN_PATHS = [
   "scripts/tests/",
   "AGENTS.md",
   "config/opencode.jsonc",
-  "config/fleet-manifest.json",
 ];
 
 function runPackDryRun() {

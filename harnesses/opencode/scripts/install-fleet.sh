@@ -91,21 +91,20 @@ while [[ $# -gt 0 ]]; do
   shift
 done
 
-# ── Dependency checks ─────────────────────────────────────────────────────────
-if ! command -v jq &>/dev/null; then
-  _err "jq is required. Install via: sudo apt install jq  (or brew install jq)"
-  exit 1
-fi
-
-if [[ ! -f "$MANIFEST" ]]; then
-  _err "Manifest not found: $MANIFEST"
-  exit 1
-fi
-
-if ! command -v bun &>/dev/null; then
-  _err "bun is required for model resolution. Install via: curl -fsSL https://bun.sh/install | bash"
-  exit 1
-fi
+# ── Deprecation notice ────────────────────────────────────────────────────────
+_bold "\n═══════════════════════════════════════════════════════════════"
+_bold "  ⚠  install-fleet.sh is DEPRECATED"
+_bold "═══════════════════════════════════════════════════════════════"
+_info "The shell-based fleet installer has been retired."
+_info "The opencode harness is now delivered as an npm package."
+_info ""
+_info "  Add this line to your opencode.json:"
+_info '    "plugin": ["@furaide/opencode-harness"]'
+_info ""
+_info "OpenCode will auto-install the plugin with bun at startup."
+_info "See config/AGENTS.md for the installed user guide."
+_info "\nExiting."
+exit 0
 
 # ── Model resolution ───────────────────────────────────────────────────────────
 MODEL_RESOLVER="$FLEET_ROOT/scripts/model-resolve.mjs"

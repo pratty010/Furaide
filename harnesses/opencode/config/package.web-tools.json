@@ -1,7 +1,0 @@
-{
-  "dependencies": {
-    "@opencode-ai/plugin": "1.15.10",
-    "google-auth-library": "9.15.0",
-    "yaml": "2.9.0"
-  }
-}

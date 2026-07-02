@@ -39,6 +39,16 @@ export function __test_hookFor(deps = {}) {
   };
 }
 
+/** Factory returning the plugin object — used by the package export in src/index.ts */
+export async function createCompactionInjectorPlugin() {
+  return {
+    name: 'compaction-injector',
+    hooks: {
+      [HOOK_EVENT]: __test_hookFor(),
+    },
+  };
+}
+
 export const CompactionInjectorPlugin = async () => ({
   [HOOK_EVENT]: __test_hookFor(),
 });

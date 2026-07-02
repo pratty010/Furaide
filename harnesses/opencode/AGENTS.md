@@ -6,10 +6,10 @@ Source tree for the OpenCode fleet. Three deliverables: fleet config (install-ta
 
 ## Directory map
 
-- `config/`: install-target source. `fleet-manifest.json` (33 components), `opencode.jsonc` (runtime plugin registry), `AGENTS.md` (installed user guide), `web-tools.yml`, `package.web-tools.json`
+- `config/`: install-target source. `opencode.jsonc` (runtime plugin registry), `AGENTS.md` (installed user guide), `web-tools.yml`
 - `agents/`: 30 shikigami agent definitions (`.md` with frontmatter)
 - `plugins/`: 4 gate plugins (`nio.js`, `nurikabe.js`, `komainu.js`, `migawari.js`), plus `web-tools.ts` and its `web-tools/` subdir
-- `scripts/`: installers (`install-fleet.sh`, `uninstall-fleet.sh`, `install-web-tools.sh`), `workflow-state.mjs`, support modules (`merge-config.mjs`, `merge-package-fragment.mjs`, `model-resolve.mjs`)
+- `scripts/`: installers (`install-fleet.sh`, `uninstall-fleet.sh`, `install-web-tools.sh`), `workflow-state.mjs`, support modules (`model-resolve.mjs`, `sync-skills.mjs`)
 - `scripts/tests/`: harness test suite (Node `.test.mjs`)
 - `rules/`: memory contract and other rules
 - `docs/`: architecture, workflows, operator guide, manifest schema, agent template, `routing-manifest.json`, model guides, `superpowers/specs/` design docs

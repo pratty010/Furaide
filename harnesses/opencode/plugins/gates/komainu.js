@@ -180,6 +180,16 @@ export function __test_hookFor() {
 
 const realHook = __test_hookFor();
 
+/** Factory returning the plugin object — used by the package export in src/index.ts */
+export async function createSecurityPatternsPlugin() {
+  return {
+    name: 'security-patterns',
+    hooks: {
+      'tool.execute.before': realHook,
+    },
+  };
+}
+
 export default {
   name: 'security-patterns',
   hooks: {

@@ -81,6 +81,16 @@ function getActiveWorkflowVerdict() {
 
 const realHook = __test_hookFor({ readVerdict: getActiveWorkflowVerdict });
 
+/** Factory returning the plugin object — used by the package export in src/index.ts */
+export async function createDeliveryGatePlugin() {
+  return {
+    name: 'delivery-gate',
+    hooks: {
+      [HOOK_EVENT]: realHook,
+    },
+  };
+}
+
 export default {
   name: 'delivery-gate',
   hooks: {

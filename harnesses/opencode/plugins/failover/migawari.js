@@ -64,6 +64,29 @@ function logFailover(agentName, from, to, reason) {
 // Exposed for unit tests
 export { logFailover };
 
+/** Factory returning the plugin object — used by the package export in src/index.ts.
+ *  Uses `new URL()` for package-local resolution of the routing manifest,
+ *  avoiding user config dir lookups (per Task 39). */
+export async function createModelFailoverPlugin() {
+  const manifestUrl = new URL('../../docs/routing-manifest.json', import.meta.url);
+  const pkgManifest = JSON.parse(readFileSync(manifestUrl, 'utf8'));
+
+  return {
+    name: 'model-failover',
+    hooks: {
+      'model.error': async ({ agent, model, error, setModel }) => {
+        if (classify(error) === 'fatal') return;
+        const chain = resolveChain(pkgManifest, agent);
+        if (!chain) return;
+        const next = nextModel(chain, model);
+        if (!next) throw new Error(`model-failover: chain exhausted for agent "${agent}" after "${model}"`);
+        logFailover(agent, model, next, error?.message ?? String(error));
+        setModel(next);
+      },
+    },
+  };
+}
+
 export default {
   name: 'model-failover',
   // opencode plugin hook: called when a model error occurs during a session

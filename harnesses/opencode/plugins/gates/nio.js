@@ -98,6 +98,16 @@ function getActiveWorkflowVerdict() {
 const realCtx = { readVerdict: getActiveWorkflowVerdict };
 const realHook = __test_hookFor(realCtx);
 
+/** Factory returning the plugin object — used by the package export in src/index.ts */
+export async function createGateEnforcerPlugin() {
+  return {
+    name: 'gate-enforcer',
+    hooks: {
+      'tool.execute.before': realHook,
+    },
+  };
+}
+
 export default {
   name: 'gate-enforcer',
   hooks: {
