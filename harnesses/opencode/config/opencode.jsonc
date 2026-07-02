@@ -13,13 +13,52 @@
     "./rules/*.md"
   ],
   "agent": {
-    "tsuchigumo--research-weaver": { "model": "opencode-go/kimi-k2.6" },
-    "daikoku--finance-steward": { "model": "opencode-go/qwen3.7-max" },
+    // Model config is centralized here and in docs/routing-manifest.json.
+    // Agent frontmatter 'model:' is not the source of truth.
+    "kantoku--workflow-director": {
+      "model": "opencode-go/kimi-k2.6",
+      "permission": {
+        "task": {
+          "*": "deny",
+          "kyakuhon--spec-planner": "allow",
+          "explore": "allow",
+          "scout": "allow",
+          "general": "allow",
+          "tsukumogami--code-forgemaster": "allow",
+          "kagami--verifier": "allow",
+          "hanko--git-seal": "allow",
+          "hansei--lesson-keeper": "allow",
+          "daikoku--finance-steward": "allow",
+          "fudo--security-guardian": "allow",
+          "tsuchigumo--research-weaver": "allow",
+          "bakeneko--bug-hunter": "allow",
+          "kura--knowledge-banker": "allow",
+          "oni--red-team-reviewer": "allow"
+        }
+      }
+    },
+    "kyakuhon--spec-planner": {
+      "model": "opencode-go/qwen3.6-plus",
+      "permission": {
+        "task": {
+          "*": "deny",
+          "explore": "allow",
+          "scout": "allow",
+          "general": "allow",
+          "tsukumogami--code-forgemaster": "allow"
+        }
+      }
+    },
+    "tsukumogami--code-forgemaster": { "model": "opencode-go/kimi-k2.5" },
     "fudo--security-guardian": { "model": "opencode-go/kimi-k2.6" },
-    "tsukumogami--code-forgemaster": { "model": "opencode-go/kimi-k2.6" },
-    "oni--red-team-reviewer": { "model": "openai/gpt-5.5" },
-    "bakeneko--bug-hunter": { "model": "opencode-go/deepseek-v4-pro" },
+    "tsuchigumo--research-weaver": { "model": "opencode-go/kimi-k2.5" },
+    "daikoku--finance-steward": { "model": "opencode-go/qwen3.7-max" },
+    "kagami--verifier": { "model": "openai/gpt-5.4-mini" },
     "hanko--git-seal": { "model": "openai/gpt-5.4-mini" },
+    "hansei--lesson-keeper": { "model": "opencode-go/glm-5" },
+    "kura--knowledge-banker": { "model": "opencode-go/deepseek-v4-flash" },
+    "bakeneko--bug-hunter": { "model": "opencode-go/deepseek-v4-pro" },
+    "oni--red-team-reviewer": { "model": "openai/gpt-5.5" },
     "general": {
       "model": "opencode-go/mimo-v2.5",
       "prompt": "You execute exactly what you are given and return results faithfully: stdout, stderr, exit code, extracted fields, or formatted output. You do not interpret, synthesize, infer missing values, or make judgment calls. If the brief is ambiguous or the task requires judgment, stop and return what you have plus a one-line reason instead of guessing. Never dispatch yourself. Never re-dispatch the task you were given.",
@@ -32,6 +71,7 @@
       }
     },
     "explore": {
+      "model": "opencode-go/qwen3.6-plus",
       "prompt": "You are the local recon subagent. Return a compact findings table (Area | Files | Existing Pattern | Why Relevant). Cite exact paths and line ranges. Do not propose fixes, do not synthesize conclusions, do not edit. Never dispatch yourself.",
       "permission": {
         "edit": "deny",
@@ -40,6 +80,7 @@
       }
     },
     "scout": {
+      "model": "opencode-go/qwen3.6-plus",
       "prompt": "You are the external recon subagent. Your role is to retrieve and organize information from external sources (documentation, package registries, GitHub) to support implementation decisions. Return a compact findings table: (Source | Tool | Version/Date | Finding | Relevance). Include a prior-art / build-vs-buy output block for any new implementation: Existing option found: yes/no, Candidate, Fit, Gaps, Recommendation. Cite exact sources and versions. Use ctx7 for versioned library/API docs and gh for upstream repository recon. Do not propose fixes, do not synthesize conclusions, do not edit. Never dispatch yourself.",
       "permission": {
         "edit": "deny",

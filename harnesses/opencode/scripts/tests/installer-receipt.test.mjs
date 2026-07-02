@@ -21,7 +21,7 @@ function writeJson(path, obj) {
 }
 
 function runInstaller(dir, extraArgs = []) {
-  return execFileSync('bash', [INSTALLER, '--all', '--custom', dir, '--no-common-skills', ...extraArgs], {
+  return execFileSync('bash', [INSTALLER, '--all', '--custom', dir, '--no-common-skills', '--yes', ...extraArgs], {
     encoding: 'utf8',
     stdio: 'pipe',
     timeout: 120000,

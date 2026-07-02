@@ -63,8 +63,8 @@
 
     {
       "id": "agents-core",
-      "label": "Specialist Agents (v2 interim)",
-      "description": "Interim v2 fleet (7 survivors + general/explore/scout) as specified in docs/superpowers/specs/2026-06-30-opencode-harness-redesign-design.md. This scaffolding is retired in Part 7 when the npm package becomes the delivery mechanism.",
+      "label": "Workflow Fleet (v2)",
+      "description": "Full v2 workflow fleet (15 agents) as specified in docs/superpowers/specs/2026-06-30-opencode-harness-redesign-design.md. This scaffolding is retired in Part 7 when the npm package becomes the delivery mechanism.",
       "atomic": false,
       "coupling": "soft dep on failover routing-manifest.json; auto-included at same scope if failover not selected there. opencode.jsonc ships with the bundle so fleet agent model mappings are installed by default; install-fleet.sh rewrites its 'plugin' and 'instructions' arrays against the current fleet manifest after copy. POST-COPY CONFIG MERGE IS MANDATORY: every scope where agents-core lands must run merge-config.mjs with --agents-source $FLEET_ROOT/opencode.jsonc, otherwise the installed opencode.jsonc will not be picked up by opencode and the fleet agents will inherit the user's previous model assignments (or none).",
       "requires_bun": false,
@@ -75,14 +75,19 @@
       "files": [
         "agents/bakeneko--bug-hunter.md",
         "agents/daikoku--finance-steward.md",
+        "agents/explore.md",
         "agents/fudo--security-guardian.md",
+        "agents/general.md",
         "agents/hanko--git-seal.md",
+        "agents/hansei--lesson-keeper.md",
+        "agents/kagami--verifier.md",
+        "agents/kantoku--workflow-director.md",
+        "agents/kura--knowledge-banker.md",
+        "agents/kyakuhon--spec-planner.md",
         "agents/oni--red-team-reviewer.md",
+        "agents/scout.md",
         "agents/tsuchigumo--research-weaver.md",
         "agents/tsukumogami--code-forgemaster.md",
-        "agents/general.md",
-        "agents/explore.md",
-        "agents/scout.md",
         "config/opencode.jsonc",
         "config/AGENTS.md"
       ],

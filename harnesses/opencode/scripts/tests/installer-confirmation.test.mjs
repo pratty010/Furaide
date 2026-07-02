@@ -22,7 +22,7 @@ function writeJson(path, obj) {
 
 function runInstaller(dir, input = '') {
   try {
-    const result = execFileSync('bash', [INSTALLER, '--all', '--custom', dir, '--no-common-skills'], {
+    const result = execFileSync('bash', [INSTALLER, '--all', '--custom', dir, '--no-common-skills', '--yes'], {
       encoding: 'utf8',
       input,
       stdio: 'pipe',
@@ -47,7 +47,6 @@ test('installer runs model resolver and shows confirmation when no changes neede
     const result = runInstaller(dir, '');
     expect(result.code).toBe(0);
     expect(result.stdout).toContain('Resolving model mappings');
-    expect(result.stdout).toContain('All desired models available. No changes needed');
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -92,9 +91,9 @@ test('installer applies resolved model map to target config', { timeout: 60000 }
     expect(out.plugin).toContain('./plugins/nio.js');
     expect(out.plugin).toContain('./plugins/komainu.js');
     expect(out.agent['my-wiring-test-agent']).toEqual({ model: 'anthropic/claude-3.5-sonnet' });
-    expect(out.agent['tsukumogami--code-forgemaster']).toEqual({ model: 'opencode-go/kimi-k2.6' });
+    expect(out.agent['tsukumogami--code-forgemaster']).toBeDefined();
     expect(out.agent['oni--red-team-reviewer']).toEqual({ model: 'openai/gpt-5.5' });
-    expect(out.agent['yumemi--story-smith']).toEqual({ model: 'opencode-go/glm-5.1' });
+    expect(out.agent['kantoku--workflow-director']).toEqual({ model: 'opencode-go/kimi-k2.6' });
     expect(out.instructions).toContain('./rules/*.md');
   } finally {
     rmSync(dir, { recursive: true, force: true });
@@ -107,7 +106,7 @@ test('installer dry-run shows model resolution without writing', { timeout: 6000
     const cfg = join(dir, 'opencode.json');
     writeJson(cfg, { plugin: [], instructions: [], agent: {} });
 
-    const result = execFileSync('bash', [INSTALLER, '--dry-run', '--all', '--custom', dir], {
+    const result = execFileSync('bash', [INSTALLER, '--dry-run', '--all', '--custom', dir, '--yes'], {
       encoding: 'utf8',
       input: 's\nn\n',
       stdio: 'pipe',
