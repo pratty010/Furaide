@@ -85,3 +85,36 @@ test("renderResult renders verdict/summary/findings for a valid review", () => {
   assert.ok(output.includes("Verdict: approve"))
   assert.ok(output.includes("Looks fine."))
 })
+
+test("renderResult extracts review schema from JSON-lines event stream", () => {
+  // Simulate a JSON-lines output with multiple events, final one being the review schema
+  const reviewSchema = {
+    verdict: "approve",
+    summary: "Code is well-structured.",
+    findings: [{ severity: "info", title: "Minor style issue", file: "main.js", line_start: 42 }],
+    next_steps: ["Consider adding more tests"],
+  }
+  const jsonLinesOutput = [
+    { type: "message", text: "Analyzing code..." },
+    { type: "message", text: "Found a few things to note." },
+    { type: "final", ...reviewSchema }, // The final event contains the review schema
+  ]
+    .map((event) => JSON.stringify(event))
+    .join("\n")
+
+  const job = {
+    id: "job-5",
+    kind: "review",
+    provider: "opencode",
+    model: "gpt-5.4",
+    backend: "opencode",
+    status: "done",
+    phase: "done",
+    resumable: false,
+    result: { rawOutput: jsonLinesOutput },
+  }
+  const output = renderResult(job)
+  assert.ok(output.includes("Verdict: approve"))
+  assert.ok(output.includes("Code is well-structured."))
+  assert.ok(output.includes("Minor style issue"))
+})

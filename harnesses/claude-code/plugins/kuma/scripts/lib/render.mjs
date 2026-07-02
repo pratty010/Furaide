@@ -1,3 +1,5 @@
+import { normalizeOpencodeEvent, parseJsonLines } from "./events.mjs"
+
 const STATUS_COLUMNS = [
   "id",
   "task kind",
@@ -93,19 +95,65 @@ export function renderResult(job) {
   }
 
   let parsed = null
+  let jsonStringToParse = job.result.rawOutput ?? ""
+
+  // First, try to extract the final message from JSON-lines event stream
   try {
-    parsed = JSON.parse(job.result.rawOutput ?? "")
+    const lines = parseJsonLines(jsonStringToParse)
+    if (lines.length > 0) {
+      let finalEvent = null
+      // Look for the last "final" or "message" event
+      for (let i = lines.length - 1; i >= 0; i--) {
+        try {
+          const normalized = normalizeOpencodeEvent(lines[i])
+          if (normalized.type === "final") {
+            finalEvent = normalized
+            break
+          }
+          if (normalized.type === "message" && normalized.message) {
+            finalEvent = normalized
+            break
+          }
+        } catch {
+          // Skip lines that don't normalize; continue looking backwards
+        }
+      }
+      // Extract text to parse from the final event
+      if (finalEvent) {
+        if (finalEvent.message) {
+          // For message events, the message field contains text
+          jsonStringToParse = finalEvent.message
+        } else if (finalEvent.payload) {
+          // For final events, the payload might be the schema directly, or contain it
+          // Try to use payload as-is first (for direct schema), else stringify it
+          if (typeof finalEvent.payload === "object") {
+            parsed = finalEvent.payload
+          } else {
+            jsonStringToParse = String(finalEvent.payload)
+          }
+        }
+      }
+    }
   } catch {
-    return [
-      header,
-      "",
-      "Kuma did not receive valid structured JSON from the backend.",
-      "",
-      "Raw final message:",
-      "```text",
-      String(job.result.rawOutput ?? ""),
-      "```",
-    ].join("\n")
+    // If event extraction fails, fall through to direct JSON parse
+  }
+
+  // Now try to parse the extracted (or original) string as the review schema, if not already parsed
+  if (!parsed) {
+    try {
+      parsed = JSON.parse(jsonStringToParse)
+    } catch {
+      return [
+        header,
+        "",
+        "Kuma did not receive valid structured JSON from the backend.",
+        "",
+        "Raw final message:",
+        "```text",
+        String(job.result.rawOutput ?? ""),
+        "```",
+      ].join("\n")
+    }
   }
 
   const validationError = validateReviewResultShape(parsed)

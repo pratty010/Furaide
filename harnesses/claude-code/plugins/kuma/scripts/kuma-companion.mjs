@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { parseArgs } from "./lib/args.mjs"
 import { BACKEND_NAMES, createBackend } from "./lib/backend.mjs"
-import { collectDiffShortstat, resolveReviewTarget } from "./lib/git.mjs"
+import { collectDiffPatch, collectDiffShortstat, resolveReviewTarget } from "./lib/git.mjs"
 import {
   createJob,
   isJobActive,
@@ -217,12 +217,16 @@ async function runReview(args) {
 
   const target = resolveReviewTarget(cwd, { scope: options.scope, base: options.base })
   const stat = collectDiffShortstat(cwd, target)
+  const { patch, truncated } = collectDiffPatch(cwd, target)
 
   const promptPrefix =
     options.mode === "adversarial"
       ? "Perform an adversarial code review. Assume the diff is trying to hide a bug. "
       : "Perform a code review. "
-  const prompt = `${promptPrefix}Target: ${target.label}. ${JSON.stringify(stat)}. Respond with the review-output JSON schema (verdict, summary, findings, next_steps).`
+  const diffSection = patch.trim()
+    ? `Diff:\n\`\`\`diff\n${patch}\n\`\`\`${truncated ? "\n\n(Note: diff was truncated due to size.)" : ""}`
+    : "No diff content available."
+  const prompt = `${promptPrefix}Target: ${target.label}. ${JSON.stringify(stat)}.\n\n${diffSection}\n\nRespond with the review-output JSON schema (verdict, summary, findings, next_steps).`
 
   const job = createJob(cwd, {
     kind: "review",

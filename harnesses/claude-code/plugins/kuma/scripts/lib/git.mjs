@@ -1,3 +1,5 @@
+import fs from "node:fs"
+import { isProbablyText } from "./fs.mjs"
 import { runCommand, runCommandChecked } from "./process.mjs"
 
 function git(cwd, args, options = {}) {
@@ -156,4 +158,62 @@ export function collectDiffShortstat(cwd, target) {
     .split("\n")
     .filter(Boolean).length
   return { mode: "branch", baseRef: target.baseRef, shortstat, changedFileCount, untrackedCount: 0 }
+}
+
+export function collectDiffPatch(cwd, target, options = {}) {
+  const repoRoot = getRepoRoot(cwd)
+  const maxChars = options.maxChars ?? 20000
+  let patch = ""
+
+  if (target.mode === "working-tree") {
+    // Collect staged changes
+    const stagedResult = gitChecked(repoRoot, ["diff", "--cached"])
+    const stagedPatch = stagedResult.stdout
+    if (stagedPatch.trim()) {
+      patch += "=== staged changes ===\n"
+      patch += stagedPatch
+    }
+
+    // Collect unstaged changes
+    const unstagedResult = gitChecked(repoRoot, ["diff"])
+    const unstagedPatch = unstagedResult.stdout
+    if (unstagedPatch.trim()) {
+      if (patch) patch += "\n"
+      patch += "=== unstaged changes ===\n"
+      patch += unstagedPatch
+    }
+
+    // Collect untracked files
+    const state = getWorkingTreeState(repoRoot)
+    for (const filePath of state.untracked) {
+      const absolutePath = `${repoRoot}/${filePath}`
+      try {
+        const content = fs.readFileSync(absolutePath)
+        if (isProbablyText(content)) {
+          if (patch) patch += "\n"
+          patch += `=== untracked: ${filePath} ===\n`
+          patch += content.toString("utf8")
+        }
+      } catch {
+        // Skip files we can't read
+      }
+    }
+  } else {
+    // Branch mode
+    const mergeBase = gitChecked(repoRoot, ["merge-base", "HEAD", target.baseRef]).stdout.trim()
+    const commitRange = `${mergeBase}..HEAD`
+    const diffResult = gitChecked(repoRoot, ["diff", commitRange])
+    patch = diffResult.stdout
+  }
+
+  // Apply size cap
+  let truncated = false
+  if (patch.length > maxChars) {
+    const totalChars = patch.length
+    patch = patch.slice(0, maxChars)
+    patch += `\n\n[... diff truncated at ${maxChars} characters; ${totalChars} total ...]`
+    truncated = true
+  }
+
+  return { patch, truncated }
 }
