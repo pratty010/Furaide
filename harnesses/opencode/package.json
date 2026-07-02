@@ -1,0 +1,17 @@
+{
+  "name": "@furaide/opencode-harness",
+  "version": "2.0.0",
+  "description": "Furaidē workflow-first OpenCode harness: 15-agent fleet, 5 state-machine workflows, gates, web tools, skills.",
+  "type": "module",
+  "main": "src/index.ts",
+  "keywords": ["opencode", "opencode-plugin"],
+  "repository": { "type": "git", "url": "https://github.com/<owner>/<repo>" },
+  "license": "MIT",
+  "files": [
+    "src/**", "agents/*.md", "config/AGENTS.md", "config/skills-manifest.json",
+    "config/web-tools.yml", "rules/*.md", "plugins/**", "scripts/*.mjs",
+    "scripts/lib/**", "scripts/finance/**", "skill-patches/**",
+    "docs/routing-manifest.json", "docs/models/gemini-tool-fees.yml", "commands/*.md"
+  ],
+  "peerDependencies": { "@opencode-ai/plugin": "*" }
+}
