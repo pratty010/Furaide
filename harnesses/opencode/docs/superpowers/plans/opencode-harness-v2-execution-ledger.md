@@ -35,7 +35,7 @@ Controller policy: the main session orchestrates only: analysis, delegation, rev
 | 10 kantoku primary | 2 | impl-complex | explore, impl-complex | expected dispatch-lint failure noted | yes |
 | 11 kyakuhon planner | 2 | impl-complex | explore, impl-complex | frontmatter contract check | yes |
 | 12 kagami + hansei | 2 | impl-complex | explore, impl-complex | frontmatter contract check | yes |
-| 13 carried-over subagents | 2 | impl-complex | explore, impl-complex | contract grep/checks | yes |
+| 13 carried-over subagents | 2 | impl-complex | explore, impl-complex | contract grep/checks; review fixes: scoped hanko bash, checkpoint policy, oni blocked-round cap | yes |
 | 14 specialist DAG + kura stub | 2 | impl-complex | explore, impl-complex | dispatch lint OK, `bun test` | yes |
 | 15 final agent wiring | 2 | impl-complex | explore, impl-complex | `bun test`, dispatch lint OK | yes |
 | 16 rules + manifest schema | 2 | impl-complex | explore, impl-complex | `bun test` | yes |
@@ -88,6 +88,7 @@ Controller policy: the main session orchestrates only: analysis, delegation, rev
 | 2026-07-02 | Part 2 Task 10 completed by impl-complex | agents/kantoku--workflow-director.md created; dispatch lint returned OK (existence check skipped by script); reference-integrity test failed: kyakuhon--spec-planner missing. |
 | 2026-07-02 | Part 2 Task 11 completed by impl-simple | `agents/kyakuhon--spec-planner.md` now exists at the exact path; frontmatter contract and retired/moved-name search in the new file both passed. |
 | 2026-07-02 | Part 2 Task 12 completed by impl-simple | agents/kagami--verifier.md and agents/hansei--lesson-keeper.md created; frontmatter checks passed; removed/moved-name grep returned 0 hits. |
+| 2026-07-02 | Part 2 Task 13 completed by impl-complex | `hanko--git-seal`, `bakeneko--bug-hunter`, and `oni--red-team-reviewer` updated for v2 contracts; removed/moved-name grep returned 0 hits in those files. |
 
 ## Open Risks
 

@@ -8,7 +8,10 @@ description: >
 mode: subagent
 permission:
   edit: deny
-  bash: allow
+  bash:
+    "git *": allow
+    "gh *": allow
+    "*": deny
   webfetch: deny
   websearch: deny
   task:
@@ -82,13 +85,17 @@ Use these to diagnose state before asking for approval on critical ops.
    - Verify: `git log --oneline -1 && git rev-parse HEAD`
 
 3. **Create PR**:
-   - Ask user: "Ready to create PR from <branch> to dev with title '<title>'. Approve?"
-   - Create: `gh pr create --title "<title>" --body "<body>" --base dev`
-   - Verify: `gh pr view`
+    - Ask user: "Ready to create PR from <branch> to dev with title '<title>'. Approve?"
+    - Create: `gh pr create --title "<title>" --body "<body>" --base dev`
+    - Verify: `gh pr view`
 
 4. **Merge** (only if explicitly requested, and only to dev, never master):
-   - Ask user: "Ready to merge PR <pr_number> to dev. Approve?"
-   - Merge: `gh pr merge --squash <pr_number>`
+    - Ask user: "Ready to merge PR <pr_number> to dev. Approve?"
+    - Merge: `gh pr merge --squash <pr_number>`
+
+### Finish-gate routing
+
+If finish-gate checks uncover complex but implementation-focused findings, dispatch the fix work to `tsukumogami--code-forgemaster` and the review pass to `kagami--verifier`.
 
 ### Setup verification
 
@@ -106,8 +113,13 @@ When asked to finish work, open/check a PR, or prepare a dev -> master handoff, 
 1. Inspect changed files and labels: dependency, CI/workflow, plugin/MCP/tooling, installer, auth/security-sensitive, generated/vendor/binary/cache paths.
 2. Check configured local and GitHub gates where available: Lefthook readiness, gitleaks availability, Trivy config, Semgrep/security workflow presence, Snyk PR gate, Dependabot coverage, master ruleset/signing readiness.
 3. If findings are simple and directly fixable, recommend dispatch to `build`/`general` plus `kagami--verifier`.
-4. If findings are broad, risky, or security-analysis-heavy, recommend Workflow #3 via `kantoku--workflow-director` and `fudo--security-guardian`.
-5. If findings are release/CI status only, summarize exact failing check and suggested next action.
+4. If findings are complex but implementation-focused, recommend dispatch to `tsukumogami--code-forgemaster` plus `kagami--verifier`.
+5. If findings are broad, risky, or security-analysis-heavy, recommend Workflow #3 via `kantoku--workflow-director` and `fudo--security-guardian`.
+6. If findings are release/CI status only, summarize exact failing check and suggested next action.
+
+### Checkpoint commit policy
+
+Prefer small checkpoint commits at meaningful boundaries over one final mega-commit when approved. Checkpoint commits exist so the user can traverse back to where an issue appeared.
 
 Do not perform deep security analysis yourself. You classify finish-gate findings and route them.
 
