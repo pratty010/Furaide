@@ -26,7 +26,7 @@ const MANIFEST_PATH = join(HARNESS_ROOT, 'config/skills-manifest.json');
 
 // ---------- helpers ----------
 
-function loadManifest() {
+async function loadManifest() {
   // Reuse jsonc.mjs if it exists (our manifest is plain JSON but future-proof)
   const jsoncPath = join(HARNESS_ROOT, 'scripts/lib/jsonc.mjs');
   if (existsSync(jsoncPath)) {
@@ -214,7 +214,7 @@ async function main() {
     process.exit(1);
   }
 
-  const manifest = loadManifest();
+  const manifest = await loadManifest();
 
   if (mode === '--check') {
     await checkMode(manifest);
