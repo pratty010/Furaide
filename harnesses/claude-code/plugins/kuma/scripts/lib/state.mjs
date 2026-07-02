@@ -9,7 +9,6 @@ const STATE_VERSION = 1
 const PLUGIN_DATA_ENV = "KUMA_PLUGIN_DATA"
 const FALLBACK_STATE_ROOT_DIR = path.join(os.homedir(), ".kuma")
 const STATE_FILE_NAME = "state.json"
-const JOBS_DIR_NAME = "jobs"
 const MAX_JOBS = 50
 
 function nowIso() {
@@ -50,12 +49,8 @@ export function resolveStateFile(cwd) {
   return path.join(resolveStateDir(cwd), STATE_FILE_NAME)
 }
 
-export function resolveJobsDir(cwd) {
-  return path.join(resolveStateDir(cwd), JOBS_DIR_NAME)
-}
-
 export function ensureStateDir(cwd) {
-  fs.mkdirSync(resolveJobsDir(cwd), { recursive: true })
+  fs.mkdirSync(resolveStateDir(cwd), { recursive: true })
 }
 
 export function loadState(cwd) {
@@ -92,7 +87,13 @@ export function saveState(cwd, state) {
     config: { ...defaultState().config, ...(state.config ?? {}) },
     jobs: nextJobs,
   }
-  fs.writeFileSync(resolveStateFile(cwd), `${JSON.stringify(nextState, null, 2)}\n`, "utf8")
+  const stateFile = resolveStateFile(cwd)
+  const tempFile = path.join(
+    path.dirname(stateFile),
+    `${STATE_FILE_NAME}.${process.pid}.${Date.now().toString(36)}.tmp`
+  )
+  fs.writeFileSync(tempFile, `${JSON.stringify(nextState, null, 2)}\n`, "utf8")
+  fs.renameSync(tempFile, stateFile)
   return nextState
 }
 

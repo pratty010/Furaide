@@ -1,4 +1,4 @@
-import { normalizeOpencodeEvent, parseJsonLines } from "./events.mjs"
+import { normalizeOpencodeEvent, normalizePiEvent, parseJsonLines } from "./events.mjs"
 
 const STATUS_COLUMNS = [
   "id",
@@ -6,6 +6,7 @@ const STATUS_COLUMNS = [
   "provider",
   "model",
   "backend",
+  "status",
   "phase",
   "resumable",
   "result ready",
@@ -26,6 +27,7 @@ export function renderStatusTable(jobs) {
     job.model,
     job.backend,
     job.status,
+    job.phase ?? "-",
     job.resumable ? "yes" : "no",
     job.resultReady ? "yes" : "no",
   ])
@@ -60,8 +62,8 @@ function validateReviewResultShape(data) {
   if (!data || typeof data !== "object" || Array.isArray(data)) {
     return "Expected a top-level JSON object."
   }
-  if (typeof data.verdict !== "string" || !data.verdict.trim()) {
-    return "Missing string `verdict`."
+  if (!["approve", "needs-attention"].includes(data.verdict)) {
+    return "Missing valid `verdict` (`approve` or `needs-attention`)."
   }
   if (typeof data.summary !== "string" || !data.summary.trim()) {
     return "Missing string `summary`."
@@ -69,9 +71,116 @@ function validateReviewResultShape(data) {
   if (!Array.isArray(data.findings)) {
     return "Missing array `findings`."
   }
+  for (const [index, finding] of data.findings.entries()) {
+    if (!finding || typeof finding !== "object" || Array.isArray(finding)) {
+      return `Finding ${index + 1} must be an object.`
+    }
+    if (!["critical", "high", "medium", "low"].includes(finding.severity)) {
+      return `Finding ${index + 1} has invalid \`severity\`.`
+    }
+    for (const key of ["title", "body", "file", "recommendation"]) {
+      if (typeof finding[key] !== "string" || !finding[key].trim()) {
+        return `Finding ${index + 1} missing string \`${key}\`.`
+      }
+    }
+    for (const key of ["line_start", "line_end"]) {
+      if (!Number.isInteger(finding[key]) || finding[key] < 1) {
+        return `Finding ${index + 1} missing positive integer \`${key}\`.`
+      }
+    }
+    if (
+      typeof finding.confidence !== "number" ||
+      finding.confidence < 0 ||
+      finding.confidence > 1
+    ) {
+      return `Finding ${index + 1} missing confidence between 0 and 1.`
+    }
+  }
   if (!Array.isArray(data.next_steps)) {
     return "Missing array `next_steps`."
   }
+  if (data.next_steps.some((step) => typeof step !== "string" || !step.trim())) {
+    return "`next_steps` must contain non-empty strings."
+  }
+  return null
+}
+
+function parseJsonCandidate(candidate) {
+  if (typeof candidate !== "string") return null
+  try {
+    return JSON.parse(candidate)
+  } catch {
+    return null
+  }
+}
+
+function findReviewShape(value, visited = new Set()) {
+  if (!value || typeof value !== "object") return null
+  if (visited.has(value)) return null
+  visited.add(value)
+
+  if (!validateReviewResultShape(value)) {
+    return value
+  }
+
+  for (const key of ["text", "content", "message", "output", "response"]) {
+    const parsed = parseJsonCandidate(value[key])
+    const match = parsed ? findReviewShape(parsed, visited) : null
+    if (match) return match
+  }
+
+  for (const nested of Object.values(value)) {
+    if (typeof nested === "string") {
+      const parsed = parseJsonCandidate(nested)
+      const match = parsed ? findReviewShape(parsed, visited) : null
+      if (match) return match
+      continue
+    }
+    if (Array.isArray(nested)) {
+      for (const item of nested) {
+        const match = findReviewShape(item, visited)
+        if (match) return match
+      }
+      continue
+    }
+    const match = findReviewShape(nested, visited)
+    if (match) return match
+  }
+
+  return null
+}
+
+function extractReviewPayload(job) {
+  const rawOutput = String(job.result?.rawOutput ?? "")
+  const direct = parseJsonCandidate(rawOutput)
+  const directMatch = direct ? findReviewShape(direct) : null
+  if (directMatch) return directMatch
+
+  const lines = parseJsonLines(rawOutput)
+  if (lines.length === 0) return null
+
+  const normalizeEvent = job.backend === "pi" ? normalizePiEvent : normalizeOpencodeEvent
+  for (let index = lines.length - 1; index >= 0; index -= 1) {
+    let normalized = null
+    try {
+      normalized = normalizeEvent(lines[index])
+    } catch {
+      normalized = null
+    }
+    if (normalized?.message) {
+      const parsed = parseJsonCandidate(normalized.message)
+      const match = parsed ? findReviewShape(parsed) : null
+      if (match) return match
+    }
+    if (normalized?.payload && typeof normalized.payload === "object") {
+      const match = findReviewShape(normalized.payload)
+      if (match) return match
+    }
+
+    const rawMatch = findReviewShape(lines[index])
+    if (rawMatch) return rawMatch
+  }
+
   return null
 }
 
@@ -94,66 +203,18 @@ export function renderResult(job) {
     ].join("\n")
   }
 
-  let parsed = null
-  let jsonStringToParse = job.result.rawOutput ?? ""
-
-  // First, try to extract the final message from JSON-lines event stream
-  try {
-    const lines = parseJsonLines(jsonStringToParse)
-    if (lines.length > 0) {
-      let finalEvent = null
-      // Look for the last "final" or "message" event
-      for (let i = lines.length - 1; i >= 0; i--) {
-        try {
-          const normalized = normalizeOpencodeEvent(lines[i])
-          if (normalized.type === "final") {
-            finalEvent = normalized
-            break
-          }
-          if (normalized.type === "message" && normalized.message) {
-            finalEvent = normalized
-            break
-          }
-        } catch {
-          // Skip lines that don't normalize; continue looking backwards
-        }
-      }
-      // Extract text to parse from the final event
-      if (finalEvent) {
-        if (finalEvent.message) {
-          // For message events, the message field contains text
-          jsonStringToParse = finalEvent.message
-        } else if (finalEvent.payload) {
-          // For final events, the payload might be the schema directly, or contain it
-          // Try to use payload as-is first (for direct schema), else stringify it
-          if (typeof finalEvent.payload === "object") {
-            parsed = finalEvent.payload
-          } else {
-            jsonStringToParse = String(finalEvent.payload)
-          }
-        }
-      }
-    }
-  } catch {
-    // If event extraction fails, fall through to direct JSON parse
-  }
-
-  // Now try to parse the extracted (or original) string as the review schema, if not already parsed
+  const parsed = extractReviewPayload(job)
   if (!parsed) {
-    try {
-      parsed = JSON.parse(jsonStringToParse)
-    } catch {
-      return [
-        header,
-        "",
-        "Kuma did not receive valid structured JSON from the backend.",
-        "",
-        "Raw final message:",
-        "```text",
-        String(job.result.rawOutput ?? ""),
-        "```",
-      ].join("\n")
-    }
+    return [
+      header,
+      "",
+      "Kuma did not receive valid structured JSON from the backend.",
+      "",
+      "Raw final message:",
+      "```text",
+      String(job.result.rawOutput ?? ""),
+      "```",
+    ].join("\n")
   }
 
   const validationError = validateReviewResultShape(parsed)

@@ -1,11 +1,30 @@
 #!/usr/bin/env node
+const fs = require("node:fs")
+
 const args = process.argv.slice(2);
+
+if (process.env.PI_CAPTURE_ARGS_FILE) {
+  fs.writeFileSync(process.env.PI_CAPTURE_ARGS_FILE, JSON.stringify(args), "utf8")
+}
+
 if (args.includes("--list-models")) {
   process.stdout.write("opencode-go deepseek-v4-pro\nopencode big-pickle\nanthropic claude-sonnet\n");
   process.exit(0);
 }
 if (args.includes("-p")) {
-  process.stdout.write(`${JSON.stringify({ event: "assistant_message", text: "done" })}\n`);
-  process.exit(0);
+  if (process.env.PI_FIXTURE_OUTPUT_SIZE) {
+    process.stdout.write("x".repeat(Number(process.env.PI_FIXTURE_OUTPUT_SIZE)))
+    process.exit(0)
+  } else if (process.env.PI_FIXTURE_FAIL) {
+    process.stderr.write("Backend error: simulated pi failure")
+    process.exit(1)
+  } else if (process.env.PI_FIXTURE_JSON_REVIEW) {
+    const review = JSON.stringify({ verdict: "approve", summary: "pi review", findings: [], next_steps: [] })
+    process.stdout.write(`${JSON.stringify({ event: "assistant_message", text: review })}\n`)
+    process.exit(0)
+  } else {
+    process.stdout.write(`${JSON.stringify({ event: "assistant_message", text: "done" })}\n`);
+    process.exit(0);
+  }
 }
 process.exit(1);

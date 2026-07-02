@@ -2,7 +2,7 @@
 description: Delegate an implementation, debugging, research, or follow-up task to a Kuma backend
 argument-hint: '[--backend opencode|pi] [--model <model>] [--wait|--background] [--resume|--fresh] <task description>'
 disable-model-invocation: true
-allowed-tools: Bash(node:*)
+allowed-tools: Bash(node:*), AskUserQuestion
 ---
 
 Raw slash-command arguments:

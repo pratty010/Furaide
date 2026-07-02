@@ -7,6 +7,8 @@ import {
   getConfig,
   listJobs,
   resolveStateDir,
+  resolveStateFile,
+  saveState,
   setConfig,
   upsertJob,
 } from "../scripts/lib/state.mjs"
@@ -18,7 +20,7 @@ function withTempPluginData(fn) {
   try {
     fn(dir)
   } finally {
-    if (previous === undefined) delete process.env.KUMA_PLUGIN_DATA
+    if (previous === undefined) Reflect.deleteProperty(process.env, "KUMA_PLUGIN_DATA")
     else process.env.KUMA_PLUGIN_DATA = previous
     fs.rmSync(dir, { recursive: true, force: true })
   }
@@ -47,5 +49,22 @@ test("setConfig/getConfig round-trip defaultBackend", () => {
   withTempPluginData(() => {
     setConfig("/tmp/workspace-a", "defaultBackend", "opencode")
     assert.equal(getConfig("/tmp/workspace-a").defaultBackend, "opencode")
+  })
+})
+
+test("saveState writes atomically without leaving temp files behind", () => {
+  withTempPluginData(() => {
+    saveState("/tmp/workspace-a", {
+      config: { defaultBackend: "opencode", defaultModel: "deepseek-v4-pro" },
+      jobs: [{ id: "job-1", kind: "task", status: "queued" }],
+    })
+
+    const stateDir = resolveStateDir("/tmp/workspace-a")
+    const entries = fs.readdirSync(stateDir)
+    assert.ok(entries.includes(path.basename(resolveStateFile("/tmp/workspace-a"))))
+    assert.equal(
+      entries.some((entry) => entry.endsWith(".tmp")),
+      false
+    )
   })
 })

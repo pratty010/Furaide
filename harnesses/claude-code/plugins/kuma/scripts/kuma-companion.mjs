@@ -171,9 +171,40 @@ async function runCancel(args) {
     return
   }
   const backend = createBackend(job.backend === "both" ? "opencode" : job.backend)
-  await backend.cancel(job.pid)
+  const termination = await backend.cancel(job.pid)
+  if (!termination.delivered) {
+    console.error(
+      Number.isFinite(job.pid)
+        ? `Unable to deliver cancellation to job ${jobId}; backend process may have already exited.`
+        : `Job ${jobId} has no backend pid yet; retry cancellation in a moment.`
+    )
+    process.exitCode = 1
+    return
+  }
   markCancelled(cwd, jobId)
   console.log(`Job ${jobId} cancelled.`)
+}
+
+function getActiveJob() {
+  return listJobs(cwd).find((job) => isJobActive(job)) ?? null
+}
+
+function ensureNoActiveJobOrFail() {
+  const existingActive = getActiveJob()
+  if (!existingActive) return true
+
+  console.error(
+    `A ${existingActive.kind} job (${existingActive.id}) is already active for this workspace. Use \`/kuma:cancel ${existingActive.id}\` or wait for it to finish before starting another.`
+  )
+  process.exitCode = 1
+  return false
+}
+
+function validateBackendProviderCompatibility(backend, provider) {
+  if (backend === "pi" && provider === "ollama-cloud") {
+    return "The pi backend cannot reach ollama-cloud models. Use --backend opencode or choose a different provider."
+  }
+  return null
 }
 
 function resolveDefaultsOrFail(options) {
@@ -204,6 +235,20 @@ function resolveProviderForModel(model) {
   return { provider, model }
 }
 
+function getStoredJob(jobId) {
+  return listJobs(cwd).find((job) => job.id === jobId) ?? null
+}
+
+async function waitForCancelledJob(jobId, attempts = 10, delayMs = 25) {
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    if (getStoredJob(jobId)?.status === "cancelled") {
+      return true
+    }
+    await new Promise((resolve) => setTimeout(resolve, delayMs))
+  }
+  return getStoredJob(jobId)?.status === "cancelled"
+}
+
 async function runReview(args) {
   const { options } = parseArgs(args, {
     valueOptions: ["backend", "model", "base", "scope", "mode"],
@@ -212,8 +257,15 @@ async function runReview(args) {
 
   const resolved = resolveDefaultsOrFail(options)
   if (!resolved) return
+  if (!ensureNoActiveJobOrFail()) return
   const { backend: backendName, model } = resolved
   const { provider, model: resolvedModel } = resolveProviderForModel(model)
+  const compatibilityError = validateBackendProviderCompatibility(backendName, provider)
+  if (compatibilityError) {
+    console.error(compatibilityError)
+    process.exitCode = 1
+    return
+  }
 
   const target = resolveReviewTarget(cwd, { scope: options.scope, base: options.base })
   const stat = collectDiffShortstat(cwd, target)
@@ -244,7 +296,15 @@ async function runReview(args) {
       prompt,
       onSpawn: (pid) => markRunning(cwd, job.id, { pid }),
     })
+    if (await waitForCancelledJob(job.id, 1, 0)) {
+      console.log(`Job ${job.id} was cancelled.`)
+      return
+    }
     if (execution.exitCode !== 0) {
+      if (await waitForCancelledJob(job.id)) {
+        console.log(`Job ${job.id} was cancelled.`)
+        return
+      }
       markError(cwd, job.id, {
         errorMessage: `Backend exited with code ${execution.exitCode}: ${execution.stderr || execution.rawOutput || "no output"}`,
       })
@@ -257,6 +317,10 @@ async function runReview(args) {
       renderResult({ ...job, status: "done", result: { rawOutput: execution.rawOutput } })
     )
   } catch (error) {
+    if (await waitForCancelledJob(job.id)) {
+      console.log(`Job ${job.id} was cancelled.`)
+      return
+    }
     markError(cwd, job.id, { errorMessage: error.message })
     console.error(`Review failed: ${error.message}`)
     process.exitCode = 1
@@ -271,20 +335,16 @@ async function runTask(args) {
 
   const resolved = resolveDefaultsOrFail(options)
   if (!resolved) return
+  if (!ensureNoActiveJobOrFail()) return
   const { backend: backendName, model } = resolved
   const { provider, model: resolvedModel } = resolveProviderForModel(model)
-  const prompt = positionals.join(" ")
-
-  if (!options.fresh) {
-    const existingActive = listJobs(cwd).find((j) => isJobActive(j) && j.kind === "task")
-    if (existingActive) {
-      console.error(
-        `A task job (${existingActive.id}) is already active for this workspace. Use \`/kuma:cancel ${existingActive.id}\` or wait for it to finish before starting another.`
-      )
-      process.exitCode = 1
-      return
-    }
+  const compatibilityError = validateBackendProviderCompatibility(backendName, provider)
+  if (compatibilityError) {
+    console.error(compatibilityError)
+    process.exitCode = 1
+    return
   }
+  const prompt = positionals.join(" ")
 
   // Kuma owns the session handle rather than waiting for the backend to hand one back:
   // neither adapter's `sendPrompt` returns a generated session id (opencode/pi don't surface
@@ -316,7 +376,15 @@ async function runTask(args) {
       sessionHandle,
       onSpawn: (pid) => markRunning(cwd, job.id, { pid }),
     })
+    if (await waitForCancelledJob(job.id, 1, 0)) {
+      console.log(`Job ${job.id} was cancelled.`)
+      return
+    }
     if (execution.exitCode !== 0) {
+      if (await waitForCancelledJob(job.id)) {
+        console.log(`Job ${job.id} was cancelled.`)
+        return
+      }
       markError(cwd, job.id, {
         errorMessage: `Backend exited with code ${execution.exitCode}: ${execution.stderr || execution.rawOutput || "no output"}`,
       })
@@ -330,6 +398,10 @@ async function runTask(args) {
     })
     console.log(execution.rawOutput)
   } catch (error) {
+    if (await waitForCancelledJob(job.id)) {
+      console.log(`Job ${job.id} was cancelled.`)
+      return
+    }
     markError(cwd, job.id, { errorMessage: error.message })
     console.error(`Task failed: ${error.message}`)
     process.exitCode = 1

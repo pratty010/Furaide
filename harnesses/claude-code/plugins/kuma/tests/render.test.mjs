@@ -21,6 +21,7 @@ test("renderStatusTable includes all required columns", () => {
     "provider",
     "model",
     "backend",
+    "status",
     "phase",
     "resumable",
     "result ready",
@@ -59,7 +60,7 @@ test("renderResult falls back to raw text on wrong shape instead of throwing", (
     result: { rawOutput: JSON.stringify({ notAReview: true }) },
   }
   const output = renderResult(job)
-  assert.ok(output.includes("unexpected review shape"))
+  assert.ok(output.includes("did not receive valid structured JSON"))
 })
 
 test("renderResult renders verdict/summary/findings for a valid review", () => {
@@ -86,12 +87,22 @@ test("renderResult renders verdict/summary/findings for a valid review", () => {
   assert.ok(output.includes("Looks fine."))
 })
 
-test("renderResult extracts review schema from JSON-lines event stream", () => {
-  // Simulate a JSON-lines output with multiple events, final one being the review schema
+test("renderResult extracts review schema from opencode JSON-lines output", () => {
   const reviewSchema = {
     verdict: "approve",
     summary: "Code is well-structured.",
-    findings: [{ severity: "info", title: "Minor style issue", file: "main.js", line_start: 42 }],
+    findings: [
+      {
+        severity: "low",
+        title: "Minor style issue",
+        body: "The formatting could be clearer.",
+        file: "main.js",
+        line_start: 42,
+        line_end: 42,
+        confidence: 0.8,
+        recommendation: "Tighten the formatting.",
+      },
+    ],
     next_steps: ["Consider adding more tests"],
   }
   const jsonLinesOutput = [
@@ -117,4 +128,77 @@ test("renderResult extracts review schema from JSON-lines event stream", () => {
   assert.ok(output.includes("Verdict: approve"))
   assert.ok(output.includes("Code is well-structured."))
   assert.ok(output.includes("Minor style issue"))
+})
+
+test("renderResult extracts review schema from opencode JSON envelope", () => {
+  const job = {
+    id: "job-6",
+    kind: "review",
+    provider: "opencode",
+    model: "gpt-5.4",
+    backend: "opencode",
+    status: "done",
+    phase: "done",
+    resumable: false,
+    result: {
+      rawOutput: JSON.stringify({
+        messages: [
+          { role: "assistant", content: "thinking" },
+          {
+            role: "assistant",
+            content: JSON.stringify({
+              verdict: "needs-attention",
+              summary: "Found a problem.",
+              findings: [
+                {
+                  severity: "high",
+                  title: "Bug",
+                  body: "This can fail at runtime.",
+                  file: "app.js",
+                  line_start: 9,
+                  line_end: 9,
+                  confidence: 0.9,
+                  recommendation: "Fix the runtime failure.",
+                },
+              ],
+              next_steps: ["Fix the bug"],
+            }),
+          },
+        ],
+      }),
+    },
+  }
+
+  const output = renderResult(job)
+  assert.ok(output.includes("Verdict: needs-attention"))
+  assert.ok(output.includes("Found a problem."))
+  assert.ok(output.includes("Bug"))
+})
+
+test("renderResult extracts review schema from pi assistant_message JSON", () => {
+  const job = {
+    id: "job-7",
+    kind: "review",
+    provider: "opencode-go",
+    model: "deepseek-v4-pro",
+    backend: "pi",
+    status: "done",
+    phase: "done",
+    resumable: false,
+    result: {
+      rawOutput: `${JSON.stringify({
+        event: "assistant_message",
+        text: JSON.stringify({
+          verdict: "approve",
+          summary: "pi review",
+          findings: [],
+          next_steps: [],
+        }),
+      })}\n`,
+    },
+  }
+
+  const output = renderResult(job)
+  assert.ok(output.includes("Verdict: approve"))
+  assert.ok(output.includes("pi review"))
 })

@@ -1,5 +1,6 @@
 ---
 description: Show models Kuma can reach across opencode-go, opencode (OpenCode Zen), and ollama-cloud
+argument-hint: ''
 allowed-tools: Bash(node:*)
 ---
 

@@ -50,6 +50,7 @@ test("enrichWithBaseLlm maps display-name vendor to slug and parses tags", () =>
 
 test("saveModelIndex/loadModelIndex round-trip per workspace", () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "kuma-models-test-"))
+  const previous = process.env.KUMA_PLUGIN_DATA
   process.env.KUMA_PLUGIN_DATA = dir
   try {
     saveModelIndex("/tmp/workspace-a", [
@@ -58,7 +59,8 @@ test("saveModelIndex/loadModelIndex round-trip per workspace", () => {
     const loaded = loadModelIndex("/tmp/workspace-a")
     assert.equal(loaded.entries.length, 1)
   } finally {
-    delete process.env.KUMA_PLUGIN_DATA
+    if (previous === undefined) Reflect.deleteProperty(process.env, "KUMA_PLUGIN_DATA")
+    else process.env.KUMA_PLUGIN_DATA = previous
     fs.rmSync(dir, { recursive: true, force: true })
   }
 })

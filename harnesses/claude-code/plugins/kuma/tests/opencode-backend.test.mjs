@@ -43,6 +43,27 @@ test("sendPrompt captures the fake opencode's stdout as rawOutput", async () => 
   })
 })
 
+test("sendPrompt caps oversized stdout", async () => {
+  await withFakeOpencodeOnPath(async () => {
+    const backend = createOpencodeBackend()
+    const previous = process.env.OPENCODE_FIXTURE_OUTPUT_SIZE
+    process.env.OPENCODE_FIXTURE_OUTPUT_SIZE = "150000"
+    try {
+      const result = await backend.sendPrompt({
+        provider: "opencode-go",
+        model: "deepseek-v4-pro",
+        prompt: "test",
+      })
+      assert.equal(result.exitCode, 0)
+      assert.match(result.rawOutput, /truncated at 100000 chars/)
+    } finally {
+      if (previous === undefined)
+        Reflect.deleteProperty(process.env, "OPENCODE_FIXTURE_OUTPUT_SIZE")
+      else process.env.OPENCODE_FIXTURE_OUTPUT_SIZE = previous
+    }
+  })
+})
+
 test("cancel delegates to terminateProcessTree and handles a non-finite pid", async () => {
   const backend = createOpencodeBackend()
   const result = await backend.cancel(Number.NaN)

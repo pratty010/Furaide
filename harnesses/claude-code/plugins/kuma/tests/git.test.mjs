@@ -1,4 +1,8 @@
 import assert from "node:assert/strict"
+import { spawnSync } from "node:child_process"
+import fs from "node:fs"
+import os from "node:os"
+import path from "node:path"
 import { test } from "node:test"
 import {
   collectDiffPatch,
@@ -7,39 +11,79 @@ import {
   resolveReviewTarget,
 } from "../scripts/lib/git.mjs"
 
+function git(cwd, args) {
+  const result = spawnSync("git", args, { cwd, encoding: "utf8" })
+  assert.equal(result.status, 0, result.stderr || result.stdout)
+}
+
+function withRepo(fn) {
+  const repoDir = fs.mkdtempSync(path.join(os.tmpdir(), "kuma-git-test-"))
+  try {
+    git(repoDir, ["init", "-b", "main"])
+    git(repoDir, ["config", "user.email", "kuma@example.com"])
+    git(repoDir, ["config", "user.name", "Kuma Tests"])
+    fs.writeFileSync(path.join(repoDir, "demo.js"), "export const value = 1\n", "utf8")
+    git(repoDir, ["add", "demo.js"])
+    git(repoDir, ["commit", "-m", "init"])
+    return fn(repoDir)
+  } finally {
+    fs.rmSync(repoDir, { recursive: true, force: true })
+  }
+}
+
 test("getWorkingTreeState returns staged/unstaged/untracked arrays", () => {
-  const state = getWorkingTreeState(process.cwd())
-  assert.ok(Array.isArray(state.staged))
-  assert.ok(Array.isArray(state.unstaged))
-  assert.ok(Array.isArray(state.untracked))
-  assert.equal(typeof state.isDirty, "boolean")
+  withRepo((repoDir) => {
+    fs.writeFileSync(path.join(repoDir, "demo.js"), "export const value = 2\n", "utf8")
+    fs.writeFileSync(path.join(repoDir, "notes.txt"), "new note\n", "utf8")
+
+    const state = getWorkingTreeState(repoDir)
+    assert.ok(Array.isArray(state.staged))
+    assert.ok(Array.isArray(state.unstaged))
+    assert.ok(Array.isArray(state.untracked))
+    assert.equal(state.untracked.includes("notes.txt"), true)
+    assert.equal(typeof state.isDirty, "boolean")
+  })
 })
 
-test("resolveReviewTarget defaults to auto scope", () => {
-  const target = resolveReviewTarget(process.cwd(), {})
-  assert.ok(target.mode === "working-tree" || target.mode === "branch")
+test("resolveReviewTarget defaults to working-tree when repo is dirty", () => {
+  withRepo((repoDir) => {
+    fs.writeFileSync(path.join(repoDir, "demo.js"), "export const value = 2\n", "utf8")
+    const target = resolveReviewTarget(repoDir, {})
+    assert.equal(target.mode, "working-tree")
+  })
 })
 
 test("collectDiffShortstat returns a shortstat summary for the resolved target", () => {
-  const target = resolveReviewTarget(process.cwd(), { scope: "working-tree" })
-  const stat = collectDiffShortstat(process.cwd(), target)
-  assert.equal(stat.mode, "working-tree")
-  assert.equal(typeof stat.changedFileCount, "number")
+  withRepo((repoDir) => {
+    fs.writeFileSync(path.join(repoDir, "demo.js"), "export const value = 2\n", "utf8")
+    const target = resolveReviewTarget(repoDir, { scope: "working-tree" })
+    const stat = collectDiffShortstat(repoDir, target)
+    assert.equal(stat.mode, "working-tree")
+    assert.equal(typeof stat.changedFileCount, "number")
+  })
 })
 
 test("collectDiffPatch returns patch object with patch and truncated keys", () => {
-  const target = resolveReviewTarget(process.cwd(), { scope: "working-tree" })
-  const result = collectDiffPatch(process.cwd(), target)
-  assert.equal(typeof result.patch, "string")
-  assert.equal(typeof result.truncated, "boolean")
+  withRepo((repoDir) => {
+    fs.writeFileSync(path.join(repoDir, "demo.js"), "export const value = 2\n", "utf8")
+    const target = resolveReviewTarget(repoDir, { scope: "working-tree" })
+    const result = collectDiffPatch(repoDir, target)
+    assert.equal(typeof result.patch, "string")
+    assert.equal(typeof result.truncated, "boolean")
+    assert.ok(result.patch.includes("diff --git"))
+  })
 })
 
 test("collectDiffPatch respects maxChars size cap", () => {
-  const target = resolveReviewTarget(process.cwd(), { scope: "working-tree" })
-  const result = collectDiffPatch(process.cwd(), target, { maxChars: 10 })
-  assert.equal(typeof result.patch, "string")
-  if (result.patch.length > 0) {
-    // If there is a patch, verify truncation logic either truncated it or didn't need to
-    assert.ok(result.patch.length <= 10 + 100) // Allow some slack for truncation message
-  }
+  withRepo((repoDir) => {
+    fs.writeFileSync(
+      path.join(repoDir, "demo.js"),
+      `export const value = "${"x".repeat(200)}"\n`,
+      "utf8"
+    )
+    const target = resolveReviewTarget(repoDir, { scope: "working-tree" })
+    const result = collectDiffPatch(repoDir, target, { maxChars: 10 })
+    assert.equal(typeof result.patch, "string")
+    assert.equal(result.truncated, true)
+  })
 })

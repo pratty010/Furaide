@@ -43,10 +43,30 @@ test("sendPrompt captures the fake pi's JSON-lines events", async () => {
   })
 })
 
+test("sendPrompt caps oversized stdout for pi", async () => {
+  await withFakePiOnPath(async () => {
+    const backend = createPiBackend()
+    const previous = process.env.PI_FIXTURE_OUTPUT_SIZE
+    process.env.PI_FIXTURE_OUTPUT_SIZE = "150000"
+    try {
+      const result = await backend.sendPrompt({
+        provider: "opencode-go",
+        model: "deepseek-v4-pro",
+        prompt: "test",
+      })
+      assert.equal(result.exitCode, 0)
+      assert.match(result.rawOutput, /truncated at 100000 chars/)
+    } finally {
+      if (previous === undefined) Reflect.deleteProperty(process.env, "PI_FIXTURE_OUTPUT_SIZE")
+      else process.env.PI_FIXTURE_OUTPUT_SIZE = previous
+    }
+  })
+})
+
 test("getAuthStatuses reflects OPENCODE_API_KEY presence", async () => {
   const backend = createPiBackend()
   const previous = process.env.OPENCODE_API_KEY
-  delete process.env.OPENCODE_API_KEY
+  Reflect.deleteProperty(process.env, "OPENCODE_API_KEY")
   try {
     const status = await backend.getAuthStatuses()
     assert.equal(status.available, false)

@@ -2,20 +2,61 @@ import { spawn } from "node:child_process"
 import { parseJsonLines } from "./events.mjs"
 import { binaryAvailable, terminateProcessTree } from "./process.mjs"
 
+const MAX_OUTPUT_CHARS = 100000
+
+function createOutputCollector() {
+  let text = ""
+  let truncated = false
+
+  return {
+    push(chunk) {
+      const nextChunk = String(chunk)
+      if (truncated || nextChunk.length === 0) return
+
+      const remaining = MAX_OUTPUT_CHARS - text.length
+      if (remaining <= 0) {
+        truncated = true
+        return
+      }
+
+      if (nextChunk.length <= remaining) {
+        text += nextChunk
+        return
+      }
+
+      text += nextChunk.slice(0, remaining)
+      truncated = true
+    },
+
+    finish(label) {
+      return truncated
+        ? `${text}\n\n[... ${label} truncated at ${MAX_OUTPUT_CHARS} chars ...]`
+        : text
+    },
+  }
+}
+
 function runOneShot(command, args, { onSpawn } = {}) {
   return new Promise((resolve, reject) => {
-    const child = spawn(command, args, { stdio: ["ignore", "pipe", "pipe"] })
+    const child = spawn(command, args, { detached: true, stdio: ["ignore", "pipe", "pipe"] })
     onSpawn?.(child.pid)
-    let stdout = ""
-    let stderr = ""
+    const stdout = createOutputCollector()
+    const stderr = createOutputCollector()
     child.stdout.on("data", (chunk) => {
-      stdout += chunk
+      stdout.push(chunk)
     })
     child.stderr.on("data", (chunk) => {
-      stderr += chunk
+      stderr.push(chunk)
     })
     child.on("error", reject)
-    child.on("close", (code) => resolve({ status: code, stdout, stderr }))
+    child.on("close", (code, signal) =>
+      resolve({
+        status: code ?? (signal ? 1 : 0),
+        signal: signal ?? null,
+        stdout: stdout.finish("stdout"),
+        stderr: stderr.finish("stderr"),
+      })
+    )
   })
 }
 

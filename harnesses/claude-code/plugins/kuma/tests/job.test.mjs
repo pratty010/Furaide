@@ -15,11 +15,13 @@ import { listJobs } from "../scripts/lib/state.mjs"
 
 function withTempPluginData(fn) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "kuma-job-test-"))
+  const previous = process.env.KUMA_PLUGIN_DATA
   process.env.KUMA_PLUGIN_DATA = dir
   try {
     fn(dir)
   } finally {
-    delete process.env.KUMA_PLUGIN_DATA
+    if (previous === undefined) Reflect.deleteProperty(process.env, "KUMA_PLUGIN_DATA")
+    else process.env.KUMA_PLUGIN_DATA = previous
     fs.rmSync(dir, { recursive: true, force: true })
   }
 }
