@@ -1,7 +1,7 @@
 # OpenCode Harness Redesign Design
 
 Date: 2026-06-30 (adversarial review and fleet-migration decisions applied 2026-07-02)
-Status: Workflows #1-#5 rewritten as approved state machines; Future Offerings finalized; agent-architecture and flow defects from adversarial review resolved — see "Fleet Migration"
+Status: Implemented — see plans/opencode-harness-v2-plan.md
 Scope: `harnesses/opencode/` runtime fleet, install-target config, agents, skills, rules, plugins, scripts, and docs
 
 ## Goal
