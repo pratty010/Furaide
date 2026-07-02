@@ -3,8 +3,9 @@
 [![MIT](https://img.shields.io/badge/License-MIT-blue)](LICENSE)
 [![GitHub](https://img.shields.io/badge/GitHub-pratty010%2FFuraide-8b5cf6)](https://github.com/pratty010/Furaide)
 [![Satori](https://img.shields.io/badge/Satori-Capability%20Analytics-8b5cf6)](https://github.com/pratty010/Furaide)
+[![Kuma](https://img.shields.io/badge/Kuma-Review%20%26%20Task%20Delegation-8b5cf6)](https://github.com/pratty010/Furaide)
 
-> *One plugin, one skill. Furaidē's shikigami for Claude Code.*
+> *Two plugins, one skill. Furaidē's shikigami for Claude Code.*
 
 Part of the [F.R.I.D.A.Y.](https://github.com/pratty010/Furaide) monorepo.
 
@@ -12,10 +13,11 @@ Part of the [F.R.I.D.A.Y.](https://github.com/pratty010/Furaide) monorepo.
 
 ## Prerequisites
 
-- **bun**: runtime for the Satori CLI engine
+- **bun**: runtime for the Satori CLI engine and the Kuma plugin
 - **Python 3.11+**: runtime for mekiki event processing
 - **jq**: JSON processing in bootstrap hooks
 - **Claude Code CLI**: registered and authenticated
+- **`opencode` and/or `pi` CLIs**: only if you install Kuma, which delegates to whichever of these are on `PATH`
 
 ---
 
@@ -94,13 +96,16 @@ The bootstrap script is interactive by default (Y/n prompt per step). Pass `--ye
 
 Flags: `--yes`/`-y` (non-interactive), `--minimal` (steps 1-2 only), `--no-config` (skip step 5), `--with-skills` (also install manifest skills), `-h`.
 
-### Phase 2: Register and install Satori plugin in Claude Code
+### Phase 2: Register and install plugins in Claude Code
 
 ```
 /plugin marketplace add pratty010/Furaide
 /plugin install satori@fr1d4y
+/plugin install kuma@fr1d4y
 /reload-plugins
 ```
+
+Install just one of the two if you only need capability analytics (Satori) or only need review/task delegation (Kuma). Neither depends on the other.
 
 ---
 
@@ -133,6 +138,20 @@ bun run ~/Furaidē/harnesses/claude-code/cli/src/satori/src/cli/index.ts improve
 bun run ~/Furaidē/harnesses/claude-code/cli/src/satori/src/cli/index.ts mark <id> accepted
 bun run ~/Furaidē/harnesses/claude-code/cli/src/satori/src/cli/index.ts reset --projections-only
 ```
+
+### Kuma: review and task delegation
+
+```
+/kuma:setup                          # detect opencode/pi binaries, cache the model index
+/kuma:models                         # list models reachable across opencode-go, opencode, ollama-cloud
+/kuma:review                         # review the working-tree diff (or --base <ref> for a branch diff)
+/kuma:task "implement X"             # delegate an implementation/debugging/research task
+/kuma:status                         # list jobs for this workspace, or /kuma:status <job-id> for one job
+/kuma:result <job-id>                # print a completed job's structured result
+/kuma:cancel <job-id>                # kill a running backend process
+```
+
+Each command accepts `--backend opencode|pi` and `--model <model>` (either a bare cached model name or an explicit `provider/model` string) to override the defaults set by `/kuma:setup`. `/kuma:review` and `/kuma:task` also accept `--wait`/`--background` to control whether Claude Code blocks on the result; if neither is passed, Kuma asks once. At most one review or task job runs per workspace at a time.
 
 ### Git/GitHub: hanko--git-seal + github skill
 
@@ -237,12 +256,15 @@ Then in Claude Code:
 
 ```
 /plugin uninstall satori@fr1d4y
+/plugin uninstall kuma@fr1d4y
 /plugin marketplace remove fr1d4y
 ```
 
 ---
 
 ## 🔧 Development
+
+Satori engine:
 
 ```bash
 cd cli/src/satori
@@ -251,6 +273,15 @@ bun test -x -q          # fail fast
 bun run typecheck        # TypeScript type checking
 bun run lint             # biome check
 bun run fmt              # biome format --write
+```
+
+Kuma plugin:
+
+```bash
+cd plugins/kuma
+bun install              # installs the pinned @biomejs/biome
+bun test                 # run test suite
+bun run lint             # biome check, run from here so the pinned version resolves
 ```
 
 ### Experimental `dev` branch
@@ -301,6 +332,13 @@ plugins/
     hooks/_capture_payload.sh    # raw payload capture (debug mode)
     hooks/_mark_inactive.sh      # dependency fail-open observability
     bin/mekiki                   # legacy PATH shim → $SATORI_HOME/cli-path
+  kuma/
+    .claude-plugin/plugin.json   # plugin manifest
+    commands/*.md                 # setup, models, review, task, status, result, cancel
+    scripts/kuma-companion.mjs   # entry point all commands shell out to
+    scripts/lib/                 # backend adapters, state, git diff collection, rendering
+    schemas/                     # review-output and bridge-event JSON schemas
+    tests/                       # bun test suite
 ```
 config/
   agents/
