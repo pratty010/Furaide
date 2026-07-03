@@ -5,9 +5,9 @@
     {
       "id": "workflow-gates",
       "label": "Workflow Gates",
-      "description": "Fail-closed gate plugins (Nio, Nurikabe), workflow hook plugins, and the workflow state engine they exec/read. Cannot be split.",
+      "description": "Fail-closed gate plugins (Nio, Komainu), workflow hook plugins, and the workflow state engine they enforce. Cannot be split.",
       "atomic": true,
-      "coupling": "nio.js/nurikabe.js exec scripts/workflow-state.mjs at runtime; hook plugins read workflow state/state-path runtime helpers",
+      "coupling": "nio.js enforces gate verdicts via scripts/workflow-state.mjs cmdAdvance (exit code 6); hook plugins read workflow state/state-path runtime helpers",
       "requires_bun": false,
       "default_on": true,
       "target_subdirs": [
@@ -17,7 +17,6 @@
       ],
       "files": [
         "plugins/gates/nio.js",
-        "plugins/gates/nurikabe.js",
         "plugins/hooks/audit-logger.js",
         "plugins/hooks/compaction-injector.js",
         "scripts/workflow-state.mjs",
