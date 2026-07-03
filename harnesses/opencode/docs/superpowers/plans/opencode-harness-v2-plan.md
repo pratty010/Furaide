@@ -695,6 +695,8 @@ Deliverable: WF5 agents/scripts operational; all fleet-coupled docs rewritten; f
 - [ ] **Step 2:** `bun test` (full suite) + `bun scripts/lint-dispatch-graph.mjs` + `uv run pytest scripts/finance/tests` — all green.
 - [ ] **Step 3:** Update `docs/superpowers/specs/2026-06-30-opencode-harness-redesign-design.md` Status line to "Implemented — see plans/opencode-harness-v2-plan.md" and commit — `git commit -am "docs(spec): mark v2 redesign implemented"`. Hand off to the user for branch-finish decision (PR via hanko conventions).
 
+> **2026-07-03 caveat:** a full adversarial audit was run after this task's original sweep (5 parallel agents, verified via real code reads and command re-runs, not by trusting this task's self-reported pass claims). It found and fixed 4 blockers (mechanisms that had passed their own tests but never fired in a real OpenCode session — `komainu.js`, `nurikabe.js`, `migawari.js`, `workflow-state.mjs`'s ownership model) plus 10 further real bugs (Vertex pricing undercounting, orphaned scripts, missing crash safety, a missing escalation path, an ungitignored data dir, a mislabeled "baseline" test failure that was actually a real bug, an environmental test, and two wrong-field reads in the hook plugins) that this task's checklist did not catch. Treat this task's "everything verified" claim as **superseded** by that later, more rigorous pass — full detail lives in the execution ledger's 2026-07-03 Progress Log entries and in `/home/ace/.claude/plans/nested-fluttering-phoenix.md` sections H-M.
+
 ---
 
 ## Part 7 — Package & Publish (`@furaide/opencode-harness`)
