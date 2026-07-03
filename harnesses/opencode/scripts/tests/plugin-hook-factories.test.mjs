@@ -46,14 +46,13 @@ describe("plugin factories export correctly", () => {
   });
 
   test("createModelFailoverPlugin uses package-local manifest", async () => {
-    const { createModelFailoverPlugin } = await import("../../plugins/failover/migawari.js");
+    const { createModelFailoverPlugin, resolveChain } = await import("../../plugins/failover/migawari.js");
     const plugin = await createModelFailoverPlugin();
     expect(plugin.name).toBe("model-failover");
-    expect(typeof plugin.hooks["model.error"]).toBe("function");
+    // Plugin is now a passive event logger, not a model.error hook
+    expect(typeof plugin.hooks.event).toBe("function");
 
-    // Verify the manifest was loaded from the package dir, not user config
-    // by checking that resolveChain works for a known agent
-    const { resolveChain } = await import("../../plugins/failover/migawari.js");
+    // Verify resolveChain utility works with the package-local manifest
     const manifest = JSON.parse(
       readFileSync(join(PKG_DIR, "docs/routing-manifest.json"), "utf8")
     );

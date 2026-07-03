@@ -1,5 +1,21 @@
 // Nurikabe (Delivery Gate) — The wall-spirit that holds the reply at the checkpoint until the verdict clears.
 // Part of Furaidē's shikigami — F.R.I.D.A.Y. collection (https://github.com/pratty010/F.R.I.D.A.Y)
+//
+// SUPERSEDED 2026-07-03: this plugin hook never fired in a real OpenCode
+// session. It correctly binds to the real `tool.execute.before` event, but
+// scopes itself to `tool === 'deliver'` — no tool named `deliver` exists
+// anywhere in this codebase, in any agent's tool list, or in OpenCode's
+// built-in tool set. Final assistant replies are not tool calls, so there was
+// never a real attachment point for this design (confirmed against
+// node_modules/@opencode-ai/plugin/dist/index.d.ts during the 2026-07-03
+// audit). Fail-closed delivery enforcement now lives in
+// scripts/workflow-state.mjs's `cmdAdvance` (see WORKFLOW_TERMINAL_STATES and
+// the exit-code-6 check there) — that script is already proven-wired at
+// runtime (nio.js and audit-logger.js both genuinely execFileSync it), unlike
+// this plugin hook. This file is kept, unregistered from
+// config/opencode.jsonc's `plugin` array, for institutional memory of why the
+// tool-gating approach was attempted and why it didn't work. Do not
+// re-register it without giving it a real attachment point first.
 /**
  * nurikabe.js
  * opencode plugin: fail-closed response delivery gate.

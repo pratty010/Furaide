@@ -9,11 +9,12 @@ Runtime contract for the v2 OpenCode harness.
 `scripts/workflow-state.mjs` is the sole writer of workflow runtime state.
 
 - Commands: `init`, `read`, `advance`, `gate`
-- Exit codes: `0` success, `1` error, `2` critical gate, `5` wrong caller, `9` CAS conflict
+- Exit codes: `0` success, `1` error, `2` critical gate, `5` caller not in the workflow's allowed-callers set, `6` unresolved critical gate verdict blocking a terminal/delivery transition, `9` CAS conflict
 - Workflow IDs: `wf1`, `wf2`, `wf3`, `wf4`, `wf5`
 - Invalid transitions are rejected.
-- Phase ownership is enforced by caller checks.
+- Ownership is DAG-based, not single-owner-for-life: `state.specialist` (set at `init`) is an audit/display field only — any agent documented as owning at least one state in that workflow (per the spec's state-ownership tables) may call `advance`/`gate` on that workflow instance, not only the agent that called `init`. `workflow-state.mjs` hardcodes a per-workflow allowed-callers table (`WORKFLOW_ALLOWED_CALLERS`) derived from those tables; a caller outside that set is rejected with exit `5`.
 - Gate loop caps are enforced by the state engine, not by prompt text alone.
+- **Delivery gate**: `cmdAdvance` blocks entry into each workflow's terminal/delivery-adjacent state (`FINISH_READY` for WF1-WF3, `DELIVERY` for WF4/WF5 — see `WORKFLOW_TERMINAL_STATES` in `workflow-state.mjs`) while any gate verdict recorded on that workflow instance is still `critical` (exit `6`). A later `gate` call for the same gate name that records a different verdict (e.g. `escalate`) resolves it. This supersedes the retired `plugins/gates/nurikabe.js` plugin hook, which bound to a `deliver` tool that never existed in OpenCode's tool set and never fired in a real session — `nurikabe.js` is kept in the repo with a `SUPERSEDED` header for institutional memory but is no longer registered in `config/opencode.jsonc`.
 
 Canonical command shapes:
 

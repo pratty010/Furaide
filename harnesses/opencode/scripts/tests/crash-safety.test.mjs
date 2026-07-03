@@ -16,7 +16,7 @@ test('state.json is always parseable after process kill', () => {
   const cwd = mkdtempSync(join(tmpdir(), 'cs'));
   const wf = 'w1';
   // init a good state
-  runWF(['init', '--cwd', cwd, '--workflow', wf, '--specialist', 'deep-researcher', '--phase', 'RECEIVED', '--session', 's1']);
+  runWF(['init', '--cwd', cwd, '--workflow', wf, '--specialist', 'kantoku--workflow-director', '--phase', 'RECEIVED', '--session', 's1']);
   // Confirm initial state is parseable
   const state = readWF(cwd, wf);
   expect(state.rev).toBe(1);
@@ -31,7 +31,7 @@ test('state.json is always parseable after process kill', () => {
         'scripts/workflow-state.mjs',
         'advance', '--cwd', cwd, '--workflow', wf,
         '--to', 'ROUTED', '--expected-rev', '1',
-        '--session', 's1', '--caller', 'deep-researcher',
+        '--session', 's1', '--caller', 'kantoku--workflow-director',
       ],
     { timeout: 50 },   // intentionally tiny — may SIGKILL before rename completes
   );
@@ -47,7 +47,7 @@ test('state.json is always parseable after process kill', () => {
 test('double-resume: exactly one advance wins, no torn state', () => {
   const cwd = mkdtempSync(join(tmpdir(), 'cs'));
   const wf = 'w2';
-  runWF(['init', '--cwd', cwd, '--workflow', wf, '--specialist', 'debugger', '--phase', 'RECEIVED', '--session', 's1']);
+  runWF(['init', '--cwd', cwd, '--workflow', wf, '--specialist', 'bakeneko--bug-hunter', '--phase', 'RECEIVED', '--session', 's1']);
 
   // Run two sequential advances with the same expected-rev.
   // (True concurrency via child_process on a single-threaded lock would require async
@@ -56,7 +56,7 @@ test('double-resume: exactly one advance wins, no torn state', () => {
     'scripts/workflow-state.mjs',
     'advance', '--cwd', cwd, '--workflow', wf,
     '--to', 'ROUTED', '--expected-rev', '1',
-    '--session', 's1', '--caller', 'debugger',
+    '--session', 's1', '--caller', 'bakeneko--bug-hunter',
   ];
 
   const r1 = spawnSync('bun', advanceArgs, { encoding: 'utf8', timeout: 10000 });

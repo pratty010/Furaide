@@ -10,7 +10,11 @@
  *   0 — success (state JSON on stdout)
  *   1 — general error
  *   2 — critical gate verdict
- *   5 — ownership rejection (wrong caller)
+ *   5 — ownership rejection (caller not in the workflow's allowed-callers set)
+ *   6 — terminal-transition blocked: unresolved critical gate verdict recorded for this
+ *       workflow instance (next free code after 5/ownership; see WORKFLOW_TERMINAL_STATES
+ *       and the H2 check in cmdAdvance — supersedes plugins/gates/nurikabe.js, which never
+ *       had a real attachment point)
  *   9 — CAS conflict (stale expected-rev)
  */
 
@@ -287,6 +291,99 @@ const WORKFLOWS = Object.freeze({
   },
 });
 
+// ---------------------------------------------------------------------------
+// DAG-based ownership (H4): per-workflow allowed-callers table.
+//
+// Each list is the set of agent names documented as owning at least one state
+// in that workflow, per the state-ownership tables in
+// docs/superpowers/specs/2026-06-30-opencode-harness-redesign-design.md
+// (WF1: lines ~570-597, WF2: ~1226-1255, WF3: ~1576-1603, WF4: ~1830-1859,
+// WF5: ~2166-2200), cross-referenced against agents/*.md. Generic role labels
+// in the spec tables ("build or general", "active implementer", "debugger",
+// "primary/coordinator") are resolved here to the concrete agent(s) that fill
+// that role. `state.specialist` (recorded at init) is kept as an audit/display
+// field only — it is no longer the sole authorization gate; any agent in the
+// workflow's list below may call `advance`/`gate` on that workflow instance.
+// ---------------------------------------------------------------------------
+const WORKFLOW_ALLOWED_CALLERS = Object.freeze({
+  wf1: Object.freeze([
+    'kantoku--workflow-director',
+    'kyakuhon--spec-planner',
+    'general',
+    'build',
+    'tsukumogami--code-forgemaster',
+    'kagami--verifier',
+    'oni--red-team-reviewer',
+    'hanko--git-seal',
+    'hansei--lesson-keeper',
+  ]),
+  wf2: Object.freeze([
+    'kantoku--workflow-director',
+    'bakeneko--bug-hunter',
+    'kagami--verifier',
+    'explore',
+    'scout',
+    'general',
+    'build',
+    'tsukumogami--code-forgemaster',
+    'oni--red-team-reviewer',
+    'hanko--git-seal',
+    'hansei--lesson-keeper',
+  ]),
+  wf3: Object.freeze([
+    'kantoku--workflow-director',
+    'fudo--security-guardian',
+    'explore',
+    'scout',
+    'general',
+    'build',
+    'tsukumogami--code-forgemaster',
+    'kagami--verifier',
+    'oni--red-team-reviewer',
+    'hanko--git-seal',
+    'hansei--lesson-keeper',
+  ]),
+  wf4: Object.freeze([
+    'kantoku--workflow-director',
+    'tsuchigumo--research-weaver',
+    'kagami--verifier',
+    'oni--red-team-reviewer',
+    'general',
+    'build',
+    'hansei--lesson-keeper',
+  ]),
+  wf5: Object.freeze([
+    'kantoku--workflow-director',
+    'kura--knowledge-banker',
+    'daikoku--finance-steward',
+    'tsuchigumo--research-weaver',
+    'general',
+    'kagami--verifier',
+    'oni--red-team-reviewer',
+    'hansei--lesson-keeper',
+  ]),
+});
+
+// ---------------------------------------------------------------------------
+// Delivery gate (H2): per-workflow terminal/delivery-adjacent state.
+//
+// This is the state whose incoming transition must be blocked when the
+// workflow instance carries an unresolved `critical` gate verdict. WF1-WF3
+// share the same shape (REVIEW/RISK_ACCEPTANCE_REVIEW -> ... -> FINISH_READY
+// -> GIT_HANDOFF): FINISH_READY is the "about to hand off" checkpoint. WF4
+// and WF5 both have a state literally named DELIVERY immediately after
+// REVIEW/SYNTHESIS — the direct analog of the "deliver" action
+// plugins/gates/nurikabe.js originally (and never successfully) tried to gate.
+// Supersedes nurikabe.js; see its SUPERSEDED header.
+// ---------------------------------------------------------------------------
+const WORKFLOW_TERMINAL_STATES = Object.freeze({
+  wf1: 'FINISH_READY',
+  wf2: 'FINISH_READY',
+  wf3: 'FINISH_READY',
+  wf4: 'DELIVERY',
+  wf5: 'DELIVERY',
+});
+
 const WORKFLOW_ALIASES = Object.freeze({
   w1: 'wf1',
   w2: 'wf2',
@@ -478,10 +575,10 @@ async function cmdAdvance(args) {
     const state = readState(statePath);
     if (!state) die('state.json not found — run init first');
 
-    // Ownership check
-    if (caller !== state.specialist) {
+    // Ownership check (H4: DAG-based allowed-callers, not single-owner-for-life)
+    if (!WORKFLOW_ALLOWED_CALLERS[workflowId].includes(caller)) {
       die(
-        `ownership: caller="${caller}" is not the specialist "${state.specialist}"`,
+        `ownership: caller="${caller}" is not an allowed caller for ${workflowId} (allowed: ${WORKFLOW_ALLOWED_CALLERS[workflowId].join(', ')})`,
         5,
       );
     }
@@ -493,6 +590,22 @@ async function cmdAdvance(args) {
 
     const fromPhase = state.phase;
     assertAllowedTransition(state, config, to);
+
+    // H2: delivery gate, enforced at the workflow-state layer (supersedes
+    // plugins/gates/nurikabe.js, which bound to a nonexistent `deliver` tool
+    // and never fired). Block entry into the workflow's terminal/delivery
+    // state while any recorded gate verdict is still `critical` — i.e. no
+    // later verdict for that same gate has overwritten it (escalate/override).
+    if (to === WORKFLOW_TERMINAL_STATES[workflowId]) {
+      const verdicts = Object.values(state.gate_verdicts || {});
+      if (verdicts.includes('critical')) {
+        die(
+          `terminal-transition blocked: ${workflowId} has an unresolved critical gate verdict; cannot advance to ${to}. Resolve or escalate the verdict first.`,
+          6,
+        );
+      }
+    }
+
     applyTransitionCaps(state, config, fromPhase, to);
     state.phase = to;
     state.workflow_states = state.workflow_states || [...config.states];
@@ -539,10 +652,10 @@ async function cmdGate(args) {
     const state = readState(statePath);
     if (!state) die('state.json not found — run init first');
 
-    // Ownership check
-    if (caller !== state.specialist) {
+    // Ownership check (H4: DAG-based allowed-callers, not single-owner-for-life)
+    if (!WORKFLOW_ALLOWED_CALLERS[workflowId].includes(caller)) {
       die(
-        `ownership: caller="${caller}" is not the specialist "${state.specialist}"`,
+        `ownership: caller="${caller}" is not an allowed caller for ${workflowId} (allowed: ${WORKFLOW_ALLOWED_CALLERS[workflowId].join(', ')})`,
         5,
       );
     }

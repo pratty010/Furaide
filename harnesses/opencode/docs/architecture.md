@@ -23,12 +23,14 @@ The active plugin tree is bucketed by responsibility:
 
 | Bucket | Paths | Notes |
 |---|---|---|
-| Gates | `plugins/gates/nio.js`, `plugins/gates/nurikabe.js`, `plugins/gates/komainu.js` | Workflow/tool gates and edit screening |
-| Failover | `plugins/failover/migawari.js` | Reads `docs/routing-manifest.json` at runtime |
+| Gates | `plugins/gates/nio.js`, `plugins/gates/komainu.js` | Workflow/tool gates and edit screening |
+| Failover | `plugins/failover/migawari.js` | Passive `session.error` logger for operator visibility — no runtime retry/swap; automatic model substitution happens at install time via `scripts/model-resolve.mjs` |
 | Tools | `plugins/tools/web-tools.ts`, `plugins/tools/web-tools/**` | Web search/fetch/maps plus pricing/runtime helpers |
 | Hooks | `plugins/hooks/audit-logger.js`, `plugins/hooks/compaction-injector.js` | Audit log append + compaction prompt injection |
 
 `config/opencode.jsonc` must point at the bucketed paths exactly. `scripts/install-fleet.sh`, `scripts/merge-config.mjs`, tests, and README must agree on those paths.
+
+`plugins/gates/nurikabe.js` (SUPERSEDED 2026-07-03) is no longer in the `Gates` bucket above or registered in `config/opencode.jsonc` — it bound to a `deliver` tool that never existed and never fired at runtime. The delivery gate it attempted is now enforced in `scripts/workflow-state.mjs`'s `cmdAdvance` (exit code `6` on an unresolved critical gate verdict at a workflow's terminal/delivery-adjacent state). The file itself remains on disk with a `SUPERSEDED` header for institutional memory.
 
 ---
 

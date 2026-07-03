@@ -31,9 +31,9 @@
     {
       "id": "failover",
       "label": "Model Failover",
-      "description": "Migawari plugin and the routing manifest it reads. Cannot be split.",
+      "description": "Migawari plugin (session.error visibility logger) and the routing manifest that scripts/model-resolve.mjs consumes at install time to substitute unavailable models. Cannot be split.",
       "atomic": true,
-      "coupling": "migawari.js reads docs/routing-manifest.json at runtime",
+      "coupling": "docs/routing-manifest.json is the install-time fallback-chain source for scripts/model-resolve.mjs; migawari.js only logs runtime session.error events, it does not read the manifest",
       "requires_bun": false,
       "default_on": true,
       "target_subdirs": [

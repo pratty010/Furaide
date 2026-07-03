@@ -4,7 +4,9 @@
   "lsp": true,
   "plugin": [
     "./plugins/gates/nio.js",
-    "./plugins/gates/nurikabe.js",
+    // nurikabe.js SUPERSEDED 2026-07-03 — delivery gate now enforced in
+    // scripts/workflow-state.mjs's cmdAdvance (H2). See nurikabe.js's own
+    // header for why it never had a real attachment point.
     "./plugins/gates/komainu.js",
     "./plugins/failover/migawari.js",
     "./plugins/tools/web-tools.ts",

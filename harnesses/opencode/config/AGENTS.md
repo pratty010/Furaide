@@ -137,9 +137,10 @@ Phase names are v2 workflow states, not the old recon/plan/execute/review shorth
 Active runtime plugins:
 
 - `nio.js`: blocks unsafe tool execution when workflow state/gates do not permit progress
-- `nurikabe.js`: blocks final delivery when unresolved workflow warnings or critical gates remain
 - `komainu.js`: screens edits/writes for dangerous patterns
-- `migawari.js`: walks the fallback chain from `docs/routing-manifest.json`
+- `migawari.js`: logs `session.error` events (provider/model failures) to a failover-visibility log for operator review. It does not retry calls or swap models — the OpenCode plugin SDK has no hook for that. Automatic model substitution happens at install time via `scripts/model-resolve.mjs`, before the fleet ever runs.
+
+Delivery gate (SUPERSEDED 2026-07-03): `plugins/gates/nurikabe.js` bound to a `deliver` tool that never existed in OpenCode's tool set and never fired at runtime. It is no longer registered in `config/opencode.jsonc`. Fail-closed enforcement of unresolved critical gate verdicts now lives in `scripts/workflow-state.mjs`'s `cmdAdvance`: entry into each workflow's terminal/delivery-adjacent state (`FINISH_READY` for WF1-WF3, `DELIVERY` for WF4/WF5) is rejected with exit code `6` while any recorded gate verdict on that workflow instance is still `critical`.
 
 Full state-machine and artifact contract: `docs/workflows.md`.
 

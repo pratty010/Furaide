@@ -109,11 +109,11 @@ const seedFinanceStatusFixture = (root, subject = 'acme') => {
 };
 
 const specialists = {
-  wf1: 'deep-researcher',
-  wf2: 'debugger',
-  wf3: 'security-owner',
-  wf4: 'research-owner',
-  wf5: 'finance-owner',
+  wf1: 'kantoku--workflow-director',
+  wf2: 'bakeneko--bug-hunter',
+  wf3: 'fudo--security-guardian',
+  wf4: 'tsuchigumo--research-weaver',
+  wf5: 'daikoku--finance-steward',
 };
 
 const initWorkflow = (wf, phase = 'RECEIVED', session = 's1') => {

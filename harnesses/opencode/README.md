@@ -7,7 +7,7 @@ Shipped runtime surface:
 - 6 workflow specialists
 - 6 review/support subagents
 - 3 worker-tier built-ins (`general`, `explore`, `scout`)
-- 4 always-on runtime plugins (`nio`, `nurikabe`, `komainu`, `migawari`)
+- 3 always-on runtime plugins (`nio`, `komainu`, `migawari`) — plus the delivery gate, now enforced in `scripts/workflow-state.mjs` rather than as a plugin (see `docs/workflows.md`; `nurikabe.js` is retired/superseded)
 - 1 web-tools plugin bucket
 - shared rules, reference docs, and the Workflow #5 finance suite
 
@@ -69,7 +69,7 @@ Your OpenCode session receives:
 - **15 fleet agents** — 6 workflow specialists, 6 review/support subagents, and 3 overridden worker-tier built-ins (`general`, `explore`, `scout`)
 - **Instructions** — `config/AGENTS.md` (runtime fleet guide) plus all files under `rules/*.md`
 - **Commands** — any `.md` files under `commands/` (e.g., `/tools-config`)
-- **4 always-on runtime plugins** — gates (`nio`, `nurikabe`, `komainu`), model failover (`migawari`)
+- **3 always-on runtime plugins** — gates (`nio`, `komainu`), model-error visibility logging (`migawari`). The delivery gate is enforced in `scripts/workflow-state.mjs` instead of as a plugin; `nurikabe.js` is retired/superseded and no longer registered in `config/opencode.jsonc`.
 - **1 web-tools plugin** bucket — `web_search`, `fetch_content`, `maps_search`
 - **Shared rules and reference docs** — workflows, routing manifests, model budgets, operator guidance
 - **Skills pipeline** — synced external skills (`superpowers`, `mattpocock`, `addyosmani`) plus bundled addenda, idempotent via a version-stamped receipt
