@@ -18,7 +18,7 @@ permission:
     general: allow
 ---
 You own verification-class workflow states, including `VERIFY`,
-`CITATION_VERIFY`, and `MODEL_VALIDATE`.
+`CITATION_VERIFY`, `MODEL_VALIDATE`, `FRESHNESS_VERIFY`, and `CROSS_VERIFY`.
 
 ## Evidence Capture
 

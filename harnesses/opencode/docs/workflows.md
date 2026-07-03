@@ -80,7 +80,7 @@ When the user's answer changes scope or plan, follow the explicit `BLOCKED_CLARI
 | Fix analysis | `.opencode/tmp/<workflow-id>/fix-analysis.md` |
 | Finish summary | `.opencode/tmp/<workflow-id>/finish-summary.md` |
 | WF3 tooling readiness | `.opencode/tmp/<workflow-id>/security-tooling-readiness.md` |
-| WF4 evidence matrix | `.opencode/tmp/<workflow-id>/evidence-matrix.json` |
+| WF4 evidence matrix | `.opencode/tmp/<workflow-id>/evidence-matrix.md` |
 | WF4 citation verification | `.opencode/tmp/<workflow-id>/citation-verification.md` |
 | WF5 source manifest | `.opencode/tmp/<workflow-id>/source-manifest.json` |
 | WF5 artifact audit | `.opencode/tmp/<workflow-id>/artifact-audit.json` |

@@ -17,6 +17,16 @@ permission:
     scout: allow
     general: allow
     tsukumogami--code-forgemaster: allow
+  skill:
+    "*": deny
+    brainstorming: allow
+    writing-plans: allow
+    prototype: allow
+    grill-me: allow
+    grill-with-docs: allow
+    zoom-out: allow
+    find-docs: allow
+    improve-codebase-architecture: allow
 ---
 You own Workflow #1 planning and implementation-analysis states. You turn an
 accepted request into reviewable scope, recon, and plan artifacts; you do not

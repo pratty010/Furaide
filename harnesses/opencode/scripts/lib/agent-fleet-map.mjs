@@ -1,4 +1,12 @@
-export const INTERIM_V2_FLEET = [
+// This file exists because docs/routing-manifest.json alone doesn't cover rename
+// history: AGENT_RENAME_MAP (old stem -> current v2 name, used to flag stale
+// references) and LEGACY_AGENT_ALIASES (retired short names -> current names)
+// have no equivalent in routing-manifest.json, which only records the current
+// agent list and their model routing. V2_FLEET below is the current agent
+// roster and happens to match routing-manifest.json's combined specialist +
+// subagent keys, but is kept alongside the rename/alias maps it's derived
+// from and cross-checked against.
+export const V2_FLEET = [
   'bakeneko--bug-hunter',
   'daikoku--finance-steward',
   'fudo--security-guardian',
@@ -50,10 +58,10 @@ export const LEGACY_AGENT_ALIASES = {
   designer: 'general',
 };
 
-export const ALL_AGENT_TARGETS = [...INTERIM_V2_FLEET];
+export const ALL_AGENT_TARGETS = [...V2_FLEET];
 export const RENAME_BY_CURRENT = new Map(AGENT_RENAME_MAP.map((entry) => [entry.current, entry.next]));
 export const GROUPS = {
-  specialists: INTERIM_V2_FLEET.filter(name => [
+  specialists: V2_FLEET.filter(name => [
     'tsukumogami--code-forgemaster',
     'tsuchigumo--research-weaver',
     'daikoku--finance-steward',
@@ -61,7 +69,7 @@ export const GROUPS = {
     'kantoku--workflow-director',
     'kyakuhon--spec-planner'
   ].includes(name)),
-  subagents: INTERIM_V2_FLEET.filter(name => [
+  subagents: V2_FLEET.filter(name => [
     'oni--red-team-reviewer',
     'bakeneko--bug-hunter',
     'hanko--git-seal',
@@ -69,6 +77,6 @@ export const GROUPS = {
     'hansei--lesson-keeper',
     'kura--knowledge-banker'
   ].includes(name)),
-  others: INTERIM_V2_FLEET.filter(name => ['general', 'explore', 'scout'].includes(name)),
+  others: V2_FLEET.filter(name => ['general', 'explore', 'scout'].includes(name)),
 };
 
