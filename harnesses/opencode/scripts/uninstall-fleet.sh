@@ -70,6 +70,19 @@ while [[ $# -gt 0 ]]; do
   shift
 done
 
+# ── Preflight: required tools ─────────────────────────────────────────────────
+for bin in bun jq git; do
+  if ! command -v "$bin" >/dev/null 2>&1; then
+    case "$bin" in
+      bun) url='https://bun.sh' ;;
+      jq)  url='https://jqlang.org/download/' ;;
+      git) url='https://git-scm.com/downloads' ;;
+    esac
+    _err "Required tool '$bin' not found on PATH. Install it first: $url"
+    exit 1
+  fi
+done
+
 if [[ ! -f "$MANIFEST" ]]; then
   _err "Manifest not found: $MANIFEST"
   exit 1
@@ -363,25 +376,46 @@ for scope_spec in "${selected_scopes[@]}"; do
       fi
     fi
 
-    # Files
+    # Files/globs registered in the current manifest — always computed
+    # (used below for plugin/rules/agents config-unwire tracking regardless
+    # of which removal path is taken).
     mapfile -t files < <(jq -r ".components[$i].files[]" "$MANIFEST")
-    for rel in "${files[@]}"; do
-      do_uninstall_file "$rel" "$target_dir"
-    done
+    mapfile -t globs < <(jq -r ".components[$i].globs[]" "$MANIFEST")
 
-    # Common files (if any)
+    # Prefer the receipt's per-component installed-files list (finding #4)
+    # as the authoritative removal list — it reflects exactly what
+    # install-fleet.sh copied for this component at install time, immune
+    # to manifest drift (renamed/removed files) between install and
+    # uninstall. Fall back to the current manifest's files+globs for
+    # receipts written before this field existed, or when there's no
+    # receipt at all.
+    component_files_json=""
+    if [[ "$use_receipt" -eq 1 ]]; then
+      component_files_json="$(jq -c --arg id "$id" '.installedFilesByComponent[$id] // empty' "$receipt_path" 2>/dev/null || true)"
+    fi
+
+    if [[ -n "$component_files_json" ]]; then
+      mapfile -t receipt_files < <(printf '%s' "$component_files_json" | jq -r '.[]')
+      for rel in "${receipt_files[@]}"; do
+        do_uninstall_file "$rel" "$target_dir"
+      done
+    else
+      for rel in "${files[@]}"; do
+        do_uninstall_file "$rel" "$target_dir"
+      done
+      for g in "${globs[@]}"; do
+        do_uninstall_glob "$g" "$target_dir"
+      done
+    fi
+
+    # Common files (if any) — shared across components, not part of the
+    # per-component receipt list; always driven by the current manifest.
     if jq -e ".components[$i].common_files" "$MANIFEST" &>/dev/null; then
       mapfile -t common_dsts < <(jq -r ".components[$i].common_files[].dst" "$MANIFEST")
       for dst in "${common_dsts[@]}"; do
         do_uninstall_file "$dst" "$target_dir"
       done
     fi
-
-    # Globs
-    mapfile -t globs < <(jq -r ".components[$i].globs[]" "$MANIFEST")
-    for g in "${globs[@]}"; do
-      do_uninstall_glob "$g" "$target_dir"
-    done
 
     # Track plugins, rules, and agents for unwiring config
     for rel in "${files[@]}"; do

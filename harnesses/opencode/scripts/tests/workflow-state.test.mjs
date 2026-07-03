@@ -334,3 +334,31 @@ test('H2: unresolved critical gate verdict blocks the terminal/delivery transiti
   const afterEscalate = advance(cwd, wf, resolved.rev, 'FINISH_READY', 'hanko--git-seal');
   expect(afterEscalate.phase).toBe('FINISH_READY');
 });
+
+test('H2: unresolved warn-unresolved gate verdict also blocks the terminal/delivery transition', () => {
+  // Same terminal-transition gate as the critical case above, but driven via
+  // cmdGate's independent warn-count escalation path (a gate's warn count
+  // exceeding --max-iterations flips its verdict to 'warn-unresolved'
+  // without ever recording 'critical'). plugins/gates/nio.js's runtime
+  // tool-blocker treats warn-unresolved as equally blocking as critical, so
+  // workflow-state.mjs's own terminal-transition check must too.
+  const { cwd, wf } = mkWorkflow('wf1');
+  let state = runOk([
+    'init', '--cwd', cwd, '--workflow', wf,
+    '--specialist', 'kantoku--workflow-director', '--phase', 'CHECKPOINT_GIT', '--session', 's1',
+  ]);
+
+  let last;
+  for (let i = 0; i < 4; i++) {
+    last = runOk([
+      'gate', '--cwd', cwd, '--workflow', wf,
+      '--gate', 'release', '--verdict', 'warn', '--max-iterations', '3', '--session', 's1', '--caller', 'oni--red-team-reviewer',
+    ]);
+  }
+  expect(last.gate_verdicts.release).toBe('warn-unresolved');
+
+  expectFailure([
+    'advance', '--cwd', cwd, '--workflow', wf,
+    '--to', 'FINISH_READY', '--expected-rev', String(last.rev), '--session', 's1', '--caller', 'hanko--git-seal',
+  ], 6, /terminal-transition blocked/);
+});

@@ -8,6 +8,11 @@
  * No-op for all non-Edit/Write tools. Autonomy preserved.
  */
 
+// Plugins that must remain registered in config/opencode.jsonc's plugin array.
+// Keep in sync with that file — update here (single source of truth for the
+// plugin-removal pattern below) whenever a plugin is renamed or relocated.
+const REQUIRED_PLUGIN_PATHS = ['./plugins/gates/nio.js', './plugins/failover/migawari.js'];
+
 const PATTERNS = [
   // --- Workflow / state integrity ---
   { key: 'state-json-direct',
@@ -25,12 +30,10 @@ const PATTERNS = [
     label: 'Banned model gemini-2.5-* referenced (removed from whitelist)',
     test: ({ args }) => /gemini-2\.5-/.test(args?.content || args?.new_string || '') },
   { key: 'plugin-removal',
-    label: 'gate-enforcer or model-failover removed from opencode.jsonc plugin array',
+    label: `${REQUIRED_PLUGIN_PATHS.join(' or ')} removed from opencode.jsonc plugin array`,
     test: ({ args }) =>
-      /opencode\.jsonc/.test(args?.file_path || '') && (
-        !/gate-enforcer/.test(args?.content || '') ||
-        !/model-failover/.test(args?.content || '')
-      ) },
+      /opencode\.jsonc/.test(args?.file_path || '') &&
+      REQUIRED_PLUGIN_PATHS.some((p) => !new RegExp(p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).test(args?.content || '')) },
   { key: 'whitelist-banned',
     label: 'Banned model family added back to opencode.jsonc whitelist',
     test: ({ args }) =>
@@ -152,6 +155,7 @@ export function __test_hookFor() {
 
   return async function toolExecuteBefore(input, output) {
     const tool = input?.tool;
+    const sessionID = input?.sessionID;
     const args = output?.args;
     if (!EDIT_TOOLS.has(tool)) return;
 
@@ -160,8 +164,9 @@ export function __test_hookFor() {
       try { matched = pattern.test({ tool, args }); } catch { continue; }
       if (!matched) continue;
 
-      const count = (hitCounts.get(pattern.key) || 0) + 1;
-      hitCounts.set(pattern.key, count);
+      const hitKey = `${sessionID}:${pattern.key}`;
+      const count = (hitCounts.get(hitKey) || 0) + 1;
+      hitCounts.set(hitKey, count);
 
       if (count >= 2) {
         throw new Error(

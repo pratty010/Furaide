@@ -310,7 +310,6 @@ const WORKFLOW_ALLOWED_CALLERS = Object.freeze({
     'kantoku--workflow-director',
     'kyakuhon--spec-planner',
     'general',
-    'build',
     'tsukumogami--code-forgemaster',
     'kagami--verifier',
     'oni--red-team-reviewer',
@@ -324,7 +323,6 @@ const WORKFLOW_ALLOWED_CALLERS = Object.freeze({
     'explore',
     'scout',
     'general',
-    'build',
     'tsukumogami--code-forgemaster',
     'oni--red-team-reviewer',
     'hanko--git-seal',
@@ -336,7 +334,6 @@ const WORKFLOW_ALLOWED_CALLERS = Object.freeze({
     'explore',
     'scout',
     'general',
-    'build',
     'tsukumogami--code-forgemaster',
     'kagami--verifier',
     'oni--red-team-reviewer',
@@ -349,7 +346,6 @@ const WORKFLOW_ALLOWED_CALLERS = Object.freeze({
     'kagami--verifier',
     'oni--red-team-reviewer',
     'general',
-    'build',
     'hansei--lesson-keeper',
   ]),
   wf5: Object.freeze([
@@ -594,13 +590,15 @@ async function cmdAdvance(args) {
     // H2: delivery gate, enforced at the workflow-state layer (supersedes
     // plugins/gates/nurikabe.js, which bound to a nonexistent `deliver` tool
     // and never fired). Block entry into the workflow's terminal/delivery
-    // state while any recorded gate verdict is still `critical` — i.e. no
-    // later verdict for that same gate has overwritten it (escalate/override).
+    // state while any recorded gate verdict is still `critical` or
+    // `warn-unresolved` — i.e. no later verdict for that same gate has
+    // overwritten it (escalate/override). Matches plugins/gates/nio.js's
+    // runtime tool-blocker, which treats both verdicts as equally blocking.
     if (to === WORKFLOW_TERMINAL_STATES[workflowId]) {
       const verdicts = Object.values(state.gate_verdicts || {});
-      if (verdicts.includes('critical')) {
+      if (verdicts.some((v) => v === 'critical' || v === 'warn-unresolved')) {
         die(
-          `terminal-transition blocked: ${workflowId} has an unresolved critical gate verdict; cannot advance to ${to}. Resolve or escalate the verdict first.`,
+          `terminal-transition blocked: ${workflowId} has an unresolved critical or warn-unresolved gate verdict; cannot advance to ${to}. Resolve or escalate the verdict first.`,
           6,
         );
       }

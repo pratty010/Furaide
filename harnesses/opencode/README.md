@@ -19,6 +19,16 @@ Part of the [F.R.I.D.A.Y.](https://github.com/pratty010/Furaide) collection.
 
 The fleet installer supports remote bootstrap (no clone needed) or local-clone installation. Both paths result in the same configuration merged into your OpenCode config.
 
+### Prerequisites
+
+The installer, uninstaller, and standalone web-tools installer all preflight-check for:
+
+- [`bun`](https://bun.sh) — runs the model resolver, config merges, and skills sync
+- [`jq`](https://jqlang.org/download/) — JSON parsing throughout install/uninstall
+- [`git`](https://git-scm.com/downloads) — required for the remote bootstrap clone and skills pipeline
+
+If any is missing, the scripts exit early with an actionable error instead of failing on the first `bun`/`jq`/`git` invocation.
+
 ### Remote bootstrap (one-liner)
 
 ```bash
@@ -153,6 +163,8 @@ The web-tools bucket exposes:
 - `maps_search`
 
 `/tools-config` edits tool defaults and budgets. `docs/models/gemini-tool-fees.yml` remains shipped because pricing code reads it at runtime.
+
+`scripts/install-web-tools.sh` installs just this bucket standalone (the same files a normal `install-fleet.sh` run already installs as part of its `web-tools` manifest component). You don't need it for a standard install; it's there for direct/manual web-tools-only installs. Standalone runs are still covered by `uninstall-fleet.sh --purge` — backups use the same shared `.kura_backup` convention as the main installer.
 
 ---
 

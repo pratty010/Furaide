@@ -2,6 +2,14 @@
 # install-web-tools.sh: Full standalone web-tools installer
 # Usage: bash scripts/install-web-tools.sh <target-opencode-config-dir>
 #
+# The fleet installer's `web-tools` manifest component already installs
+# these same files as part of a normal `install-fleet.sh` run — you don't
+# need to run this script for a standard install. It exists for direct /
+# manual installs of just the web-tools plugin; standalone runs are still
+# covered by `uninstall-fleet.sh --purge` (backups use the same shared
+# .kura_backup convention and receipt-aware reuse as install-fleet.sh, and
+# the web-tools files are already tracked by that fleet-manifest component).
+#
 # Copies the plugin, provider/tool modules, slash command, config, and
 # pricing supplement into <target>, merges the package fragment into
 # <target>/package.json, registers the plugin in <target>/opencode.jsonc
@@ -24,17 +32,52 @@ _info()  { printf '%b\n' "${GRN}[info]${RST}  $*"; }
 _warn()  { printf '%b\n' "${YLW}[warn]${RST}  $*"; }
 _err()   { printf '%b\n' "${RED}[error]${RST} $*" >&2; }
 
-# Backup helper: copy <path> into <dir>/<basename> if it exists.
+# ── Preflight: required tools ─────────────────────────────────────────────────
+for bin in bun jq git; do
+  if ! command -v "$bin" >/dev/null 2>&1; then
+    case "$bin" in
+      bun) url='https://bun.sh' ;;
+      jq)  url='https://jqlang.org/download/' ;;
+      git) url='https://git-scm.com/downloads' ;;
+    esac
+    _err "Required tool '$bin' not found on PATH. Install it first: $url"
+    exit 1
+  fi
+done
+
+# Shared backup-root convention (matches install-fleet.sh's ensure_backup_root):
+# reuse the backup root recorded in an existing install receipt for this
+# target if one is present, so uninstall-fleet.sh's restore logic (which
+# reads .backup.root from the receipt) finds these backups too, instead of
+# minting a second, disconnected backup root that nothing ever restores from.
+INSTALL_TIMESTAMP="$(date -u +%Y%m%dT%H%M%SZ)"
+RECEIPT_PATH="$TARGET_DIR/.furaide-install-receipt.json"
+BACKUP_ROOT=""
+if [[ -f "$RECEIPT_PATH" ]]; then
+  BACKUP_ROOT="$(jq -r '.backup.root // empty' "$RECEIPT_PATH" 2>/dev/null || true)"
+fi
+if [[ -z "$BACKUP_ROOT" ]]; then
+  BACKUP_ROOT="$TARGET_DIR/.kura_backup/$INSTALL_TIMESTAMP"
+fi
+
+# Backup helper: copy <path> into $BACKUP_ROOT/<relative-path-under-target>
+# if it exists, preserving the relative path so uninstall-fleet.sh's
+# restore-by-relative-path lookup can find it. Skips the backup if a copy
+# already exists at that spot in the (possibly reused) backup root — the
+# true original is already preserved there.
 # We copy (not move) because the installer often mutates the file in-place
 # immediately after; moving first would break the mutator's read path.
 backup_existing() {
   local path="$1"
   if [[ -e "$path" ]]; then
-    local backup_dir
-    backup_dir="$TARGET_DIR/kura_backup/$(date +%Y%m%d-%H%M%S)"
-    mkdir -p "$backup_dir"
-    cp "$path" "$backup_dir/"
-    _warn "backed up existing $path -> $backup_dir/"
+    local rel="${path#"$TARGET_DIR"/}"
+    local backup_dst="$BACKUP_ROOT/$rel"
+    if [[ -e "$backup_dst" ]]; then
+      return 0
+    fi
+    mkdir -p "$(dirname "$backup_dst")"
+    cp -P "$path" "$backup_dst"
+    _warn "backed up existing $path -> $backup_dst"
   fi
 }
 

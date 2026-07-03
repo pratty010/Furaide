@@ -43,3 +43,49 @@ test('non-Edit/Write tool → no check (bash with secret)', async () => {
     hook({ tool: 'bash', sessionID: 's1', callID: 'c1' }, { args: { command: 'echo sk-abc123456789012345' } })
   ).resolves.toBeUndefined();
 });
+
+test('required plugin removed from opencode.jsonc → SECURITY WARNING', async () => {
+  const hook = __test_hookFor();
+  await expect(
+    hook(
+      { tool: 'edit', sessionID: 's2', callID: 'c1' },
+      { args: { file_path: 'config/opencode.jsonc', content: '"plugin": ["./plugins/gates/nio.js"]' } }
+    )
+  ).rejects.toThrow('SECURITY WARNING');
+});
+
+test('both required plugins present in opencode.jsonc → no check', async () => {
+  const hook = __test_hookFor();
+  await expect(
+    hook(
+      { tool: 'edit', sessionID: 's2', callID: 'c1' },
+      {
+        args: {
+          file_path: 'config/opencode.jsonc',
+          content: '"plugin": ["./plugins/gates/nio.js", "./plugins/failover/migawari.js"]',
+        },
+      }
+    )
+  ).resolves.toBeUndefined();
+});
+
+test('hit-count escalation is per-session, not process-global', async () => {
+  const hook = __test_hookFor();
+  const output = { args: { content: 'const key = "sk-abc123456789012345";' } };
+
+  // First hit in session A → warning (count 1)
+  await expect(
+    hook({ tool: 'edit', sessionID: 'sessionA', callID: 'c1' }, output)
+  ).rejects.toThrow('SECURITY WARNING');
+
+  // First hit in session B for the same pattern must NOT be treated as an
+  // escalated second hit — sessions are isolated.
+  await expect(
+    hook({ tool: 'edit', sessionID: 'sessionB', callID: 'c1' }, output)
+  ).rejects.toThrow('SECURITY WARNING');
+
+  // Second hit in session A now escalates.
+  await expect(
+    hook({ tool: 'edit', sessionID: 'sessionA', callID: 'c2' }, output)
+  ).rejects.toThrow('SECURITY ESCALATION');
+});

@@ -56,7 +56,7 @@ test('installer creates backups and receipt when overwriting existing files', { 
     expect(receipt.mergedConfig).toBeDefined();
     expect(receipt.modelMapSummary).toBeDefined();
 
-    const backupRoot = join(dir, 'kura_backup', receipt.timestamp);
+    const backupRoot = join(dir, '.kura_backup', receipt.timestamp);
     expect(existsSync(join(backupRoot, 'opencode.json'))).toBe(true);
     expect(existsSync(join(backupRoot, 'agents', 'tsuchigumo--research-weaver.md'))).toBe(true);
     expect(output).toContain('Backup created');

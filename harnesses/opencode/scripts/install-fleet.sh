@@ -102,6 +102,19 @@ while [[ $# -gt 0 ]]; do
   shift
 done
 
+# ── Preflight: required tools ─────────────────────────────────────────────────
+for bin in bun jq git; do
+  if ! command -v "$bin" >/dev/null 2>&1; then
+    case "$bin" in
+      bun) url='https://bun.sh' ;;
+      jq)  url='https://jqlang.org/download/' ;;
+      git) url='https://git-scm.com/downloads' ;;
+    esac
+    _err "Required tool '$bin' not found on PATH. Install it first: $url"
+    exit 1
+  fi
+done
+
 # ── Model resolution ───────────────────────────────────────────────────────────
 MODEL_RESOLVER="$FLEET_ROOT/scripts/model-resolve.mjs"
 if [[ ! -f "$MODEL_RESOLVER" ]]; then
@@ -110,11 +123,7 @@ if [[ ! -f "$MODEL_RESOLVER" ]]; then
 fi
 
 _info "Resolving model mappings..."
-RESOLVER_OUTPUT=$(bun "$MODEL_RESOLVER")
-if [[ $? -ne 0 ]]; then
-  _err "Model resolver failed"
-  exit 1
-fi
+RESOLVER_OUTPUT=$(bun "$MODEL_RESOLVER") || { _err "Model resolver failed"; exit 1; }
 
 ALL_AVAILABLE=$(echo "$RESOLVER_OUTPUT" | jq -r '.allAvailable')
 CHANGES_JSON=$(echo "$RESOLVER_OUTPUT" | jq -c '.changes')
@@ -193,21 +202,47 @@ resolve_scope_dir() {
 declare -A COMP_TARGETS   # id -> space-separated absolute dirs
 declare -A TARGET_COMPONENTS
 declare -A TARGET_INSTALLED_FILES
+# Keyed by "target_dir<RS>component_id" (RS = $'\x1e', a unit separator that
+# won't collide with path characters) -> newline-separated relative paths
+# actually installed for that component at that target. Powers the
+# per-component installedFilesByComponent receipt field (finding #4) so
+# uninstall can remove exactly what was installed, not whatever the
+# manifest happens to list today.
+declare -A TARGET_COMPONENT_FILES
 declare -A TARGET_BACKUP_ROOTS
 declare -A TARGET_BACKUP_CREATED
 
 ACTIVE_TARGET_DIR=""
 ACTIVE_COMPONENT_ID=""
 
+# Reads a target's existing install receipt (from a prior run, if any) and
+# echoes its recorded backup.root. Empty output if no receipt or no root
+# was recorded. Safe to call any time before write_install_receipt() runs
+# for this target — the receipt file itself is never touched by do_copy.
+existing_receipt_backup_root() {
+  local target_dir="$1"
+  local receipt_path="$target_dir/.furaide-install-receipt.json"
+  [[ -f "$receipt_path" ]] || return 0
+  jq -r '.backup.root // empty' "$receipt_path" 2>/dev/null || true
+}
+
 # Sets the global TARGET_BACKUP_ROOTS[target_dir] entry and leaves the
 # resolved value in $ENSURE_BACKUP_ROOT_RESULT. Must NOT be called via
 # command substitution ($(...)) — that forks a subshell and any writes to
 # the TARGET_BACKUP_ROOTS associative array would be lost when it exits.
+#
+# On a repeat install, reuses the backup root recorded in the target's
+# existing receipt (if any) instead of minting a fresh timestamped one —
+# otherwise the true original backup from an earlier run becomes orphaned
+# and unreachable via the documented uninstall flow.
 ensure_backup_root() {
   local target_dir="$1"
   local root="${TARGET_BACKUP_ROOTS[$target_dir]:-}"
   if [[ -z "$root" ]]; then
-    root="$target_dir/kura_backup/$INSTALL_TIMESTAMP"
+    root="$(existing_receipt_backup_root "$target_dir")"
+    if [[ -z "$root" ]]; then
+      root="$target_dir/.kura_backup/$INSTALL_TIMESTAMP"
+    fi
     TARGET_BACKUP_ROOTS["$target_dir"]="$root"
   fi
   ENSURE_BACKUP_ROOT_RESULT="$root"
@@ -220,6 +255,10 @@ record_installed_file() {
     "$ACTIVE_TARGET_DIR"/*)
       local rel="${dst#"$ACTIVE_TARGET_DIR"/}"
       TARGET_INSTALLED_FILES["$ACTIVE_TARGET_DIR"]+="$rel"$'\n'
+      if [[ -n "$ACTIVE_COMPONENT_ID" ]]; then
+        local comp_key="$ACTIVE_TARGET_DIR"$'\x1e'"$ACTIVE_COMPONENT_ID"
+        TARGET_COMPONENT_FILES["$comp_key"]+="$rel"$'\n'
+      fi
       ;;
   esac
 }
@@ -422,6 +461,26 @@ merge_config() {
   _ok "Config merged: $cfg"
 }
 
+# Builds the installedFilesByComponent JSON object for a target: component
+# id -> sorted-unique array of relative paths actually installed for it.
+# Used by uninstall-fleet.sh (finding #4) as the authoritative removal list,
+# immune to later manifest drift.
+build_installed_files_by_component() {
+  local target_dir="$1"
+  local ids_raw="${TARGET_COMPONENTS[$target_dir]:-}"
+  local result='{}'
+  local id
+  while IFS= read -r id; do
+    [[ -n "$id" ]] || continue
+    local key="$target_dir"$'\x1e'"$id"
+    local files_raw="${TARGET_COMPONENT_FILES[$key]:-}"
+    local files_json
+    files_json=$(printf '%s' "$files_raw" | awk 'NF' | sort -u | jq -R . | jq -s .)
+    result=$(printf '%s' "$result" | jq --arg id "$id" --argjson files "$files_json" '.[$id] = $files')
+  done < <(printf '%s' "$ids_raw" | awk 'NF' | sort -u)
+  printf '%s' "$result"
+}
+
 write_install_receipt() {
   local target_dir="$1"
   local receipt_path="$target_dir/.furaide-install-receipt.json"
@@ -433,15 +492,30 @@ write_install_receipt() {
   local backup_root="${TARGET_BACKUP_ROOTS[$target_dir]:-}"
   local backup_created="${TARGET_BACKUP_CREATED[$target_dir]:-0}"
 
+  # Preserve backup.root/backup.created from a prior run's receipt when this
+  # run didn't itself trigger ensure_backup_root/backup_existing_file for
+  # this target (e.g. nothing new to overwrite) — otherwise a repeat
+  # install with no fresh backups would null out the pointer to backups
+  # made by an earlier run.
+  if [[ -z "$backup_root" ]]; then
+    backup_root="$(existing_receipt_backup_root "$target_dir")"
+  fi
+  if [[ "$backup_created" -eq 0 && -f "$receipt_path" ]]; then
+    local prev_created
+    prev_created="$(jq -r '.backup.created // false' "$receipt_path" 2>/dev/null || echo false)"
+    [[ "$prev_created" == "true" ]] && backup_created=1
+  fi
+
   if [[ "$DRY_RUN" -eq 1 ]]; then
     printf '  %b[dry-run]%b write install receipt -> %s\n' "$DIM" "$RST" "$receipt_path"
     return
   fi
 
-  local tmp receipt_plugins_json receipt_agent_keys_json receipt_components_json receipt_files_json
+  local tmp receipt_plugins_json receipt_agent_keys_json receipt_components_json receipt_files_json receipt_files_by_component_json
   tmp=$(mktemp)
   receipt_components_json=$(printf '%s' "$components_raw" | awk 'NF' | sort -u | jq -R . | jq -s .)
   receipt_files_json=$(printf '%s' "$files_raw" | awk 'NF' | sort -u | jq -R . | jq -s .)
+  receipt_files_by_component_json=$(build_installed_files_by_component "$target_dir")
   receipt_plugins_json=$(printf '%s' "$plugins_raw" | tr ' ' '\n' | awk 'NF' | while IFS= read -r p; do [[ -n "$p" ]] && normalize_plugin_rel "$p"; done | sort -u | jq -R . | jq -s .)
   if [[ "$has_agents" -eq 1 ]]; then
     receipt_agent_keys_json=$(echo "$MODEL_MAP_JSON" | jq 'keys')
@@ -457,6 +531,7 @@ write_install_receipt() {
     --argjson backupCreated "$backup_created" \
     --argjson selectedComponents "$receipt_components_json" \
     --argjson installedFiles "$receipt_files_json" \
+    --argjson installedFilesByComponent "$receipt_files_by_component_json" \
     --argjson mergedPlugins "$receipt_plugins_json" \
     --argjson mergedRules "$([[ "$has_rules" -eq 1 ]] && printf 'true' || printf 'false')" \
     --argjson agentKeys "$receipt_agent_keys_json" \
@@ -467,6 +542,7 @@ write_install_receipt() {
       targetDir: $targetDir,
       selectedComponents: $selectedComponents,
       installedFiles: $installedFiles,
+      installedFilesByComponent: $installedFilesByComponent,
       mergedConfig: {
         plugins: $mergedPlugins,
         rules: $mergedRules,
@@ -681,6 +757,8 @@ done
 web_tools_targets="${COMP_TARGETS[web-tools]:-}"
 if [[ -n "$web_tools_targets" ]]; then
   for target_dir in $web_tools_targets; do
+    ACTIVE_TARGET_DIR="$target_dir"
+    ACTIVE_COMPONENT_ID="web-tools"
     do_copy "$FLEET_ROOT/config/web-tools.yml" "$target_dir/web-tools.yml"
     pkg_fragment="$FLEET_ROOT/config/package.web-tools.json"
     target_pkg="$target_dir/package.json"
@@ -779,6 +857,9 @@ fi
 
 # ── Common skills (B6) ────────────────────────────────────────────────────────
 if [[ "$NO_COMMON_SKILLS" -eq 0 ]]; then
+  if [[ ! -d "$FLEET_ROOT/../../scripts" ]]; then
+    _info "Shared skills stage skipped: $FLEET_ROOT/../../scripts not found (not in the expected monorepo layout)."
+  else
   SHARED_SCRIPTS_DIR="$(cd "$FLEET_ROOT/../.." && pwd)/scripts"  # → repo-root scripts/
   if [[ -f "$SHARED_SCRIPTS_DIR/install-vendored-skills.sh" ]]; then
     printf '\n'
@@ -810,5 +891,6 @@ if [[ "$NO_COMMON_SKILLS" -eq 0 ]]; then
     if [[ "$_extra_skills" =~ ^[Yy] && "$DRY_RUN" -eq 0 ]]; then
       bash "$SHARED_SCRIPTS_DIR/install-external-skills.sh" --ecosystem opencode
     fi
+  fi
   fi
 fi

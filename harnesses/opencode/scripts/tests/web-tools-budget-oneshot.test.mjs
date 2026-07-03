@@ -29,7 +29,7 @@ describe("checkBudget one-shot warning preambles", () => {
   function makeSnapshot(overrides = {}) {
     return {
       provider: "gemini",
-      month: "2026-06",
+      month: currentMonth,
       calls: 10,
       units_used: 10,
       estimated_cost_usd: 0,
