@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from finance_common import build_envelope, parse_cli, read_json, round6, write_json
+from finance_common import build_envelope, parse_cli, read_json, round6, run_main, write_json
 
 
 def add_issue(errors: list[str], pointers: list[dict], prefix: str, path: str, message: str) -> None:
@@ -96,4 +96,4 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    raise SystemExit(run_main(main))

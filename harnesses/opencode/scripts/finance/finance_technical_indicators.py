@@ -1,6 +1,15 @@
 from __future__ import annotations
 
-from finance_common import build_envelope, parse_cli, population_std, read_json, round6, trailing_window, write_json
+from finance_common import (
+    build_envelope,
+    parse_cli,
+    population_std,
+    read_json,
+    round6,
+    run_main,
+    trailing_window,
+    write_json,
+)
 
 
 def sma(values: list[float], window: int) -> float:
@@ -56,4 +65,4 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    raise SystemExit(run_main(main))

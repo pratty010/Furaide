@@ -1,4 +1,4 @@
-import type { PricingHelper } from "../pricing.ts";
+import type { PricingHelper, EstimateGeminiCallInput } from "../pricing.ts";
 import { isSafePublicUrl, truncateErrorBody } from "../util/validate.ts";
 import type { SearchResult, SearchProviderResult, FetchContentResult, MapsResult, GeminiSearchWebArgs, GeminiFetchContentArgs, GeminiSearchMapsArgs } from "./gemini.ts";
 import { vertexUrl } from "./vertex-endpoint.ts";
@@ -9,7 +9,7 @@ const GEMINI_TIMEOUT_MS = 30_000;
 const GEMINI_MAX_URLS = 5;
 const GEMINI_COUNT_CLAMP = 20;
 
-function estimateGeminiCost(pricing: PricingHelper | undefined, model: string, tool: "googleSearch" | "googleMaps" | "url_context", tokensInput: number, tokensOutput: number): number | undefined {
+function estimateGeminiCost(pricing: PricingHelper | undefined, model: string, tool: EstimateGeminiCallInput["tool"], tokensInput: number, tokensOutput: number): number | undefined {
   if (!pricing) return undefined;
   try {
     return pricing.estimateGeminiCall({ model, inputTokens: tokensInput, outputTokens: tokensOutput, tool });
@@ -92,7 +92,7 @@ export async function searchWebVertex(args: GeminiSearchWebArgs): Promise<Search
 
   const tokensInput = usageMeta?.promptTokenCount ?? 0;
   const tokensOutput = usageMeta?.candidatesTokenCount ?? 0;
-  const estimatedCostUsd = estimateGeminiCost(args.pricing, DEFAULT_MODEL, "googleSearch", tokensInput, tokensOutput);
+  const estimatedCostUsd = estimateGeminiCost(args.pricing, DEFAULT_MODEL, "google_search", tokensInput, tokensOutput);
 
   return {
     results: chunks.slice(0, count).map((c: any) => ({

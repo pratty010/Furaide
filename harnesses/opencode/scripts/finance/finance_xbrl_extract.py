@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from finance_common import build_envelope, extract_facts, parse_cli, read_json, write_json
+from finance_common import build_envelope, extract_facts, parse_cli, read_json, run_main, write_json
 
 
 def main() -> int:
@@ -20,4 +20,4 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    raise SystemExit(run_main(main))

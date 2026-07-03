@@ -9,6 +9,7 @@ permission:
   bash:
     "bun scripts/knowledge-bank-finance.mjs *": allow
     "bun scripts/finance-artifact-registry.mjs *": allow
+    "bun scripts/finance-source-registry.mjs *": allow
     "*": deny
   edit:
     "research/financial/**": allow
@@ -96,6 +97,7 @@ Durable writes happen only after approval and only through the approved scripts.
 |---|---|
 | `bun scripts/knowledge-bank-finance.mjs status|query|propose|write --subject <slug> ...` | Finance bank status, query, proposed update, and approved durable write |
 | `bun scripts/finance-artifact-registry.mjs audit|promote --subject <slug> ...` | Artifact audit, producer tracking, and approved durable promotion |
+| `bun scripts/finance-source-registry.mjs add|list --subject <slug> ...` | Source metadata registration (class, license note, retrieval timestamp) and lookup |
 
 Rules:
 

@@ -1,4 +1,4 @@
-import type { PricingHelper } from "../pricing.ts";
+import type { PricingHelper, EstimateGeminiCallInput } from "../pricing.ts";
 import { isSafePublicUrl, truncateErrorBody } from "../util/validate.ts";
 import type { SearchResult, SearchProviderResult, FetchContentResult, MapsResult, GeminiSearchWebArgs, GeminiFetchContentArgs, GeminiSearchMapsArgs } from "./gemini.ts";
 
@@ -9,7 +9,7 @@ const GEMINI_TIMEOUT_MS = 30_000;
 const GEMINI_MAX_URLS = 5;
 const GEMINI_COUNT_CLAMP = 20;
 
-function estimateGeminiCost(pricing: PricingHelper | undefined, model: string, tool: "google_search" | "googleMaps" | "url_context", tokensInput: number, tokensOutput: number): number | undefined {
+function estimateGeminiCost(pricing: PricingHelper | undefined, model: string, tool: EstimateGeminiCallInput["tool"], tokensInput: number, tokensOutput: number): number | undefined {
   if (!pricing) return undefined;
   try {
     return pricing.estimateGeminiCall({ model, inputTokens: tokensInput, outputTokens: tokensOutput, tool });

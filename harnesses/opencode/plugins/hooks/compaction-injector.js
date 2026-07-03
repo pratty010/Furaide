@@ -32,7 +32,8 @@ function readWorkflowSummary(cwd = process.cwd()) {
 
 export function __test_hookFor(deps = {}) {
   return async function sessionCompacting(input = {}, output = {}) {
-    const summary = (deps.readSummary || readWorkflowSummary)(input.cwd || process.cwd());
+    // experimental.session.compacting's real input type only has {sessionID}, no cwd field.
+    const summary = (deps.readSummary || readWorkflowSummary)(deps.directory || process.cwd());
     if (!summary) return;
     output.context ||= [];
     output.context.push(summary);
@@ -40,17 +41,17 @@ export function __test_hookFor(deps = {}) {
 }
 
 /** Factory returning the plugin object — used by the package export in src/index.ts */
-export async function createCompactionInjectorPlugin() {
+export async function createCompactionInjectorPlugin(input = {}) {
   return {
     name: 'compaction-injector',
     hooks: {
-      [HOOK_EVENT]: __test_hookFor(),
+      [HOOK_EVENT]: __test_hookFor({ directory: input.directory }),
     },
   };
 }
 
-export const CompactionInjectorPlugin = async () => ({
-  [HOOK_EVENT]: __test_hookFor(),
+export const CompactionInjectorPlugin = async (input = {}) => ({
+  [HOOK_EVENT]: __test_hookFor({ directory: input.directory }),
 });
 
 export default CompactionInjectorPlugin;

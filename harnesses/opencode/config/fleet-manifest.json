@@ -110,7 +110,6 @@
         "scripts/citation-verify.mjs",
         "scripts/ctx7-docs.mjs",
         "scripts/humanize-check.mjs",
-        "scripts/memory-path.mjs",
         "scripts/security-severity.mjs",
         "scripts/verify-run.mjs"
       ],

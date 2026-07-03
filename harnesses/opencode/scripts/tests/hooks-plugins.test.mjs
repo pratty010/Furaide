@@ -35,8 +35,8 @@ test('audit logger appends JSONL for bash/task with compact fields', async () =>
     resolveAuditPath: () => auditPath,
   });
 
-  await hook({ tool: 'bash', agent: 'kagami--verifier', args: { command: 'bun test scripts/tests/hooks-plugins.test.mjs', workdir: '/repo' } }, { exitCode: 0 });
-  await hook({ tool: 'task', args: { subagent_type: 'general', description: 'worker run', prompt: 'x'.repeat(240) } }, { exit: 1 });
+  await hook({ tool: 'bash', agent: 'kagami--verifier', args: { command: 'bun test scripts/tests/hooks-plugins.test.mjs', workdir: '/repo' } }, { metadata: { exitCode: 0 } });
+  await hook({ tool: 'task', args: { subagent_type: 'general', description: 'worker run', prompt: 'x'.repeat(240) } }, { metadata: { exitCode: 1 } });
 
   const entries = readFileSync(auditPath, 'utf8').trim().split('\n').map((line) => JSON.parse(line));
   expect(entries).toHaveLength(2);

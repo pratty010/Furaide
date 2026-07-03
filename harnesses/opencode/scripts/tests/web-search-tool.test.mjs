@@ -181,22 +181,50 @@ test("recordFromSearch and recordFromFetch mutate DB", async () => {
 });
 
 test("provider wrappers throw real errors not stubs", async () => {
-  const brave = await import("../../plugins/tools/web-tools/providers/brave.ts");
-  const tavily = await import("../../plugins/tools/web-tools/providers/tavily.ts");
-  const gemini = await import("../../plugins/tools/web-tools/providers/gemini.ts");
-
-  const expectRealError = async (fn) => {
-    try { await fn; } catch (e) {
-      expect(e.message).not.toContain("not yet implemented");
-      return;
-    }
-    // If no error, the CLI/env was actually available — that is also acceptable proof
+  // Save current values of env vars that gate provider behavior
+  const savedEnv = {
+    BRAVE_API_KEY: process.env.BRAVE_API_KEY,
+    TAVILY_API_KEY: process.env.TAVILY_API_KEY,
+    GEMINI_API_KEY: process.env.GEMINI_API_KEY,
+    GOOGLE_API_KEY: process.env.GOOGLE_API_KEY,
+    GOOGLE_APPLICATION_CREDENTIALS: process.env.GOOGLE_APPLICATION_CREDENTIALS,
+    GOOGLE_CLOUD_PROJECT: process.env.GOOGLE_CLOUD_PROJECT,
   };
 
-  await expectRealError(brave.searchWeb({ query: "pxyz7-non-existent-test" }));
-  await expectRealError(tavily.searchWeb({ query: "pxyz7-non-existent-test" }));
-  await expectRealError(tavily.fetchContent({ urls: ["https://pxyz7-nonexistent-test.example"] }));
-  await expectRealError(gemini.searchWeb({ query: "pxyz7-non-existent-test" }));
-  await expectRealError(gemini.fetchContent({ urls: ["https://pxyz7-nonexistent-test.example"] }));
-  await expectRealError(gemini.searchMaps({ query: "pxyz7-non-existent-test" }));
+  try {
+    // Delete env vars to force deterministic fast-fail guard clauses regardless of ambient state
+    delete process.env.BRAVE_API_KEY;
+    delete process.env.TAVILY_API_KEY;
+    delete process.env.GEMINI_API_KEY;
+    delete process.env.GOOGLE_API_KEY;
+    delete process.env.GOOGLE_APPLICATION_CREDENTIALS;
+    delete process.env.GOOGLE_CLOUD_PROJECT;
+
+    const brave = await import("../../plugins/tools/web-tools/providers/brave.ts");
+    const tavily = await import("../../plugins/tools/web-tools/providers/tavily.ts");
+    const gemini = await import("../../plugins/tools/web-tools/providers/gemini.ts");
+
+    const expectRealError = async (fn) => {
+      try { await fn; } catch (e) {
+        expect(e.message).not.toContain("not yet implemented");
+        return;
+      }
+      // If no error, the CLI/env was actually available — that is also acceptable proof
+    };
+
+    await expectRealError(brave.searchWeb({ query: "pxyz7-non-existent-test" }));
+    await expectRealError(tavily.searchWeb({ query: "pxyz7-non-existent-test" }));
+    await expectRealError(tavily.fetchContent({ urls: ["https://pxyz7-nonexistent-test.example"] }));
+    await expectRealError(gemini.searchWeb({ query: "pxyz7-non-existent-test" }));
+    await expectRealError(gemini.fetchContent({ urls: ["https://pxyz7-nonexistent-test.example"] }));
+    await expectRealError(gemini.searchMaps({ query: "pxyz7-non-existent-test" }));
+  } finally {
+    // Restore original env vars
+    if (savedEnv.BRAVE_API_KEY !== undefined) process.env.BRAVE_API_KEY = savedEnv.BRAVE_API_KEY;
+    if (savedEnv.TAVILY_API_KEY !== undefined) process.env.TAVILY_API_KEY = savedEnv.TAVILY_API_KEY;
+    if (savedEnv.GEMINI_API_KEY !== undefined) process.env.GEMINI_API_KEY = savedEnv.GEMINI_API_KEY;
+    if (savedEnv.GOOGLE_API_KEY !== undefined) process.env.GOOGLE_API_KEY = savedEnv.GOOGLE_API_KEY;
+    if (savedEnv.GOOGLE_APPLICATION_CREDENTIALS !== undefined) process.env.GOOGLE_APPLICATION_CREDENTIALS = savedEnv.GOOGLE_APPLICATION_CREDENTIALS;
+    if (savedEnv.GOOGLE_CLOUD_PROJECT !== undefined) process.env.GOOGLE_CLOUD_PROJECT = savedEnv.GOOGLE_CLOUD_PROJECT;
+  }
 });

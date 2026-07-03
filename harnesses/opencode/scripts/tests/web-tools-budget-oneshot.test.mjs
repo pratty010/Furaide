@@ -1,6 +1,8 @@
 import { test, expect, describe } from "bun:test";
 import { Database } from "bun:sqlite";
 
+const currentMonth = `${new Date().toISOString().slice(0, 7)}`;
+
 function freshDb() {
   const db = new Database(":memory:");
   db.exec(`
@@ -101,7 +103,7 @@ describe("checkAndRecord atomic budget + one-shot preamble", () => {
     const db = freshDb();
     db.prepare(`
       insert into provider_usage (provider, month, calls, units_used, estimated_cost_usd, tokens_input, tokens_output, suppressed, last_call_at)
-      values ('gemini', '2026-06', 5, 5, 3.9, 0, 0, 0, datetime('now'))
+      values ('gemini', '${currentMonth}', 5, 5, 3.9, 0, 0, 0, datetime('now'))
     `).run();
     const usage = createUsageTracker(db, budgets);
 
@@ -128,7 +130,7 @@ describe("checkAndRecord atomic budget + one-shot preamble", () => {
     const db = freshDb();
     db.prepare(`
       insert into provider_usage (provider, month, calls, units_used, estimated_cost_usd, tokens_input, tokens_output, suppressed, last_call_at)
-      values ('gemini', '2026-06', 5, 5, 3.9, 0, 0, 0, datetime('now'))
+      values ('gemini', '${currentMonth}', 5, 5, 3.9, 0, 0, 0, datetime('now'))
     `).run();
     const usage = createUsageTracker(db, budgets);
 
@@ -168,7 +170,7 @@ describe("checkAndRecord atomic budget + one-shot preamble", () => {
     const db = freshDb();
     db.prepare(`
       insert into provider_usage (provider, month, calls, units_used, estimated_cost_usd, tokens_input, tokens_output, suppressed, last_call_at)
-      values ('gemini', '2026-06', 5, 5, 5.0, 0, 0, 0, datetime('now'))
+      values ('gemini', '${currentMonth}', 5, 5, 5.0, 0, 0, 0, datetime('now'))
     `).run();
     const usage = createUsageTracker(db, budgets);
     const r = await usage.checkAndRecord({

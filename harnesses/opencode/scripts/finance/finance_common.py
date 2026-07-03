@@ -4,6 +4,8 @@ import argparse
 import json
 import math
 import statistics
+import sys
+from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -112,6 +114,35 @@ def build_envelope(
         ),
     )
     return envelope.model_dump(mode="json")
+
+
+def run_main(main_fn: Callable[[], int]) -> int:
+    """Run a script's ``main`` under a crash barrier.
+
+    Every finance_*.py script writes its documented ``{ok, data, errors,
+    provenance}`` envelope to the ``--output`` path via ``write_json`` (there is
+    no stdout envelope path in this codebase). If ``main_fn`` raises, that
+    contract would otherwise be broken by an uncaught traceback on stderr and a
+    missing/partial output file. Instead, catch the exception, build a
+    ``ok=False`` envelope describing it, and write it to the same ``--output``
+    path a successful run would have used, so callers always get JSON they can
+    parse regardless of the failure mode.
+    """
+    try:
+        return main_fn()
+    except Exception as exc:  # noqa: BLE001 - intentional top-level crash barrier
+        script_name = Path(sys.argv[0]).stem
+        error_envelope = build_envelope(
+            script_name=script_name,
+            source_payload={},
+            errors=[f"{type(exc).__name__}: {exc}"],
+        )
+        try:
+            args = parse_cli(script_name)
+            write_json(args.output, error_envelope)
+        except Exception:  # noqa: BLE001 - best-effort fallback if args are unavailable
+            print(json.dumps(error_envelope))
+        return 1
 
 
 def canonical_concept(source_concept: str) -> str:

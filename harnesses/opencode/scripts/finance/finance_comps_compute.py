@@ -2,7 +2,16 @@ from __future__ import annotations
 
 import statistics
 
-from finance_common import build_envelope, iqr_bounds, parse_cli, percentile_rank, read_json, round6, write_json
+from finance_common import (
+    build_envelope,
+    iqr_bounds,
+    parse_cli,
+    percentile_rank,
+    read_json,
+    round6,
+    run_main,
+    write_json,
+)
 
 
 def filter_metric_peers(peers: list[dict], metric_name: str) -> tuple[list[dict], list[str]]:
@@ -51,4 +60,4 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    raise SystemExit(run_main(main))

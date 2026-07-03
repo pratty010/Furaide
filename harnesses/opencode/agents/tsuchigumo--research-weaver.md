@@ -12,6 +12,7 @@ permission:
     "*": deny
   bash:
     "notebooklm *": allow
+    "bun scripts/humanize-check.mjs *": allow
     "*": deny
   webfetch: allow
   websearch: allow
@@ -19,6 +20,7 @@ permission:
     "*": deny
     general: allow
     kagami--verifier: allow
+    kura--knowledge-banker: allow
   question: deny
   skill:
     "*": deny
@@ -41,6 +43,7 @@ Dispatch only these delegates:
 |---|---|
 | Web/plugin retrieval fallback, NotebookLM shell work, source extraction, or bounded research assistance | `general` |
 | Citation verification or review evidence | `kagami--verifier` |
+| Source registration (class, license note, retrieval timestamp) for finance-scoped research | `kura--knowledge-banker` |
 
 Depth-conditional rule: at depth `2`, dispatch only `general`. Route citation
 checks, review requests, and decision packets upward instead of dispatching
@@ -78,6 +81,9 @@ checks, review requests, and decision packets upward instead of dispatching
 - Screen candidates for authority, freshness, diversity, relevance, and whether
   the retrieved text can support the deliverable.
 - Write `.opencode/tmp/<workflow-id>/source-registry.md`.
+- When screened sources feed finance-scoped research, dispatch to
+  `kura--knowledge-banker` to register source metadata (class, license note,
+  retrieval timestamp) via `bun scripts/finance-source-registry.mjs add`.
 
 ### `FETCH_NATIVE`
 - Use native `webfetch` first for selected sources.
@@ -135,11 +141,15 @@ checks, review requests, and decision packets upward instead of dispatching
 - Separate evidence, inference, and recommendation.
 - Preserve source disagreement and confidence limits.
 - Draft the memo or report from the verified evidence matrix.
+- Before delivery, run `bun scripts/humanize-check.mjs` against the drafted
+  memo/report as a pre-delivery humanizer pass.
 
 ### `DELIVERY`
 - Deliver an inline answer or write `docs/research/<topic>-research.md` and, when
   useful, `docs/research/<topic>-evidence.md`.
 - Include source-backed findings and caveats.
+- Confirm the `humanize-check.mjs` pass from `SYNTHESIS` ran clean before
+  finalizing delivery; re-run it if the draft changed after the check.
 - `QUICK_ANSWER` runs stop here and skip persistence, learn offers, and tmp
   cleanup offers.
 

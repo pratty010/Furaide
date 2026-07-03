@@ -1,6 +1,8 @@
 import { test, expect, describe, beforeAll } from "bun:test";
 import { Database } from "bun:sqlite";
 
+const currentMonth = `${new Date().toISOString().slice(0, 7)}`;
+
 // ── Gemini pricing overlay ──────────────────────────────────────────
 
 describe("Gemini pricing overlay", () => {
@@ -94,6 +96,41 @@ describe("Gemini pricing overlay", () => {
     // token-only cost: 1000*1e-7 + 500*4e-7 = 0.0001 + 0.0002 = 0.0003, no tool fee
     expect(costUrlContext).toBeCloseTo(0.0003, 6);
   });
+
+  test("Vertex-path fee lookup for google_search returns the real non-zero fee (regression for I1)", async () => {
+    // Regression for the silent-undercounting bug: gemini-vertex.ts used to pass
+    // the camelCase Vertex *request body* field name ("googleSearch") as the
+    // *pricing lookup key* too, but docs/models/gemini-tool-fees.yml and
+    // pricing.ts's EstimateGeminiCallInput are keyed in snake_case
+    // ("google_search"), so the lookup silently fell back to 0. This loads the
+    // real production pricing config (same loader gemini-vertex.ts's runtime
+    // uses) and asserts the fee is non-zero and matches the documented value.
+    const { loadPricingHelper } = await import("../../plugins/tools/web-tools/pricing.ts");
+    const { join } = await import("node:path");
+
+    const docsDir = join(import.meta.dir, "..", "..", "docs");
+    const configDir = join(import.meta.dir, "..", "..", "config");
+    const pricing = loadPricingHelper({ configDir, docsDir });
+
+    const withCorrectKey = pricing.estimateGeminiCall({
+      model: "gemini-3.1-flash-lite",
+      inputTokens: 0,
+      outputTokens: 0,
+      tool: "google_search",
+    });
+    expect(withCorrectKey).toBeGreaterThan(0);
+    expect(withCorrectKey).toBeCloseTo(0.035, 6);
+
+    // Guard against the pricing-lookup argument regressing back to the
+    // camelCase Vertex request-body field name.
+    const { readFileSync } = await import("node:fs");
+    const vertexSource = readFileSync(
+      join(import.meta.dir, "..", "..", "plugins", "tools", "web-tools", "providers", "gemini-vertex.ts"),
+      "utf8",
+    );
+    expect(vertexSource).toContain('estimateGeminiCost(args.pricing, DEFAULT_MODEL, "google_search"');
+    expect(vertexSource).not.toContain('estimateGeminiCost(args.pricing, DEFAULT_MODEL, "googleSearch"');
+  });
 });
 
 // ── Budget threshold crossing ───────────────────────────────────────
@@ -102,7 +139,7 @@ describe("Budget enforcement", () => {
   function makeSnapshot(overrides = {}) {
     return {
       provider: "gemini",
-      month: "2026-06",
+      month: currentMonth,
       calls: 10,
       units_used: 10,
       estimated_cost_usd: 0,
@@ -224,7 +261,7 @@ describe("Warning state updates in DB", () => {
     // seed some usage
     db.prepare(`
       insert into provider_usage (provider, month, calls, units_used, estimated_cost_usd, tokens_input, tokens_output, suppressed, last_call_at)
-      values ('gemini', '2026-06', 10, 10, 4.5, 1000, 500, 0, datetime('now'))
+      values ('gemini', '${currentMonth}', 10, 10, 4.5, 1000, 500, 0, datetime('now'))
     `).run();
     return db;
   }

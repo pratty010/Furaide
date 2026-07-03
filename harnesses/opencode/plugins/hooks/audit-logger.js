@@ -54,7 +54,14 @@ export function __test_hookFor(deps = {}) {
       agent: agentName(deps.ctx, input, output, args),
       tool: input.tool,
       'args-summary': summarizeArgs(args),
-      exit: output.exitCode ?? output.exit ?? output.result?.exitCode ?? input.exitCode ?? input.exit ?? null,
+      // The real `tool.execute.after` types only expose `input: {tool, sessionID, callID, args}`
+      // and `output: {title, output, metadata}` — none of `output.exitCode`, `output.exit`,
+      // `output.result.exitCode`, `input.exitCode`, `input.exit` exist on the SDK's types
+      // (@opencode-ai/plugin dist/index.d.ts). `output.metadata` is untyped (`any`) and
+      // undocumented per-tool, so `metadata?.exitCode` below is a best-effort guess at the
+      // conventional field name, unconfirmed against a real bash-tool payload. If the field
+      // isn't present, `exit: null` is an honest/expected result, not a broken fallback chain.
+      exit: output.metadata?.exitCode ?? null,
     };
     const auditPath = (deps.resolveAuditPath || resolveAuditPath)(cwd, workflow);
     mkdirSync(dirname(auditPath), { recursive: true });
