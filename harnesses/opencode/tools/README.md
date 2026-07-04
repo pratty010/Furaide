@@ -1,7 +1,7 @@
 # 🛠️ opencode/tools/
 
 Standalone companion tools for the Furaidē OpenCode fleet. Each tool installs
-independently from the fleet config. No `install-fleet.sh` needed.
+independently from the fleet config (no shared fleet installer involved).
 
 | Tool | Description | Status |
 |------|-------------|--------|

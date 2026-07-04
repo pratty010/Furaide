@@ -1,97 +1,35 @@
 {
-  "version": "v10",
-  "specialists": {
-    "kantoku--workflow-director": {
-      "primary": "opencode-go/kimi-k2.6",
-      "fallback": [
-        "opencode-go/kimi-k2.5"
-      ]
-    },
-    "kyakuhon--spec-planner": {
-      "primary": "opencode-go/qwen3.6-plus",
-      "fallback": [
-        "opencode-go/glm-5"
-      ]
-    },
-    "tsukumogami--code-forgemaster": {
-      "primary": "opencode-go/kimi-k2.5",
-      "fallback": [
-        "opencode-go/glm-5.1"
-      ]
-    },
-    "fudo--security-guardian": {
-      "primary": "opencode-go/kimi-k2.6",
-      "fallback": [
-        "opencode-go/deepseek-v4-pro"
-      ]
-    },
-    "tsuchigumo--research-weaver": {
-      "primary": "opencode-go/kimi-k2.5",
-      "fallback": [
-        "opencode-go/glm-5"
-      ]
-    },
-    "daikoku--finance-steward": {
-      "primary": "opencode-go/qwen3.7-max",
-      "fallback": [
-        "opencode-go/kimi-k2.5"
-      ]
-    }
+  "version": "v11",
+  "models": {
+    "openai/gpt-5.5": { "pool": "openai-flat-sub", "reserveCap": { "maxPrimary": 1, "maxFirstFallback": 1 } },
+    "openai/gpt-5.4-mini": { "pool": "openai-flat-sub", "reserveCap": null },
+    "google-vertex/gemini-3.1-pro-preview": { "pool": "vertex-reserve", "reserveCap": { "maxPrimary": 1, "maxFirstFallback": 1 } },
+    "opencode-go/kimi-k2.6": { "pool": "opencode-go-metered", "reserveCap": null },
+    "opencode-go/kimi-k2.5": { "pool": "opencode-go-metered", "reserveCap": null },
+    "opencode-go/qwen3.7-max": { "pool": "opencode-go-metered", "reserveCap": { "maxPrimary": 1, "maxFirstFallback": 1 } },
+    "opencode-go/qwen3.6-plus": { "pool": "opencode-go-metered", "reserveCap": null },
+    "opencode-go/glm-5": { "pool": "opencode-go-metered", "reserveCap": null },
+    "opencode-go/glm-5.1": { "pool": "opencode-go-metered", "reserveCap": { "maxPrimary": 1, "maxFirstFallback": 1 } },
+    "opencode-go/deepseek-v4-pro": { "pool": "opencode-go-metered", "reserveCap": null },
+    "opencode-go/deepseek-v4-flash": { "pool": "opencode-go-metered", "reserveCap": null },
+    "opencode-go/mimo-v2.5": { "pool": "opencode-go-metered", "reserveCap": null },
+    "opencode-go/minimax-m2.7": { "pool": "opencode-go-metered", "reserveCap": null }
   },
-  "subagents": {
-    "kagami--verifier": {
-      "primary": "openai/gpt-5.4-mini",
-      "fallback": [
-        "opencode-go/deepseek-v4-flash"
-      ]
-    },
-    "hanko--git-seal": {
-      "primary": "openai/gpt-5.4-mini",
-      "fallback": [
-        "opencode-go/mimo-v2.5"
-      ]
-    },
-    "hansei--lesson-keeper": {
-      "primary": "opencode-go/glm-5",
-      "fallback": [
-        "opencode-go/minimax-m2.7"
-      ]
-    },
-    "kura--knowledge-banker": {
-      "primary": "opencode-go/deepseek-v4-flash",
-      "fallback": [
-        "opencode-go/minimax-m2.7"
-      ]
-    },
-    "bakeneko--bug-hunter": {
-      "primary": "opencode-go/deepseek-v4-pro",
-      "fallback": [
-        "opencode-go/kimi-k2.5"
-      ]
-    },
-    "oni--red-team-reviewer": {
-      "primary": "openai/gpt-5.5",
-      "fallback": [
-        "google-vertex/gemini-3.1-pro-preview"
-      ]
-    },
-    "general": {
-      "primary": "opencode-go/mimo-v2.5",
-      "fallback": [
-        "opencode-go/minimax-m2.7"
-      ]
-    },
-    "explore": {
-      "primary": "opencode-go/qwen3.6-plus",
-      "fallback": [
-        "opencode-go/minimax-m2.7"
-      ]
-    },
-    "scout": {
-      "primary": "opencode-go/qwen3.6-plus",
-      "fallback": [
-        "opencode-go/minimax-m2.7"
-      ]
-    }
+  "agents": {
+    "kantoku--workflow-director": { "tier": 2, "primary": "opencode-go/kimi-k2.6", "fallback": ["opencode-go/kimi-k2.5"], "why": "Workflow specialist: top-level orchestration and domain judgment." },
+    "kyakuhon--spec-planner": { "tier": 2, "primary": "opencode-go/qwen3.6-plus", "fallback": ["opencode-go/glm-5"], "why": "Workflow specialist: top-level orchestration and domain judgment." },
+    "tsukumogami--code-forgemaster": { "tier": 2, "primary": "opencode-go/kimi-k2.5", "fallback": ["opencode-go/glm-5.1"], "why": "Workflow specialist: top-level orchestration and domain judgment." },
+    "fudo--security-guardian": { "tier": 2, "primary": "opencode-go/kimi-k2.6", "fallback": ["opencode-go/deepseek-v4-pro"], "why": "Workflow specialist: top-level orchestration and domain judgment." },
+    "tsuchigumo--research-weaver": { "tier": 2, "primary": "opencode-go/kimi-k2.5", "fallback": ["opencode-go/glm-5"], "why": "Workflow specialist: top-level orchestration and domain judgment." },
+    "daikoku--finance-steward": { "tier": 1, "primary": "opencode-go/qwen3.7-max", "fallback": ["opencode-go/kimi-k2.5"], "why": "Finance errors compound across the workflow; reserve/high-judgment placement." },
+    "kagami--verifier": { "tier": 3, "primary": "openai/gpt-5.4-mini", "fallback": ["opencode-go/deepseek-v4-flash"], "why": "Subagent review and support." },
+    "hanko--git-seal": { "tier": 3, "primary": "openai/gpt-5.4-mini", "fallback": ["opencode-go/mimo-v2.5"], "why": "Subagent review and support." },
+    "hansei--lesson-keeper": { "tier": 3, "primary": "opencode-go/glm-5", "fallback": ["opencode-go/minimax-m2.7"], "why": "Subagent review and support." },
+    "kura--knowledge-banker": { "tier": 3, "primary": "opencode-go/deepseek-v4-flash", "fallback": ["opencode-go/minimax-m2.7"], "why": "Subagent review and support." },
+    "bakeneko--bug-hunter": { "tier": 3, "primary": "opencode-go/deepseek-v4-pro", "fallback": ["opencode-go/kimi-k2.5"], "why": "Subagent review and support." },
+    "oni--red-team-reviewer": { "tier": 1, "primary": "openai/gpt-5.5", "fallback": ["google-vertex/gemini-3.1-pro-preview"], "why": "Adversarial review quality is worth the premium cap; reserve/high-judgment placement." },
+    "general": { "tier": 4, "primary": "opencode-go/mimo-v2.5", "fallback": ["opencode-go/minimax-m2.7"], "why": "Bounded execution. Worker tier: cheap, high-volume execution layer." },
+    "explore": { "tier": 4, "primary": "opencode-go/qwen3.6-plus", "fallback": ["opencode-go/minimax-m2.7"], "why": "Read-only repo mapping. Worker tier." },
+    "scout": { "tier": 4, "primary": "opencode-go/qwen3.6-plus", "fallback": ["opencode-go/minimax-m2.7"], "why": "External docs and upstream recon. Worker tier." }
   }
 }

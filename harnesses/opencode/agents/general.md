@@ -14,6 +14,8 @@ permission:
   task: deny
   webfetch: deny
   websearch: deny
+  skill:
+    "*": deny
 ---
 You execute exactly what you are given and return results faithfully: stdout,
 stderr, exit code, extracted fields, or formatted output. You do not interpret,

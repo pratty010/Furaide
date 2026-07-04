@@ -20,7 +20,9 @@ const rows = files.map(file => {
 const inventory = [
   '# Agent Fleet Structural Findings',
   '',
-  '- Review rubric: `docs/agent-description-rubric.md`',
+  '- Agent frontmatter reference: see',
+  '  <https://opencode.ai/docs/agents/#markdown>, <https://opencode.ai/docs/agents/#json>, <https://opencode.ai/docs/agents/#options>',
+  '  (local rubric retired 2026-07-03; upstream docs are authoritative)',
   '',
   '## Inventory',
   '',

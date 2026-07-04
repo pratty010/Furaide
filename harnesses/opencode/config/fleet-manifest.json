@@ -1,13 +1,22 @@
 {
+  "_readme": "This file is a legacy reference snapshot of the pre-packages/cli component model. packages/cli/src/targets/opencode-fleet/install.ts hardcodes its own file lists (CORE_INFRA_FILES, FINANCE_FILES, WEB_TOOLS_FILES, etc.) and does not read this JSON at runtime. Update this file for documentation/audit-trail purposes only.",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "_comment": "Single source of truth for install-fleet.sh. Edit here, not in the installer.",
+  "_comment": "Historical component list. See the _readme field above — this file is a legacy reference snapshot, not read at runtime. Update for documentation/audit-trail purposes only.",
   "components": [
     {
       "id": "workflow-gates",
       "label": "Workflow Gates",
       "description": "Fail-closed gate plugins (Nio, Komainu), workflow hook plugins, and the workflow state engine they enforce. Cannot be split.",
       "atomic": true,
-      "coupling": "nio.js enforces gate verdicts via scripts/workflow-state.mjs cmdAdvance (exit code 6); hook plugins read workflow state/state-path runtime helpers",
+      "coupling": {
+        "usedBy": [
+          "plugins/gates/nio.js",
+          "plugins/hooks/audit-logger.js",
+          "plugins/hooks/compaction-injector.js"
+        ],
+        "safeToRemove": false,
+        "fallbackBehavior": null
+      },
       "requires_bun": false,
       "default_on": true,
       "target_subdirs": [
@@ -32,7 +41,13 @@
       "label": "Model Failover",
       "description": "Migawari plugin (session.error visibility logger) and the routing manifest that scripts/model-resolve.mjs consumes at install time to substitute unavailable models. Cannot be split.",
       "atomic": true,
-      "coupling": "docs/routing-manifest.json is the install-time fallback-chain source for scripts/model-resolve.mjs; migawari.js only logs runtime session.error events, it does not read the manifest",
+      "coupling": {
+        "usedBy": [
+          "scripts/model-resolve.mjs"
+        ],
+        "safeToRemove": false,
+        "fallbackBehavior": null
+      },
       "requires_bun": false,
       "default_on": true,
       "target_subdirs": [
@@ -50,7 +65,11 @@
       "label": "Security Gate",
       "description": "Komainu plugin: screens Edit/Write calls for 35+ dangerous code patterns. Standalone.",
       "atomic": false,
-      "coupling": "none",
+      "coupling": {
+        "usedBy": [],
+        "safeToRemove": true,
+        "fallbackBehavior": "no dangerous-code-pattern screening on Edit/Write calls; no replacement mechanism"
+      },
       "requires_bun": false,
       "default_on": true,
       "target_subdirs": [
@@ -61,13 +80,19 @@
       ],
       "globs": []
     },
-
     {
       "id": "agents-core",
       "label": "Workflow Fleet (v2)",
       "description": "Full v2 workflow fleet (15 agents) as specified in docs/superpowers/specs/2026-06-30-opencode-harness-redesign-design.md.",
       "atomic": false,
-      "coupling": "soft dep on failover routing-manifest.json; auto-included at same scope if failover not selected there. opencode.jsonc ships with the bundle so fleet agent model mappings are installed by default; install-fleet.sh rewrites its 'plugin' and 'instructions' arrays against the current fleet manifest after copy. POST-COPY CONFIG MERGE IS MANDATORY: every scope where agents-core lands must run merge-config.mjs with --agents-source $FLEET_ROOT/opencode.jsonc, otherwise the installed opencode.jsonc will not be picked up by opencode and the fleet agents will inherit the user's previous model assignments (or none).",
+      "coupling": {
+        "usedBy": [
+          "docs/routing-manifest.json",
+          "scripts/merge-config.mjs"
+        ],
+        "safeToRemove": false,
+        "fallbackBehavior": null
+      },
       "requires_bun": false,
       "default_on": true,
       "target_subdirs": [
@@ -99,7 +124,16 @@
       "label": "Agent Support Scripts",
       "description": "Verification and safety scripts called by agents via the bash tool. No hard coupling.",
       "atomic": false,
-      "coupling": "scripts are invoked directly by agents via the bash tool",
+      "coupling": {
+        "usedBy": [
+          "agents/kagami--verifier.md",
+          "agents/scout.md",
+          "agents/tsuchigumo--research-weaver.md",
+          "agents/fudo--security-guardian.md"
+        ],
+        "safeToRemove": false,
+        "fallbackBehavior": null
+      },
       "requires_bun": false,
       "default_on": true,
       "target_subdirs": [
@@ -119,7 +153,13 @@
       "label": "Rules",
       "description": "Memory contract and other rules loaded via instructions glob in opencode.json.",
       "atomic": false,
-      "coupling": "wired via instructions glob in opencode.json",
+      "coupling": {
+        "usedBy": [
+          "config/opencode.jsonc"
+        ],
+        "safeToRemove": false,
+        "fallbackBehavior": null
+      },
       "requires_bun": false,
       "default_on": true,
       "target_subdirs": [
@@ -135,7 +175,15 @@
       "label": "Reference Docs",
       "description": "OPERATOR guide, architecture overview, manifest schema, rubric, and shared GitHub workflow guide. Reference only, not required at runtime.",
       "atomic": false,
-      "coupling": "reference only; GITHUB.md and github-setup-check.sh sourced from repo-root docs/ and scripts/ at install time",
+      "coupling": {
+        "usedBy": [
+          "agents/fudo--security-guardian.md",
+          "agents/hanko--git-seal.md",
+          "skills/github/SKILL.md"
+        ],
+        "safeToRemove": true,
+        "fallbackBehavior": "agents lose the OPERATOR/manifest-schema/GITHUB.md reference docs; no functional runtime fallback needed since these are reference-only"
+      },
       "requires_bun": false,
       "default_on": false,
       "target_subdirs": [
@@ -143,10 +191,7 @@
         "scripts"
       ],
       "files": [
-        "docs/OPERATOR.md",
-        "docs/architecture.md",
-        "docs/manifest-schema.md",
-        "docs/agent-description-rubric.md"
+        "docs/manifest-schema.md"
       ],
       "common_files": [
         {
@@ -154,7 +199,7 @@
           "dst": "docs/GITHUB.md"
         },
         {
-          "src": "../../../scripts/github-setup-check.sh",
+          "src": "../../../packages/cli/src/shared/github-setup-check.sh",
           "dst": "scripts/github-setup-check.sh"
         }
       ],
@@ -165,7 +210,13 @@
       "label": "Finance Compute Scripts",
       "description": "Deterministic finance ledgers plus uv-run Python compute and verification scripts for Workflow #5. Requires a local uv toolchain; no network at runtime.",
       "atomic": false,
-      "coupling": "knowledge-bank and registry JS ledgers coordinate with scripts/finance/** Python CLIs via shared JSON artifacts; python entrypoints are executed with uv run",
+      "coupling": {
+        "usedBy": [
+          "agents/kura--knowledge-banker.md"
+        ],
+        "safeToRemove": false,
+        "fallbackBehavior": null
+      },
       "requires_bun": false,
       "default_on": true,
       "target_subdirs": [
@@ -186,34 +237,64 @@
     {
       "id": "skills",
       "label": "Skills Pipeline",
-      "description": "Pinned external skill pulls (superpowers, mattpocock, addyosmani) plus bundled addendum/native skills, synced to ~/.config/opencode/skills/ via an idempotent version-stamped receipt.",
+      "description": "Pinned external skill pulls (superpowers, mattpocock, addyosmani) plus bundled addendum/native skills, installed to ~/.config/opencode/skills/ by the packages/cli installer.",
       "atomic": false,
-      "coupling": "sync-skills.mjs reads config/skills-manifest.json and skill-patches/**, and copies bundled skill content from skills/ (resolved relative to its own location); pull-external-skills.mjs is a separate, deliberately manual step (external pulls are reviewed, not auto-run)",
+      "coupling": {
+        "usedBy": [
+          "scripts/pull-external-skills.mjs"
+        ],
+        "safeToRemove": false,
+        "fallbackBehavior": null
+      },
       "requires_bun": true,
       "default_on": true,
-      "target_subdirs": ["scripts", "config", "skill-patches", "skills"],
-      "files": ["scripts/pull-external-skills.mjs", "scripts/sync-skills.mjs", "config/skills-manifest.json"],
-      "globs": ["skill-patches/**", "skills/**"]
+      "target_subdirs": [
+        "scripts",
+        "config",
+        "skill-patches",
+        "skills"
+      ],
+      "files": [
+        "scripts/pull-external-skills.mjs",
+        "config/skills-manifest.json"
+      ],
+      "globs": [
+        "skill-patches/**",
+        "skills/**"
+      ]
     },
     {
       "id": "web-tools",
       "label": "Web Tools",
       "description": "Lean web-search/fetch/maps plugin with provider budgets and interactive config.",
       "atomic": true,
+      "coupling": {
+        "usedBy": [
+          "agents/tsuchigumo--research-weaver.md"
+        ],
+        "safeToRemove": true,
+        "fallbackBehavior": "tsuchigumo falls back to native websearch/webfetch (see 42F.2)"
+      },
       "requires_bun": true,
       "default_on": true,
-      "target_subdirs": ["plugins", "config", "commands", "docs", "scripts"],
+      "target_subdirs": [
+        "plugins",
+        "config",
+        "commands",
+        "docs",
+        "scripts"
+      ],
       "files": [
         "plugins/tools/web-tools.ts",
         "config/web-tools.yml",
         "config/package.web-tools.json",
         "config/AGENTS.md",
         "commands/tools-config.md",
-        "docs/models/gemini-tool-fees.yml",
-        "scripts/install-web-tools.sh",
-        "scripts/register-web-tools-plugin.mjs"
+        "docs/models/gemini-tool-fees.yml"
       ],
-      "globs": ["plugins/tools/web-tools/**"]
+      "globs": [
+        "plugins/tools/web-tools/**"
+      ]
     }
   ]
 }

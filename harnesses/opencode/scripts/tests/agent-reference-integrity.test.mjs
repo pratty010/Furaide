@@ -3,10 +3,10 @@ import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { AGENT_RENAME_MAP, LEGACY_AGENT_ALIASES, ALL_AGENT_TARGETS } from '../lib/agent-fleet-map.mjs';
 
-const ROOTS = ['config/AGENTS.md', 'docs/routing-manifest.json', 'scripts/install-fleet.sh', 'scripts/install-fleet-bootstrap.sh'];
+const ROOTS = ['config/AGENTS.md', 'docs/routing-manifest.json'];
 const DIRS = ['agents', 'commands'];
-const ACTIVE_DOC_SUBDIRS = ['docs/architecture.md', 'docs/OPERATOR.md', 'docs/agent-description-rubric.md', 'docs/manifest-schema.md', 'docs/workflows.md', 'docs/routing-manifest.json'];
-const DOC_ALLOWLIST = new Set(['docs/agent-description-rubric.md', 'docs/archive/agent-fleet-structural-findings.md', 'agents/chizu--implementation-planner.md', 'agents/shiranui--migration-guide.md', 'agents/sojobo--system-strategist.md']);
+const ACTIVE_DOC_SUBDIRS = ['docs/manifest-schema.md', 'docs/workflows.md', 'docs/routing-manifest.json'];
+const DOC_ALLOWLIST = new Set(['docs/archive/agent-fleet-structural-findings.md', 'agents/chizu--implementation-planner.md', 'agents/shiranui--migration-guide.md', 'agents/sojobo--system-strategist.md']);
 
 function walk(dir) {
   const out = [];

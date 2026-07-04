@@ -8,12 +8,8 @@ import { fileURLToPath } from 'node:url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const FLEET_ROOT = join(__dirname, '..');
 const ROUTING_MANIFEST = join(FLEET_ROOT, 'docs/routing-manifest.json');
-const RESERVED_MODELS = {
-  'opencode-go/glm-5.1': { maxPrimary: 1, maxFirstFallback: 1 },
-  'opencode-go/qwen3.7-max': { maxPrimary: 1, maxFirstFallback: 1 },
-  'google-vertex/gemini-3.1-pro-preview': { maxPrimary: 1, maxFirstFallback: 1 },
-  'openai/gpt-5.5': { maxPrimary: 1, maxFirstFallback: 1 },
-};
+// Reserve caps live in routing-manifest.json's models[modelId].reserveCap
+// (v11 schema), read at call time -- see wouldExceedReservedCap().
 
 function getProvider(model) {
   return model.split('/')[0];
@@ -34,7 +30,7 @@ function getAvailableModels() {
 
 function collectDesiredModels(manifest) {
   const desired = {};
-  const allAgents = { ...manifest.specialists, ...manifest.subagents };
+  const allAgents = { ...manifest.agents };
   for (const [name, cfg] of Object.entries(allAgents)) {
     if (name.startsWith('_')) continue;
     desired[name] = {
@@ -58,8 +54,8 @@ function countReservedUsage(resolved, model) {
   return { primaryCount, firstFallbackCount };
 }
 
-function wouldExceedReservedCap(resolved, model, role) {
-  const reserved = RESERVED_MODELS[model];
+function wouldExceedReservedCap(manifest, resolved, model, role) {
+  const reserved = manifest.models?.[model]?.reserveCap;
   if (!reserved) return false;
   const { primaryCount, firstFallbackCount } = countReservedUsage(resolved, model);
   if (role === 'primary' || role === 'heavy') {
@@ -81,7 +77,7 @@ function getModelsByTier(availableModels) {
   return byProvider;
 }
 
-function findReplacement(availableModels, resolved, originalModel, role, currentAgent, allAgentsConfig) {
+function findReplacement(manifest, availableModels, resolved, originalModel, role, currentAgent, allAgentsConfig) {
   if (!originalModel) return null;
   const originalProvider = getProvider(originalModel);
   const byProvider = getModelsByTier(availableModels);
@@ -90,7 +86,7 @@ function findReplacement(availableModels, resolved, originalModel, role, current
   const candidates = [];
   for (const provider of providers) {
     for (const model of byProvider[provider]) {
-      if (wouldExceedReservedCap(resolved, model, role)) continue;
+      if (wouldExceedReservedCap(manifest, resolved, model, role)) continue;
       if (role === 'fallback') {
         const primaryModel = resolved[currentAgent]?.primary;
         if (primaryModel && getProvider(primaryModel) === provider) continue;
@@ -118,7 +114,7 @@ function findReplacement(availableModels, resolved, originalModel, role, current
   for (const tier of tierOrder) {
     for (const provider of providers) {
       for (const model of byProvider[provider]) {
-        if (wouldExceedReservedCap(resolved, model, role)) continue;
+        if (wouldExceedReservedCap(manifest, resolved, model, role)) continue;
         if (role === 'fallback') {
           const primaryModel = resolved[currentAgent]?.primary;
           if (primaryModel && getProvider(primaryModel) === provider) continue;
@@ -131,7 +127,7 @@ function findReplacement(availableModels, resolved, originalModel, role, current
   return null;
 }
 
-function validateInvariants(resolved) {
+function validateInvariants(manifest, resolved) {
   const errors = [];
 
   for (const [name, cfg] of Object.entries(resolved)) {
@@ -151,7 +147,10 @@ function validateInvariants(resolved) {
     }
   }
 
-  for (const [model, limits] of Object.entries(RESERVED_MODELS)) {
+  const reservedModels = Object.fromEntries(
+    Object.entries(manifest.models || {}).filter(([, m]) => m.reserveCap).map(([id, m]) => [id, m.reserveCap])
+  );
+  for (const [model, limits] of Object.entries(reservedModels)) {
     const { primaryCount, firstFallbackCount } = countReservedUsage(resolved, model);
     if (primaryCount > limits.maxPrimary) {
       errors.push(`${model} is primary for ${primaryCount} agents (max ${limits.maxPrimary})`);
@@ -168,7 +167,7 @@ function resolveModels() {
   const availableModels = getAvailableModels();
   const manifest = JSON.parse(readFileSync(ROUTING_MANIFEST, 'utf8'));
   const desired = collectDesiredModels(manifest);
-  const allAgentsConfig = { ...manifest.specialists, ...manifest.subagents };
+  const allAgentsConfig = { ...manifest.agents };
 
   const resolved = {};
   const changes = [];
@@ -179,7 +178,7 @@ function resolveModels() {
 
   for (const [name, cfg] of Object.entries(desired)) {
     if (!availableModels.has(cfg.primary)) {
-      const replacement = findReplacement(availableModels, resolved, cfg.primary, 'primary', name, allAgentsConfig);
+      const replacement = findReplacement(manifest, availableModels, resolved,cfg.primary, 'primary', name, allAgentsConfig);
       if (replacement) {
         changes.push({ agent: name, field: 'primary', from: cfg.primary, to: replacement, reason: 'unavailable' });
         resolved[name].primary = replacement;
@@ -189,7 +188,7 @@ function resolveModels() {
     }
 
     if (cfg.heavy && !availableModels.has(cfg.heavy)) {
-      const replacement = findReplacement(availableModels, resolved, cfg.heavy, 'heavy', name, allAgentsConfig);
+      const replacement = findReplacement(manifest, availableModels, resolved,cfg.heavy, 'heavy', name, allAgentsConfig);
       if (replacement) {
         changes.push({ agent: name, field: 'heavy', from: cfg.heavy, to: replacement, reason: 'unavailable' });
         resolved[name].heavy = replacement;
@@ -199,7 +198,7 @@ function resolveModels() {
     }
 
     if (cfg.simple && !availableModels.has(cfg.simple)) {
-      const replacement = findReplacement(availableModels, resolved, cfg.simple, 'simple', name, allAgentsConfig);
+      const replacement = findReplacement(manifest, availableModels, resolved,cfg.simple, 'simple', name, allAgentsConfig);
       if (replacement) {
         changes.push({ agent: name, field: 'simple', from: cfg.simple, to: replacement, reason: 'unavailable' });
         resolved[name].simple = replacement;
@@ -213,7 +212,7 @@ function resolveModels() {
       if (availableModels.has(fb)) {
         newFallbacks.push(fb);
       } else {
-        const replacement = findReplacement(availableModels, resolved, fb, 'fallback', name, allAgentsConfig);
+        const replacement = findReplacement(manifest, availableModels, resolved,fb, 'fallback', name, allAgentsConfig);
         if (replacement) {
           changes.push({ agent: name, field: 'fallback', from: fb, to: replacement, reason: 'unavailable' });
           newFallbacks.push(replacement);
@@ -225,7 +224,7 @@ function resolveModels() {
     resolved[name].fallback = newFallbacks;
   }
 
-  const invariantErrors = validateInvariants(resolved);
+  const invariantErrors = validateInvariants(manifest, resolved);
   if (invariantErrors.length > 0) {
     console.error('Invariant violations after resolution:');
     for (const err of invariantErrors) {
@@ -239,19 +238,11 @@ function resolveModels() {
     modelMap[name] = cfg.primary;
   }
 
-  const resolvedManifest = {
-    ...manifest,
-    specialists: {},
-    subagents: {},
-  };
+  const resolvedManifest = { ...manifest, agents: {} };
 
   for (const [name, cfg] of Object.entries(resolved)) {
-    if (manifest.specialists?.[name]) {
-      resolvedManifest.specialists[name] = cfg;
-      continue;
-    }
-    if (manifest.subagents?.[name]) {
-      resolvedManifest.subagents[name] = cfg;
+    if (manifest.agents?.[name]) {
+      resolvedManifest.agents[name] = { ...manifest.agents[name], ...cfg };
     }
   }
 

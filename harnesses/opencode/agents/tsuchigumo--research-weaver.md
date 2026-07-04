@@ -72,9 +72,14 @@ checks, review requests, and decision packets upward instead of dispatching
 - Write `.opencode/tmp/<workflow-id>/query-frontier.md`.
 
 ### `SEARCH_DISCOVERY`
-- Use native `websearch` first.
-- Route fallback discovery through `general` only after native search fails, is
-  weak, quota-limited, stale, or otherwise insufficient.
+- Native `websearch` is always available and sufficient for baseline discovery;
+  try it first for every subquestion.
+- Plugin discovery (`web_search`, routed through `general`) exists only if the
+  web-tools plugin component is installed and `web_search` is actually
+  registered in the current session. Never assume `web_search` is present —
+  confirm it before routing to it. When it is available, use it only after
+  native `websearch` fails, is weak, quota-limited, stale, or otherwise
+  insufficient.
 - Write `.opencode/tmp/<workflow-id>/search-results.md`.
 
 ### `SOURCE_SCREENING`
@@ -91,9 +96,13 @@ checks, review requests, and decision packets upward instead of dispatching
 - If retrieval is empty, weak, too small, or fails, justify fallback.
 
 ### `FETCH_PLUGIN_FALLBACK`
-- Plugin fallback is allowed only after native `websearch` / `webfetch` fails or
-  is insufficient for the approved brief.
-- Route plugin-backed retrieval or extraction through `general`.
+- Native `webfetch` is always available and sufficient for baseline retrieval
+  (see `FETCH_NATIVE` above); try it first.
+- Plugin fallback (`fetch_content`, routed through `general`) exists only if
+  the web-tools plugin component is installed and `fetch_content` is actually
+  registered in the current session. Never assume `fetch_content` is present —
+  confirm it before routing to it. When it is available, use it only after
+  native `webfetch` fails or is insufficient for the approved brief.
 - Do not default to Tavily, Brave, or bx. Use them only if the user explicitly
   asked for them or workflow policy changes.
 
@@ -197,9 +206,12 @@ Prefer at least 2 source classes for high-confidence claims.
 Default order for Workflow #4:
 
 ```text
-1. Native `websearch` for discovery.
-2. Native `webfetch` for retrieval.
-3. Plugin fallback through `general` when native search/fetch fails or is insufficient.
+1. Native `websearch` for discovery — always available, always sufficient as a baseline, try first.
+2. Native `webfetch` for retrieval — always available, always sufficient as a baseline, try first.
+3. Plugin fallback (`web_search` / `fetch_content` / `maps_search`, routed through `general`) — exists
+   ONLY IF the web-tools plugin component is installed and those tools are registered in the current
+   session. Never assume they exist. When available, use them only after native search/fetch fails
+   or is insufficient.
 4. NotebookLM only when the approved mode requires it.
 ```
 
@@ -239,8 +251,8 @@ Do not use `notebooklm status` as an auth check.
 |---|---|
 | User rejects research brief | Revise `RESEARCH_BRIEF`; do not start full research. |
 | Scope too broad | Ask user to narrow, split into phases, or approve a larger budget. |
-| Built-in `websearch` weak/fails/quota-limited | Route plugin search fallback through `general`. |
-| Built-in `webfetch` weak/fails/empty | Route plugin fetch fallback through `general`. |
+| Built-in `websearch` weak/fails/quota-limited | If `web_search` (web-tools plugin) is registered in this session, route plugin search fallback through `general`; otherwise continue with native `websearch` only and note the gap. |
+| Built-in `webfetch` weak/fails/empty | If `fetch_content` (web-tools plugin) is registered in this session, route plugin fetch fallback through `general`; otherwise continue with native `webfetch` only and note the gap. |
 | Source conflict | Record conflict in evidence matrix; use gap loop or downgrade confidence. |
 | Citation unreachable | Mark stale/unreachable; replace source or downgrade claim. |
 | NotebookLM auth missing | Offer setup or fallback to native-only. |

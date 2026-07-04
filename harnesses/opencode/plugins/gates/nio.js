@@ -26,6 +26,9 @@ const BLOCKED_TOOLS = new Set([
   'edit',
   'webfetch',
   'websearch',
+  'web_search',
+  'fetch_content',
+  'maps_search',
   'task',
 ]);
 

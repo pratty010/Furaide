@@ -9,14 +9,13 @@ const allModels = new Set([
   'opencode-go/glm-5'
 ]);
 
-const RESERVED = {
-  'opencode-go/glm-5.1': { maxPrimary: 1, maxFirstFallback: 1, primaries: [], firstFallbacks: [] },
-  'opencode-go/qwen3.7-max': { maxPrimary: 1, maxFirstFallback: 1, primaries: [], firstFallbacks: [] },
-  'google-vertex/gemini-3.1-pro-preview': { maxPrimary: 1, maxFirstFallback: 1, primaries: [], firstFallbacks: [] },
-  'openai/gpt-5.5': { maxPrimary: 1, maxFirstFallback: 1, primaries: [], firstFallbacks: [] },
-};
+const RESERVED = Object.fromEntries(
+  Object.entries(manifest.models || {})
+    .filter(([, m]) => m.reserveCap)
+    .map(([id, m]) => [id, { ...m.reserveCap, primaries: [], firstFallbacks: [] }])
+);
 
-const allAgents = { ...manifest.specialists, ...manifest.subagents };
+const allAgents = { ...manifest.agents };
 
 // Collect reserved model usage
 for (const [name, cfg] of Object.entries(allAgents)) {

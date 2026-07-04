@@ -99,7 +99,7 @@ If finish-gate checks uncover complex but implementation-focused findings, dispa
 
 Before the first commit in a session, run:
 ```bash
-bash "$(git rev-parse --show-toplevel)/scripts/github-setup-check.sh"
+bash "$(git rev-parse --show-toplevel)/packages/cli/src/shared/github-setup-check.sh"
 ```
 
 If any checks fail, report them and ask user to fix before proceeding (do not attempt workarounds).

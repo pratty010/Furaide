@@ -25,7 +25,7 @@
 // For .jsonc files: strips line comments (// ...) before parsing, then writes
 // clean JSON. The $schema comment is preserved via a field, not inline comments.
 
-import { readFileSync, writeFileSync, renameSync } from "fs";
+import { readFileSync, writeFileSync, renameSync, copyFileSync, unlinkSync } from "fs";
 import { tmpdir } from "os";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
@@ -173,6 +173,15 @@ if (!changed) {
 const out = JSON.stringify(config, null, 2) + "\n";
 const tmpFile = join(tmpdir(), `merge-config-${Date.now()}-${process.pid}.json`);
 writeFileSync(tmpFile, out, "utf8");
-renameSync(tmpFile, cfgPath);
+try {
+  renameSync(tmpFile, cfgPath);
+} catch (err) {
+  if (err.code === "EXDEV") {
+    copyFileSync(tmpFile, cfgPath);
+    unlinkSync(tmpFile);
+  } else {
+    throw err;
+  }
+}
 
 console.log(`[merge-config] updated ${cfgPath}`);

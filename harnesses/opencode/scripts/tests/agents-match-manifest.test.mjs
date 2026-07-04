@@ -15,7 +15,7 @@ const survivors = V2_FLEET.filter(name => !['general', 'explore', 'scout'].inclu
 
 for (const name of survivors) {
   test(`opencode.jsonc agent["${name}"].model matches manifest primary`, () => {
-    const manifestEntry = (manifest.specialists ?? {})[name] || (manifest.subagents ?? {})[name];
+    const manifestEntry = (manifest.agents ?? {})[name];
     const cfg = configAgents[name];
     expect(cfg, `opencode.jsonc agent["${name}"] is missing`).not.toBeUndefined();
     expect(cfg.model, `opencode.jsonc agent["${name}"].model is missing`).not.toBeUndefined();

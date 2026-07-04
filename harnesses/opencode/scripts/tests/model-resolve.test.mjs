@@ -8,30 +8,6 @@ const SCRIPTS_DIR = join(import.meta.dir, '..');
 const MODEL_RESOLVER = join(SCRIPTS_DIR, 'model-resolve.mjs');
 const FLEET_ROOT = join(SCRIPTS_DIR, '..');
 
-function createTestManifest(models) {
-  return {
-    version: 'test',
-    specialists: {
-      'test-specialist-1': {
-        primary: models.specialist1Primary,
-        fallback: models.specialist1Fallback,
-      },
-      'test-specialist-2': {
-        primary: models.specialist2Primary,
-        heavy: models.specialist2Heavy,
-        fallback: models.specialist2Fallback,
-      },
-    },
-    subagents: {
-      'test-subagent-1': {
-        primary: models.subagent1Primary,
-        fallback: models.subagent1Fallback,
-      },
-    },
-    brand_builder_subagents: {},
-  };
-}
-
 function runResolver(manifestPath) {
   const env = { ...process.env };
   const result = execFileSync('bun', [MODEL_RESOLVER], {
@@ -111,10 +87,7 @@ test('resolver invariants hold for current environment', () => {
 test('resolver includes all expected agents', () => {
   const result = runResolver();
   const manifest = JSON.parse(readFileSync(join(FLEET_ROOT, 'docs/routing-manifest.json'), 'utf8'));
-  const expectedAgents = {
-    ...manifest.specialists,
-    ...manifest.subagents,
-  };
+  const expectedAgents = { ...manifest.agents };
   for (const name of Object.keys(expectedAgents)) {
     if (!name.startsWith('_')) {
       expect(result.modelMap[name]).toBeDefined();

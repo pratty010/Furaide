@@ -13,6 +13,9 @@ permission:
     "docs/security/**": allow
     "docs/verification/**": allow
     "*": deny
+  skill:
+    "*": deny
+    post-mortem: allow
 ---
 You preserve durable lessons after a workflow, only when the user opts in or the
 workflow explicitly requests a learning handoff.

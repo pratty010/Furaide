@@ -47,7 +47,7 @@ Missing keys and binaries emit a clear error message instead of crashing.
 
 ```bash
 git clone https://github.com/pratty010/Furaide.git ~/Furaidē
-bash ~/Furaidē/harnesses/pi-agent/scripts/install-pi-agent.sh
+bash ~/Furaidē/packages/cli/src/targets/pi-agent/install.sh
 ```
 
 Prerequisites: [bun](https://bun.sh) + [Pi CLI](https://pi.dev) v0.72.1+.
@@ -149,7 +149,6 @@ harnesses/pi-agent/
     chimu.json                  # Neon cyan/magenta cyberpunk theme
   skills/                       # GSD skills: commit, plan, research, review
   agents/                       # pi-subagents-cc: 12 agents + teams.yaml
-  scripts/install-pi-agent.sh
 ```
 
 ---
@@ -178,4 +177,4 @@ Or delete the extension directory from Pi's extensions path manually.
 
 ## Part of F.R.I.D.A.Y.
 
-Other components: `harnesses/opencode/` (30-agent core fleet), `harnesses/claude-code/` (Satori + Hanko), `harnesses/openclaw/` (stateful assistant personas).
+Other components: `harnesses/opencode/` (15-agent core fleet), `harnesses/claude-code/` (Satori + Hanko), `harnesses/openclaw/` (stateful assistant personas).

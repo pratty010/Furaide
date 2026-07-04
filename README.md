@@ -31,6 +31,11 @@ Three files worth reading:
 | `graphify-out/graph.json` | Full queryable graph, used by `graphify query` |
 | `graphify-out/graph.html` | Interactive visual, open in any browser |
 
+**Note (2026-07-03):** `graphify-out/` was generated against a different branch (`dev`) and is currently
+stale for this branch's actual file tree — it references at least one plugin (`kuma`) that does not exist here.
+Treat it as historical/reference only until it's regenerated; verify anything it claims against the real source
+tree first.
+
 Copy any of these into your Claude Code or OpenCode session:
 
 ```
@@ -64,12 +69,12 @@ Harness integrations and shared resources that wire Furaidē into AI coding harn
 
 | Component | Harness | What it does |
 |-----------|---------|-------------|
-| `harnesses/opencode/` | [OpenCode](https://opencode.ai) | 30-agent fleet: 12 domain specialists, 16 shared subagents, 4 always-on gate guardians, web-tools plugin (3 tools, AI Studio / Vertex AI auto transport) |
+| `harnesses/opencode/` | [OpenCode](https://opencode.ai) | 15-agent fleet: 6 specialists + 6 subagents + 3 worker-tier, web-tools plugin (3 tools, AI Studio / Vertex AI auto transport) |
 | `harnesses/opencode/tools/opencode-all/` | OpenCode | Standalone OpenTUI session dashboard companion tool for OpenCode |
 | `harnesses/claude-code/` | [Claude Code](https://claude.ai/code) | Satori plugin (capability analytics) + `github` skill / `hanko--git-seal` agent (git workflow) |
 | `harnesses/pi-agent/` | [pi.dev](https://pi.dev) | Extension package: web-RAG tools, `/usage` cost tracking, animated TUI, friday and chimu themes, GSD skills |
 | `harnesses/openclaw/` | [OpenCLAW](https://docs.openclaw.ai) | Persona workspace configs for four pre-built identities: kinyo, koda, kagakusha, tengan |
-| `docs/` | All of the above | Shared cross-harness docs: GITHUB.md, agent-template.md |
+| `docs/` | All of the above | Shared cross-harness docs: GITHUB.md |
 
 ---
 
@@ -78,7 +83,7 @@ Harness integrations and shared resources that wire Furaidē into AI coding harn
 ```
 Furaidē/
 ├── harnesses/
-│   ├── opencode/      # 30-agent OpenCode fleet
+│   ├── opencode/      # 15-agent OpenCode fleet
 │   │   └── tools/     # Standalone companion tools (opencode-all, …)
 │   ├── claude-code/   # Satori plugin + github skill / hanko--git-seal agent
 │   ├── pi-agent/      # Pi extension (friday-furaidee)
@@ -108,18 +113,20 @@ Choose your harness below. Each component has its own installer. Pick what you n
 
 ### OpenCode: Furaidē's fleet
 
-```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/pratty010/Furaide/main/harnesses/opencode/scripts/install-fleet-bootstrap.sh)
-```
-
-Or from a local clone:
+From a local clone:
 
 ```bash
 git clone https://github.com/pratty010/Furaide.git ~/Furaidē
-bash ~/Furaidē/harnesses/opencode/scripts/install-fleet.sh
+bash ~/Furaidē/scripts/install.sh opencode-fleet
 ```
 
-Flags: `--list` · `--all` · `--global` / `--project` / `--custom <dir>` · `--link` (symlink dev mode) · `-h`
+Or non-interactively:
+
+```bash
+bash ~/Furaidē/scripts/install.sh opencode-fleet --scope project --workflows all --yes
+```
+
+Flags: `--scope <global|project|custom>` · `--custom-dir <path>` · `--workflows <wf1,wf2,...|all>` · `--agents <name,name,...>` · `--web-tools` / `--no-web-tools` · `--yes` · `-h`
 
 See [harnesses/opencode/README.md](harnesses/opencode/README.md).
 
@@ -138,7 +145,7 @@ See [harnesses/opencode/tools/opencode-all/README.md](harnesses/opencode/tools/o
 
 ```bash
 git clone https://github.com/pratty010/Furaide.git ~/Furaidē
-bash ~/Furaidē/harnesses/claude-code/scripts/bootstrap.sh
+bash ~/Furaidē/packages/cli/src/targets/claude-code/install.sh
 ```
 
 Then in Claude Code:
@@ -149,14 +156,14 @@ Then in Claude Code:
 /reload-plugins
 ```
 
-To uninstall: `bash ~/Furaidē/harnesses/claude-code/scripts/uninstall.sh`
+To uninstall: `bash ~/Furaidē/packages/cli/src/targets/claude-code/uninstall.sh`
 
 See [harnesses/claude-code/README.md](harnesses/claude-code/README.md).
 
 ### Pi: friday-furaidee
 
 ```bash
-bash ~/Furaidē/harnesses/pi-agent/scripts/install-pi-agent.sh
+bash ~/Furaidē/packages/cli/src/targets/pi-agent/install.sh
 ```
 
 Requires bun and Pi CLI v0.72.1+. See [harnesses/pi-agent/README.md](harnesses/pi-agent/README.md).
@@ -177,7 +184,7 @@ See [harnesses/openclaw/README.md](harnesses/openclaw/README.md).
 ### Shared skills only
 
 ```bash
-bash scripts/install-vendored-skills.sh --global   # installs to ~/.agents/skills/
+bash packages/cli/src/shared/install-vendored-skills.sh --global   # installs to ~/.agents/skills/
 # or: --project <dir>  --custom <path>
 ```
 
@@ -197,7 +204,7 @@ Installs `bx`, `html-preview`, `brave-search`, and `plan` across all ecosystems.
 
 ```bash
 cd ~/Furaidē && git pull origin master
-bash harnesses/opencode/scripts/install-fleet.sh --dry-run
+bash scripts/install.sh opencode-fleet
 ```
 
 ---
@@ -207,7 +214,7 @@ bash harnesses/opencode/scripts/install-fleet.sh --dry-run
 Before your first commit, verify SSH signing, Lefthook, and gitleaks are configured:
 
 ```bash
-bash scripts/github-setup-check.sh
+bash packages/cli/src/shared/github-setup-check.sh
 ```
 
 Work on `dev`, merge to `master` via PR:

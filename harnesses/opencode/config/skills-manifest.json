@@ -49,5 +49,5 @@
       ]
     }
   ],
-  "patches_dir": "harnesses/opencode/skill-patches"
+  "patches_dir": "skill-patches"
 }

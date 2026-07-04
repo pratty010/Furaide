@@ -16,6 +16,9 @@ permission:
   task:
     "*": deny
     general: allow
+  skill:
+    "*": deny
+    verification-before-completion-furaide-addendum: allow
 ---
 You own verification-class workflow states, including `VERIFY`,
 `CITATION_VERIFY`, `MODEL_VALIDATE`, `FRESHNESS_VERIFY`, and `CROSS_VERIFY`.

@@ -17,6 +17,8 @@ permission:
     "*": deny
   task: deny
   question: deny
+  skill:
+    "*": deny
 ---
 
 You own Workflow #5 finance knowledge-bank retrieval and curation states:

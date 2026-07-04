@@ -148,11 +148,13 @@ Full state-machine and artifact contract: `docs/workflows.md`.
 
 ## Model Budget
 
-Model routing source of truth: `docs/routing-manifest.json` **version `v10`**.
+Model routing source of truth: `docs/routing-manifest.json` **version `v11`**.
 
 - `opencode.jsonc` selects the active runtime config
-- `docs/routing-manifest.json` defines primary/fallback chains
-- `docs/OPERATOR.md` explains pool budgeting and reserved-model caps
+- `docs/routing-manifest.json` defines everything else: per-model billing pool and reserve cap
+  (`models`), and per-agent tier, primary model, fallback chain, and placement rationale (`agents`).
+  `scripts/model-resolve.mjs` reads this file directly at install time — it is the only place this
+  policy is encoded.
 
 Do not rebalance premium models ad hoc inside prompts. Change the runtime pair instead.
 
@@ -188,8 +190,6 @@ Use `/tools-config` to adjust defaults, budgets, and provider choices.
 | Reference | When to load |
 |---|---|
 | `docs/workflows.md` | Full workflow state machines, gate contract, artifact ledger, loop caps |
-| `docs/routing-manifest.json` | Model routing, fallbacks, v10 assignments |
-| `docs/OPERATOR.md` | Budget policy and reserved-model caps |
-| `docs/architecture.md` | Plugin buckets, skills pipeline, finance suite, helper-script ownership |
+| `docs/routing-manifest.json` | Model routing, tiers, pools, reserve caps, fallbacks — v11 assignments (single source of truth) |
 | `docs/models/gemini-tool-fees.yml` | Web-tools pricing supplement only |
 | `rules/memory.md` | Memory read/write contract |

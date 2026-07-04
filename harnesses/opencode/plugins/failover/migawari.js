@@ -38,7 +38,7 @@ const _SELF_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const FLEET_ROOT = _TEMPLATE.startsWith('__FLEET') ? _SELF_ROOT : _TEMPLATE;
 
 export function resolveChain(manifest, agentName) {
-  const entry = manifest.specialists?.[agentName] ?? manifest.subagents?.[agentName];
+  const entry = manifest.agents?.[agentName];
   if (!entry) return null;
   return [entry.primary, ...(entry.fallback ?? [])];
 }

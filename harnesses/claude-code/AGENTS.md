@@ -27,7 +27,7 @@ Installer:
 - `cli/`: Satori engine. `src/satori/` is the TypeScript code area; `pyproject.toml` and `uv.lock` define the `mekiki` Python package
 - `plugins/satori/`: Claude Code plugin. Hooks, commands, and manifest, all resolved via `${CLAUDE_PLUGIN_ROOT}`
 - `config/`: install-target material. `CLAUDE.md`, `settings.json`, `statusline-command.sh`, `agents/hanko--git-seal.md`
-- `scripts/`: `bootstrap.sh`, `uninstall.sh`
+- `packages/cli/src/targets/claude-code/`: `install.sh`, `uninstall.sh`
 - `docs/`: reference docs
 
 ## Workflow
