@@ -13,11 +13,11 @@
  * Total = reachability + attackerControl + impact + (3 - preconditions) + (3 - authGate)
  * Max = 3+3+3+3+3 = 15
  *
- * Labels:
- *   Critical  total >= 13 AND impact == 3 AND reachability >= 2
- *   High      total 10-12 OR (impact==3 AND reachability>=1)
- *   Medium    total 6-9
- *   Low       total <= 5
+ * Verdicts:
+ *   escalate  total >= 13 AND impact == 3 AND reachability >= 2
+ *   critical  total 10-12 OR (impact==3 AND reachability>=1)
+ *   warn      total 6-9
+ *   ok        total <= 5
  *
  * Usage:
  *   echo '<json>' | bun security-severity.mjs
@@ -44,6 +44,21 @@ async function readStdin() {
 }
 
 const DIMENSIONS = ['reachability', 'attackerControl', 'impact', 'preconditions', 'authGate'];
+const ALLOWED_VERDICTS = new Set(['ok', 'warn', 'critical', 'escalate']);
+const ALLOWED_REQUIRED_ACTIONS = new Set([
+  'fix-in-place',
+  'scout-alternative',
+  'accept-risk-pending-approval',
+]);
+const LEGACY_MIGRATIONS = {
+  'alternative-required': 'scout-alternative',
+  'escalate-security': 'escalate',
+  'accepted-risk': 'accept-risk-pending-approval',
+};
+
+function migrationHint(field, legacyValue) {
+  return `Finding field "${field}" uses legacy value "${legacyValue}"; migrate to "${LEGACY_MIGRATIONS[legacyValue]}".`;
+}
 
 function validateFinding(f, index) {
   const errors = [];
@@ -57,6 +72,25 @@ function validateFinding(f, index) {
       errors.push(`Finding[${index}].${dim} = ${JSON.stringify(v)} — must be integer 0-3`);
     }
   }
+
+  if ('verdict' in f) {
+    if (f.verdict in LEGACY_MIGRATIONS) {
+      errors.push(`Finding[${index}].verdict: ${migrationHint('verdict', f.verdict)}`);
+    } else if (!ALLOWED_VERDICTS.has(f.verdict)) {
+      errors.push(`Finding[${index}].verdict = ${JSON.stringify(f.verdict)} — must be one of ok|warn|critical|escalate`);
+    }
+  }
+
+  if ('required_action' in f) {
+    if (f.required_action in LEGACY_MIGRATIONS) {
+      errors.push(`Finding[${index}].required_action: ${migrationHint('required_action', f.required_action)}`);
+    } else if (!ALLOWED_REQUIRED_ACTIONS.has(f.required_action)) {
+      errors.push(
+        `Finding[${index}].required_action = ${JSON.stringify(f.required_action)} — must be one of fix-in-place|scout-alternative|accept-risk-pending-approval`,
+      );
+    }
+  }
+
   return errors;
 }
 
@@ -69,25 +103,31 @@ function scoreFinding(f) {
 
   const total = reachability + attackerControl + impact + preconditionsContrib + authGateContrib;
 
-  let label;
+  let verdict;
   if (total >= 13 && impact === 3 && reachability >= 2) {
-    label = 'Critical';
+    verdict = 'escalate';
   } else if (total >= 10 || (impact === 3 && reachability >= 1)) {
-    label = 'High';
+    verdict = 'critical';
   } else if (total >= 6) {
-    label = 'Medium';
+    verdict = 'warn';
   } else {
-    label = 'Low';
+    verdict = 'ok';
   }
 
+  const required_action = verdict === 'critical' ? f.required_action ?? 'fix-in-place' : undefined;
   const note =
-    label === 'Critical' || label === 'High'
+    verdict === 'critical' || verdict === 'escalate'
       ? 'High/Critical findings require a PoC or documented reachability argument before escalation.'
       : null;
 
+  if (verdict !== 'critical' && 'required_action' in f) {
+    throw new Error('required_action is only allowed when the emitted verdict is "critical"');
+  }
+
   return {
     total,
-    label,
+    verdict,
+    ...(required_action ? { required_action } : {}),
     breakdown: {
       reachability,
       attackerControl,
@@ -124,14 +164,23 @@ async function main() {
 
   // Validate all first
   const allErrors = [];
-  findings.forEach((f, i) => allErrors.push(...validateFinding(f, i)));
+  findings.forEach((f, i) => {
+    allErrors.push(...validateFinding(f, i));
+  });
   if (allErrors.length > 0) {
     const errOut = { valid: false, errors: allErrors };
     process.stdout.write(JSON.stringify(errOut, null, 2) + '\n');
     process.exit(2);
   }
 
-  const results = findings.map((f) => scoreFinding(f));
+  let results;
+  try {
+    results = findings.map((f) => scoreFinding(f));
+  } catch (error) {
+    const errOut = { valid: false, errors: [error.message] };
+    process.stdout.write(JSON.stringify(errOut, null, 2) + '\n');
+    process.exit(2);
+  }
 
   const output = Array.isArray(parsed) ? results : results[0];
   process.stdout.write(JSON.stringify(output, null, 2) + '\n');

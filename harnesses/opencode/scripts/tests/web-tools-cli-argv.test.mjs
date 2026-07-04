@@ -56,17 +56,17 @@ function okJson(payload) {
 
 describe("brave direct HTTPS contract", () => {
   test("rejects null/non-string query", async () => {
-    const brave = await import("../../plugins/web-tools/providers/brave.ts");
+    const brave = await import("../../plugins/tools/web-tools/providers/brave.ts");
     await expect(brave.searchWeb({ query: null })).rejects.toThrow();
   });
 
   test("rejects empty query", async () => {
-    const brave = await import("../../plugins/web-tools/providers/brave.ts");
+    const brave = await import("../../plugins/tools/web-tools/providers/brave.ts");
     await expect(brave.searchWeb({ query: "" })).rejects.toThrow();
   });
 
   test("rejects oversized query (>2000 chars)", async () => {
-    const brave = await import("../../plugins/web-tools/providers/brave.ts");
+    const brave = await import("../../plugins/tools/web-tools/providers/brave.ts");
     await expect(brave.searchWeb({ query: "a".repeat(2001) })).rejects.toThrow();
   });
 
@@ -74,7 +74,7 @@ describe("brave direct HTTPS contract", () => {
     const saved = process.env.BRAVE_API_KEY;
     setKey("BRAVE_API_KEY", undefined);
     try {
-      const brave = await import("../../plugins/web-tools/providers/brave.ts");
+      const brave = await import("../../plugins/tools/web-tools/providers/brave.ts");
       await expect(brave.searchWeb({ query: "x" })).rejects.toThrow(/BRAVE_API_KEY/);
     } finally {
       setKey("BRAVE_API_KEY", saved);
@@ -85,7 +85,7 @@ describe("brave direct HTTPS contract", () => {
     const cap = {};
     globalThis.fetch = captureFetch(okJson({ web: { results: [] } }), cap);
     try {
-      const brave = await import("../../plugins/web-tools/providers/brave.ts");
+      const brave = await import("../../plugins/tools/web-tools/providers/brave.ts");
       await brave.searchWeb({ query: "test" });
       expect(cap.url).not.toContain("BRAVE_API_KEY=");
       expect(cap.url).not.toContain(BRAVE_KEY);
@@ -102,7 +102,7 @@ describe("brave direct HTTPS contract", () => {
       {},
     );
     try {
-      const brave = await import("../../plugins/web-tools/providers/brave.ts");
+      const brave = await import("../../plugins/tools/web-tools/providers/brave.ts");
       await expect(brave.searchWeb({ query: "test" })).rejects.toThrow(/Brave search 502/);
     } finally {
       globalThis.fetch = originalFetch;
@@ -113,7 +113,7 @@ describe("brave direct HTTPS contract", () => {
     const cap = {};
     globalThis.fetch = captureFetch(okJson({ web: { results: [] } }), cap);
     try {
-      const brave = await import("../../plugins/web-tools/providers/brave.ts");
+      const brave = await import("../../plugins/tools/web-tools/providers/brave.ts");
       const r = await brave.searchWeb({ query: "x", count: 9999 });
       expect(r.results).toEqual([]);
       expect(cap.url).toContain("count=20");
@@ -126,7 +126,7 @@ describe("brave direct HTTPS contract", () => {
     const cap = {};
     globalThis.fetch = captureFetch(okJson({ web: { results: [] } }), cap);
     try {
-      const brave = await import("../../plugins/web-tools/providers/brave.ts");
+      const brave = await import("../../plugins/tools/web-tools/providers/brave.ts");
       await brave.searchWeb({ query: "x", freshness: "pw" });
       expect(cap.url).toContain("freshness=pw");
     } finally {
@@ -144,7 +144,7 @@ describe("brave direct HTTPS contract", () => {
       },
     }), {});
     try {
-      const brave = await import("../../plugins/web-tools/providers/brave.ts");
+      const brave = await import("../../plugins/tools/web-tools/providers/brave.ts");
       const r = await brave.searchWeb({ query: "x" });
       expect(r.results).toHaveLength(2);
       expect(r.results[0].title).toBe("T1");
@@ -165,7 +165,7 @@ describe("tavily direct HTTPS contract", () => {
     const saved = process.env.TAVILY_API_KEY;
     setKey("TAVILY_API_KEY", undefined);
     try {
-      const tavily = await import("../../plugins/web-tools/providers/tavily.ts");
+      const tavily = await import("../../plugins/tools/web-tools/providers/tavily.ts");
       await expect(tavily.searchWeb({ query: "x" })).rejects.toThrow(/TAVILY_API_KEY/);
     } finally {
       setKey("TAVILY_API_KEY", saved);
@@ -176,7 +176,7 @@ describe("tavily direct HTTPS contract", () => {
     const cap = {};
     globalThis.fetch = captureFetch(okJson({ results: [] }), cap);
     try {
-      const tavily = await import("../../plugins/web-tools/providers/tavily.ts");
+      const tavily = await import("../../plugins/tools/web-tools/providers/tavily.ts");
       await tavily.searchWeb({ query: "test" });
       expect(cap.url).not.toContain(TAVILY_KEY);
       const h = new Headers(cap.headers);
@@ -187,38 +187,38 @@ describe("tavily direct HTTPS contract", () => {
   });
 
   test("rejects non-array urls in fetchContent", async () => {
-    const tavily = await import("../../plugins/web-tools/providers/tavily.ts");
+    const tavily = await import("../../plugins/tools/web-tools/providers/tavily.ts");
     await expect(tavily.fetchContent({ urls: "not-an-array" })).rejects.toThrow(/array/);
   });
 
   test("rejects empty urls in fetchContent", async () => {
-    const tavily = await import("../../plugins/web-tools/providers/tavily.ts");
+    const tavily = await import("../../plugins/tools/web-tools/providers/tavily.ts");
     await expect(tavily.fetchContent({ urls: [] })).rejects.toThrow(/at least one/);
   });
 
   test("rejects more than 5 urls in fetchContent", async () => {
-    const tavily = await import("../../plugins/web-tools/providers/tavily.ts");
+    const tavily = await import("../../plugins/tools/web-tools/providers/tavily.ts");
     const urls = Array.from({ length: 6 }, (_, i) => `https://example.com/${i}`);
     await expect(tavily.fetchContent({ urls })).rejects.toThrow(/at most 5/);
   });
 
   test("rejects loopback URL in fetchContent", async () => {
-    const tavily = await import("../../plugins/web-tools/providers/tavily.ts");
+    const tavily = await import("../../plugins/tools/web-tools/providers/tavily.ts");
     await expect(tavily.fetchContent({ urls: ["http://localhost/"] })).rejects.toThrow();
   });
 
   test("rejects private IP in fetchContent", async () => {
-    const tavily = await import("../../plugins/web-tools/providers/tavily.ts");
+    const tavily = await import("../../plugins/tools/web-tools/providers/tavily.ts");
     await expect(tavily.fetchContent({ urls: ["http://10.0.0.5/"] })).rejects.toThrow();
   });
 
   test("rejects metadata service URL in fetchContent", async () => {
-    const tavily = await import("../../plugins/web-tools/providers/tavily.ts");
+    const tavily = await import("../../plugins/tools/web-tools/providers/tavily.ts");
     await expect(tavily.fetchContent({ urls: ["http://metadata.google.internal/"] })).rejects.toThrow();
   });
 
   test("rejects URL starting with '-'", async () => {
-    const tavily = await import("../../plugins/web-tools/providers/tavily.ts");
+    const tavily = await import("../../plugins/tools/web-tools/providers/tavily.ts");
     await expect(tavily.fetchContent({ urls: ["--evil"] })).rejects.toThrow();
   });
 
@@ -228,7 +228,7 @@ describe("tavily direct HTTPS contract", () => {
       {},
     );
     try {
-      const tavily = await import("../../plugins/web-tools/providers/tavily.ts");
+      const tavily = await import("../../plugins/tools/web-tools/providers/tavily.ts");
       await expect(tavily.searchWeb({ query: "x" })).rejects.toThrow(/Tavily \/search 429/);
     } finally {
       globalThis.fetch = originalFetch;
@@ -243,7 +243,7 @@ describe("tavily direct HTTPS contract", () => {
       ],
     }), {});
     try {
-      const tavily = await import("../../plugins/web-tools/providers/tavily.ts");
+      const tavily = await import("../../plugins/tools/web-tools/providers/tavily.ts");
       const r = await tavily.searchWeb({ query: "x" });
       expect(r.results).toHaveLength(2);
       expect(r.results[0].title).toBe("T1");
@@ -260,7 +260,7 @@ describe("tavily direct HTTPS contract", () => {
     const cap = {};
     globalThis.fetch = captureFetch(okJson({ results: [] }), cap);
     try {
-      const tavily = await import("../../plugins/web-tools/providers/tavily.ts");
+      const tavily = await import("../../plugins/tools/web-tools/providers/tavily.ts");
       await tavily.searchWeb({ query: "x", count: 9999 });
       const body = JSON.parse(cap.body);
       expect(body.max_results).toBe(20);
@@ -275,7 +275,7 @@ describe("tavily direct HTTPS contract", () => {
       results: [{ url: "https://a.com", title: "A", raw_content: "content" }],
     }), cap);
     try {
-      const tavily = await import("../../plugins/web-tools/providers/tavily.ts");
+      const tavily = await import("../../plugins/tools/web-tools/providers/tavily.ts");
       const r = await tavily.fetchContent({ urls: ["https://a.com"], mode: "extract" });
       expect(cap.url).toContain("/extract");
       const body = JSON.parse(cap.body);
@@ -297,7 +297,7 @@ describe("tavily direct HTTPS contract", () => {
       okJson({ results: [{ url: "https://other.com/page2", title: "P2", raw_content: "y" }] }),
     ], cap);
     try {
-      const tavily = await import("../../plugins/web-tools/providers/tavily.ts");
+      const tavily = await import("../../plugins/tools/web-tools/providers/tavily.ts");
       const r = await tavily.fetchContent({ urls: ["https://seed.com", "https://other.com"], mode: "crawl" });
       expect(cap.calls).toHaveLength(2);
       for (const call of cap.calls) expect(call.url).toContain("/crawl");
@@ -324,7 +324,7 @@ describe("tavily direct HTTPS contract", () => {
       okJson({ results: [{ url: "https://other.com/q1", title: "Q1" }] }),
     ], cap);
     try {
-      const tavily = await import("../../plugins/web-tools/providers/tavily.ts");
+      const tavily = await import("../../plugins/tools/web-tools/providers/tavily.ts");
       const r = await tavily.fetchContent({ urls: ["https://seed.com", "https://other.com"], mode: "map" });
       expect(cap.calls).toHaveLength(2);
       for (const call of cap.calls) expect(call.url).toContain("/map");
@@ -349,7 +349,7 @@ describe("tavily direct HTTPS contract", () => {
       new Response("upstream error body", { status: 502, statusText: "Bad Gateway" }),
     ], cap);
     try {
-      const tavily = await import("../../plugins/web-tools/providers/tavily.ts");
+      const tavily = await import("../../plugins/tools/web-tools/providers/tavily.ts");
       await expect(tavily.fetchContent({ urls: ["https://seed.com", "https://other.com"], mode: "crawl" })).rejects.toThrow(/Tavily \/crawl 502/);
       expect(cap.calls).toHaveLength(2);
     } finally {
@@ -361,7 +361,7 @@ describe("tavily direct HTTPS contract", () => {
     const cap = {};
     globalThis.fetch = captureFetch(okJson({ results: [] }), cap);
     try {
-      const tavily = await import("../../plugins/web-tools/providers/tavily.ts");
+      const tavily = await import("../../plugins/tools/web-tools/providers/tavily.ts");
       await tavily.searchWeb({ query: "x", freshness: "pw" });
       const body = JSON.parse(cap.body);
       expect(body.days).toBe(7);
@@ -373,28 +373,28 @@ describe("tavily direct HTTPS contract", () => {
 
 describe("gemini URL safety (regression)", () => {
   test("fetchContent rejects loopback URL", async () => {
-    const gemini = await import("../../plugins/web-tools/providers/gemini.ts");
+    const gemini = await import("../../plugins/tools/web-tools/providers/gemini.ts");
     await expect(gemini.fetchContent({ urls: ["http://localhost/"] })).rejects.toThrow();
   });
 
   test("fetchContent rejects private IP", async () => {
-    const gemini = await import("../../plugins/web-tools/providers/gemini.ts");
+    const gemini = await import("../../plugins/tools/web-tools/providers/gemini.ts");
     await expect(gemini.fetchContent({ urls: ["http://192.168.1.1/"] })).rejects.toThrow();
   });
 
   test("fetchContent rejects metadata service", async () => {
-    const gemini = await import("../../plugins/web-tools/providers/gemini.ts");
+    const gemini = await import("../../plugins/tools/web-tools/providers/gemini.ts");
     await expect(gemini.fetchContent({ urls: ["http://169.254.169.254/latest/meta-data/"] })).rejects.toThrow();
   });
 
   test("fetchContent rejects more than 5 URLs", async () => {
-    const gemini = await import("../../plugins/web-tools/providers/gemini.ts");
+    const gemini = await import("../../plugins/tools/web-tools/providers/gemini.ts");
     const urls = Array.from({ length: 6 }, (_, i) => `https://example.com/${i}`);
     await expect(gemini.fetchContent({ urls })).rejects.toThrow();
   });
 
   test("fetchContent rejects empty urls", async () => {
-    const gemini = await import("../../plugins/web-tools/providers/gemini.ts");
+    const gemini = await import("../../plugins/tools/web-tools/providers/gemini.ts");
     await expect(gemini.fetchContent({ urls: [] })).rejects.toThrow();
   });
 });

@@ -30,7 +30,7 @@ Part of the [F.R.I.D.A.Y.](https://github.com/pratty010/Furaide) monorepo.
 | **`github` skill** | Git/GitHub workflow recipes for the `hanko--git-seal` subagent |
 | **`hanko--git-seal` shikigami** | Quiet executor for all git/GitHub ops; routes through the `github` skill |
 
-Satori and the `github` skill share a single engine (`cli/`) installed by `scripts/bootstrap.sh`.
+Satori and the `github` skill share a single engine (`cli/`) installed by `packages/cli/src/targets/claude-code/install.sh`.
 
 ---
 
@@ -84,7 +84,7 @@ A two-phase process: bootstrap local assets, then register the plugin in Claude 
 
 ```bash
 git clone https://github.com/pratty010/Furaide.git ~/Furaidē
-bash ~/Furaidē/harnesses/claude-code/scripts/bootstrap.sh
+bash ~/Furaidē/packages/cli/src/targets/claude-code/install.sh
 ```
 
 The bootstrap script is interactive by default (Y/n prompt per step). Pass `--yes`/`-y` to run unattended:
@@ -217,8 +217,8 @@ Satori reads optional config from `~/.satori/config.json` (or `$SATORI_HOME/conf
 Satori observes skills, so you need skills installed for it to observe anything. Bootstrap offers to run the common installer. You can also run it separately:
 
 ```bash
-bash ~/Furaidē/scripts/install-vendored-skills.sh --global      # bx, html-preview, brave-search, plan
-bash ~/Furaidē/scripts/install-external-skills.sh --ecosystem claude-code  # superpowers, notebooklm, …
+bash ~/Furaidē/packages/cli/src/shared/install-vendored-skills.sh --global      # bx, html-preview, brave-search, plan
+bash ~/Furaidē/packages/cli/src/shared/install-external-skills.sh --ecosystem claude-code  # superpowers, notebooklm, …
 ```
 
 ### Config bundle
@@ -247,7 +247,7 @@ It stays at the root by design. Moving it under `claude-code/` would break the `
 ## 🗑️ Uninstall
 
 ```bash
-bash ~/Furaidē/harnesses/claude-code/scripts/uninstall.sh
+bash ~/Furaidē/packages/cli/src/targets/claude-code/uninstall.sh
 ```
 
 Default: interactive (prompts for user data). Flags: `--dry-run` (print what would be removed, no changes), `--purge` (remove everything with no prompts).
@@ -293,7 +293,7 @@ For testing upcoming features on the `dev` branch:
 
    ```bash
    git clone -b dev https://github.com/pratty010/Furaide.git ~/furaide-dev
-   bash ~/furaide-dev/harnesses/claude-code/scripts/bootstrap.sh
+   bash ~/furaide-dev/packages/cli/src/targets/claude-code/install.sh
    ```
 
 2. **Run Tests**

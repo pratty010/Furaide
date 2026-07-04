@@ -1,7 +1,7 @@
 import { test, expect, describe } from "bun:test";
 
 test("maps_search tool executes with mock runtime", async () => {
-  const { executeMapsSearchTool } = await import("../../plugins/web-tools/tools/maps-search.ts");
+  const { executeMapsSearchTool } = await import("../../plugins/tools/web-tools/tools/maps-search.ts");
 
   const mockRuntime = {
     config: {
@@ -32,7 +32,7 @@ test("maps_search tool executes with mock runtime", async () => {
 });
 
 test("maps_search returns lean fields only", async () => {
-  const { executeMapsSearchTool } = await import("../../plugins/web-tools/tools/maps-search.ts");
+  const { executeMapsSearchTool } = await import("../../plugins/tools/web-tools/tools/maps-search.ts");
 
   const mockRuntime = {
     config: {
@@ -56,7 +56,7 @@ test("maps_search returns lean fields only", async () => {
 });
 
 test("maps_search applies default count from config", async () => {
-  const { normalizeMapsSearchArgs } = await import("../../plugins/web-tools/tools/maps-search.ts");
+  const { normalizeMapsSearchArgs } = await import("../../plugins/tools/web-tools/tools/maps-search.ts");
 
   const config = { defaultProvider: "gemini", count: 7 };
   const normalized = normalizeMapsSearchArgs({ query: "sushi" }, config);
@@ -68,7 +68,7 @@ test("maps_search applies default count from config", async () => {
 
 describe("maps_search lat/lng propagation", () => {
   test("passes lat/lng to provider", async () => {
-    const { executeMapsSearchTool } = await import("../../plugins/web-tools/tools/maps-search.ts");
+    const { executeMapsSearchTool } = await import("../../plugins/tools/web-tools/tools/maps-search.ts");
 
     let receivedLat;
     let receivedLng;
@@ -94,7 +94,7 @@ describe("maps_search lat/lng propagation", () => {
   });
 
   test("passes undefined lat/lng when not provided", async () => {
-    const { executeMapsSearchTool } = await import("../../plugins/web-tools/tools/maps-search.ts");
+    const { executeMapsSearchTool } = await import("../../plugins/tools/web-tools/tools/maps-search.ts");
 
     let receivedLat;
     let receivedLng;
@@ -125,7 +125,7 @@ test("maps_search records usage exactly once per call (no double-count)", async 
   // called BOTH usage.recordFromSearch AND recordWithBudget, doubling the
   // recorded units/cost per call. recordWithBudget already records via
   // checkAndRecord, so only one path may run.
-  const { executeMapsSearchTool } = await import("../../plugins/web-tools/tools/maps-search.ts");
+  const { executeMapsSearchTool } = await import("../../plugins/tools/web-tools/tools/maps-search.ts");
 
   let recordFromSearchCalls = 0;
   let recordWithBudgetCalls = 0;

@@ -11,7 +11,7 @@ describe("Plugin runtime assembly", () => {
   });
 
   test("loadWebToolsConfig returns defaults for missing config", async () => {
-    const { loadWebToolsConfig } = await import("../../plugins/web-tools/config.ts");
+    const { loadWebToolsConfig } = await import("../../plugins/tools/web-tools/config.ts");
     const config = await loadWebToolsConfig({ configDir });
     expect(config.webSearch.defaultProvider).toBe("brave");
     expect(config.fetchContent.defaultProvider).toBe("gemini");
@@ -21,7 +21,7 @@ describe("Plugin runtime assembly", () => {
   });
 
   test("loadWebToolsConfig merges user config over defaults", async () => {
-    const { loadWebToolsConfig } = await import("../../plugins/web-tools/config.ts");
+    const { loadWebToolsConfig } = await import("../../plugins/tools/web-tools/config.ts");
     writeFileSync(join(configDir, "web-tools.yml"), `webSearch:\n  count: 10\nbudgets:\n  geminiUsd: 2.5\n`);
     const config = await loadWebToolsConfig({ configDir });
     expect(config.webSearch.count).toBe(10);
@@ -30,8 +30,8 @@ describe("Plugin runtime assembly", () => {
   });
 
   test("InMemoryCache accepts TTLs from config", async () => {
-    const { loadWebToolsConfig } = await import("../../plugins/web-tools/config.ts");
-    const { InMemoryCache } = await import("../../plugins/web-tools/cache.ts");
+    const { loadWebToolsConfig } = await import("../../plugins/tools/web-tools/config.ts");
+    const { InMemoryCache } = await import("../../plugins/tools/web-tools/cache.ts");
     const config = await loadWebToolsConfig({ configDir });
     const cache = new InMemoryCache({
       webSearchTtlMs: config.cache.ttl.webSearchMs,
@@ -44,8 +44,8 @@ describe("Plugin runtime assembly", () => {
   });
 
   test("DB + usage tracker compose correctly", async () => {
-    const { openTestDb } = await import("../../plugins/web-tools/db.ts");
-    const { createUsageTracker } = await import("../../plugins/web-tools/provider-usage.ts");
+    const { openTestDb } = await import("../../plugins/tools/web-tools/db.ts");
+    const { createUsageTracker } = await import("../../plugins/tools/web-tools/provider-usage.ts");
     const db = openTestDb();
     const budgets = { geminiUsd: 5.0, braveRequests: 2000, tavilyCredits: 1000 };
     const usage = createUsageTracker(db, budgets);
@@ -57,10 +57,10 @@ describe("Plugin runtime assembly", () => {
   });
 
   test("DB + cache + usage compose as a combined runtime", async () => {
-    const { loadWebToolsConfig } = await import("../../plugins/web-tools/config.ts");
-    const { InMemoryCache } = await import("../../plugins/web-tools/cache.ts");
-    const { openTestDb, createTables } = await import("../../plugins/web-tools/db.ts");
-    const { createUsageTracker } = await import("../../plugins/web-tools/provider-usage.ts");
+    const { loadWebToolsConfig } = await import("../../plugins/tools/web-tools/config.ts");
+    const { InMemoryCache } = await import("../../plugins/tools/web-tools/cache.ts");
+    const { openTestDb, createTables } = await import("../../plugins/tools/web-tools/db.ts");
+    const { createUsageTracker } = await import("../../plugins/tools/web-tools/provider-usage.ts");
 
     const config = await loadWebToolsConfig({ configDir });
     const cache = new InMemoryCache({
@@ -86,15 +86,15 @@ describe("Plugin runtime assembly", () => {
   });
 
   test("effectiveOrder dedupes across fallback chains", async () => {
-    const { effectiveOrder } = await import("../../plugins/web-tools/order.ts");
+    const { effectiveOrder } = await import("../../plugins/tools/web-tools/order.ts");
     const order = effectiveOrder("brave", ["brave", "tavily", "gemini"], ["brave", "gemini"]);
     expect(order).toEqual(["brave", "tavily", "gemini"]);
   });
 
   test("searchMaps provider respects budget pre-check", async () => {
-    const { openTestDb } = await import("../../plugins/web-tools/db.ts");
-    const { createUsageTracker } = await import("../../plugins/web-tools/provider-usage.ts");
-    const { checkBudget } = await import("../../plugins/web-tools/provider-usage.ts");
+    const { openTestDb } = await import("../../plugins/tools/web-tools/db.ts");
+    const { createUsageTracker } = await import("../../plugins/tools/web-tools/provider-usage.ts");
+    const { checkBudget } = await import("../../plugins/tools/web-tools/provider-usage.ts");
 
     const db = openTestDb();
     const budgets = { geminiUsd: 0.05, braveRequests: 2000, tavilyCredits: 1000 };

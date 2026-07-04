@@ -26,7 +26,7 @@ describe("selectGoogleTransport", () => {
       delete process.env.GOOGLE_CLOUD_PROJECT;
       delete process.env.GOOGLE_APPLICATION_CREDENTIALS;
 
-      const { selectGoogleTransport } = await import("../../plugins/web-tools/providers/transport-select.ts");
+      const { selectGoogleTransport } = await import("../../plugins/tools/web-tools/providers/transport-select.ts");
       const result = selectGoogleTransport("auto");
       expect(result.kind).toBe("ai-studio");
     });
@@ -37,7 +37,7 @@ describe("selectGoogleTransport", () => {
       delete process.env.GOOGLE_CLOUD_PROJECT;
       delete process.env.GOOGLE_APPLICATION_CREDENTIALS;
 
-      const { selectGoogleTransport } = await import("../../plugins/web-tools/providers/transport-select.ts");
+      const { selectGoogleTransport } = await import("../../plugins/tools/web-tools/providers/transport-select.ts");
       const result = selectGoogleTransport("auto");
       expect(result.kind).toBe("ai-studio");
     });
@@ -48,7 +48,7 @@ describe("selectGoogleTransport", () => {
       process.env.GOOGLE_CLOUD_PROJECT = "my-project";
       process.env.GOOGLE_APPLICATION_CREDENTIALS = "/fake/path";
 
-      const { selectGoogleTransport } = await import("../../plugins/web-tools/providers/transport-select.ts");
+      const { selectGoogleTransport } = await import("../../plugins/tools/web-tools/providers/transport-select.ts");
       const result = selectGoogleTransport("auto");
       expect(result.kind).toBe("vertex");
     });
@@ -59,7 +59,7 @@ describe("selectGoogleTransport", () => {
       delete process.env.GOOGLE_CLOUD_PROJECT;
       delete process.env.GOOGLE_APPLICATION_CREDENTIALS;
 
-      const { selectGoogleTransport } = await import("../../plugins/web-tools/providers/transport-select.ts");
+      const { selectGoogleTransport } = await import("../../plugins/tools/web-tools/providers/transport-select.ts");
       const result = selectGoogleTransport("auto");
       expect(result.kind).toBe("none");
       expect(result.reason).toContain("No Google credentials");
@@ -70,7 +70,7 @@ describe("selectGoogleTransport", () => {
       process.env.GOOGLE_CLOUD_PROJECT = "my-project";
       process.env.GOOGLE_APPLICATION_CREDENTIALS = "/fake/path";
 
-      const { selectGoogleTransport } = await import("../../plugins/web-tools/providers/transport-select.ts");
+      const { selectGoogleTransport } = await import("../../plugins/tools/web-tools/providers/transport-select.ts");
       const result = selectGoogleTransport("auto");
       expect(result.kind).toBe("ai-studio");
     });
@@ -86,7 +86,7 @@ describe("selectGoogleTransport", () => {
       delete process.env.GOOGLE_CLOUD_PROJECT;
       process.env.GOOGLE_APPLICATION_CREDENTIALS = "/fake/path";
 
-      const { selectGoogleTransport } = await import("../../plugins/web-tools/providers/transport-select.ts");
+      const { selectGoogleTransport } = await import("../../plugins/tools/web-tools/providers/transport-select.ts");
       const result = selectGoogleTransport("vertex");
       expect(result.kind).toBe("none");
       expect(result.reason).toContain("GOOGLE_CLOUD_PROJECT");
@@ -96,7 +96,7 @@ describe("selectGoogleTransport", () => {
       process.env.GOOGLE_CLOUD_PROJECT = "my-project";
       delete process.env.GOOGLE_APPLICATION_CREDENTIALS;
 
-      const { selectGoogleTransport } = await import("../../plugins/web-tools/providers/transport-select.ts");
+      const { selectGoogleTransport } = await import("../../plugins/tools/web-tools/providers/transport-select.ts");
       const result = selectGoogleTransport("vertex");
       // Without GOOGLE_APPLICATION_CREDENTIALS and no well-known file, should be none
       expect(result.kind).toBe("none");
@@ -113,7 +113,7 @@ describe("selectGoogleTransport", () => {
       delete process.env.GEMINI_API_KEY;
       delete process.env.GOOGLE_API_KEY;
 
-      const { selectGoogleTransport } = await import("../../plugins/web-tools/providers/transport-select.ts");
+      const { selectGoogleTransport } = await import("../../plugins/tools/web-tools/providers/transport-select.ts");
       const result = selectGoogleTransport("ai-studio");
       expect(result.kind).toBe("none");
       expect(result.reason).toContain("requires GEMINI_API_KEY");
@@ -122,7 +122,7 @@ describe("selectGoogleTransport", () => {
     test("with GEMINI_API_KEY returns ai-studio", async () => {
       process.env.GEMINI_API_KEY = "test-key";
 
-      const { selectGoogleTransport } = await import("../../plugins/web-tools/providers/transport-select.ts");
+      const { selectGoogleTransport } = await import("../../plugins/tools/web-tools/providers/transport-select.ts");
       const result = selectGoogleTransport("ai-studio");
       expect(result.kind).toBe("ai-studio");
     });

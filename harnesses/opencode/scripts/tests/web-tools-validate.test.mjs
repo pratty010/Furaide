@@ -13,7 +13,7 @@ import {
   UNTRUSTED_NOTICE,
   MAX_QUERY_LENGTH,
   MAX_URLS,
-} from "../../plugins/web-tools/util/validate.ts";
+} from "../../plugins/tools/web-tools/util/validate.ts";
 
 describe("validateQuery", () => {
   test("accepts normal string", () => {

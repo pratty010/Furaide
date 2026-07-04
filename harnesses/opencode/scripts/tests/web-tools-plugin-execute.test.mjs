@@ -69,7 +69,7 @@ function mockMapsSearchRuntime(overrides = {}) {
 
 describe("web_search plugin execute stringifies output", () => {
   test("returns a string that parses as JSON with .results array", async () => {
-    const { executeWebSearchTool } = await import("../../plugins/web-tools/tools/web-search.ts");
+    const { executeWebSearchTool } = await import("../../plugins/tools/web-tools/tools/web-search.ts");
     const result = await executeWebSearchTool({ query: "hello" }, mockWebSearchRuntime());
     const serialized = JSON.stringify(result);
     expect(typeof serialized).toBe("string");
@@ -79,7 +79,7 @@ describe("web_search plugin execute stringifies output", () => {
   });
 
   test("omits provider, latencyMs, tokensInput, tokensOutput from public result", async () => {
-    const { executeWebSearchTool } = await import("../../plugins/web-tools/tools/web-search.ts");
+    const { executeWebSearchTool } = await import("../../plugins/tools/web-tools/tools/web-search.ts");
     const result = await executeWebSearchTool({ query: "test" }, mockWebSearchRuntime());
     const serialized = JSON.stringify(result);
     expect(serialized).not.toContain("provider");
@@ -91,7 +91,7 @@ describe("web_search plugin execute stringifies output", () => {
 
 describe("fetch_content plugin execute stringifies output", () => {
   test("returns a string that parses as JSON with .results array", async () => {
-    const { executeFetchContentTool } = await import("../../plugins/web-tools/tools/fetch-content.ts");
+    const { executeFetchContentTool } = await import("../../plugins/tools/web-tools/tools/fetch-content.ts");
     const result = await executeFetchContentTool({ urls: ["https://example.com"] }, mockFetchContentRuntime());
     const serialized = JSON.stringify(result);
     expect(typeof serialized).toBe("string");
@@ -101,7 +101,7 @@ describe("fetch_content plugin execute stringifies output", () => {
   });
 
   test("omits provider, latencyMs, tokensInput, tokensOutput from public result", async () => {
-    const { executeFetchContentTool } = await import("../../plugins/web-tools/tools/fetch-content.ts");
+    const { executeFetchContentTool } = await import("../../plugins/tools/web-tools/tools/fetch-content.ts");
     const result = await executeFetchContentTool({ urls: ["https://example.com"] }, mockFetchContentRuntime());
     const serialized = JSON.stringify(result);
     expect(serialized).not.toContain("provider");
@@ -113,7 +113,7 @@ describe("fetch_content plugin execute stringifies output", () => {
 
 describe("maps_search plugin execute stringifies output", () => {
   test("returns a string that parses as JSON with .results array", async () => {
-    const { executeMapsSearchTool } = await import("../../plugins/web-tools/tools/maps-search.ts");
+    const { executeMapsSearchTool } = await import("../../plugins/tools/web-tools/tools/maps-search.ts");
     const result = await executeMapsSearchTool({ query: "cafe" }, mockMapsSearchRuntime());
     const serialized = JSON.stringify(result);
     expect(typeof serialized).toBe("string");
@@ -123,7 +123,7 @@ describe("maps_search plugin execute stringifies output", () => {
   });
 
   test("omits provider, latencyMs, tokensInput, tokensOutput from public result", async () => {
-    const { executeMapsSearchTool } = await import("../../plugins/web-tools/tools/maps-search.ts");
+    const { executeMapsSearchTool } = await import("../../plugins/tools/web-tools/tools/maps-search.ts");
     const result = await executeMapsSearchTool({ query: "cafe" }, mockMapsSearchRuntime());
     const serialized = JSON.stringify(result);
     expect(serialized).not.toContain("provider");
@@ -133,7 +133,7 @@ describe("maps_search plugin execute stringifies output", () => {
   });
 
   test("lat/lng flow through correctly", async () => {
-    const { executeMapsSearchTool } = await import("../../plugins/web-tools/tools/maps-search.ts");
+    const { executeMapsSearchTool } = await import("../../plugins/tools/web-tools/tools/maps-search.ts");
     let receivedLat;
     let receivedLng;
     const result = await executeMapsSearchTool(

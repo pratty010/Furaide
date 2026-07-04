@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 
 test("gemini tool fee supplement is applied on top of token pricing", async () => {
-  const { createPricingHelper } = await import("../../plugins/web-tools/pricing.ts");
+  const { createPricingHelper } = await import("../../plugins/tools/web-tools/pricing.ts");
 
   const pricing = createPricingHelper({
     litellm: { "google/gemini-3.1-flash-lite": { input_cost_per_token: 0.0000001, output_cost_per_token: 0.0000004 } },
@@ -17,7 +17,7 @@ test("gemini tool fee supplement is applied on top of token pricing", async () =
 });
 
 test("loadPricingHelper loads fee file synchronously", async () => {
-  const { loadPricingHelper } = await import("../../plugins/web-tools/pricing.ts");
+  const { loadPricingHelper } = await import("../../plugins/tools/web-tools/pricing.ts");
   const dir = mkdtempSync(join(tmpdir(), "wt-pricing-"));
   try {
     mkdirSync(join(dir, "docs", "models"), { recursive: true });
@@ -34,7 +34,7 @@ test("loadPricingHelper loads fee file synchronously", async () => {
 });
 
 test("loadPricingHelper falls back to defaults when fee file missing", async () => {
-  const { loadPricingHelper } = await import("../../plugins/web-tools/pricing.ts");
+  const { loadPricingHelper } = await import("../../plugins/tools/web-tools/pricing.ts");
   const dir = mkdtempSync(join(tmpdir(), "wt-pricing-"));
   try {
     const pricing = loadPricingHelper({ configDir: dir, docsDir: dir });
@@ -49,7 +49,7 @@ test("loadPricingHelper rejects cache with future fetchedAt (poisoned cache pinn
   // Adversarial: a poisoned cache file with fetchedAt in the future would
   // otherwise pass the freshness check forever (now - futureDate < 86_400_000
   // is always true for negative deltas). The fix adds a fetchedAt <= now guard.
-  const { loadPricingHelper } = await import("../../plugins/web-tools/pricing.ts");
+  const { loadPricingHelper } = await import("../../plugins/tools/web-tools/pricing.ts");
   const dir = mkdtempSync(join(tmpdir(), "wt-pricing-"));
   try {
     const futureCache = {
@@ -69,7 +69,7 @@ test("loadPricingHelper rejects cache with future fetchedAt (poisoned cache pinn
 });
 
 test("loadPricingHelper rejects cache with non-finite fetchedAt", async () => {
-  const { loadPricingHelper } = await import("../../plugins/web-tools/pricing.ts");
+  const { loadPricingHelper } = await import("../../plugins/tools/web-tools/pricing.ts");
   const dir = mkdtempSync(join(tmpdir(), "wt-pricing-"));
   try {
     const poisoned = {
@@ -85,7 +85,7 @@ test("loadPricingHelper rejects cache with non-finite fetchedAt", async () => {
 });
 
 test("loadPricingHelper accepts cache with recent fetchedAt", async () => {
-  const { loadPricingHelper } = await import("../../plugins/web-tools/pricing.ts");
+  const { loadPricingHelper } = await import("../../plugins/tools/web-tools/pricing.ts");
   const dir = mkdtempSync(join(tmpdir(), "wt-pricing-"));
   try {
     const recent = {

@@ -1,13 +1,22 @@
 {
+  "_readme": "This file is a legacy reference snapshot of the pre-packages/cli component model. packages/cli/src/targets/opencode-fleet/install.ts hardcodes its own file lists (CORE_INFRA_FILES, FINANCE_FILES, WEB_TOOLS_FILES, etc.) and does not read this JSON at runtime. Update this file for documentation/audit-trail purposes only.",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "_comment": "Single source of truth for install-fleet.sh. Edit here, not in the installer.",
+  "_comment": "Historical component list. See the _readme field above — this file is a legacy reference snapshot, not read at runtime. Update for documentation/audit-trail purposes only.",
   "components": [
     {
       "id": "workflow-gates",
       "label": "Workflow Gates",
-      "description": "Fail-closed gate plugins (Nio, Nurikabe) and the workflow state engine they exec. Cannot be split.",
+      "description": "Fail-closed gate plugins (Nio, Komainu), workflow hook plugins, and the workflow state engine they enforce. Cannot be split.",
       "atomic": true,
-      "coupling": "nio.js and nurikabe.js exec scripts/workflow-state.mjs at runtime",
+      "coupling": {
+        "usedBy": [
+          "plugins/gates/nio.js",
+          "plugins/hooks/audit-logger.js",
+          "plugins/hooks/compaction-injector.js"
+        ],
+        "safeToRemove": false,
+        "fallbackBehavior": null
+      },
       "requires_bun": false,
       "default_on": true,
       "target_subdirs": [
@@ -16,8 +25,9 @@
         "docs"
       ],
       "files": [
-        "plugins/nio.js",
-        "plugins/nurikabe.js",
+        "plugins/gates/nio.js",
+        "plugins/hooks/audit-logger.js",
+        "plugins/hooks/compaction-injector.js",
         "scripts/workflow-state.mjs",
         "scripts/state-path.mjs",
         "docs/workflows.md"
@@ -29,9 +39,15 @@
     {
       "id": "failover",
       "label": "Model Failover",
-      "description": "Migawari plugin and the routing manifest it reads. Cannot be split.",
+      "description": "Migawari plugin (session.error visibility logger) and the routing manifest that scripts/model-resolve.mjs consumes at install time to substitute unavailable models. Cannot be split.",
       "atomic": true,
-      "coupling": "migawari.js reads docs/routing-manifest.json at runtime",
+      "coupling": {
+        "usedBy": [
+          "scripts/model-resolve.mjs"
+        ],
+        "safeToRemove": false,
+        "fallbackBehavior": null
+      },
       "requires_bun": false,
       "default_on": true,
       "target_subdirs": [
@@ -39,7 +55,7 @@
         "docs"
       ],
       "files": [
-        "plugins/migawari.js",
+        "plugins/failover/migawari.js",
         "docs/routing-manifest.json"
       ],
       "globs": []
@@ -49,60 +65,55 @@
       "label": "Security Gate",
       "description": "Komainu plugin: screens Edit/Write calls for 35+ dangerous code patterns. Standalone.",
       "atomic": false,
-      "coupling": "none",
+      "coupling": {
+        "usedBy": [],
+        "safeToRemove": true,
+        "fallbackBehavior": "no dangerous-code-pattern screening on Edit/Write calls; no replacement mechanism"
+      },
       "requires_bun": false,
       "default_on": true,
       "target_subdirs": [
         "plugins"
       ],
       "files": [
-        "plugins/komainu.js"
+        "plugins/gates/komainu.js"
       ],
       "globs": []
     },
-
     {
       "id": "agents-core",
-      "label": "Specialist Agents (30 core)",
-      "description": "30 specialist and subagent shikigami (12 specialists + 16 subagents + 2 escape-hatch) plus the runtime opencode.jsonc (provider whitelist, gate-plugin array, agent model mappings). Soft dependency on failover routing-manifest.json and docs/models/** for model selection.",
+      "label": "Workflow Fleet (v2)",
+      "description": "Full v2 workflow fleet (15 agents) as specified in docs/superpowers/specs/2026-06-30-opencode-harness-redesign-design.md.",
       "atomic": false,
-      "coupling": "soft dep on failover routing-manifest.json; auto-included at same scope if failover not selected there. opencode.jsonc ships with the bundle so fleet agent model mappings are installed by default; install-fleet.sh rewrites its 'plugin' and 'instructions' arrays against the current fleet manifest after copy. POST-COPY CONFIG MERGE IS MANDATORY: every scope where agents-core lands must run merge-config.mjs with --agents-source $FLEET_ROOT/opencode.jsonc, otherwise the installed opencode.jsonc will not be picked up by opencode and the fleet agents will inherit the user's previous model assignments (or none).",
+      "coupling": {
+        "usedBy": [
+          "docs/routing-manifest.json",
+          "scripts/merge-config.mjs"
+        ],
+        "safeToRemove": false,
+        "fallbackBehavior": null
+      },
       "requires_bun": false,
       "default_on": true,
       "target_subdirs": [
         "agents"
       ],
       "files": [
-        "agents/azukiarai--data-sifter.md",
         "agents/bakeneko--bug-hunter.md",
-        "agents/daidarabotchi--infra-shaper.md",
         "agents/daikoku--finance-steward.md",
-        "agents/enma--compliance-judge.md",
+        "agents/explore.md",
         "agents/fudo--security-guardian.md",
-        "agents/henge--format-shifter.md",
-        "agents/jorogumo--synthesis-weaver.md",
-        "agents/kagami--truth-mirror.md",
-        "agents/karakuri--command-runner.md",
-        "agents/karasutengu--docs-scout.md",
-        "agents/kotodama--prose-polisher.md",
-        "agents/makimono--docs-scribe.md",
-        "agents/mikoshi--code-pathfinder.md",
-        "agents/mujina--brand-shapeshifter.md",
+        "agents/general.md",
+        "agents/hanko--git-seal.md",
+        "agents/hansei--lesson-keeper.md",
+        "agents/kagami--verifier.md",
+        "agents/kantoku--workflow-director.md",
+        "agents/kura--knowledge-banker.md",
+        "agents/kyakuhon--spec-planner.md",
         "agents/oni--red-team-reviewer.md",
-        "agents/soroban--number-sage.md",
-        "agents/tanuki--general-trickster.md",
-        "agents/tanuki--codemod-runner.md",
-        "agents/tengu--visual-artisan.md",
+        "agents/scout.md",
         "agents/tsuchigumo--research-weaver.md",
         "agents/tsukumogami--code-forgemaster.md",
-        "agents/tsukuyomi--spec-oracle.md",
-        "agents/yamabiko--source-echo.md",
-        "agents/yumemi--story-smith.md",
-        "agents/hanko--git-seal.md",
-        "agents/sojobo--system-strategist.md",
-        "agents/shiranui--migration-guide.md",
-        "agents/chizu--implementation-planner.md",
-        "agents/mizuchi--data-current.md",
         "config/opencode.jsonc",
         "config/AGENTS.md"
       ],
@@ -111,25 +122,29 @@
     {
       "id": "agent-scripts",
       "label": "Agent Support Scripts",
-      "description": "Verification and safety scripts called by agents via karakuri--command-runner (code runner). No hard coupling.",
+      "description": "Verification and safety scripts called by agents via the bash tool. No hard coupling.",
       "atomic": false,
-      "coupling": "none (agents call via karakuri--command-runner subagent)",
+      "coupling": {
+        "usedBy": [
+          "agents/kagami--verifier.md",
+          "agents/scout.md",
+          "agents/tsuchigumo--research-weaver.md",
+          "agents/fudo--security-guardian.md"
+        ],
+        "safeToRemove": false,
+        "fallbackBehavior": null
+      },
       "requires_bun": false,
       "default_on": true,
       "target_subdirs": [
         "scripts"
       ],
       "files": [
-        "scripts/action-allowlist.mjs",
         "scripts/citation-verify.mjs",
         "scripts/ctx7-docs.mjs",
         "scripts/humanize-check.mjs",
-        "scripts/memory-path.mjs",
-        "scripts/playbook-check.mjs",
         "scripts/security-severity.mjs",
-        "scripts/sql-safety-check.mjs",
-        "scripts/verify-run.mjs",
-        "scripts/voice-check.mjs"
+        "scripts/verify-run.mjs"
       ],
       "globs": []
     },
@@ -138,7 +153,13 @@
       "label": "Rules",
       "description": "Memory contract and other rules loaded via instructions glob in opencode.json.",
       "atomic": false,
-      "coupling": "wired via instructions glob in opencode.json",
+      "coupling": {
+        "usedBy": [
+          "config/opencode.jsonc"
+        ],
+        "safeToRemove": false,
+        "fallbackBehavior": null
+      },
       "requires_bun": false,
       "default_on": true,
       "target_subdirs": [
@@ -152,9 +173,17 @@
     {
       "id": "docs-reference",
       "label": "Reference Docs",
-      "description": "OPERATOR guide, architecture overview, manifest schema, agent template, model family guides, and shared GitHub workflow guide. Reference only, not required at runtime.",
+      "description": "OPERATOR guide, architecture overview, manifest schema, rubric, and shared GitHub workflow guide. Reference only, not required at runtime.",
       "atomic": false,
-      "coupling": "reference only; GITHUB.md and github-setup-check.sh sourced from repo-root docs/ and scripts/ at install time",
+      "coupling": {
+        "usedBy": [
+          "agents/fudo--security-guardian.md",
+          "agents/hanko--git-seal.md",
+          "skills/github/SKILL.md"
+        ],
+        "safeToRemove": true,
+        "fallbackBehavior": "agents lose the OPERATOR/manifest-schema/GITHUB.md reference docs; no functional runtime fallback needed since these are reference-only"
+      },
       "requires_bun": false,
       "default_on": false,
       "target_subdirs": [
@@ -162,10 +191,7 @@
         "scripts"
       ],
       "files": [
-        "docs/OPERATOR.md",
-        "docs/architecture.md",
-        "docs/manifest-schema.md",
-        "docs/agent-template.md"
+        "docs/manifest-schema.md"
       ],
       "common_files": [
         {
@@ -173,12 +199,68 @@
           "dst": "docs/GITHUB.md"
         },
         {
-          "src": "../../../scripts/github-setup-check.sh",
+          "src": "../../../packages/cli/src/shared/github-setup-check.sh",
           "dst": "scripts/github-setup-check.sh"
         }
       ],
+      "globs": []
+    },
+    {
+      "id": "finance",
+      "label": "Finance Compute Scripts",
+      "description": "Deterministic finance ledgers plus uv-run Python compute and verification scripts for Workflow #5. Requires a local uv toolchain; no network at runtime.",
+      "atomic": false,
+      "coupling": {
+        "usedBy": [
+          "agents/kura--knowledge-banker.md"
+        ],
+        "safeToRemove": false,
+        "fallbackBehavior": null
+      },
+      "requires_bun": false,
+      "default_on": true,
+      "target_subdirs": [
+        "scripts"
+      ],
+      "files": [
+        "scripts/knowledge-bank-finance.mjs",
+        "scripts/finance-artifact-registry.mjs",
+        "scripts/finance-source-registry.mjs",
+        "scripts/finance/pyproject.toml",
+        "scripts/finance/uv.lock"
+      ],
       "globs": [
-        "docs/models/**"
+        "scripts/finance/*.py",
+        "scripts/finance/tests/**"
+      ]
+    },
+    {
+      "id": "skills",
+      "label": "Skills Pipeline",
+      "description": "Pinned external skill pulls (superpowers, mattpocock, addyosmani) plus bundled addendum/native skills, installed to ~/.config/opencode/skills/ by the packages/cli installer.",
+      "atomic": false,
+      "coupling": {
+        "usedBy": [
+          "scripts/pull-external-skills.mjs"
+        ],
+        "safeToRemove": false,
+        "fallbackBehavior": null
+      },
+      "requires_bun": true,
+      "default_on": true,
+      "target_subdirs": [
+        "scripts",
+        "config",
+        "skill-patches",
+        "skills"
+      ],
+      "files": [
+        "scripts/pull-external-skills.mjs",
+        "config/skills-manifest.json"
+      ],
+      "globs": [
+        "skill-patches/**",
+        "skills/**"
       ]
     },
     {
@@ -186,20 +268,33 @@
       "label": "Web Tools",
       "description": "Lean web-search/fetch/maps plugin with provider budgets and interactive config.",
       "atomic": true,
+      "coupling": {
+        "usedBy": [
+          "agents/tsuchigumo--research-weaver.md"
+        ],
+        "safeToRemove": true,
+        "fallbackBehavior": "tsuchigumo falls back to native websearch/webfetch (see 42F.2)"
+      },
       "requires_bun": true,
       "default_on": true,
-      "target_subdirs": ["plugins", "config", "commands", "docs", "scripts"],
+      "target_subdirs": [
+        "plugins",
+        "config",
+        "commands",
+        "docs",
+        "scripts"
+      ],
       "files": [
-        "plugins/web-tools.ts",
+        "plugins/tools/web-tools.ts",
         "config/web-tools.yml",
         "config/package.web-tools.json",
         "config/AGENTS.md",
         "commands/tools-config.md",
-        "docs/models/gemini-tool-fees.yml",
-        "scripts/install-web-tools.sh",
-        "scripts/register-web-tools-plugin.mjs"
+        "docs/models/gemini-tool-fees.yml"
       ],
-      "globs": ["plugins/web-tools/**"]
+      "globs": [
+        "plugins/tools/web-tools/**"
+      ]
     }
   ]
 }

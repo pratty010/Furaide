@@ -1,8 +1,8 @@
 import { test, expect, describe } from "bun:test";
 
 test("provider usage rolls up by provider and month", async () => {
-  const { openTestDb } = await import("../../plugins/web-tools/db.ts");
-  const { createUsageTracker } = await import("../../plugins/web-tools/provider-usage.ts");
+  const { openTestDb } = await import("../../plugins/tools/web-tools/db.ts");
+  const { createUsageTracker } = await import("../../plugins/tools/web-tools/provider-usage.ts");
 
   const db = openTestDb();
   const usage = createUsageTracker(db);
@@ -24,7 +24,7 @@ describe("checkBudget exceeded levels", () => {
   }
 
   test("Brave at 90% blocks with exceeded", async () => {
-    const { checkBudget } = await import("../../plugins/web-tools/provider-usage.ts");
+    const { checkBudget } = await import("../../plugins/tools/web-tools/provider-usage.ts");
     const budgets = { geminiUsd: 5, braveRequests: 100, tavilyCredits: 100 };
 
     const result = checkBudget(budgets, await makeSnapshot(90), "brave");
@@ -34,7 +34,7 @@ describe("checkBudget exceeded levels", () => {
   });
 
   test("Tavily at 90% blocks with exceeded", async () => {
-    const { checkBudget } = await import("../../plugins/web-tools/provider-usage.ts");
+    const { checkBudget } = await import("../../plugins/tools/web-tools/provider-usage.ts");
     const budgets = { geminiUsd: 5, braveRequests: 100, tavilyCredits: 100 };
 
     const result = checkBudget(budgets, await makeSnapshot(90), "tavily");
@@ -43,7 +43,7 @@ describe("checkBudget exceeded levels", () => {
   });
 
   test("Brave below 90% stays at warn80", async () => {
-    const { checkBudget } = await import("../../plugins/web-tools/provider-usage.ts");
+    const { checkBudget } = await import("../../plugins/tools/web-tools/provider-usage.ts");
     const budgets = { geminiUsd: 5, braveRequests: 100, tavilyCredits: 100 };
 
     const result = checkBudget(budgets, await makeSnapshot(89), "brave");
@@ -52,7 +52,7 @@ describe("checkBudget exceeded levels", () => {
   });
 
   test("Gemini at >=100% returns blocked exceeded", async () => {
-    const { checkBudget } = await import("../../plugins/web-tools/provider-usage.ts");
+    const { checkBudget } = await import("../../plugins/tools/web-tools/provider-usage.ts");
     const budgets = { geminiUsd: 5, braveRequests: 100, tavilyCredits: 100 };
 
     const result = checkBudget(budgets, await makeSnapshot(0, 0), "gemini");

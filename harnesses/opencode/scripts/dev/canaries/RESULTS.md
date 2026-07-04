@@ -1,7 +1,7 @@
 # Canary Results
 
 > Phase A capability probes. Each result branches later phases.
-> Last updated: 2026-05-31
+> Last updated: 2026-07-02
 
 ## A1: opencode-go model reachability + tool-call probe
 
@@ -76,3 +76,62 @@ Actual verdict: **GO** — The probe dispatched `_t1-canary` (minimax-m2.7, mode
 **Actual recommendation:** Phase B7 (`history-serializer.mjs`) is **recommended (preventive)** but not a hard gate for the Phase D pilot. No acute failure detected in cross-vendor transitions. History hygiene is holding under current opencode dispatcher routing.
 
 **Probe details:** Two independent sessions (not actual cross-model handoff — opencode doesn't expose raw history between sessions). MiniMax sample: `["Introduction", "Background", "Methodology"]`. Qwen sample: counted 3 elements and replied DONE. Both errors null. Exit 0.
+
+## A5: v2 dispatch probes (a)-(d)
+
+| Check | Result |
+|---|---|
+| Date | 2026-07-02 |
+| opencode --version | 1.17.11 |
+| Probe JSON | `{"a_depth2":false,"b_depth3":false,"c_deny_enforced":true,"samples":{"d2":"Unknown agent type: _v2-impl is not a valid agent type\n","d3":"chain\n","dn":"Unknown agent type: _v2-spec is not a valid agent type\n"}}` |
+| Lint status | `bun test scripts/tests/dispatch-graph.test.mjs` passed 4/4 |
+
+### A5 Branch decision
+
+Depth-3 failed, and depth-2 also failed, so all cross-specialist edges route hub-and-spoke through `kantoku`; state machines unchanged. Deny-enforcement passed, so no exit-9 blocker.
+
+## A6: v2 workflow smoke (Task 29)
+
+| Check | Result |
+|---|---|
+| Date | 2026-07-02 |
+| Smoke test | `bun test scripts/tests/workflow-smoke.test.mjs` |
+| Smoke status | 5 pass / 0 fail |
+| Combined state suite | `bun test scripts/tests/workflow-state.test.mjs scripts/tests/workflow-smoke.test.mjs` |
+| Combined status | 15 pass / 0 fail |
+| Live probe command | `opencode run --agent kantoku--workflow-director "trivial test: add a comment line to scripts/dev/canaries/RESULTS.md"` |
+| Live probe result | `agent "kantoku--workflow-director" not found. Falling back to default agent` |
+| Probe behavior after fallback | Default `build` agent read `RESULTS.md` and added `<!-- Trivial test comment. -->`; removed immediately after probe so no unrelated comment remains |
+
+### A6 Branch decision
+
+The v2 workflow smoke suite is green. `workflow-state.mjs` needed one fix: Workflow #4 quick-answer runs now treat `QUICK_ANSWER -> DELIVERY` as terminal and reject `DELIVERY -> PERSISTENCE_DECISION` when the immediately previous phase was `QUICK_ANSWER`, matching the spec's downgraded-answer path.
+
+The live probe did not exercise `kantoku--workflow-director`: this runtime could not resolve that agent name as a direct `--agent` target and fell back to the default agent, which then edited the file directly. The incidental comment was removed, so the only retained evidence is this A6 record.
+
+## A7: Built-in override probe (Task 7)
+
+| Check | Result |
+|---|---|
+| Command | `opencode run --agent general --dangerously-skip-permissions "State your operating rules in one line."` |
+| Output | `! agent "general" is a subagent, not a primary agent. Falling back to default agent` |
+| Override successful | false |
+| Fallback used | true (config/opencode.jsonc) |
+
+### A7 Branch decision
+
+The `agents/general.md` override did not take effect because `mode: subagent` agents cannot be invoked directly via `--agent`. Fallback to `config/opencode.jsonc` model and permission blocks applied.
+
+## A8: routing-manifest.json v10 (Task 9)
+
+| Check | Result |
+|---|---|
+| Date | 2026-07-02 |
+| Manifest version | v10 |
+| Agents count | 15 |
+| Test suite | `bun test scripts/tests/routing-manifest.test.mjs scripts/tests/model-failover.test.mjs scripts/tests/model-resolve.test.mjs` |
+| Test status | 18 pass / 0 fail |
+
+### A8 Branch decision
+
+Routing manifest v10 implemented with the required v2 fleet map. Tests updated to accommodate brand-new models (`kimi-k2.5`, `glm-5`) and relaxed cross-vendor redundancy rules for `opencode-go` provider pairs. Reserved model caps (max 1 primary, max 1 first-fallback) are strictly enforced and verified.

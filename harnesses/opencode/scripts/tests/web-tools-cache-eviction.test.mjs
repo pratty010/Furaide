@@ -2,7 +2,7 @@ import { test, expect, describe } from "bun:test";
 
 describe("InMemoryCache eviction", () => {
   test("caps at maxEntries and evicts oldest", async () => {
-    const { InMemoryCache } = await import("../../plugins/web-tools/cache.ts");
+    const { InMemoryCache } = await import("../../plugins/tools/web-tools/cache.ts");
     const cache = new InMemoryCache({ maxEntries: 3 });
     cache.set("a", 1, 60_000);
     cache.set("b", 2, 60_000);
@@ -18,7 +18,7 @@ describe("InMemoryCache eviction", () => {
   });
 
   test("get promotes entry (LRU semantics)", async () => {
-    const { InMemoryCache } = await import("../../plugins/web-tools/cache.ts");
+    const { InMemoryCache } = await import("../../plugins/tools/web-tools/cache.ts");
     const cache = new InMemoryCache({ maxEntries: 3 });
     cache.set("a", 1, 60_000);
     cache.set("b", 2, 60_000);
@@ -31,7 +31,7 @@ describe("InMemoryCache eviction", () => {
   });
 
   test("set with same key does not evict", async () => {
-    const { InMemoryCache } = await import("../../plugins/web-tools/cache.ts");
+    const { InMemoryCache } = await import("../../plugins/tools/web-tools/cache.ts");
     const cache = new InMemoryCache({ maxEntries: 2 });
     cache.set("a", 1, 60_000);
     cache.set("a", 2, 60_000);
@@ -40,20 +40,20 @@ describe("InMemoryCache eviction", () => {
   });
 
   test("default capacity is 256", async () => {
-    const { InMemoryCache, DEFAULT_MAX_CACHE_ENTRIES } = await import("../../plugins/web-tools/cache.ts");
+    const { InMemoryCache, DEFAULT_MAX_CACHE_ENTRIES } = await import("../../plugins/tools/web-tools/cache.ts");
     expect(DEFAULT_MAX_CACHE_ENTRIES).toBe(256);
     const cache = new InMemoryCache();
     expect(cache.capacity).toBe(256);
   });
 
   test("respects custom maxEntries", async () => {
-    const { InMemoryCache } = await import("../../plugins/web-tools/cache.ts");
+    const { InMemoryCache } = await import("../../plugins/tools/web-tools/cache.ts");
     const cache = new InMemoryCache({ maxEntries: 50 });
     expect(cache.capacity).toBe(50);
   });
 
   test("clamps maxEntries to at least 1", async () => {
-    const { InMemoryCache } = await import("../../plugins/web-tools/cache.ts");
+    const { InMemoryCache } = await import("../../plugins/tools/web-tools/cache.ts");
     const cache = new InMemoryCache({ maxEntries: 0 });
     expect(cache.capacity).toBe(1);
   });

@@ -5,7 +5,7 @@ import { test, expect, describe, beforeAll, afterAll, mock } from "bun:test";
 // google-auth-library package installed. Returning a fixed fake token
 // matches the real shape (string) and avoids the static-import
 // resolution that fails when the package is absent.
-mock.module("../../plugins/web-tools/providers/vertex-auth.ts", () => ({
+mock.module("../../plugins/tools/web-tools/providers/vertex-auth.ts", () => ({
   getVertexAccessToken: async () => "fake-token",
 }));
 
@@ -37,7 +37,7 @@ describe("AI Studio transport", () => {
       return new Response(hugeBody, { status: 500, statusText: "Internal Server Error" });
     });
 
-    const gemini = await import("../../plugins/web-tools/providers/gemini.ts");
+    const gemini = await import("../../plugins/tools/web-tools/providers/gemini.ts");
     await expect(gemini.searchWeb({ query: "test" })).rejects.toThrow(/Gemini web_search 500/);
 
     expect(observedHeaders).toBeDefined();
@@ -53,7 +53,7 @@ describe("AI Studio transport", () => {
       return new Response("ok", { status: 500 });
     });
 
-    const gemini = await import("../../plugins/web-tools/providers/gemini.ts");
+    const gemini = await import("../../plugins/tools/web-tools/providers/gemini.ts");
     try {
       await gemini.searchWeb({ query: "test" });
     } catch {}
@@ -69,7 +69,7 @@ describe("AI Studio transport", () => {
       return new Response("ok", { status: 500 });
     });
 
-    const gemini = await import("../../plugins/web-tools/providers/gemini.ts");
+    const gemini = await import("../../plugins/tools/web-tools/providers/gemini.ts");
     try {
       await gemini.fetchContent({ urls: ["https://example.com"] });
     } catch {}
@@ -126,7 +126,7 @@ describe("Vertex transport", () => {
       );
     };
 
-    const gemini = await import("../../plugins/web-tools/providers/gemini.ts");
+    const gemini = await import("../../plugins/tools/web-tools/providers/gemini.ts");
     await gemini.searchWeb({ query: "test", transport: "vertex" });
 
     expect(String(capturedUrl)).toStartWith("https://aiplatform.googleapis.com");
@@ -151,7 +151,7 @@ describe("Vertex transport", () => {
       );
     };
 
-    const gemini = await import("../../plugins/web-tools/providers/gemini.ts");
+    const gemini = await import("../../plugins/tools/web-tools/providers/gemini.ts");
     await gemini.searchMaps({
       query: "restaurants near Shibuya",
       lat: 35.6595,
@@ -181,7 +181,7 @@ describe("Vertex transport", () => {
       );
     };
 
-    const gemini = await import("../../plugins/web-tools/providers/gemini.ts");
+    const gemini = await import("../../plugins/tools/web-tools/providers/gemini.ts");
     await gemini.searchWeb({ query: "test", transport: "vertex" });
 
     expect(String(capturedUrl)).toStartWith("https://us-central1-aiplatform.googleapis.com");
@@ -222,7 +222,7 @@ describe("Vertex transport", () => {
       );
     };
 
-    const gemini = await import("../../plugins/web-tools/providers/gemini.ts");
+    const gemini = await import("../../plugins/tools/web-tools/providers/gemini.ts");
     const result = await gemini.searchMaps({
       query: "coffee shops in Shibuya",
       lat: 35.6595,
@@ -287,7 +287,7 @@ describe("AI Studio maps chunk parsing", () => {
         { status: 200 },
       );
 
-    const gemini = await import("../../plugins/web-tools/providers/gemini.ts");
+    const gemini = await import("../../plugins/tools/web-tools/providers/gemini.ts");
     const result = await gemini.searchMaps({
       query: "famous temples in Asakusa",
       transport: "ai-studio",
@@ -305,7 +305,7 @@ describe("AI Studio maps chunk parsing", () => {
 // ── Utility: error sanitization ────────────────────────────────
 describe("Utility: error sanitization", () => {
   test("sanitized error body truncates at 500 chars", async () => {
-    const { truncateErrorBody } = await import("../../plugins/web-tools/util/validate.ts");
+    const { truncateErrorBody } = await import("../../plugins/tools/web-tools/util/validate.ts");
     const out = truncateErrorBody("a".repeat(2000));
     expect(out.length).toBeLessThan(600);
     expect(out).toContain("truncated");

@@ -111,6 +111,7 @@ graphify-out/prompt_chunk_*.txt
 # ── OpenCode tool runtime/test artifacts ──────────────────────────────────────
 harnesses/opencode/tools/opencode-all/.tmp-db/
 harnesses/opencode/tools/opencode-all/exports/
+harnesses/opencode/research/financial/
 
 # Local-only shelved work under OpenCode harness
 harnesses/opencode/future-work/

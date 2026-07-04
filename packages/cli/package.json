@@ -1,0 +1,31 @@
+{
+  "name": "@furaide/cli",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Furaide's unified installer CLI: furaide install|uninstall <target>. Ships the OpenCode Fleet TypeScript installer natively; dispatches to relocated shell installers for the claude-code and pi-agent targets.",
+  "type": "module",
+  "bin": {
+    "furaide": "./bin/furaide.ts"
+  },
+  "scripts": {
+    "furaide": "bun run bin/furaide.ts",
+    "start:tsx": "tsx bin/furaide.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@clack/prompts": "^0.9.1",
+    "yaml": "^2.9.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.1.14",
+    "@types/node": "^22.10.0",
+    "typescript": "^5.7.2",
+    "tsx": "^4.19.2"
+  },
+  "engines": {
+    "node": ">=18.18.0",
+    "bun": ">=1.1.0"
+  }
+}

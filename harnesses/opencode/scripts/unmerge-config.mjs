@@ -20,9 +20,9 @@
 // For .jsonc files: strips line comments (// ...) before parsing, then writes
 // clean JSON.
 
-import { readFileSync, writeFileSync, renameSync } from "fs";
+import { readFileSync, writeFileSync, renameSync, copyFileSync, unlinkSync } from "fs";
 import { tmpdir } from "os";
-import { join, basename, dirname } from "path";
+import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import { parseJsonc } from "./lib/jsonc.mjs";
 
@@ -73,10 +73,17 @@ try {
 
 let changed = false;
 
+function normalizePluginRel(pluginArg) {
+  const normalized = String(pluginArg)
+    .replace(/^\.\//, "")
+    .replace(/^plugins\//, "");
+  return `./plugins/${normalized}`;
+}
+
 // ── Remove fleet plugins ─────────────────────────────────────────────────────
 if (Array.isArray(config.plugin)) {
   const before = config.plugin.length;
-  const removeSet = new Set(pluginArgs.map((a) => `./plugins/${basename(a)}`));
+  const removeSet = new Set(pluginArgs.map((a) => normalizePluginRel(a)));
   config.plugin = config.plugin.filter((p) => !removeSet.has(p));
   if (config.plugin.length !== before) changed = true;
 }
@@ -120,6 +127,15 @@ if (!changed) {
 const out = JSON.stringify(config, null, 2) + "\n";
 const tmpFile = join(tmpdir(), `unmerge-config-${Date.now()}-${process.pid}.json`);
 writeFileSync(tmpFile, out, "utf8");
-renameSync(tmpFile, cfgPath);
+try {
+  renameSync(tmpFile, cfgPath);
+} catch (err) {
+  if (err.code === "EXDEV") {
+    copyFileSync(tmpFile, cfgPath);
+    unlinkSync(tmpFile);
+  } else {
+    throw err;
+  }
+}
 
 console.log(`[unmerge-config] updated ${cfgPath}`);

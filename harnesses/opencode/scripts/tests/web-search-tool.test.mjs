@@ -1,7 +1,7 @@
 import { test, expect } from "bun:test";
 
 test("web_search tool executes with mock runtime", async () => {
-  const { executeWebSearchTool } = await import("../../plugins/web-tools/tools/web-search.ts");
+  const { executeWebSearchTool } = await import("../../plugins/tools/web-tools/tools/web-search.ts");
 
   const mockRuntime = {
     config: {
@@ -41,7 +41,7 @@ test("web_search tool executes with mock runtime", async () => {
 });
 
 test("web_search omits metadata from public result", async () => {
-  const { executeWebSearchTool } = await import("../../plugins/web-tools/tools/web-search.ts");
+  const { executeWebSearchTool } = await import("../../plugins/tools/web-tools/tools/web-search.ts");
 
   const mockRuntime = {
     config: {
@@ -73,7 +73,7 @@ test("web_search omits metadata from public result", async () => {
 });
 
 test("web_search caches identical requests", async () => {
-  const { executeWebSearchTool } = await import("../../plugins/web-tools/tools/web-search.ts");
+  const { executeWebSearchTool } = await import("../../plugins/tools/web-tools/tools/web-search.ts");
 
   let callCount = 0;
   const mockRuntime = {
@@ -116,7 +116,7 @@ test("web_search caches identical requests", async () => {
 });
 
 test("web_search uses NormalizedWebSearchRequest", async () => {
-  const { normalizeWebSearchArgs } = await import("../../plugins/web-tools/tools/web-search.ts");
+  const { normalizeWebSearchArgs } = await import("../../plugins/tools/web-tools/tools/web-search.ts");
 
   const config = {
     defaultProvider: "brave",
@@ -143,7 +143,7 @@ test("web_search uses NormalizedWebSearchRequest", async () => {
 });
 
 test("effectiveOrder deduplicates and follows config priority", async () => {
-  const { effectiveOrder } = await import("../../plugins/web-tools/order.ts");
+  const { effectiveOrder } = await import("../../plugins/tools/web-tools/order.ts");
 
   const order = effectiveOrder("brave", ["brave", "tavily", "gemini"], []);
   expect(order).toEqual(["brave", "tavily", "gemini"]);
@@ -156,14 +156,14 @@ test("effectiveOrder deduplicates and follows config priority", async () => {
 });
 
 test("effectiveOrder empty reserve does not crash", async () => {
-  const { effectiveOrder } = await import("../../plugins/web-tools/order.ts");
+  const { effectiveOrder } = await import("../../plugins/tools/web-tools/order.ts");
   const order = effectiveOrder("gemini", [], []);
   expect(order).toEqual(["gemini"]);
 });
 
 test("recordFromSearch and recordFromFetch mutate DB", async () => {
-  const { openTestDb } = await import("../../plugins/web-tools/db.ts");
-  const { createUsageTracker } = await import("../../plugins/web-tools/provider-usage.ts");
+  const { openTestDb } = await import("../../plugins/tools/web-tools/db.ts");
+  const { createUsageTracker } = await import("../../plugins/tools/web-tools/provider-usage.ts");
 
   const db = openTestDb();
   const usage = createUsageTracker(db);
@@ -181,22 +181,50 @@ test("recordFromSearch and recordFromFetch mutate DB", async () => {
 });
 
 test("provider wrappers throw real errors not stubs", async () => {
-  const brave = await import("../../plugins/web-tools/providers/brave.ts");
-  const tavily = await import("../../plugins/web-tools/providers/tavily.ts");
-  const gemini = await import("../../plugins/web-tools/providers/gemini.ts");
-
-  const expectRealError = async (fn) => {
-    try { await fn; } catch (e) {
-      expect(e.message).not.toContain("not yet implemented");
-      return;
-    }
-    // If no error, the CLI/env was actually available — that is also acceptable proof
+  // Save current values of env vars that gate provider behavior
+  const savedEnv = {
+    BRAVE_API_KEY: process.env.BRAVE_API_KEY,
+    TAVILY_API_KEY: process.env.TAVILY_API_KEY,
+    GEMINI_API_KEY: process.env.GEMINI_API_KEY,
+    GOOGLE_API_KEY: process.env.GOOGLE_API_KEY,
+    GOOGLE_APPLICATION_CREDENTIALS: process.env.GOOGLE_APPLICATION_CREDENTIALS,
+    GOOGLE_CLOUD_PROJECT: process.env.GOOGLE_CLOUD_PROJECT,
   };
 
-  await expectRealError(brave.searchWeb({ query: "pxyz7-non-existent-test" }));
-  await expectRealError(tavily.searchWeb({ query: "pxyz7-non-existent-test" }));
-  await expectRealError(tavily.fetchContent({ urls: ["https://pxyz7-nonexistent-test.example"] }));
-  await expectRealError(gemini.searchWeb({ query: "pxyz7-non-existent-test" }));
-  await expectRealError(gemini.fetchContent({ urls: ["https://pxyz7-nonexistent-test.example"] }));
-  await expectRealError(gemini.searchMaps({ query: "pxyz7-non-existent-test" }));
+  try {
+    // Delete env vars to force deterministic fast-fail guard clauses regardless of ambient state
+    delete process.env.BRAVE_API_KEY;
+    delete process.env.TAVILY_API_KEY;
+    delete process.env.GEMINI_API_KEY;
+    delete process.env.GOOGLE_API_KEY;
+    delete process.env.GOOGLE_APPLICATION_CREDENTIALS;
+    delete process.env.GOOGLE_CLOUD_PROJECT;
+
+    const brave = await import("../../plugins/tools/web-tools/providers/brave.ts");
+    const tavily = await import("../../plugins/tools/web-tools/providers/tavily.ts");
+    const gemini = await import("../../plugins/tools/web-tools/providers/gemini.ts");
+
+    const expectRealError = async (fn) => {
+      try { await fn; } catch (e) {
+        expect(e.message).not.toContain("not yet implemented");
+        return;
+      }
+      // If no error, the CLI/env was actually available — that is also acceptable proof
+    };
+
+    await expectRealError(brave.searchWeb({ query: "pxyz7-non-existent-test" }));
+    await expectRealError(tavily.searchWeb({ query: "pxyz7-non-existent-test" }));
+    await expectRealError(tavily.fetchContent({ urls: ["https://pxyz7-nonexistent-test.example"] }));
+    await expectRealError(gemini.searchWeb({ query: "pxyz7-non-existent-test" }));
+    await expectRealError(gemini.fetchContent({ urls: ["https://pxyz7-nonexistent-test.example"] }));
+    await expectRealError(gemini.searchMaps({ query: "pxyz7-non-existent-test" }));
+  } finally {
+    // Restore original env vars
+    if (savedEnv.BRAVE_API_KEY !== undefined) process.env.BRAVE_API_KEY = savedEnv.BRAVE_API_KEY;
+    if (savedEnv.TAVILY_API_KEY !== undefined) process.env.TAVILY_API_KEY = savedEnv.TAVILY_API_KEY;
+    if (savedEnv.GEMINI_API_KEY !== undefined) process.env.GEMINI_API_KEY = savedEnv.GEMINI_API_KEY;
+    if (savedEnv.GOOGLE_API_KEY !== undefined) process.env.GOOGLE_API_KEY = savedEnv.GOOGLE_API_KEY;
+    if (savedEnv.GOOGLE_APPLICATION_CREDENTIALS !== undefined) process.env.GOOGLE_APPLICATION_CREDENTIALS = savedEnv.GOOGLE_APPLICATION_CREDENTIALS;
+    if (savedEnv.GOOGLE_CLOUD_PROJECT !== undefined) process.env.GOOGLE_CLOUD_PROJECT = savedEnv.GOOGLE_CLOUD_PROJECT;
+  }
 });

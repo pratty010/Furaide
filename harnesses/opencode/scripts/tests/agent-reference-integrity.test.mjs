@@ -3,10 +3,10 @@ import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { AGENT_RENAME_MAP, LEGACY_AGENT_ALIASES, ALL_AGENT_TARGETS } from '../lib/agent-fleet-map.mjs';
 
-const ROOTS = ['config/AGENTS.md', 'config/fleet-manifest.json', 'docs/routing-manifest.json', 'scripts/install-fleet.sh', 'scripts/install-fleet-bootstrap.sh', 'scripts/merge-config.mjs'];
+const ROOTS = ['config/AGENTS.md', 'docs/routing-manifest.json'];
 const DIRS = ['agents', 'commands'];
-const ACTIVE_DOC_SUBDIRS = ['docs/architecture.md', 'docs/OPERATOR.md', 'docs/agent-description-rubric.md', 'docs/agent-template.md', 'docs/manifest-schema.md', 'docs/workflows.md', 'docs/models', 'docs/routing-manifest.json'];
-const DOC_ALLOWLIST = new Set(['docs/agent-description-rubric.md', 'docs/archive/agent-fleet-structural-findings.md', 'agents/chizu--implementation-planner.md', 'agents/shiranui--migration-guide.md', 'agents/sojobo--system-strategist.md']);
+const ACTIVE_DOC_SUBDIRS = ['docs/manifest-schema.md', 'docs/workflows.md', 'docs/routing-manifest.json'];
+const DOC_ALLOWLIST = new Set(['docs/archive/agent-fleet-structural-findings.md', 'agents/chizu--implementation-planner.md', 'agents/shiranui--migration-guide.md', 'agents/sojobo--system-strategist.md']);
 
 function walk(dir) {
   const out = [];
@@ -38,7 +38,7 @@ function escapeRegex(s) {
 test('no stale old stems or legacy aliases remain outside approved historical docs', () => {
   const files = [...ROOTS, ...DIRS.flatMap(walk), ...collectActiveDocs()].filter(file => !DOC_ALLOWLIST.has(file));
   const staleTokens = [
-    ...AGENT_RENAME_MAP.map(entry => entry.current),
+    ...AGENT_RENAME_MAP.filter(entry => entry.current !== entry.next).map(entry => entry.current),
     ...Object.keys(LEGACY_AGENT_ALIASES),
   ];
 

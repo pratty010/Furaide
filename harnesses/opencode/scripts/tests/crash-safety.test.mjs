@@ -1,6 +1,6 @@
 import { test, expect } from 'bun:test';
 import { execFileSync, spawnSync } from 'node:child_process';
-import { mkdtempSync, readFileSync } from 'node:fs';
+import { mkdtempSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
@@ -9,17 +9,16 @@ const runWF = (args, opts = {}) =>
     encoding: 'utf8', ...opts,
   });
 
-const paths = (cwd, wf) =>
-  JSON.parse(execFileSync('bun', ['scripts/state-path.mjs', '--cwd', cwd, '--workflow', wf], { encoding: 'utf8' }));
+const readWF = (cwd, wf) =>
+  JSON.parse(execFileSync('bun', ['scripts/workflow-state.mjs', 'read', '--cwd', cwd, '--workflow', wf], { encoding: 'utf8' }));
 
 test('state.json is always parseable after process kill', () => {
   const cwd = mkdtempSync(join(tmpdir(), 'cs'));
   const wf = 'w1';
   // init a good state
-  runWF(['init', '--cwd', cwd, '--workflow', wf, '--specialist', 'coding', '--phase', 'scope', '--session', 's1']);
-  const p = paths(cwd, wf);
+  runWF(['init', '--cwd', cwd, '--workflow', wf, '--specialist', 'kantoku--workflow-director', '--phase', 'RECEIVED', '--session', 's1']);
   // Confirm initial state is parseable
-  const state = JSON.parse(readFileSync(p.statePath, 'utf8'));
+  const state = readWF(cwd, wf);
   expect(state.rev).toBe(1);
 
   // Simulate a kill: spawn an advance process (spawnSync with very short timeout lets it finish
@@ -29,19 +28,18 @@ test('state.json is always parseable after process kill', () => {
   spawnSync(
     'bun',
     [
-      'scripts/workflow-state.mjs',
-      'advance', '--cwd', cwd, '--workflow', wf,
-      '--to', 'implement', '--expected-rev', '1',
-      '--session', 's1', '--caller', 'coding',
-    ],
+        'scripts/workflow-state.mjs',
+        'advance', '--cwd', cwd, '--workflow', wf,
+        '--to', 'ROUTED', '--expected-rev', '1',
+        '--session', 's1', '--caller', 'kantoku--workflow-director',
+      ],
     { timeout: 50 },   // intentionally tiny — may SIGKILL before rename completes
   );
 
-  // Whether the advance succeeded or was killed, state.json must still be valid JSON.
+  // Whether the advance succeeded or was killed, state.json must still be parseable.
   // The atomic write (tmp→fdatasync→rename) guarantees the previous snapshot survives a
   // mid-write kill; if the rename committed, the new snapshot is also whole.
-  const raw = readFileSync(p.statePath, 'utf8');
-  const reparsed = JSON.parse(raw); // throws if torn
+  const reparsed = readWF(cwd, wf);
   expect(typeof reparsed.rev).toBe('number');
   expect(typeof reparsed.specialist).toBe('string');
 });
@@ -49,8 +47,7 @@ test('state.json is always parseable after process kill', () => {
 test('double-resume: exactly one advance wins, no torn state', () => {
   const cwd = mkdtempSync(join(tmpdir(), 'cs'));
   const wf = 'w2';
-  runWF(['init', '--cwd', cwd, '--workflow', wf, '--specialist', 'coding', '--phase', 'scope', '--session', 's1']);
-  const p = paths(cwd, wf);
+  runWF(['init', '--cwd', cwd, '--workflow', wf, '--specialist', 'bakeneko--bug-hunter', '--phase', 'RECEIVED', '--session', 's1']);
 
   // Run two sequential advances with the same expected-rev.
   // (True concurrency via child_process on a single-threaded lock would require async
@@ -58,8 +55,8 @@ test('double-resume: exactly one advance wins, no torn state', () => {
   const advanceArgs = [
     'scripts/workflow-state.mjs',
     'advance', '--cwd', cwd, '--workflow', wf,
-    '--to', 'implement', '--expected-rev', '1',
-    '--session', 's1', '--caller', 'coding',
+    '--to', 'ROUTED', '--expected-rev', '1',
+    '--session', 's1', '--caller', 'bakeneko--bug-hunter',
   ];
 
   const r1 = spawnSync('bun', advanceArgs, { encoding: 'utf8', timeout: 10000 });
@@ -72,6 +69,6 @@ test('double-resume: exactly one advance wins, no torn state', () => {
   expect(s1ok && s2ok).toBe(false);
 
   // Final state is consistent: exactly one advance committed
-  const finalState = JSON.parse(readFileSync(p.statePath, 'utf8'));
+  const finalState = readWF(cwd, wf);
   expect(finalState.rev).toBe(2);
 });

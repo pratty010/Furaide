@@ -1,0 +1,53 @@
+{
+  "install_target": "~/.config/opencode/skills",
+  "sources": [
+    {
+      "repo": "obra/superpowers",
+      "pin": "f268f7c953744036f0fa7e9d4b73535c04e57cb8",
+      "skills": [
+        "brainstorming",
+        "writing-plans",
+        "executing-plans",
+        "test-driven-development",
+        "requesting-code-review",
+        "receiving-code-review",
+        "subagent-driven-development",
+        "dispatching-parallel-agents",
+        "finishing-a-development-branch",
+        "using-git-worktrees",
+        "using-superpowers",
+        "handoff",
+        "systematic-debugging",
+        "to-prd",
+        "to-issues",
+        "triage",
+        "grill-me",
+        "grill-with-docs",
+        "security-review",
+        "prototype",
+        "impeccable",
+        "humanizer",
+        "zoom-out"
+      ]
+    },
+    {
+      "repo": "mattpocock/skills",
+      "pin": "7a83a3a682adf699f24dbc06613de87f4e52a0a0",
+      "skills": [
+        "codebase-design",
+        "diagnose",
+        "improve-codebase-architecture"
+      ]
+    },
+    {
+      "repo": "addyosmani/agent-skills",
+      "pin": "aba7c4e9695c363e65cb59effe926c7f1d1abe3d",
+      "skills": [
+        "incremental-implementation",
+        "code-simplification",
+        "code-review-and-quality"
+      ]
+    }
+  ],
+  "patches_dir": "skill-patches"
+}

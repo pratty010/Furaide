@@ -92,7 +92,7 @@ mkdir -p ~/.local/bin
 ln -sfn "$PWD/src/tui.tsx" ~/.local/bin/opencode-all
 ```
 
-From the fleet repo. This tool ships in `harnesses/opencode/tools/opencode-all` but installs independently from the fleet config. No `install-fleet.sh` required.
+From the fleet repo. This tool ships in `harnesses/opencode/tools/opencode-all` but installs independently from the fleet config (no shared fleet installer involved).
 
 Development install. Clone the repo, `cd harnesses/opencode/tools/opencode-all`, then `bun install`. Use `ln -sfn "$PWD/src/tui.tsx" ~/.local/bin/opencode-all` for live iteration.
 

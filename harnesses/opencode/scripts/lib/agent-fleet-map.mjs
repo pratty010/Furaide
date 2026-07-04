@@ -1,56 +1,82 @@
+// This file exists because docs/routing-manifest.json alone doesn't cover rename
+// history: AGENT_RENAME_MAP (old stem -> current v2 name, used to flag stale
+// references) and LEGACY_AGENT_ALIASES (retired short names -> current names)
+// have no equivalent in routing-manifest.json, which only records the current
+// agent list and their model routing. V2_FLEET below is the current agent
+// roster and happens to match routing-manifest.json's combined specialist +
+// subagent keys, but is kept alongside the rename/alias maps it's derived
+// from and cross-checked against.
+export const V2_FLEET = [
+  'bakeneko--bug-hunter',
+  'daikoku--finance-steward',
+  'fudo--security-guardian',
+  'hanko--git-seal',
+  'oni--red-team-reviewer',
+  'tsuchigumo--research-weaver',
+  'tsukumogami--code-forgemaster',
+  'general',
+  'explore',
+  'scout',
+  'kantoku--workflow-director',
+  'kyakuhon--spec-planner',
+  'kagami--verifier',
+  'hansei--lesson-keeper',
+  'kura--knowledge-banker'
+];
+
 export const AGENT_RENAME_MAP = [
   { current: 'tsukumo', next: 'tsukumogami--code-forgemaster', group: 'specialist' },
   { current: 'tsuchigumo', next: 'tsuchigumo--research-weaver', group: 'specialist' },
-  { current: 'tsukuyomi', next: 'tsukuyomi--spec-oracle', group: 'specialist' },
   { current: 'daikoku', next: 'daikoku--finance-steward', group: 'specialist' },
-  { current: 'enma', next: 'enma--compliance-judge', group: 'specialist' },
   { current: 'fudo', next: 'fudo--security-guardian', group: 'specialist' },
-  { current: 'daidarabotchi', next: 'daidarabotchi--infra-shaper', group: 'specialist' },
-  { current: 'yumemi', next: 'yumemi--story-smith', group: 'specialist' },
-  { current: 'mujina', next: 'mujina--brand-shapeshifter', group: 'specialist' },
-  { current: 'planner', next: 'chizu--implementation-planner', group: 'specialist' },
-  { current: 'shiranui', next: 'shiranui--migration-guide', group: 'specialist' },
-  { current: 'sojobō', next: 'sojobo--system-strategist', group: 'specialist' },
-  { current: 'tanuki', next: 'tanuki--general-trickster', group: 'other' },
-  { current: 'karasutengu', next: 'karasutengu--docs-scout', group: 'other' },
-  { current: 'karakuri', next: 'karakuri--command-runner', group: 'subagent' },
-  { current: 'mikoshi', next: 'mikoshi--code-pathfinder', group: 'subagent' },
-  { current: 'bakeneko', next: 'bakeneko--bug-hunter', group: 'subagent' },
-  { current: 'makimono', next: 'makimono--docs-scribe', group: 'subagent' },
-  { current: 'jorogumo', next: 'jorogumo--synthesis-weaver', group: 'subagent' },
   { current: 'oni', next: 'oni--red-team-reviewer', group: 'subagent' },
-  { current: 'kotodama', next: 'kotodama--prose-polisher', group: 'subagent' },
-  { current: 'yamabiko', next: 'yamabiko--source-echo', group: 'subagent' },
-  { current: 'kagami', next: 'kagami--truth-mirror', group: 'subagent' },
-  { current: 'soroban', next: 'soroban--number-sage', group: 'subagent' },
-  { current: 'azukiarai', next: 'azukiarai--data-sifter', group: 'subagent' },
-  { current: 'henge', next: 'henge--format-shifter', group: 'subagent' },
-  { current: 'tengu', next: 'tengu--visual-artisan', group: 'subagent' },
-  { current: 'mizuchi', next: 'mizuchi--data-current', group: 'subagent' },
+  { current: 'bakeneko', next: 'bakeneko--bug-hunter', group: 'subagent' },
   { current: 'hanko', next: 'hanko--git-seal', group: 'subagent' },
-  { current: 'kappa', next: 'tanuki--codemod-runner', group: 'subagent' },
+  { current: 'tanuki', next: 'general', group: 'other' },
+  { current: 'mikoshi', next: 'explore', group: 'other' },
+  { current: 'karasutengu', next: 'scout', group: 'other' },
+  { current: 'kantoku--workflow-director', next: 'kantoku--workflow-director', group: 'specialist' },
+  { current: 'kyakuhon--spec-planner', next: 'kyakuhon--spec-planner', group: 'specialist' },
+  { current: 'kagami--verifier', next: 'kagami--verifier', group: 'subagent' },
+  { current: 'hansei--lesson-keeper', next: 'hansei--lesson-keeper', group: 'subagent' },
+  { current: 'kura--knowledge-banker', next: 'kura--knowledge-banker', group: 'subagent' },
 ];
 
 export const LEGACY_AGENT_ALIASES = {
-  'code-runner': 'karakuri--command-runner',
-  'explorer': 'mikoshi--code-pathfinder',
-  'source-retriever': 'yamabiko--source-echo',
-  'fact-checker': 'kagami--truth-mirror',
-  'data-analyst': 'soroban--number-sage',
+  'code-runner': 'general',
+  'explorer': 'explore',
+  'source-retriever': 'general',
+  'fact-checker': 'general',
+  'data-analyst': 'general',
   debugger: 'bakeneko--bug-hunter',
-  'technical-writer': 'makimono--docs-scribe',
-  synthesizer: 'jorogumo--synthesis-weaver',
+  'technical-writer': 'general',
+  synthesizer: 'general',
   reviewer: 'oni--red-team-reviewer',
-  'prose-wordsmith': 'kotodama--prose-polisher',
-  extractor: 'azukiarai--data-sifter',
-  formatter: 'henge--format-shifter',
-  designer: 'tengu--visual-artisan',
+  'prose-wordsmith': 'general',
+  extractor: 'general',
+  formatter: 'general',
+  designer: 'general',
 };
 
-export const ALL_AGENT_TARGETS = AGENT_RENAME_MAP.map((entry) => entry.next);
+export const ALL_AGENT_TARGETS = [...V2_FLEET];
 export const RENAME_BY_CURRENT = new Map(AGENT_RENAME_MAP.map((entry) => [entry.current, entry.next]));
 export const GROUPS = {
-  specialists: AGENT_RENAME_MAP.filter((entry) => entry.group === 'specialist').map((entry) => entry.next),
-  subagents: AGENT_RENAME_MAP.filter((entry) => entry.group === 'subagent').map((entry) => entry.next),
-  others: AGENT_RENAME_MAP.filter((entry) => entry.group === 'other').map((entry) => entry.next),
+  specialists: V2_FLEET.filter(name => [
+    'tsukumogami--code-forgemaster',
+    'tsuchigumo--research-weaver',
+    'daikoku--finance-steward',
+    'fudo--security-guardian',
+    'kantoku--workflow-director',
+    'kyakuhon--spec-planner'
+  ].includes(name)),
+  subagents: V2_FLEET.filter(name => [
+    'oni--red-team-reviewer',
+    'bakeneko--bug-hunter',
+    'hanko--git-seal',
+    'kagami--verifier',
+    'hansei--lesson-keeper',
+    'kura--knowledge-banker'
+  ].includes(name)),
+  others: V2_FLEET.filter(name => ['general', 'explore', 'scout'].includes(name)),
 };
+
