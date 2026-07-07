@@ -1,11 +1,16 @@
 import { test, expect } from 'bun:test'
 import { ConfigSchema, loadConfig } from '../src/config.js'
-import { IDISU_HOME } from '../src/paths.js'
+import { IDISU_HOME, IDISU_DB, SPOOL_DIR } from '../src/paths.js'
 import { homedir } from 'os'
 import { join } from 'path'
 
 test('IDISU_HOME resolves to ~/.idisu', () => {
   expect(IDISU_HOME).toBe(join(homedir(), '.idisu'))
+})
+
+test('db + spool derive under IDISU_HOME', () => {
+  expect(IDISU_DB.endsWith('/.idisu/idisu.db')).toBe(true)
+  expect(SPOOL_DIR.endsWith('/.idisu/spool')).toBe(true)
 })
 
 test('loadConfig returns defaults when no file exists', () => {
