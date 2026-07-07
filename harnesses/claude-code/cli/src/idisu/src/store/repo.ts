@@ -1,7 +1,7 @@
 import type { Database } from "bun:sqlite";
 
 export interface EventRow {
-  event_id: string; schema_version: number; source_id: string; source_position: number;
+  event_id: string; schema_version: number; source_id: string; source_position: number | string;
   observed_at: string; ingested_at: string; harness: string; event_type: string;
   payload_version: number; payload: unknown;
 }
@@ -41,10 +41,14 @@ export function upsertCheckpoint(db: Database, sourceId: string,
     .run(sourceId, c.inode, c.size, c.prefix_hash, c.offset);
 }
 
-export function insertSession(db: Database, s: SessionRow): void {
-  db.query(`INSERT OR REPLACE INTO sessions
+export function upsertSession(db: Database, s: SessionRow): void {
+  db.query(`INSERT INTO sessions
     (session_id,harness,started_at,ended_at,cwd,model,outcome_label,rollup)
-    VALUES (?,?,?,?,?,?,?,?)`).run(
+    VALUES (?,?,?,?,?,?,?,?)
+    ON CONFLICT(session_id) DO UPDATE SET
+      harness=excluded.harness, started_at=excluded.started_at, ended_at=excluded.ended_at,
+      cwd=excluded.cwd, model=excluded.model, outcome_label=excluded.outcome_label,
+      rollup=excluded.rollup`).run(
     s.session_id, s.harness, s.started_at ?? null, s.ended_at ?? null, s.cwd ?? null,
     s.model ?? null, s.outcome_label ?? null, s.rollup ?? null);
 }
