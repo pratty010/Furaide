@@ -3,7 +3,7 @@ import { mkdirSync, writeFileSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { CodexAdapter } from '../../src/adapters/codex.js'
 
-const TMP = '/tmp/satori-codex-test'
+const TMP = '/tmp/idisu-codex-test'
 const SESS_DIR = join(TMP, '2026', '06', '17')
 mkdirSync(SESS_DIR, { recursive: true })
 

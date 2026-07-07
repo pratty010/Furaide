@@ -3,7 +3,7 @@ import { mkdirSync, writeFileSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { ClaudeCodeAdapter } from '../../src/adapters/claude-code.js'
 
-const TMP = '/tmp/satori-cc-test'
+const TMP = '/tmp/idisu-cc-test'
 mkdirSync(TMP, { recursive: true })
 
 const skillTurn = JSON.stringify({

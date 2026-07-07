@@ -42,7 +42,7 @@ export async function runDream(opts: { force?: boolean; scheduled?: boolean } = 
     }
 
     const orientation = orient()
-    console.log('[satori/dream] Phase 1 Orient complete')
+    console.log('[idisu/dream] Phase 1 Orient complete')
 
     const adapters: SessionAdapter[] = []
     if (config.harnesses.includes('claude_code')) {
@@ -66,7 +66,7 @@ export async function runDream(opts: { force?: boolean; scheduled?: boolean } = 
       last_complete_line_offset: 0,
       last_scanned_at: new Date().toISOString(),
     }, CHECKPOINTS_FILE)
-    console.log(`[satori/dream] Phase 2 Gather: +${newEvents.length} events`)
+    console.log(`[idisu/dream] Phase 2 Gather: +${newEvents.length} events`)
 
     const allEvents = []
     if (existsSync(EVENTS_DIR)) {
@@ -98,10 +98,10 @@ export async function runDream(opts: { force?: boolean; scheduled?: boolean } = 
       generation: (orientation.manifest?.generation ?? 0) + 1,
     }
     writeFileSync(STATE_MANIFEST, JSON.stringify(manifest, null, 2))
-    console.log(`[satori/dream] Phase 3 Consolidate: ${metrics.size} capabilities, ${clusters.length} clusters`)
+    console.log(`[idisu/dream] Phase 3 Consolidate: ${metrics.size} capabilities, ${clusters.length} clusters`)
 
     pruneAndIndex(config.evidence_retention_days)
-    console.log('[satori/dream] Phase 4 Prune complete')
+    console.log('[idisu/dream] Phase 4 Prune complete')
     writeFileSync(LAST_DREAM_FILE, `${Math.floor(Date.now() / 1000)}\n`)
 
     return {

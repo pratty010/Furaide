@@ -2,14 +2,14 @@
 # Optional raw hook-payload capture for one-off smoke tests.
 set -euo pipefail
 
-if [ "${SATORI_CAPTURE_HOOK_PAYLOADS:-0}" != "1" ]; then
+if [ "${IDISU_CAPTURE_HOOK_PAYLOADS:-0}" != "1" ]; then
   exit 0
 fi
 
 HOOK_NAME="${1:?hook name required}"
 PAYLOAD="${2:?payload required}"
-SATORI_HOME="${SATORI_HOME:-$HOME/.satori}"
-OUT_DIR="$SATORI_HOME/debug/claude-code-hook-payloads"
+IDISU_HOME="${IDISU_HOME:-$HOME/.idisu}"
+OUT_DIR="$IDISU_HOME/debug/claude-code-hook-payloads"
 mkdir -p "$OUT_DIR"
 
 TS="$(date -u +%Y%m%dT%H%M%S.%3NZ)"

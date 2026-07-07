@@ -20,9 +20,9 @@ const commands: Record<string, (args: string[]) => void | Promise<void>> = {
 }
 
 if (!subcommand || subcommand === '--help' || subcommand === 'help') {
-  console.log(`Satori (覚) — Capability analytics for Claude Code and friends
+  console.log(`Īdisu (覚) — Capability analytics for Claude Code and friends
 
-Usage: satori <command> [options]
+Usage: idisu <command> [options]
 
 Commands:
   dream    [--force]                  Run dream pass (collect + consolidate)
@@ -38,11 +38,11 @@ Commands:
 
 const handler = commands[subcommand]
 if (!handler) {
-  console.error(`Unknown command: ${subcommand}. Run \`satori help\` for usage.`)
+  console.error(`Unknown command: ${subcommand}. Run \`idisu help\` for usage.`)
   process.exit(1)
 }
 
 Promise.resolve(handler(rest)).catch(err => {
-  console.error('[satori] Fatal error:', err)
+  console.error('[idisu] Fatal error:', err)
   process.exit(1)
 })

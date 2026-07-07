@@ -7,12 +7,12 @@ export function cmdReset(args: string[]): void {
   if (existsSync(STATE_DIR)) {
     rmSync(STATE_DIR, { recursive: true })
     mkdirSync(STATE_DIR, { recursive: true })
-    console.log('[satori] Cleared state/ (projections reset).')
+    console.log('[idisu] Cleared state/ (projections reset).')
   }
   if (!projectionsOnly && existsSync(CACHE_DIR)) {
     rmSync(CACHE_DIR, { recursive: true })
     mkdirSync(CACHE_DIR, { recursive: true })
-    console.log('[satori] Cleared cache/ (SQLite index reset).')
+    console.log('[idisu] Cleared cache/ (SQLite index reset).')
   }
-  console.log('[satori] Event log in events/ is untouched — projections will rebuild on next dream.')
+  console.log('[idisu] Event log in events/ is untouched — projections will rebuild on next dream.')
 }

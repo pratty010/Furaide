@@ -45,7 +45,7 @@ export class ClaudeCodeAdapter implements SessionAdapter {
           try {
             parsed = JSON.parse(line)
           } catch {
-            console.warn(`[satori/cc] skipped malformed line at offset ${byteOffset} in ${transcriptPath}`)
+            console.warn(`[idisu/cc] skipped malformed line at offset ${byteOffset} in ${transcriptPath}`)
             byteOffset += lineByteLen
             continue
           }

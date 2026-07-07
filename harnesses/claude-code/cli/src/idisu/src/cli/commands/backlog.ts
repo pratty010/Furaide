@@ -7,7 +7,7 @@ export function cmdBacklog(args: string[]): void {
   const statusFilter = args.find(a => a.startsWith('--status='))?.split('=')[1] ?? 'open'
   const path = join(STATE_DIR, 'backlog.jsonl')
   if (!existsSync(path)) {
-    console.log('[satori] No backlog yet. Run `satori dream` first.')
+    console.log('[idisu] No backlog yet. Run `idisu dream` first.')
     return
   }
 

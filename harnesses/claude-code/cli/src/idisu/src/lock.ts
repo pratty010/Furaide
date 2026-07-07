@@ -23,7 +23,7 @@ export class DreamLock {
           continue
         }
         if (Date.now() >= deadline) {
-          throw new Error('satori dream already running')
+          throw new Error('idisu dream already running')
         }
         Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 50)
       }

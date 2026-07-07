@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { appendEvent, readEvents, makeEventId } from '../../src/store/event-log.js'
 import { makeTypedEvent } from '../../src/types/events.js'
 
-const TEST_DIR = '/tmp/satori-test-event-log'
+const TEST_DIR = '/tmp/idisu-test-event-log'
 
 test('makeEventId is deterministic', () => {
   expect(makeEventId('src', 0)).toBe(makeEventId('src', 0))
@@ -19,7 +19,7 @@ test('appendEvent writes parseable JSONL and readEvents returns it', () => {
     started_at: '2026-06-17T10:00:00Z',
   })
   appendEvent(ev, dir)
-  const events = [...readEvents('2026-06-17', 'claude_code', dir)]
+  const events = [...readEvents(ev.observed_at.slice(0, 10), 'claude_code', dir)]
   expect(events).toHaveLength(1)
   expect(events[0]?.event_id).toBe(ev.event_id)
   rmSync(dir, { recursive: true })
@@ -34,7 +34,7 @@ test('appendEvent deduplicates by event_id on second write', () => {
   })
   appendEvent(ev, dir)
   appendEvent(ev, dir) // second write must be a no-op
-  const events = [...readEvents('2026-06-17', 'claude_code', dir)]
+  const events = [...readEvents(ev.observed_at.slice(0, 10), 'claude_code', dir)]
   expect(events).toHaveLength(1)
   rmSync(dir, { recursive: true })
 })

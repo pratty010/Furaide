@@ -6,13 +6,13 @@ import { BacklogItemSchema } from '../../types/projections.js'
 export function cmdImprove(args: string[]): void {
   const capId = args[0]
   if (!capId) {
-    console.error('Usage: satori improve <capability-id>')
+    console.error('Usage: idisu improve <capability-id>')
     process.exit(1)
   }
 
   const path = join(STATE_DIR, 'backlog.jsonl')
   if (!existsSync(path)) {
-    console.error('[satori] No backlog found. Run `satori dream` first.')
+    console.error('[idisu] No backlog found. Run `idisu dream` first.')
     process.exit(1)
   }
 
@@ -25,7 +25,7 @@ export function cmdImprove(args: string[]): void {
   }).filter(i => i.capability_id === capId && i.status === 'open')
 
   if (items.length === 0) {
-    console.log(`[satori] No open backlog items for capability: ${capId}`)
+    console.log(`[idisu] No open backlog items for capability: ${capId}`)
     return
   }
 
@@ -36,6 +36,6 @@ export function cmdImprove(args: string[]): void {
     console.log(`Brief:\n${item.brief}`)
     console.log()
   }
-  console.log('[satori] Hand the brief above to `skill-creator` or `writing-skills`.')
-  console.log(`         After applying, run: satori mark ${capId} accepted`)
+  console.log('[idisu] Hand the brief above to `skill-creator` or `writing-skills`.')
+  console.log(`         After applying, run: idisu mark ${capId} accepted`)
 }

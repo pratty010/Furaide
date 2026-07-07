@@ -82,7 +82,7 @@ function normalizeHookEvent(raw: Record<string, unknown>): EventEnvelope | null 
           exit_code: typeof raw.exit_code === 'number' ? raw.exit_code : undefined,
           run_time_seconds: typeof raw.run_time_seconds === 'number' ? raw.run_time_seconds : undefined,
           used_downstream: false,
-          attribution: { plugin: 'satori' },
+          attribution: { plugin: 'idisu' },
           error_class: raw.event === 'skill.load_failed' ? 'skill_load_failed' : undefined,
         },
       })
@@ -125,7 +125,7 @@ export function* readEvents(
           ? EventEnvelopeSchema.parse(parsed)
           : normalizeHookEvent(parsed)
         if (!ev) {
-          console.warn('[satori] skipped malformed event line')
+          console.warn('[idisu] skipped malformed event line')
           continue
         }
         if (seen.has(ev.event_id)) continue
@@ -133,7 +133,7 @@ export function* readEvents(
         yield ev
       } catch {
         // skip and warn — never advance checkpoint past malformed line
-        console.warn('[satori] skipped malformed event line')
+        console.warn('[idisu] skipped malformed event line')
       }
     }
   }

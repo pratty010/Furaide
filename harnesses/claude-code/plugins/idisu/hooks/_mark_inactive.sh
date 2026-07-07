@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SATORI_HOME="${SATORI_HOME:-$HOME/.satori}"
+IDISU_HOME="${IDISU_HOME:-$HOME/.idisu}"
 REASON="${1:?reason required}"
-mkdir -p "$SATORI_HOME/debug"
+mkdir -p "$IDISU_HOME/debug"
 
-MARKER="$SATORI_HOME/debug/${REASON}.log"
+MARKER="$IDISU_HOME/debug/${REASON}.log"
 STAMP="$(date -u +%Y-%m-%d)"
 
 if [[ ! -f "$MARKER" ]] || ! grep -qx "$STAMP" "$MARKER" 2>/dev/null; then

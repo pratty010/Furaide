@@ -3,11 +3,11 @@
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-SATORI_HOME="${SATORI_HOME:-$HOME/.satori}"
-CLI_PATH_FILE="${SATORI_HOME}/cli-path"
-DEBUG_DIR="${SATORI_HOME}/debug"
+IDISU_HOME="${IDISU_HOME:-$HOME/.idisu}"
+CLI_PATH_FILE="${IDISU_HOME}/cli-path"
+DEBUG_DIR="${IDISU_HOME}/debug"
 
-mkdir -p "${SATORI_HOME}"
+mkdir -p "${IDISU_HOME}"
 mkdir -p "${DEBUG_DIR}"
 
 if [[ ! -f "${CLI_PATH_FILE}" ]]; then

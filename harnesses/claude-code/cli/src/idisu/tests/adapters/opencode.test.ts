@@ -3,7 +3,7 @@ import { rmSync, existsSync } from 'node:fs'
 import { Database } from 'bun:sqlite'
 import { OpenCodeAdapter } from '../../src/adapters/opencode.js'
 
-const DB_PATH = '/tmp/satori-opencode-test.db'
+const DB_PATH = '/tmp/idisu-opencode-test.db'
 afterAll(() => { if (existsSync(DB_PATH)) rmSync(DB_PATH) })
 
 function createTestDb(): void {

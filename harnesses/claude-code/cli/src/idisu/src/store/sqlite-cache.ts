@@ -4,7 +4,7 @@ import { dirname } from 'path'
 import type { CapabilityDefinition } from '../types/catalog.js'
 import { SQLITE_CACHE } from '../paths.js'
 
-export class SatoriCache {
+export class ĪdisuCache {
   private db: Database
 
   constructor(path: string = SQLITE_CACHE) {

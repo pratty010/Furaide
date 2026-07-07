@@ -77,7 +77,7 @@ test('buildMetricProjections deduplicates hook and transcript capability events 
     makeTypedEvent('outcome.observed', 'cc-hook:s1', 'skill.loaded:toolu_01', 'claude_code', {
       tool_use_id: 'toolu_01', session_id: 's1',
       status: 'success', used_downstream: false,
-      attribution: { plugin: 'satori' },
+      attribution: { plugin: 'idisu' },
     }),
   ]
 

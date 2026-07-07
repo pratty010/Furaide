@@ -3,7 +3,7 @@ import { mkdirSync, rmSync } from 'fs'
 import { join } from 'path'
 import { loadCheckpoints, saveCheckpoint, getCheckpoint, computePrefixHash, shouldRescan } from '../../src/store/checkpoint.js'
 
-const TMP = '/tmp/satori-ckpt-test'
+const TMP = '/tmp/idisu-ckpt-test'
 const TMP_FILE = join(TMP, 'checkpoints.json')
 
 test('loadCheckpoints returns empty map for missing file', () => {

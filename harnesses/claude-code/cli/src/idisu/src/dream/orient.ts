@@ -18,7 +18,7 @@ export function orient(): OrientResult {
     try {
       manifest = StateManifestSchema.parse(JSON.parse(readFileSync(STATE_MANIFEST, 'utf8')))
     } catch {
-      console.warn('[satori/orient] invalid manifest — will rebuild from scratch')
+      console.warn('[idisu/orient] invalid manifest — will rebuild from scratch')
     }
   }
 
@@ -31,7 +31,7 @@ export function orient(): OrientResult {
           JSON.parse(readFileSync(join(CATALOG_DIR, files[0]), 'utf8')),
         )
       } catch {
-        console.warn('[satori/orient] invalid catalog snapshot')
+        console.warn('[idisu/orient] invalid catalog snapshot')
       }
     }
   }

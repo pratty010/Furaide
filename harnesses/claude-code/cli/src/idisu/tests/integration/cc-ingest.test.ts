@@ -3,9 +3,9 @@ import { mkdirSync, writeFileSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { ClaudeCodeAdapter } from '../../src/adapters/claude-code.js'
 import { appendEvent, readEvents } from '../../src/store/event-log.js'
-import { SatoriCache } from '../../src/store/sqlite-cache.js'
+import { ĪdisuCache } from '../../src/store/sqlite-cache.js'
 
-const TMP = '/tmp/satori-integration-test'
+const TMP = '/tmp/idisu-integration-test'
 const EVENTS_DIR = join(TMP, 'events')
 const DB_PATH = join(TMP, 'cache.sqlite')
 const PROJ_DIR = join(TMP, 'transcripts', 'my-project')
@@ -46,10 +46,11 @@ test('end-to-end: CC transcript → event log → FTS5 cache → BM25 query', as
   expect(capEvents.length).toBe(1)
   expect((capEvents[0]?.payload as { capability_id: string }).capability_id).toBe('brainstorming')
 
-  const readBack = [...readEvents('2026-06-17', 'claude_code', EVENTS_DIR)]
+  const partition = capEvents[0]!.observed_at.slice(0, 10)
+  const readBack = [...readEvents(partition, 'claude_code', EVENTS_DIR)]
   expect(readBack.some(e => e.event_type === 'capability.invoked')).toBe(true)
 
-  const cache = new SatoriCache(DB_PATH)
+  const cache = new ĪdisuCache(DB_PATH)
   cache.upsertCapability({
     capability_id: 'brainstorming',
     name: 'Brainstorming',

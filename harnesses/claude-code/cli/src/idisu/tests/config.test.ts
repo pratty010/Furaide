@@ -1,11 +1,11 @@
 import { test, expect } from 'bun:test'
 import { ConfigSchema, loadConfig } from '../src/config.js'
-import { SATORI_HOME } from '../src/paths.js'
+import { IDISU_HOME } from '../src/paths.js'
 import { homedir } from 'os'
 import { join } from 'path'
 
-test('SATORI_HOME resolves to ~/.satori', () => {
-  expect(SATORI_HOME).toBe(join(homedir(), '.satori'))
+test('IDISU_HOME resolves to ~/.idisu', () => {
+  expect(IDISU_HOME).toBe(join(homedir(), '.idisu'))
 })
 
 test('loadConfig returns defaults when no file exists', () => {

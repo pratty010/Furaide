@@ -26,7 +26,7 @@ export async function gather(
       count++
     }
     sourcesScanned++
-    console.log(`[satori/gather] ${adapter.harness}: +${count} events`)
+    console.log(`[idisu/gather] ${adapter.harness}: +${count} events`)
   }
 
   const eventsFromLog: EventEnvelope[] = []

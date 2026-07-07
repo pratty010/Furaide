@@ -18,11 +18,11 @@ export async function cmdReport(args: string[]): Promise<void> {
   }
   const metrics = buildMetricProjections(allEvents, 1)
   writeReport(metrics, outPath)
-  console.log(`[satori] Report written to ${outPath}`)
+  console.log(`[idisu] Report written to ${outPath}`)
 
   if (serve) {
     const proc = spawn('python3', ['-m', 'http.server', '8787', '--directory', CACHE_DIR], { stdio: 'inherit' })
-    console.log('[satori] Serving at http://localhost:8787/report.html — Ctrl+C to stop')
+    console.log('[idisu] Serving at http://localhost:8787/report.html — Ctrl+C to stop')
     await new Promise<void>(resolve => proc.on('close', () => resolve()))
   }
 }

@@ -6,7 +6,7 @@ import { BacklogItemSchema, type DecisionStatus } from '../../types/projections.
 export function cmdMark(args: string[]): void {
   const [capId, rawStatus] = args
   if (!capId || !rawStatus) {
-    console.error('Usage: satori mark <item-id-or-capability-id> accepted|rejected|superseded')
+    console.error('Usage: idisu mark <item-id-or-capability-id> accepted|rejected|superseded')
     process.exit(1)
   }
 
@@ -19,7 +19,7 @@ export function cmdMark(args: string[]): void {
 
   const path = join(STATE_DIR, 'backlog.jsonl')
   if (!existsSync(path)) {
-    console.error('[satori] No backlog found.')
+    console.error('[idisu] No backlog found.')
     process.exit(1)
   }
 
@@ -37,5 +37,5 @@ export function cmdMark(args: string[]): void {
     }
   })
   writeFileSync(path, `${lines.join('\n')}\n`)
-  console.log(`[satori] Marked ${updated} item(s) as ${status}.`)
+  console.log(`[idisu] Marked ${updated} item(s) as ${status}.`)
 }

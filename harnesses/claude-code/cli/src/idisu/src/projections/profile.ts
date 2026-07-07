@@ -15,7 +15,7 @@ export function renderProfileMd(
     .slice(0, 10)
 
   const lines = [
-    '# Satori — Capability Profile',
+    '# Īdisu — Capability Profile',
     `_Last updated: ${new Date().toISOString()}_`,
     '',
     '## Top capabilities by invocation',

@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # Atomic JSONL append. Args: $1 = JSON object string (single line).
-# Output path: $SATORI_HOME/events/YYYY-MM-DD/claude_code.jsonl
+# Output path: $IDISU_HOME/events/YYYY-MM-DD/claude_code.jsonl
 set -euo pipefail
 
-SATORI_HOME="${SATORI_HOME:-$HOME/.satori}"
+IDISU_HOME="${IDISU_HOME:-$HOME/.idisu}"
 DATE="$(date -u +%Y-%m-%d)"
-OUT_DIR="$SATORI_HOME/events/$DATE"
+OUT_DIR="$IDISU_HOME/events/$DATE"
 mkdir -p "$OUT_DIR"
 
 if ! command -v flock >/dev/null 2>&1; then
