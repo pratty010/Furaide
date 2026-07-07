@@ -1,8 +1,8 @@
 {
-  "name": "@friday/satori",
+  "name": "@friday/idisu",
   "version": "0.1.0",
   "type": "module",
-  "bin": { "satori": "./src/cli/index.ts" },
+  "bin": { "idisu": "./src/cli/index.ts" },
   "scripts": {
     "test":      "bun test",
     "typecheck": "tsc --noEmit",

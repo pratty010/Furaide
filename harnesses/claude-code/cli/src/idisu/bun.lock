@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "@friday/satori",
+      "name": "@friday/idisu",
       "dependencies": {
         "zod": "^3.22.4",
       },
