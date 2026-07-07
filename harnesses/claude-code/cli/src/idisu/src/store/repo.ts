@@ -234,3 +234,111 @@ export function upsertWorkflowNgram(db: Database, row: WorkflowNgramRow): void {
     row.failure_count,
     JSON.stringify(row.sample_sessions),
     row.last_seen,
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Phase 5 (Mine, Task 5.3) — artifacts/nodes/edges helpers.
+//
+// Nothing before this task has written to `artifacts`, `nodes`, or `edges`
+// (Task 5.2's `generateCandidates` only *reads* `artifacts`/`artifacts_fts`
+// for overlap suppression). `stage.ts` is the first writer, so these are new
+// minimal typed helpers rather than an extension of an existing pattern —
+// they follow the same parameterized-SQL, no-ORM, plain-object style as
+// `insertEvent`/`upsertSession` above.
+// ---------------------------------------------------------------------------
+
+export interface ArtifactRow {
+  id: string;
+  type: "skill" | "memory" | "instruction_edit";
+  origin: "mined" | "learned" | "preexisting";
+  surface_path?: string | null;
+  state: string;
+  signature?: string | null;
+  created_at: string;
+  promoted_at?: string | null;
+  deprecated_at?: string | null;
+}
+
+// `INSERT OR IGNORE` keyed on `id` (the table's PRIMARY KEY): `stage.ts`
+// derives `id` deterministically from `candidate.signature`, and callers are
+// expected to have already checked `findActiveArtifactBySignature` before
+// calling this — the `OR IGNORE` is a defensive no-op on a re-run with the
+// same candidate, not the primary duplicate guard.
+export function insertArtifact(db: Database, a: ArtifactRow): void {
+  db.query(`INSERT OR IGNORE INTO artifacts
+    (id,type,origin,surface_path,state,signature,created_at,promoted_at,deprecated_at)
+    VALUES (?,?,?,?,?,?,?,?,?)`).run(
+    a.id,
+    a.type,
+    a.origin,
+    a.surface_path ?? null,
+    a.state,
+    a.signature ?? null,
+    a.created_at,
+    a.promoted_at ?? null,
+    a.deprecated_at ?? null,
+  );
+}
+
+/**
+ * Looks up an active (not deprecated) artifact by mining `signature` — the
+ * duplicate-staging guard: `stage.ts#stageCandidate` and `dream.ts`'s mine ->
+ * stage wiring both call this before staging a candidate, so a signature
+ * already staged/promoted from a previous dream pass isn't re-staged.
+ * "Active" here means `deprecated_at IS NULL`; there's no schema-level enum
+ * on `artifacts.state` (unlike e.g. `outcome_labels.label`), so this checks
+ * the one column (`deprecated_at`) that unambiguously marks retirement
+ * rather than assuming a fixed set of non-deprecated state strings.
+ */
+export function findActiveArtifactBySignature(
+  db: Database,
+  signature: string,
+): ArtifactRow | null {
+  return (
+    (db
+      .query(
+        "SELECT * FROM artifacts WHERE signature=? AND deprecated_at IS NULL LIMIT 1",
+      )
+      .get(signature) as ArtifactRow | null) ?? null
+  );
+}
+
+export interface NodeRow {
+  id: string;
+  type: string;
+  label?: string | null;
+  attrs?: string | null;
+}
+
+// `INSERT OR IGNORE` keyed on `id` (PRIMARY KEY) — this is the primary dedup
+// mechanism for node rows (e.g. re-staging the same session as evidence for
+// two different candidates should not attempt a second insert of that
+// session's node row).
+export function insertNode(db: Database, n: NodeRow): void {
+  db.query(`INSERT OR IGNORE INTO nodes (id,type,label,attrs) VALUES (?,?,?,?)`).run(
+    n.id,
+    n.type,
+    n.label ?? null,
+    n.attrs ?? null,
+  );
+}
+
+export interface EdgeRow {
+  src: string;
+  dst: string;
+  type: string;
+  valid_at: string;
+  invalid_at?: string | null;
+}
+
+// `edges.id` is an autoincrement surrogate key (see schema.ts) — there's no
+// natural unique key to dedup on here, so unlike `insertNode`/`insertArtifact`
+// this is a plain INSERT. Callers (stage.ts) are expected to only call this
+// once per (artifact, session) pair per staging call, guarded upstream by
+// `findActiveArtifactBySignature`.
+export function insertEdge(db: Database, e: EdgeRow): void {
+  db.query(
+    `INSERT INTO edges (src,dst,type,valid_at,invalid_at) VALUES (?,?,?,?,?)`,
+  ).run(e.src, e.dst, e.type, e.valid_at, e.invalid_at ?? null);
+}

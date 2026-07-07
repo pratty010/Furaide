@@ -13,6 +13,9 @@ import { gather } from "./gather.js";
 import { ClaudeCliJudgeBackend } from "../judge/claude-cli.js";
 import type { JudgeBackend } from "../judge/interface.js";
 import { runJudgeOrchestrator } from "../judge/orchestrator.js";
+import { generateCandidates, mineNgrams } from "../mine/mine.js";
+import { stageCandidate } from "../mine/stage.js";
+import { findActiveArtifactBySignature } from "../store/repo.js";
 import { orient } from "./orient.js";
 import { pruneAndIndex } from "./prune.js";
 
@@ -169,6 +172,37 @@ export async function runDream(
       });
       console.log(
         `[idisu/dream] Phase 4 Judge: ${judgeResult.segmentsLabeled} segments labeled (${judgeResult.llmCallsMade} LLM calls)`,
+      );
+
+      // Phase 5 Mine (Tasks 5.1-5.3): first live wiring of `mineNgrams` and
+      // `generateCandidates` into the dream pipeline — both were built
+      // standalone (see `mine.ts`'s own header comment) specifically so this
+      // task could wire the full mine -> stage sequence at once rather than
+      // half of it. Placed right after Judge so mining sees this pass's
+      // freshly-labeled outcomes (`generateCandidates`'s success/failure
+      // split comes from `outcome_labels`, which Judge just updated above).
+      // `{ min: 2, n: 3 }` are untuned literal defaults (no config field for
+      // these exists yet — only `generateCandidates`'s thresholds are
+      // config-backed, see `config.ts`) matching the same values
+      // `mine.test.ts`'s fixture already exercises. The duplicate-staging
+      // guard (`findActiveArtifactBySignature`) is checked here too, even
+      // though `stageCandidate` re-checks it itself, so this loop's log line
+      // accurately reports how many candidates were newly staged vs.
+      // already-active and skipped.
+      mineNgrams(db, { min: 2, n: 3 });
+      const candidates = generateCandidates(db);
+      let candidatesStaged = 0;
+      let candidatesSkipped = 0;
+      for (const candidate of candidates) {
+        if (findActiveArtifactBySignature(db, candidate.signature)) {
+          candidatesSkipped++;
+          continue;
+        }
+        stageCandidate(db, candidate);
+        candidatesStaged++;
+      }
+      console.log(
+        `[idisu/dream] Phase 5 Mine: ${candidates.length} candidates generated, ${candidatesStaged} staged, ${candidatesSkipped} already active`,
       );
 
       const rollups = readMetricRollups(db, ALL_TIME_WINDOW);
