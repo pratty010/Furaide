@@ -11,9 +11,9 @@
       "description": "Īdisu (エディス · Learning Platform): learns from how you work across harnesses — surfacing skills and workflows worth keeping, pruning the rest."
     },
     {
-      "name": "kuma",
-      "source": "./harnesses/claude-code/plugins/kuma",
-      "description": "Kuma: delegate review and task execution to opencode-go, opencode (OpenCode Zen), and ollama-cloud from Claude Code."
+      "name": "rejion",
+      "source": "./harnesses/claude-code/plugins/rejion",
+      "description": "Rejion (レギオン): deploy review and task execution to opencode-go, opencode (OpenCode Zen), and ollama-cloud from Claude Code."
     }
   ]
 }

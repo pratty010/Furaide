@@ -3,7 +3,7 @@
 [![MIT](https://img.shields.io/badge/License-MIT-blue)](LICENSE)
 [![GitHub](https://img.shields.io/badge/GitHub-pratty010%2FFuraide-8b5cf6)](https://github.com/pratty010/Furaide)
 [![Īdisu](https://img.shields.io/badge/Īdisu-Capability%20Analytics-8b5cf6)](https://github.com/pratty010/Furaide)
-[![Kuma](https://img.shields.io/badge/Kuma-Review%20%26%20Task%20Delegation-8b5cf6)](https://github.com/pratty010/Furaide)
+[![Rejion](https://img.shields.io/badge/Rejion-Review%20%26%20Task%20Delegation-8b5cf6)](https://github.com/pratty010/Furaide)
 
 > *Two plugins, one skill. Furaidē's shikigami for Claude Code.*
 
@@ -13,11 +13,11 @@ Part of the [F.R.I.D.A.Y.](https://github.com/pratty010/Furaide) monorepo.
 
 ## Prerequisites
 
-- **bun**: runtime for the Īdisu CLI engine and the Kuma plugin
+- **bun**: runtime for the Īdisu CLI engine and the Rejion plugin
 - **Python 3.11+**: runtime for mekiki event processing
 - **jq**: JSON processing in bootstrap hooks
 - **Claude Code CLI**: registered and authenticated
-- **`opencode` and/or `pi` CLIs**: only if you install Kuma, which delegates to whichever of these are on `PATH`
+- **`opencode` and/or `pi` CLIs**: only if you install Rejion, which delegates to whichever of these are on `PATH`
 
 ---
 
@@ -26,7 +26,7 @@ Part of the [F.R.I.D.A.Y.](https://github.com/pratty010/Furaide) monorepo.
 | Piece | What it does |
 |-------|-------------|
 | **Īdisu plugin** | Capability analytics shikigami. Captures skill invocations, runs dream passes, surfaces improvement suggestions |
-| **Kuma plugin** | Delegates code review and task execution to `opencode-go`, `opencode` (OpenCode Zen), and `ollama-cloud` via one-shot `opencode`/`pi` CLI backends. Commands: `/kuma:setup`, `/kuma:models`, `/kuma:review`, `/kuma:task`, `/kuma:status`, `/kuma:result`, `/kuma:cancel` |
+| **Rejion plugin** | Delegates code review and task execution to `opencode-go`, `opencode` (OpenCode Zen), and `ollama-cloud` via one-shot `opencode`/`pi` CLI backends. Commands: `/rejion:setup`, `/rejion:models`, `/rejion:review`, `/rejion:task`, `/rejion:status`, `/rejion:result`, `/rejion:cancel` |
 | **`github` skill** | Git/GitHub workflow recipes for the `hanko--git-seal` subagent |
 | **`hanko--git-seal` shikigami** | Quiet executor for all git/GitHub ops; routes through the `github` skill |
 
@@ -39,7 +39,7 @@ Part of the [F.R.I.D.A.Y.](https://github.com/pratty010/Furaide) monorepo.
 | Component | Role |
 |-----------|------|
 | **Īdisu** (plugin) | Capability analytics shikigami. Captures skill invocations across harnesses, runs dream passes, surfaces improvement suggestions |
-| **Kuma** (plugin) | Delegates code review and task execution to `opencode-go`, `opencode` (OpenCode Zen), and `ollama-cloud` via one-shot CLI backends |
+| **Rejion** (plugin) | Delegates code review and task execution to `opencode-go`, `opencode` (OpenCode Zen), and `ollama-cloud` via one-shot CLI backends |
 | **`github` skill** | Git/GitHub workflow recipes for the `hanko--git-seal` subagent |
 | **`hanko--git-seal`** (shikigami) | Quiet executor for all git/GitHub ops; routes through the `github` skill |
 
@@ -101,11 +101,11 @@ Flags: `--yes`/`-y` (non-interactive), `--minimal` (steps 1-2 only), `--no-confi
 ```
 /plugin marketplace add pratty010/Furaide
 /plugin install idisu@fr1d4y
-/plugin install kuma@fr1d4y
+/plugin install rejion@fr1d4y
 /reload-plugins
 ```
 
-Install just one of the two if you only need capability analytics (Īdisu) or only need review/task delegation (Kuma). Neither depends on the other.
+Install just one of the two if you only need capability analytics (Īdisu) or only need review/task delegation (Rejion). Neither depends on the other.
 
 ---
 
@@ -139,19 +139,19 @@ bun run ~/Furaidē/harnesses/claude-code/cli/src/idisu/src/cli/index.ts mark <id
 bun run ~/Furaidē/harnesses/claude-code/cli/src/idisu/src/cli/index.ts reset --projections-only
 ```
 
-### Kuma: review and task delegation
+### Rejion: review and task delegation
 
 ```
-/kuma:setup                          # detect opencode/pi binaries, cache the model index
-/kuma:models                         # list models reachable across opencode-go, opencode, ollama-cloud
-/kuma:review                         # review the working-tree diff (or --base <ref> for a branch diff)
-/kuma:task "implement X"             # delegate an implementation/debugging/research task
-/kuma:status                         # list jobs for this workspace, or /kuma:status <job-id> for one job
-/kuma:result <job-id>                # print a completed job's structured result
-/kuma:cancel <job-id>                # kill a running backend process
+/rejion:setup                          # detect opencode/pi binaries, cache the model index
+/rejion:models                         # list models reachable across opencode-go, opencode, ollama-cloud
+/rejion:review                         # review the working-tree diff (or --base <ref> for a branch diff)
+/rejion:task "implement X"             # delegate an implementation/debugging/research task
+/rejion:status                         # list jobs for this workspace, or /rejion:status <job-id> for one job
+/rejion:result <job-id>                # print a completed job's structured result
+/rejion:cancel <job-id>                # kill a running backend process
 ```
 
-Each command accepts `--backend opencode|pi` and `--model <model>` (either a bare cached model name or an explicit `provider/model` string) to override the defaults set by `/kuma:setup`. `/kuma:review` and `/kuma:task` also accept `--wait`/`--background` to control whether Claude Code blocks on the result; if neither is passed, Kuma asks once. At most one review or task job runs per workspace at a time.
+Each command accepts `--backend opencode|pi` and `--model <model>` (either a bare cached model name or an explicit `provider/model` string) to override the defaults set by `/rejion:setup`. `/rejion:review` and `/rejion:task` also accept `--wait`/`--background` to control whether Claude Code blocks on the result; if neither is passed, Rejion asks once. At most one review or task job runs per workspace at a time.
 
 ### Git/GitHub: hanko--git-seal + github skill
 
@@ -256,7 +256,7 @@ Then in Claude Code:
 
 ```
 /plugin uninstall idisu@fr1d4y
-/plugin uninstall kuma@fr1d4y
+/plugin uninstall rejion@fr1d4y
 /plugin marketplace remove fr1d4y
 ```
 
@@ -275,10 +275,10 @@ bun run lint             # biome check
 bun run fmt              # biome format --write
 ```
 
-Kuma plugin:
+Rejion plugin:
 
 ```bash
-cd plugins/kuma
+cd plugins/rejion
 bun install              # installs the pinned @biomejs/biome
 bun test                 # run test suite
 bun run lint             # biome check, run from here so the pinned version resolves
@@ -332,10 +332,10 @@ plugins/
     hooks/_capture_payload.sh    # raw payload capture (debug mode)
     hooks/_mark_inactive.sh      # dependency fail-open observability
     bin/mekiki                   # legacy PATH shim → $IDISU_HOME/cli-path
-  kuma/
+  rejion/
     .claude-plugin/plugin.json   # plugin manifest
     commands/*.md                 # setup, models, review, task, status, result, cancel
-    scripts/kuma-companion.mjs   # entry point all commands shell out to
+    scripts/rejion-companion.mjs   # entry point all commands shell out to
     scripts/lib/                 # backend adapters, state, git diff collection, rendering
     schemas/                     # review-output and bridge-event JSON schemas
     tests/                       # bun test suite

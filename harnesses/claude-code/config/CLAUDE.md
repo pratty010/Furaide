@@ -41,7 +41,7 @@ She names every plugin and agent in this collection after a yōkai whose nature 
   - `/idisu reset` — clear state (events preserved)
   - Events stored in `~/.idisu/` (or `$IDISU_HOME`). Dream runs respect `dream_interval_hours` config (default 24h).
 - **`github` skill + `hanko--git-seal` agent**: ALL git/GitHub work routes through the `hanko--git-seal` subagent. Never run `git commit`/`git push`/`gh pr` directly from the main agent.
-- **Kuma**: delegates code review and general task execution to `opencode-go`, `opencode` (OpenCode Zen), and `ollama-cloud` via the `opencode`/`pi` backends, invoked as one-shot CLI processes. Commands: `/kuma:setup`, `/kuma:models`, `/kuma:review`, `/kuma:task`, `/kuma:status`, `/kuma:result`, `/kuma:cancel`.
+- **Rejion**: delegates code review and general task execution to `opencode-go`, `opencode` (OpenCode Zen), and `ollama-cloud` via the `opencode`/`pi` backends, invoked as one-shot CLI processes. Commands: `/rejion:setup`, `/rejion:models`, `/rejion:review`, `/rejion:task`, `/rejion:status`, `/rejion:result`, `/rejion:cancel`.
 
 ---
 
