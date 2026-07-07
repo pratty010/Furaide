@@ -9,4 +9,5 @@ export async function cmdDream(args: string[]): Promise<void> {
   console.log(`  Events ingested:   ${result.eventsIngested}`)
   console.log(`  Capabilities:      ${result.metricsComputed}`)
   console.log(`  Intent clusters:   ${result.clustersFound}`)
+  console.log(`  Sessions rolled up: ${result.sessionsRolledUp}`)
 }
