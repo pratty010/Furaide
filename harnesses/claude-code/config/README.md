@@ -87,7 +87,7 @@ cat config/settings.json
 # Then manually add the keys you want to ~/.claude/settings.json
 ```
 
-The `hooks` block is intentionally absent. The Satori plugin ships its own `hooks/hooks.json` using `${CLAUDE_PLUGIN_ROOT}`. No hook wiring is needed.
+The `hooks` block is intentionally absent. The Īdisu plugin ships its own `hooks/hooks.json` using `${CLAUDE_PLUGIN_ROOT}`. No hook wiring is needed.
 
 </details>
 
@@ -96,7 +96,7 @@ The `hooks` block is intentionally absent. The Satori plugin ships its own `hook
 ## Notes
 
 - **Skills** (the symlinks in `~/.claude/skills/`) are not bundled here. Install them from their source repos.
-- **Hooks** are handled by the Satori plugin (capability analytics shikigami). Install via `bootstrap.sh` or `claude plugin install`. Hooks wire automatically. The plugin hooks write events to `~/.satori/` (or `$SATORI_HOME`).
+- **Hooks** are handled by the Īdisu plugin (capability analytics shikigami). Install via `bootstrap.sh` or `claude plugin install`. Hooks wire automatically. The plugin hooks write events to `~/.idisu/` (or `$IDISU_HOME`).
 - The `CLAUDE.md` in this bundle is Furaidē's full working guide including the persona preamble. The version at `~/.claude/CLAUDE.md` on your machine is the live copy Claude Code reads each session.
-- **CLI commands** (Satori shikigami): `dream`, `profile`, `backlog`, `report`, `improve <id>`, `mark <id>`, `reset`. Access via `/satori <command>` in Claude Code or `bun run <cli-path> <command>` from the shell.
-- **Smoke testing hooks**: run `SATORI_CAPTURE_HOOK_PAYLOADS=1 claude` to capture raw hook payloads to `~/.satori/debug/`.
+- **CLI commands** (Īdisu shikigami): `dream`, `profile`, `backlog`, `report`, `improve <id>`, `mark <id>`, `reset`. Access via `/idisu <command>` in Claude Code or `bun run <cli-path> <command>` from the shell.
+- **Smoke testing hooks**: run `IDISU_CAPTURE_HOOK_PAYLOADS=1 claude` to capture raw hook payloads to `~/.idisu/debug/`.

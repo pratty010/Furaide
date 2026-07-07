@@ -6,9 +6,9 @@
   },
   "plugins": [
     {
-      "name": "satori",
-      "source": "./harnesses/claude-code/plugins/satori",
-      "description": "Satori (覚 · Capability Overseer): watches how you work across harnesses and surfaces skill usage, gaps, and improvement suggestions."
+      "name": "idisu",
+      "source": "./harnesses/claude-code/plugins/idisu",
+      "description": "Īdisu (エディス · Learning Platform): learns from how you work across harnesses — surfacing skills and workflows worth keeping, pruning the rest."
     },
     {
       "name": "kuma",

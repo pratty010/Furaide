@@ -104,7 +104,7 @@ remove "$HOME/.github-setup-state-friday" "~/.github-setup-state-friday"
 
 # 1f. Print Claude Code CLI steps (cannot automate)
 printf '\n[note] Complete removal in Claude Code:\n'
-printf '  /plugin uninstall satori@fr1d4y\n'
+printf '  /plugin uninstall idisu@fr1d4y\n'
 printf '  /plugin marketplace remove fr1d4y\n'
 
 # ===========================================================================
@@ -112,8 +112,8 @@ printf '  /plugin marketplace remove fr1d4y\n'
 # ===========================================================================
 printf '\n%s\n' "=== Tier 2: user data ==="
 
-# 2a. ~/.satori
-for datadir in "$HOME/.satori"; do
+# 2a. ~/.idisu
+for datadir in "$HOME/.idisu"; do
   if [[ -d "$datadir" ]]; then
     if $PURGE; then
       remove "$datadir" "$datadir"

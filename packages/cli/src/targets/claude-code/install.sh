@@ -4,15 +4,15 @@
 # Prompts yes/no before each step. Pass --yes to run unattended.
 #
 # Steps:
-#   0) create ~/.satori (one-time, always runs)
-#   1) Satori CLI: bun install in cli/src/satori/; writes ~/.satori/cli-path
+#   0) create ~/.idisu (one-time, always runs)
+#   1) Īdisu CLI: bun install in cli/src/idisu/; writes ~/.idisu/cli-path
 #   2) Common skills: bash "$SCRIPTS_DIR/install-vendored-skills.sh" --global
 #   3) Agents: copy config/agents/*.md → ~/.claude/agents/ (skip if exists)
 #   4) Config bundle: back up + copy CLAUDE.md and statusline-command.sh → ~/.claude/
 #
 # Flags:
 #   --yes, -y     Run all steps unattended (no prompts)
-#   --minimal     Run only steps 0-1 (migration + Satori CLI)
+#   --minimal     Run only steps 0-1 (migration + Īdisu CLI)
 #   --no-config   Run steps 0-3, skip step 4 (config bundle)
 #   --with-skills After step 2, also run install-external-skills.sh --ecosystem claude-code
 #   -h, --help    Print this usage and exit
@@ -26,7 +26,7 @@
 set -euo pipefail
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../../../harnesses/claude-code" && pwd)"   # = harnesses/claude-code/
 SCRIPTS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../shared" && pwd)"   # = packages/cli/src/shared/
-SATORI_HOME="${SATORI_HOME:-$HOME/.satori}"
+IDISU_HOME="${IDISU_HOME:-$HOME/.idisu}"
 
 GREEN='\033[0;32m'; YELLOW='\033[1;33m'; NC='\033[0m'
 ok()   { printf "${GREEN}[ok]${NC}   %s\n" "$*"; }
@@ -88,26 +88,26 @@ for arg in "$@"; do
   esac
 done
 
-if [[ ! -d "$HOME/.satori" ]]; then
-  mkdir -p "$HOME/.satori"
-  ok "created ~/.satori"
+if [[ ! -d "$HOME/.idisu" ]]; then
+  mkdir -p "$HOME/.idisu"
+  ok "created ~/.idisu"
 fi
 
-# ── Satori CLI (TS/Bun) ──────────────────────────────────────────────────────
-if confirm "Install Satori CLI engine (bun install)?"; then
+# ── Īdisu CLI (TS/Bun) ──────────────────────────────────────────────────────
+if confirm "Install Īdisu CLI engine (bun install)?"; then
   if command -v bun >/dev/null 2>&1; then
     if ! command -v jq >/dev/null 2>&1; then
-      warn "jq not found - Satori hooks require jq for telemetry capture."
+      warn "jq not found - Īdisu hooks require jq for telemetry capture."
     fi
     if ! command -v flock >/dev/null 2>&1; then
-      warn "flock not found - Satori hooks expect flock from util-linux."
+      warn "flock not found - Īdisu hooks expect flock from util-linux."
     fi
-    SATORI_SRC="$REPO/cli/src/satori"
-    ( cd "$SATORI_SRC" && bun install )
-    chmod +x "$SATORI_SRC/src/cli/index.ts"
-    mkdir -p "$SATORI_HOME"
-    printf '%s\n' "$SATORI_SRC/src/cli/index.ts" > "$SATORI_HOME/cli-path"
-    ok "Satori CLI installed -> $SATORI_SRC/src/cli/index.ts"
+    IDISU_SRC="$REPO/cli/src/idisu"
+    ( cd "$IDISU_SRC" && bun install )
+    chmod +x "$IDISU_SRC/src/cli/index.ts"
+    mkdir -p "$IDISU_HOME"
+    printf '%s\n' "$IDISU_SRC/src/cli/index.ts" > "$IDISU_HOME/cli-path"
+    ok "Īdisu CLI installed -> $IDISU_SRC/src/cli/index.ts"
   else
     warn "bun not found - install bun (https://bun.sh), then re-run."
   fi
@@ -117,7 +117,7 @@ fi
   ok "minimal mode — skipping steps 2-4"
   printf '\n%s\n' "$(printf "${GREEN}[done]${NC} Next steps in Claude Code:")"
   printf '  /plugin marketplace add pratty010/Furaide\n'
-  printf '  /plugin install satori@fr1d4y\n'
+  printf '  /plugin install idisu@fr1d4y\n'
   printf '  /reload-plugins\n'
   exit 0
 }
@@ -155,7 +155,7 @@ fi
   ok "no-config mode — skipping step 4"
   printf '\n%s\n' "$(printf "${GREEN}[done]${NC} Next steps in Claude Code:")"
   printf '  /plugin marketplace add pratty010/Furaide\n'
-  printf '  /plugin install satori@fr1d4y\n'
+  printf '  /plugin install idisu@fr1d4y\n'
   printf '  /reload-plugins\n'
   exit 0
 }
@@ -191,5 +191,5 @@ fi
 # ── Done ──────────────────────────────────────────────────────────────────────
 printf '\n%s\n' "$(printf "${GREEN}[done]${NC} Next steps in Claude Code:")"
 printf '  /plugin marketplace add pratty010/Furaide\n'
-printf '  /plugin install satori@fr1d4y\n'
+printf '  /plugin install idisu@fr1d4y\n'
 printf '  /reload-plugins\n'

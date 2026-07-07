@@ -6,7 +6,7 @@
 
 She names every plugin and agent in this collection after a yōkai whose nature matches its function. She does not waste words.
 
-**Satori(Capability Overseer)** (覚) is her eye in Claude Code: the shikigami that watches every skill invocation and reports back without being asked.
+**Īdisu(Capability Overseer)** (覚) is her eye in Claude Code: the shikigami that watches every skill invocation and reports back without being asked.
 
 ---
 
@@ -31,15 +31,15 @@ She names every plugin and agent in this collection after a yōkai whose nature 
 
 ## Active Plugins
 
-- **Satori(Capability Overseer)** (覚): watches every skill invocation across harnesses (Claude Code, Codex, OpenCode) and surfaces improvement suggestions via `/satori` commands:
-  - `/satori` or `/satori dream` — run dream pass (ingest + consolidate)
-  - `/satori profile` — print current work-style profile
-  - `/satori backlog` — list open improvement suggestions
-  - `/satori report` — generate HTML report
-  - `/satori improve <id>` — print improvement brief for handoff
-  - `/satori mark <id> accepted|rejected` — record outcome
-  - `/satori reset` — clear state (events preserved)
-  - Events stored in `~/.satori/` (or `$SATORI_HOME`). Dream runs respect `dream_interval_hours` config (default 24h).
+- **Īdisu(Capability Overseer)** (覚): watches every skill invocation across harnesses (Claude Code, Codex, OpenCode) and surfaces improvement suggestions via `/idisu` commands:
+  - `/idisu` or `/idisu dream` — run dream pass (ingest + consolidate)
+  - `/idisu profile` — print current work-style profile
+  - `/idisu backlog` — list open improvement suggestions
+  - `/idisu report` — generate HTML report
+  - `/idisu improve <id>` — print improvement brief for handoff
+  - `/idisu mark <id> accepted|rejected` — record outcome
+  - `/idisu reset` — clear state (events preserved)
+  - Events stored in `~/.idisu/` (or `$IDISU_HOME`). Dream runs respect `dream_interval_hours` config (default 24h).
 - **`github` skill + `hanko--git-seal` agent**: ALL git/GitHub work routes through the `hanko--git-seal` subagent. Never run `git commit`/`git push`/`gh pr` directly from the main agent.
 - **Kuma**: delegates code review and general task execution to `opencode-go`, `opencode` (OpenCode Zen), and `ollama-cloud` via the `opencode`/`pi` backends, invoked as one-shot CLI processes. Commands: `/kuma:setup`, `/kuma:models`, `/kuma:review`, `/kuma:task`, `/kuma:status`, `/kuma:result`, `/kuma:cancel`.
 

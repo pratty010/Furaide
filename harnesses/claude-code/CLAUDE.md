@@ -6,23 +6,23 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Two independent Claude Code plugins, plus install-target config, bundled under `harnesses/claude-code/` in the Furaidē monorepo:
 
-- **Satori** (`plugins/satori/`): capability-analytics shikigami. Hooks capture skill invocations; a Bun/TypeScript CLI (`cli/src/satori/`) plus a Python package (`cli/src/mekiki/`) run a "dream loop" that consolidates events into a work-style profile and improvement backlog.
+- **Īdisu** (`plugins/idisu/`): capability-analytics shikigami. Hooks capture skill invocations; a Bun/TypeScript CLI (`cli/src/idisu/`) plus a Python package (`cli/src/mekiki/`) run a "dream loop" that consolidates events into a work-style profile and improvement backlog.
 - **Kuma** (`plugins/kuma/`): delegates code review and task execution to `opencode-go`, `opencode` (OpenCode Zen), and `ollama-cloud`, invoked as one-shot `opencode`/`pi` CLI processes (no server, no RPC daemon).
 - **`config/`**: install-target material copied into `~/.claude/` by `scripts/bootstrap.sh` (global `CLAUDE.md`, `settings.json`, statusline, the `hanko--git-seal` subagent definition).
 
-Both plugins are registered in the repo-root `.claude-plugin/marketplace.json` (source paths `./harnesses/claude-code/plugins/satori` and `./harnesses/claude-code/plugins/kuma`). That file must stay at the repo root: `/plugin marketplace add owner/repo` only resolves a marketplace there.
+Both plugins are registered in the repo-root `.claude-plugin/marketplace.json` (source paths `./harnesses/claude-code/plugins/idisu` and `./harnesses/claude-code/plugins/kuma`). That file must stay at the repo root: `/plugin marketplace add owner/repo` only resolves a marketplace there.
 
 ## Directory map
 
-- `cli/`: Satori engine. `src/satori/` is the TypeScript code area; `pyproject.toml` and `uv.lock` define the `mekiki` Python package
-- `plugins/satori/`: Claude Code plugin. Hooks, commands, and manifest, all resolved via `${CLAUDE_PLUGIN_ROOT}`
+- `cli/`: Īdisu engine. `src/idisu/` is the TypeScript code area; `pyproject.toml` and `uv.lock` define the `mekiki` Python package
+- `plugins/idisu/`: Claude Code plugin. Hooks, commands, and manifest, all resolved via `${CLAUDE_PLUGIN_ROOT}`
 - `plugins/kuma/`: Claude Code plugin. One-shot `opencode`/`pi` CLI backend adapters, per-workspace state, seven slash commands
 - `config/`: install-target material. `CLAUDE.md`, `settings.json`, `statusline-command.sh`, `agents/hanko--git-seal.md`
 - `scripts/`: `bootstrap.sh`, `uninstall.sh`
 
 ## Commands
 
-### Satori (Bun/TypeScript), run from `cli/src/satori/`
+### Īdisu (Bun/TypeScript), run from `cli/src/idisu/`
 
 ```bash
 bun install               # first time / after dependency changes
@@ -58,22 +58,22 @@ bash scripts/uninstall.sh --help   # --dry-run, --purge
 
 ## Architecture
 
-### Satori: four-phase dream loop
+### Īdisu: four-phase dream loop
 
 ```
 Orient → Gather → Consolidate → Prune
 ```
 
-- **Orient**: loads config, manifest, previous state from `~/.satori/` (or `$SATORI_HOME`)
+- **Orient**: loads config, manifest, previous state from `~/.idisu/` (or `$IDISU_HOME`)
 - **Gather**: scans harness transcripts through adapters (`ClaudeCodeAdapter` reads `~/.claude/projects/` JSONL, `CodexAdapter` reads `~/.codex/sessions/`, `OpenCodeAdapter` reads a SQLite DB), dedupes hook events against transcript events by `event_id` (`source_id` + `source_position`), appends new events to the log
 - **Consolidate**: computes capability metrics, builds intent clusters from BM25 terms, writes `profile.json` / `backlog.json` / `findings.json` projections
 - **Prune**: evicts evidence past the retention window, reindexes
 
-A directory-based lock (`.dream.lock.d/` with PID/timestamp metadata) prevents concurrent dream runs. Scheduled runs are triggered by the plugin's `Stop` hook (`plugins/satori/hooks/stop.sh`) and respect `dream_interval_hours` from `~/.satori/config.json`.
+A directory-based lock (`.dream.lock.d/` with PID/timestamp metadata) prevents concurrent dream runs. Scheduled runs are triggered by the plugin's `Stop` hook (`plugins/idisu/hooks/stop.sh`) and respect `dream_interval_hours` from `~/.idisu/config.json`.
 
 Adapters implement `scan(checkpoints): AsyncGenerator<EventEnvelope>`. Hook-captured and transcript-derived events collide and dedupe naturally because the adapter emits transcript events with the same `cc-hook:sessionId` source format hooks use.
 
-Plugin hook wiring (`plugins/satori/hooks/hooks.json`) is `${CLAUDE_PLUGIN_ROOT}`-relative. Don't hardcode paths.
+Plugin hook wiring (`plugins/idisu/hooks/hooks.json`) is `${CLAUDE_PLUGIN_ROOT}`-relative. Don't hardcode paths.
 
 ### Kuma: one-shot CLI delegation, no persistent process
 
@@ -95,15 +95,15 @@ Every backend call is a fresh spawned process; there is no long-lived server or 
 
 - `config/` is install-target material (copied verbatim into `~/.claude/`), not source-only documentation. Treat changes there as user-facing config, not docs.
 - `config/statusline-sidecar.json` is written by hooks at runtime; don't commit it (root `.gitignore` excludes it).
-- `cli/.satori/` is Satori runtime scratch; gitignored.
-- Kuma's `biome.json` targets schema `1.8.3` to match its pinned `@biomejs/biome` devDependency. Always run `bun run lint`/`bunx biome check .` from inside `plugins/kuma/` (or `cli/src/satori/`) so the pinned version resolves, not a global/newer `bunx biome`.
+- `cli/.idisu/` is Īdisu runtime scratch; gitignored.
+- Kuma's `biome.json` targets schema `1.8.3` to match its pinned `@biomejs/biome` devDependency. Always run `bun run lint`/`bunx biome check .` from inside `plugins/kuma/` (or `cli/src/idisu/`) so the pinned version resolves, not a global/newer `bunx biome`.
 - CI (`.github/workflows/ci.yml`) triggers on `harnesses/claude-code/**` and runs `uv sync --frozen` + `uv run pytest` for the mekiki package.
 - Repo-root pre-push hooks (shellcheck, semgrep-diff, trivy-quick) run sequentially, ~8 minutes.
 
 ## Always / Ask first / Never
 
-**Always**: run Satori's `bun test` + `bun run typecheck` when touching `cli/src/satori/` or `plugins/satori/`. Run `uv run pytest` when touching `cli/src/mekiki/`. Run Kuma's `bun test` + `bun run lint` (from `plugins/kuma/`) when touching `plugins/kuma/`.
+**Always**: run Īdisu's `bun test` + `bun run typecheck` when touching `cli/src/idisu/` or `plugins/idisu/`. Run `uv run pytest` when touching `cli/src/mekiki/`. Run Kuma's `bun test` + `bun run lint` (from `plugins/kuma/`) when touching `plugins/kuma/`.
 
 **Ask first**: before changing marketplace registration, plugin manifest paths, or either plugin's on-disk state-directory layout (breaks existing users' persisted state).
 
-**Never**: commit captured payloads from `SATORI_CAPTURE_HOOK_PAYLOADS` debugging. Commit real user data as test fixtures. Patch `node_modules`.
+**Never**: commit captured payloads from `IDISU_CAPTURE_HOOK_PAYLOADS` debugging. Commit real user data as test fixtures. Patch `node_modules`.
