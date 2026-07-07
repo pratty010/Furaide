@@ -8,6 +8,11 @@ import { groupBy } from '../analysis/grammar.js'
 import { computeRateMetric, type RateMetricResult } from '../analysis/metrics.js'
 import { upsertSession, type SessionRow } from '../store/repo.js'
 
+// Phase 3 Measure (Task 3.2): the v0.2 deterministic metric-catalog runner
+// lives in `analysis/measure.ts`; re-exported here so dream.ts's pipeline can
+// call it alongside `rollupSessions` from a single Consolidate-step import.
+export { measure, readMetricRollups, ALL_TIME_WINDOW } from '../analysis/measure.js'
+
 export interface CapabilityMetrics {
   capability_id: string
   invocation_count: number
@@ -15,6 +20,7 @@ export interface CapabilityMetrics {
   used_downstream_rate: RateMetricResult | null
   load_success_rate: RateMetricResult | null
   model_trigger_rate: RateMetricResult | null
+  attribution_rate: RateMetricResult | null
 }
 
 export function buildMetricProjections(
@@ -29,6 +35,24 @@ export function buildMetricProjections(
 
   const capInvocations = dedupeCapabilityInvocations(events.filter(e => e.event_type === 'capability.invoked'))
   const groups = groupBy(capInvocations, e => (e.payload as CapabilityInvokedPayload).capability_id)
+
+  // Same attribution signal as analysis/measure.ts#computeCapabilityMeasurements:
+  // a capability.invoked event is "attributed" when a trigger:'chain' event
+  // (ClaudeCodeAdapter's attributionSkill echo) shares its
+  // (session_id, turn_index, capability_id) key — including a chain event
+  // being attributed to itself when it's a capability's only signal.
+  const chainKeys = new Set(
+    capInvocations
+      .filter(e => (e.payload as CapabilityInvokedPayload).trigger === 'chain')
+      .map(e => {
+        const p = e.payload as CapabilityInvokedPayload
+        return `${p.session_id}:${p.turn_index}:${p.capability_id}`
+      }),
+  )
+  const isAttributed = (e: EventEnvelope): boolean => {
+    const p = e.payload as CapabilityInvokedPayload
+    return chainKeys.has(`${p.session_id}:${p.turn_index}:${p.capability_id}`)
+  }
 
   const result = new Map<string, CapabilityMetrics>()
   const globalTotals = { downstreamHits: 0, downstreamN: 0, successHits: 0, successN: 0 }
@@ -91,6 +115,13 @@ export function buildMetricProjections(
         evs.length,
         minSample,
         0.7,
+        evs.length,
+      ),
+      attribution_rate: computeRateMetric(
+        evs.filter(isAttributed).length,
+        evs.length,
+        minSample,
+        0.5,
         evs.length,
       ),
     })

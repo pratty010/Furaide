@@ -8,7 +8,7 @@ import { LAST_DREAM_FILE, STATE_DIR, STATE_MANIFEST } from "../paths.js";
 import { writeProfile } from "../projections/profile.js";
 import type { EventEnvelope, EventType, Harness } from "../types/events.js";
 import type { IntentCluster, StateManifest } from "../types/projections.js";
-import { buildMetricProjections, rollupSessions } from "./consolidate.js";
+import { ALL_TIME_WINDOW, buildMetricProjections, measure, readMetricRollups, rollupSessions } from "./consolidate.js";
 import { gather } from "./gather.js";
 import { orient } from "./orient.js";
 import { pruneAndIndex } from "./prune.js";
@@ -124,6 +124,32 @@ export async function runDream(
       const clusters: IntentCluster[] = [];
 
       const sessionsRolledUp = rollupSessions(db);
+
+      // Phase 3 Measure (Task 3.2): computes the v0.2 deterministic metric
+      // catalog subset (invocation_count, model_trigger_rate,
+      // attribution_rate) from idisu.db events and persists it to
+      // `metric_rollups`. The profile projection writers below then read
+      // invocation_count/model_trigger_rate/attribution_rate back out of
+      // `metric_rollups` (reconciled into `metrics` here) so profile.json/profile.md report
+      // the same durable numbers this pass wrote, rather than a second,
+      // independently-derived in-memory count. used_downstream_rate and
+      // load_success_rate aren't part of this task's metric set and remain
+      // sourced from buildMetricProjections above.
+      measure(db);
+      const rollups = readMetricRollups(db, ALL_TIME_WINDOW);
+      for (const [capId, m] of metrics.entries()) {
+        const rollup = rollups.get(capId);
+        if (!rollup) continue;
+        if (typeof rollup.invocation_count === "number") {
+          m.invocation_count = rollup.invocation_count;
+        }
+        if (typeof rollup.model_trigger_rate === "number" && m.model_trigger_rate) {
+          m.model_trigger_rate = { ...m.model_trigger_rate, shrunken: rollup.model_trigger_rate };
+        }
+        if (typeof rollup.attribution_rate === "number" && m.attribution_rate) {
+          m.attribution_rate = { ...m.attribution_rate, shrunken: rollup.attribution_rate };
+        }
+      }
 
       if (!existsSync(STATE_DIR)) mkdirSync(STATE_DIR, { recursive: true });
       writeProfile(metrics, clusters);

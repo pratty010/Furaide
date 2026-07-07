@@ -31,6 +31,36 @@ test('buildMetricProjections computes used_downstream_rate for observed events',
   expect(b?.used_downstream_rate?.raw).toBe(1.0)
 })
 
+test('buildMetricProjections computes attribution_rate from a matching chain event', () => {
+  const attributedEvents = [
+    makeTypedEvent('capability.invoked', 'cc:p/s1', 0, 'claude_code', {
+      session_id: 's1', turn_index: 0, capability_id: 'tdd',
+      capability_type: 'skill', harness: 'claude_code', trigger: 'model',
+      observability_level: 'observed', confidence: 1.0, tool_use_id: 'toolu_01',
+    }),
+    makeTypedEvent('capability.invoked', 'cc:p/s1', '0:attribution', 'claude_code', {
+      session_id: 's1', turn_index: 0, capability_id: 'tdd',
+      capability_type: 'skill', harness: 'claude_code', trigger: 'chain',
+      observability_level: 'observed', confidence: 1.0,
+    }),
+    makeTypedEvent('capability.invoked', 'cc:p/s2', 0, 'claude_code', {
+      session_id: 's2', turn_index: 0, capability_id: 'tdd',
+      capability_type: 'skill', harness: 'claude_code', trigger: 'model',
+      observability_level: 'observed', confidence: 1.0, tool_use_id: 'toolu_02',
+    }),
+  ]
+
+  const proj = buildMetricProjections(attributedEvents, 1)
+  const tdd = proj.get('tdd')
+  expect(tdd?.attribution_rate).not.toBeNull()
+  // buildMetricProjections groups all 3 raw capability.invoked rows for
+  // 'tdd' (it doesn't collapse chain+model pairs the way analysis/measure.ts
+  // does). Of those 3, 2 share the s1:0:tdd key (the model event and its
+  // matching chain echo) and count as attributed; s2's model event has no
+  // chain counterpart.
+  expect(tdd?.attribution_rate?.raw).toBeCloseTo(2 / 3, 3)
+})
+
 test('buildMetricProjections uses a global baseline across all capabilities', () => {
   const mixedEvents = [
     makeTypedEvent('capability.invoked', 'cc:p/s1', 0, 'claude_code', {

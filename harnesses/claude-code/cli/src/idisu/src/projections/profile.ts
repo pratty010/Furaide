@@ -19,10 +19,10 @@ export function renderProfileMd(
     `_Last updated: ${new Date().toISOString()}_`,
     '',
     '## Top capabilities by invocation',
-    '| Capability | Invocations | Sessions | Downstream% | Success% |',
-    '|---|---|---|---|---|',
+    '| Capability | Invocations | Sessions | Downstream% | Success% | Attribution% |',
+    '|---|---|---|---|---|---|',
     ...topByInvocations.map(m =>
-      `| ${m.capability_id} | ${m.invocation_count} | ${m.session_count} | ${fmtRate(m.used_downstream_rate)} | ${fmtRate(m.load_success_rate)} |`,
+      `| ${m.capability_id} | ${m.invocation_count} | ${m.session_count} | ${fmtRate(m.used_downstream_rate)} | ${fmtRate(m.load_success_rate)} | ${fmtRate(m.attribution_rate)} |`,
     ),
     '',
     '## Recurring intent clusters',
