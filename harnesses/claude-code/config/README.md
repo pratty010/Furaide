@@ -49,9 +49,16 @@ cp config/keybindings.json ~/.claude/keybindings.json
 </details>
 
 <details>
-<summary><strong>statusline-command.sh</strong>: custom status line</summary>
+<summary><strong>statusline-command.sh</strong>: custom status line (v2)</summary>
 
-Displays `user@host:cwd` in the Claude Code status line.
+Two-line, width-adaptive status line. Requires `jq` and `python3`; re-runs on
+new assistant messages, `/compact`, permission/vim mode changes, and the
+`refreshInterval` timer (terminal resize alone does not trigger a re-run).
+
+```
+Line 1: 🧠 model │ effort │ 🕐 dur (📡api%)   ↑inΣ⚡r%/↓outΣ⚡w% [⑂in%/out%] │ CTX: [bar] cur/win/+turn
+Line 2: 📁 cwd (branch) │ +add/-rem          5hr: % (reset) │ 1wk: % (reset) │ $:cost
+```
 
 ```bash
 cp config/statusline-command.sh ~/.claude/statusline-command.sh
@@ -67,6 +74,42 @@ Then add to `~/.claude/settings.json`:
   }
 }
 ```
+
+**Sidecar state** (`~/.claude/statusline-state/<session_id>.json` by default;
+override with `STATUSLINE_STATE_DIR`): one JSON file per session, atomically
+written (temp file + rename). Stale files (>30 days) are pruned on each run.
+It holds:
+
+- **Duration fold across resume**: Claude Code's own `total_duration_ms` /
+  `total_api_duration_ms` reset to near-zero when a session resumes. The
+  sidecar remembers the last-seen value and, when the new value is lower
+  than the last one (a reset), folds the old value into a running base so
+  the displayed clock keeps counting up across resumes instead of jumping
+  backward.
+- **Transcript tail-cursor token totals**: a byte offset into the session
+  transcript (`transcript_offset`). Each run re-reads only the bytes appended
+  since the last run, sums main-thread assistant `message.usage` fields into
+  running `in_total`/`out_total`/`cache_read_total`/`cache_creation_total`,
+  and extracts completed subagent totals from task-notification records
+  (each `task_id` counted once, via its own transcript `.output` file when
+  still present, falling back to that record's inline lump-sum token count
+  otherwise). This avoids re-scanning the whole transcript every render.
+
+**Fail-open discipline**: every field this script reads from the payload or
+the sidecar is null/missing-guarded. A corrupt sidecar, an absent
+`transcript_path`, a missing `jq`, or any parse failure degrades that one
+value (falls back to 0 / the raw payload field / an omitted display segment)
+rather than crashing the whole status line.
+
+**Color ramps** (locked thresholds):
+
+- CTX bar/percentage: window > 300K tokens → green 0–20%, yellow 20–50%, red
+  above 50%. Window ≤ 300K → green 0–50%, yellow 50–75%, red above 75%.
+- Rate-limit percentages (5hr and 1wk, each independent): green 0–50%,
+  yellow 50–75%, orange (256-color `\033[38;5;208m`) 75–90%, red above 90%.
+- Each rate-limit window and the `[⑂in%/out%]` subagent-share segment are
+  independently omitted when their underlying payload data is absent (no
+  `⚠`/WARN glyph — that path was removed; ramp color alone signals severity).
 
 </details>
 
