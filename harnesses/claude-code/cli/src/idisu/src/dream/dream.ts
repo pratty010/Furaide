@@ -71,9 +71,8 @@ function rowToEnvelope(row: EventTableRow): EventEnvelope {
 }
 
 // Consolidate reads the full historical corpus back out of idisu.db now that
-// Gather writes there. (The old JSONL event-log stays importable as a Phase
-// 2 bridge per Finding F1, but nothing in the dream pipeline writes to it
-// anymore — see gather.ts.)
+// Gather writes there. (The old JSONL event-log module was deleted in Phase 5
+// Task 5.4 once its last caller, cli/commands/report.ts, migrated to idisu.db.)
 function readAllEventsFromDb(db: Database): EventEnvelope[] {
   const rows = db
     .query("SELECT * FROM events ORDER BY observed_at ASC")

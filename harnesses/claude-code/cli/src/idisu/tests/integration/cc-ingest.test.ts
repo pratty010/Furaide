@@ -5,11 +5,8 @@ import { join } from "node:path";
 import { ClaudeCodeAdapter } from "../../src/adapters/claude-code.js";
 import { gather } from "../../src/dream/gather.js";
 import { openDb } from "../../src/store/db.js";
-import { appendEvent, readEvents } from "../../src/store/event-log.js";
-import { insertEvent } from "../../src/store/repo.js";
-import { countEvents } from "../../src/store/repo.js";
+import { countEvents, insertEvent, readAllEvents } from "../../src/store/repo.js";
 import { drainSpool } from "../../src/store/spool.js";
-import { ĪdisuCache } from "../../src/store/sqlite-cache.js";
 import { EventEnvelopeSchema } from "../../src/types/events.js";
 
 // Path to the real plugin hook script, so this test exercises the actual
@@ -20,8 +17,7 @@ const SESSION_START_HOOK = join(
 );
 
 const TMP = "/tmp/idisu-integration-test";
-const EVENTS_DIR = join(TMP, "events");
-const DB_PATH = join(TMP, "cache.sqlite");
+const DB_PATH = join(TMP, "idisu.db");
 const PROJ_DIR = join(TMP, "transcripts", "my-project");
 
 mkdirSync(PROJ_DIR, { recursive: true });
@@ -63,13 +59,20 @@ writeFileSync(join(PROJ_DIR, `${sessionId}.jsonl`), `${lines.join("\n")}\n`);
 
 afterAll(() => rmSync(TMP, { recursive: true }));
 
-test("end-to-end: CC transcript → event log → FTS5 cache → BM25 query", async () => {
+// Phase 5 (Task 5.4): this used to also exercise the legacy JSONL
+// `store/event-log.ts` (event log partition write/read) and the capability
+// catalog's `store/sqlite-cache.ts` BM25 search — both deleted in this task
+// now that Gather writes exclusively to `idisu.db` (see `dream/gather.ts`)
+// and the FTS5-backed catalog cache has no live caller (its successor,
+// `artifacts_fts` over mined n-grams, is exercised in `mine/mine.test.ts`).
+// Rewritten to assert the same "CC transcript -> events land and are
+// readable back" property against `idisu.db` instead.
+test("end-to-end: CC transcript → idisu.db events table", async () => {
   const adapter = new ClaudeCodeAdapter(join(TMP, "transcripts"));
   const checkpoints = new Map();
   const events: import("../../src/types/events.js").EventEnvelope[] = [];
   for await (const ev of adapter.scan(checkpoints)) {
     events.push(ev);
-    appendEvent(ev, EVENTS_DIR);
   }
 
   const capEvents = events.filter((e) => e.event_type === "capability.invoked");
@@ -78,27 +81,28 @@ test("end-to-end: CC transcript → event log → FTS5 cache → BM25 query", as
     (capEvents[0]?.payload as { capability_id: string }).capability_id,
   ).toBe("brainstorming");
 
-  const partition = capEvents[0]!.observed_at.slice(0, 10);
-  const readBack = [...readEvents(partition, "claude_code", EVENTS_DIR)];
+  const db = openDb(DB_PATH);
+  for (const ev of events) {
+    insertEvent(db, {
+      event_id: ev.event_id,
+      schema_version: ev.schema_version,
+      source_id: ev.source_id,
+      source_position: ev.source_position,
+      observed_at: ev.observed_at,
+      ingested_at: ev.ingested_at,
+      harness: ev.harness,
+      event_type: ev.event_type,
+      payload_version: ev.payload_version,
+      payload: ev.payload,
+    });
+  }
+  expect(countEvents(db)).toBe(events.length);
+
+  const readBack = readAllEvents(db);
   expect(readBack.some((e) => e.event_type === "capability.invoked")).toBe(
     true,
   );
-
-  const cache = new ĪdisuCache(DB_PATH);
-  cache.upsertCapability({
-    capability_id: "brainstorming",
-    name: "Brainstorming",
-    description: "Explores user intent and requirements before building",
-    harness: "claude_code",
-    type: "skill",
-    path: "/skills/brainstorming/SKILL.md",
-    content_hash: "deadbeef",
-    trigger_hints: ["feature", "design", "create"],
-    scanned_at: "2026-06-17T10:00:00Z",
-  });
-  const results = cache.bm25Search("brainstorm feature", 5);
-  expect(results[0]?.capability_id).toBe("brainstorming");
-  cache.close();
+  db.close();
 });
 
 test("gather drains spool + adapters into idisu.db idempotently across two runs", async () => {

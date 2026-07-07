@@ -120,6 +120,25 @@ function rowToEnvelope(row: EventTableRow): EventEnvelope {
 }
 
 /**
+ * All events in `idisu.db`, ordered by `observed_at`.
+ *
+ * Phase 5 (Task 5.4) — pulled out as a shared export rather than adding a
+ * fourth private copy of the same `SELECT * FROM events ... -> rowToEnvelope`
+ * pattern already duplicated in `dream/consolidate.ts#rollupSessions` and
+ * `dream/dream.ts#readAllEventsFromDb` (and this file's own
+ * `getEventsForSession`). `cli/commands/report.ts` is the new caller (Task
+ * 5.4, migrating off the legacy JSONL `store/event-log.ts`); the two
+ * dream-pipeline copies are left as-is here to keep this migration scoped to
+ * report.ts rather than a broader refactor.
+ */
+export function readAllEvents(db: Database): EventEnvelope[] {
+  const rows = db
+    .query("SELECT * FROM events ORDER BY observed_at ASC")
+    .all() as EventTableRow[];
+  return rows.map(rowToEnvelope);
+}
+
+/**
  * All events belonging to one logical session, ordered by `observed_at`.
  *
  * Grouping key is `payload.session_id` (not raw `source_id`) — same rationale
