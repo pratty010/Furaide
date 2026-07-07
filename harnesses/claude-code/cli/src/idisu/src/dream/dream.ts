@@ -16,6 +16,8 @@ import { runJudgeOrchestrator } from "../judge/orchestrator.js";
 import { generateCandidates, mineNgrams } from "../mine/mine.js";
 import { stageCandidate } from "../mine/stage.js";
 import { findActiveArtifactBySignature } from "../store/repo.js";
+import { importPreexistingSkills, updateEvidenceLedger } from "../track/ledger.js";
+import { runCurate } from "../curate/curate.js";
 import { orient } from "./orient.js";
 import { pruneAndIndex } from "./prune.js";
 
@@ -171,6 +173,42 @@ export async function runDream(
       });
       console.log(
         `[idisu/dream] Phase 4 Judge: ${judgeResult.segmentsLabeled} segments labeled (${judgeResult.llmCallsMade} LLM calls)`,
+      );
+
+      // Phase 6 (Approve/Promote/Track/Curate, Task 6.3): ExpeL evidence
+      // ledger. `importPreexistingSkills` bootstraps `artifacts` rows for
+      // skills already installed on disk (`~/.agents/skills/*`) that were
+      // never mined/promoted through this pipeline — it's naturally
+      // idempotent (only inserts a row when no `artifacts` row with that id
+      // exists yet), so it's safe/cheap to call on every dream pass rather
+      // than gating it behind a separate "first dream" flag. Placed here,
+      // before `updateEvidenceLedger`, so a skill's `artifacts` row always
+      // exists before the ledger join looks it up by capability_id.
+      // `updateEvidenceLedger` runs right after Judge (not before) because it
+      // needs this pass's freshly-written `outcome_labels` to join
+      // attributionSkill occurrences against.
+      const importResult = importPreexistingSkills(db);
+      const ledgerResult = updateEvidenceLedger(db);
+      console.log(
+        `[idisu/dream] Phase 6 Track: ${importResult.imported} preexisting skills imported (${importResult.skipped} already present), ` +
+          `${ledgerResult.updated} evidence-ledger updates (${ledgerResult.skippedNoArtifact} skipped, no artifact)`,
+      );
+
+      // Phase 6 (Curate, Task 6.4): surface stale/deprecate/overlap
+      // proposals into the review queue (staged `artifacts` rows with
+      // `type='instruction_edit'`) and move already-rejected/deprecated
+      // artifacts' on-disk files to `archive/`. Never hard-deletes.
+      // Placed right after Track so it sees this pass's freshly-updated
+      // `evidence_ledger` (deprecation threshold) and the
+      // `importPreexistingSkills`-populated `artifacts` table (stale /
+      // overlap scans target active artifacts). Idempotent: re-running
+      // curate on the same DB doesn't duplicate proposals or re-move
+      // already-archived files.
+      const curateResult = runCurate(db);
+      console.log(
+        `[idisu/dream] Phase 6 Curate: ${curateResult.deprecationProposals} deprecation, ` +
+          `${curateResult.staleProposals} stale, ${curateResult.mergeProposals} merge proposals staged, ` +
+          `${curateResult.archived} files moved to archive/`,
       );
 
       // Phase 5 Mine (Tasks 5.1-5.3): first live wiring of `mineNgrams` and

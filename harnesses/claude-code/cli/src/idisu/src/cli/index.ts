@@ -6,10 +6,13 @@ import { cmdReport } from './commands/report.js'
 import { cmdImprove } from './commands/improve.js'
 import { cmdMark } from './commands/mark.js'
 import { cmdReset } from './commands/reset.js'
+import { cmdPromote } from './commands/promote.js'
+import { cmdReject } from './commands/reject.js'
+import { cmdReview } from './commands/review.js'
 
 const [, , subcommand, ...rest] = process.argv
 
-const commands: Record<string, (args: string[]) => void | Promise<void>> = {
+const commands: Record<string, (args: string[]) => unknown | Promise<unknown>> = {
   dream: cmdDream,
   profile: cmdProfile,
   backlog: cmdBacklog,
@@ -17,6 +20,9 @@ const commands: Record<string, (args: string[]) => void | Promise<void>> = {
   improve: cmdImprove,
   mark: cmdMark,
   reset: cmdReset,
+  promote: cmdPromote,
+  reject: cmdReject,
+  review: cmdReview,
 }
 
 if (!subcommand || subcommand === '--help' || subcommand === 'help') {
@@ -32,6 +38,9 @@ Commands:
   improve  <capability-id>            Print brief for a backlog item
   mark     <id> accepted|rejected     Record outcome of an improvement
   reset    [--projections-only]       Clear state (event log preserved)
+  promote  <id> --to <path>           Move a staged candidate into an installed skill
+  reject   <id> --reason "<text>"     Archive a staged candidate, record rejection memory
+  review   [--json]                   List candidates pending review (read-only)
 `)
   process.exit(0)
 }

@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { readFileSync, existsSync } from 'fs'
+import { readFileSync, existsSync } from 'node:fs'
 import { CONFIG_FILE } from './paths.js'
 
 export const ConfigSchema = z.object({
@@ -34,6 +34,27 @@ export const ConfigSchema = z.object({
   // Phase 6 imports preexisting skills, so there is no real corpus yet to
   // calibrate against.
   candidate_overlap_bm25_max: z.number().nonnegative().default(2.0),
+  // Phase 6 (Curate, Task 6.4) — staleness signal. An artifact with zero
+  // distinct-session `capability.invoked` hits in the `events` table is
+  // surfaced as a stale-flag proposal in the review queue. The
+  // `stale_after_sessions` value documents the planned "N sessions without
+  // a hit" intent from the v0.1 spec; today's honest implementation
+  // (curate/curate.ts) treats the bar as simply "no hits at all" because
+  // no global session counter that advances on each dream pass exists yet
+  // (no place in the codebase writes one). This number is the threshold
+  // we'll switch to once a real session counter lands. Untuned starting
+  // default matches the spec literal.
+  stale_after_sessions: z.number().int().positive().default(30),
+  // Phase 6 (Curate, Task 6.4) — pairwise overlap threshold above which two
+  // active artifacts are surfaced as a merge proposal in the review queue.
+  // Implemented as a Jaccard token-overlap proxy on `surface_path` content
+  // (see curate/curate.ts#jaccardOverlap's doc comment for why BM25 isn't
+  // viable here yet: `artifacts_fts` is empty because nothing populates
+  // its `text` column, and FTS5 ranking on an empty corpus returns nothing
+  // useful). Untuned starting default — 0.6 is a typical "strong overlap"
+  // threshold in set-similarity literature; will be calibrated once
+  // `artifacts_fts` is populated.
+  merge_overlap_threshold: z.number().min(0).max(1).default(0.6),
 })
 
 export type Config = z.infer<typeof ConfigSchema>

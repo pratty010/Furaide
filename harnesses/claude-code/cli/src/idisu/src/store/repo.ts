@@ -361,3 +361,254 @@ export function insertEdge(db: Database, e: EdgeRow): void {
     `INSERT INTO edges (src,dst,type,valid_at,invalid_at) VALUES (?,?,?,?,?)`,
   ).run(e.src, e.dst, e.type, e.valid_at, e.invalid_at ?? null);
 }
+
+// ---------------------------------------------------------------------------
+// Phase 6 (Approve/Promote/Track/Curate, Task 6.1) — artifact lookup/state-
+// transition helpers backing `cli/commands/promote.ts` and `reject.ts`.
+// ---------------------------------------------------------------------------
+
+/**
+ * Looks up an artifact by its primary key regardless of state — unlike
+ * `findActiveArtifactBySignature` (mining's duplicate-staging guard, keyed on
+ * `signature` and filtered to non-deprecated rows), this is the plain by-id
+ * lookup `promote`/`reject` need to fetch a specific pending candidate (and
+ * to tell the caller "not found" vs "found but in the wrong state").
+ */
+export function getArtifactById(db: Database, id: string): ArtifactRow | null {
+  return (
+    (db.query("SELECT * FROM artifacts WHERE id=?").get(id) as ArtifactRow | null) ?? null
+  );
+}
+
+/**
+ * Flips a staged artifact to `state='active'` and records where it now lives
+ * on disk (`surface_path`) and when (`promoted_at`). Plain `UPDATE ... WHERE
+ * id=?`, not an upsert — the row must already exist (created by
+ * `stage.ts#stageCandidate`); callers are expected to have checked
+ * `getArtifactById` first (see `promote.ts#promoteCandidate`).
+ */
+export function promoteArtifact(
+  db: Database,
+  id: string,
+  surfacePath: string,
+  promotedAt: string,
+): void {
+  db.query(
+    `UPDATE artifacts SET state='active', surface_path=?, promoted_at=? WHERE id=?`,
+  ).run(surfacePath, promotedAt, id);
+}
+
+/** Flips an artifact to `state='rejected'`. No `deprecated_at` touch here —
+ * that column means "retired after having been active"; a rejected
+ * *candidate* never made it to active in the first place. */
+export function rejectArtifact(db: Database, id: string): void {
+  db.query(`UPDATE artifacts SET state='rejected' WHERE id=?`).run(id);
+}
+
+export interface RejectedSignatureRow {
+  signature: string;
+  reason?: string | null;
+  rejected_at: string;
+}
+
+// `INSERT OR IGNORE` keyed on `signature` (PRIMARY KEY): rejecting the same
+// signature twice (e.g. a re-mined near-duplicate later staged again and
+// rejected again) shouldn't error — the first rejection's reason/timestamp
+// wins, matching the "record it once" intent of a rejection-memory table.
+export function insertRejectedSignature(db: Database, r: RejectedSignatureRow): void {
+  db.query(
+    `INSERT OR IGNORE INTO rejected_signatures (signature,reason,rejected_at) VALUES (?,?,?)`,
+  ).run(r.signature, r.reason ?? null, r.rejected_at);
+}
+
+// ---------------------------------------------------------------------------
+// Phase 6 (Approve/Promote/Track/Curate, Task 6.3) — ExpeL evidence ledger
+// helpers backing `track/ledger.ts`.
+// ---------------------------------------------------------------------------
+
+/**
+ * Looks up a segment's outcome label at an EXACT `(session_id, segment_key)`
+ * key — the finer-grained sibling of `getSessionOutcomeLabel` (which hardcodes
+ * `segment_key='session'`). `track/ledger.ts#updateEvidenceLedger` uses this
+ * to try the turn-specific label first (`turn:<n>`) before falling back to
+ * the session-level label, since `judge/tier1.ts#labelTurnSegments` only ever
+ * emits a `turn:<n>` row when a concrete failure is attributable there —
+ * there's no positive per-turn signal, so a turn segment with no row is not
+ * itself meaningful and the caller should fall back rather than treat it as
+ * `unknown`.
+ */
+export function getOutcomeLabel(
+  db: Database,
+  sessionId: string,
+  segmentKey: string,
+): string | null {
+  const row = db
+    .query(
+      "SELECT label FROM outcome_labels WHERE session_id=? AND segment_key=?",
+    )
+    .get(sessionId, segmentKey) as { label: string } | null;
+  return row?.label ?? null;
+}
+
+export interface EvidenceLedgerRow {
+  artifact_id: string;
+  applied: number;
+  win: number;
+  loss: number;
+  score: number;
+  last_earned_at: string | null;
+}
+
+/** Plain by-id lookup, mirroring `getArtifactById`'s shape/rationale — used by
+ * tests and by `ledger.ts` callers that want to assert/read the accumulated
+ * row rather than blindly upsert. */
+export function getEvidenceLedger(
+  db: Database,
+  artifactId: string,
+): EvidenceLedgerRow | null {
+  return (
+    (db
+      .query("SELECT * FROM evidence_ledger WHERE artifact_id=?")
+      .get(artifactId) as EvidenceLedgerRow | null) ?? null
+  );
+}
+
+/**
+ * Additively upserts one attribution occurrence's outcome onto an artifact's
+ * `evidence_ledger` row: `applied`/`win`/`loss`/`score` are all *deltas*
+ * (typically `{applied:1, win:1, score:1}` for a success, `{applied:1,
+ * loss:1, score:-1}` for a failure, `{applied:1}` alone for unknown/
+ * abandoned — see `ledger.ts` for the mapping), added onto whatever the row
+ * already holds — unlike every other `upsert*` in this file (which overwrite
+ * fields wholesale on conflict), because the ledger's whole purpose is a
+ * running count across many dream passes, not last-write-wins state.
+ * `lastEarnedAt`, when passed, only advances on a win or a loss (an actual
+ * score movement) — not on an `applied`-only unknown/abandoned occurrence —
+ * so callers pass `undefined` for those and the existing timestamp is kept
+ * via `COALESCE`.
+ */
+export function upsertEvidenceLedger(
+  db: Database,
+  artifactId: string,
+  delta: { applied: number; win: number; loss: number; score: number },
+  lastEarnedAt?: string,
+): void {
+  db.query(`INSERT INTO evidence_ledger
+    (artifact_id,applied,win,loss,score,last_earned_at)
+    VALUES (?,?,?,?,?,?)
+    ON CONFLICT(artifact_id) DO UPDATE SET
+      applied=evidence_ledger.applied + excluded.applied,
+      win=evidence_ledger.win + excluded.win,
+      loss=evidence_ledger.loss + excluded.loss,
+      score=evidence_ledger.score + excluded.score,
+      last_earned_at=COALESCE(excluded.last_earned_at, evidence_ledger.last_earned_at)`).run(
+    artifactId,
+    delta.applied,
+    delta.win,
+    delta.loss,
+    delta.score,
+    lastEarnedAt ?? null,
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Phase 6 (Approve/Promote/Track/Curate, Task 6.4) — Curate helpers backing
+// `curate/curate.ts`. Mirrors the per-section helper blocks above
+// (parameterized SQL, no ORM, plain-object row interfaces, doc comments
+// explaining each helper's place in the pipeline).
+// ---------------------------------------------------------------------------
+
+/**
+ * Lists artifacts whose `state` is any of the given values. Used by
+ * `curate/curate.ts` to find (a) `'active'` rows for the deprecation /
+ * staleness / overlap scans, and (b) `'rejected'` + `'deprecated'` rows
+ * whose on-disk files may still need to be moved to `archive/`. The
+ * `state` column is a plain `TEXT NOT NULL` (no CHECK constraint, see
+ * `schema.ts`), so we filter by string equality in code rather than relying
+ * on a schema enum — matches `findActiveArtifactBySignature`'s same
+ * "filter at the call site" choice above for `deprecated_at IS NULL`.
+ *
+ * Ordered by `id ASC` for stable iteration order — the curate pairwise
+ * overlap pass treats (A,B) and (B,A) as the same pair, so any pair-order
+ * determinism in this query would be redundant; `id ASC` is just so the
+ * draft file naming / log ordering is reproducible across runs.
+ */
+export function listArtifactsByState(
+  db: Database,
+  states: string[],
+): ArtifactRow[] {
+  if (states.length === 0) return [];
+  const placeholders = states.map(() => "?").join(",");
+  return db
+    .query(
+      `SELECT * FROM artifacts WHERE state IN (${placeholders}) ORDER BY id ASC`,
+    )
+    .all(...states) as ArtifactRow[];
+}
+
+// ---------------------------------------------------------------------------
+// Phase 6 (Approve/Promote/Track/Curate, Task 6.2) — Review-queue helper
+// backing `cli/commands/review.ts`. All SQL lives here per the
+// parameterized-SQL / no-ORM / plain-object-row convention this file
+// enforces; `review.ts` only does the `dirname` derivation for the
+// evidence-pointer column and the JSON parsing for `sample_sessions`.
+// ---------------------------------------------------------------------------
+
+/**
+ * Row shape returned by `listStagedArtifactsWithNgrams` — the artifact
+ * columns (one `ArtifactRow`'s worth) plus the outcome-split columns
+ * from a `LEFT JOIN workflow_ngrams`. All four join columns are
+ * nullable here (a staged candidate can exist with no corresponding
+ * `workflow_ngrams` row, see the doc comment on
+ * `listStagedArtifactsWithNgrams`); the caller is expected to apply
+ * `?? 0` / `?? []` defaults to produce the
+ * CLI-facing `ReviewEntry` shape. We don't pre-default here so the
+ * NULL/non-NULL distinction is observable at the call site.
+ */
+export interface StagedArtifactWithNgrams extends ArtifactRow {
+  frequency: number | null;
+  success_count: number | null;
+  failure_count: number | null;
+  sample_sessions: string | null;
+}
+
+/**
+ * Lists all `artifacts` rows with `state='staged'`, left-joined against
+ * `workflow_ngrams` on `signature` for the outcome-split stats
+ * (`upsertWorkflowNgram` writes that table; `artifacts` itself only
+ * carries `signature`, not frequency/success/failure counts). The join
+ * can miss — e.g. a candidate staged without a corresponding
+ * `workflow_ngrams` row (not how the real dream pipeline works, but
+ * possible for a standalone `stageCandidate` caller) — in which case
+ * the outcome-split columns come back `NULL` and the caller (see
+ * `cli/commands/review.ts#listPendingReview`) applies `?? 0` / `?? []`
+ * defaults rather than null-checking per field.
+ *
+ * Ordered oldest-first (`created_at ASC`) so the review queue is
+ * presented in the order candidates were mined, not reverse-
+ * chronological — the live `/idisu review` flow assumes FIFO so the
+ * conversation can walk the queue in mining order. `sample_sessions`
+ * is returned as the raw JSON TEXT column (Bun's SQLite driver doesn't
+ * auto-decode it); `review.ts` calls `JSON.parse` on it at the
+ * call site, same as `getEventsForSession`'s envelope-decoding pattern
+ * above.
+ */
+export function listStagedArtifactsWithNgrams(
+  db: Database,
+): StagedArtifactWithNgrams[] {
+  return db
+    .query(
+      `SELECT a.id as id, a.type as type, a.origin as origin,
+              a.surface_path as surface_path, a.state as state,
+              a.signature as signature, a.created_at as created_at,
+              a.promoted_at as promoted_at, a.deprecated_at as deprecated_at,
+              w.frequency as frequency,
+              w.success_count as success_count, w.failure_count as failure_count,
+              w.sample_sessions as sample_sessions
+       FROM artifacts a
+       LEFT JOIN workflow_ngrams w ON w.signature = a.signature
+       WHERE a.state = 'staged'
+       ORDER BY a.created_at ASC`,
+    )
+    .all() as StagedArtifactWithNgrams[];
+}
