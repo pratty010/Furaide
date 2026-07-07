@@ -177,4 +177,4 @@ Or delete the extension directory from Pi's extensions path manually.
 
 ## Part of F.R.I.D.A.Y.
 
-Other components: `harnesses/opencode/` (15-agent core fleet), `harnesses/claude-code/` (Satori + Hanko), `harnesses/openclaw/` (stateful assistant personas).
+Other components: `harnesses/opencode/` (15-agent core fleet), `harnesses/claude-code/` (Īdisu + Rejion), `harnesses/openclaw/` (stateful assistant personas).

@@ -1,23 +1,18 @@
 # ── OS ───────────────────────────────────────────────────────────────────────
 .DS_Store
-.DS_Store?
 ._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
 Thumbs.db
-desktop.ini
 
 # ── Editors ──────────────────────────────────────────────────────────────────
 .vscode/
 .idea/
+.cursor/
+.opencode/
 *.swp
 *.swo
 *~
-.cursor/
-.opencode/
 
-# ── Secrets — never commit these ─────────────────────────────────────────────
+# ── Secrets — never commit ───────────────────────────────────────────────────
 .env
 .env.*
 !.env.example
@@ -32,100 +27,57 @@ desktop.ini
 secrets/
 issues/
 
-# ── Python ───────────────────────────────────────────────────────────────────
+# ── Python (graphify + opencode finance tooling; NOT mekiki — removed) ────────
 __pycache__/
 *.pyc
 *.pyo
-.pytest_cache/
 .venv/
+.pytest_cache/
 *.egg-info/
-dist/
-build/
-.coverage
-htmlcov/
 .mypy_cache/
+.ruff_cache/
 
-# ── Node / Bun ───────────────────────────────────────────────────────────────
+# ── Node / Bun (text bun.lock is TRACKED — do not ignore) ─────────────────────
 node_modules/
-package-lock.json
-bun.lockb
+.generated/
+*.tsbuildinfo
+dist/
 
-# ── Logs / temp ──────────────────────────────────────────────────────────────
+# ── Logs / temp / scratch ────────────────────────────────────────────────────
 *.log
 *.pid
+*.tmp
+*.temp
 tmp/
 .tmp/
 .worktrees/
 .reference/
 
-# ── openclaw — future-work reference data (contains live secrets, never commit) ──
+# ── Component runtime artifacts ──────────────────────────────────────────────
 harnesses/openclaw/_reference/
-
-# ── pi-agent — runtime artifacts + personal config ────────────────────────────
 harnesses/pi-agent/node_modules/
 harnesses/pi-agent/src/state/
 harnesses/pi-agent/config/system.yml
 harnesses/pi-agent/*.db*
 harnesses/pi-agent/.pi/
-harnesses/pi-agent/bun.lock
 harnesses/pi-agent/knowledge/
-
-# ── Test / coverage outputs ───────────────────────────────────────────────────
-coverage/
-.nyc_output/
-.vitest/
-test-results/
-playwright-report/
-junit.xml
-*.lcov
-.coverage.*
-.ruff_cache/
-.tox/
-.nox/
-.hypothesis/
-*.tsbuildinfo
-
-# ── Temporary files ───────────────────────────────────────────────────────────
-*.tmp
-*.temp
-
-# ── Graphify transient outputs (tracked outputs: graph.json, graph.html, GRAPH_REPORT.md, manifest.json) ──
-graphify-out/cache/
-graphify-out/cost.json
-graphify-out/.graphify_python
-graphify-out/.graphify_root
-graphify-out/.graphify_ast.json
-graphify-out/.graphify_detect.json
-graphify-out/.graphify_extract.json
-graphify-out/.graphify_semantic.json
-graphify-out/.graphify_semantic_new.json
-graphify-out/.graphify_analysis.json
-graphify-out/.graphify_cached.json
-graphify-out/.graphify_chunk_*.json
-graphify-out/.graphify_uncached.txt
-graphify-out/.needs_update
-graphify-out/chunks.json
-graphify-out/prompt_chunk_*.txt
-
-# ── OpenCode tool runtime/test artifacts ──────────────────────────────────────
 harnesses/opencode/tools/opencode-all/.tmp-db/
 harnesses/opencode/tools/opencode-all/exports/
 harnesses/opencode/research/financial/
-
-# Local-only shelved work under OpenCode harness
 harnesses/opencode/future-work/
-
-# ── Claude / Satori local runtime artifacts ──────────────────────────────────
-harnesses/claude-code/cli/.satori/
-harnesses/claude-code/config/statusline-sidecar.json
-harnesses/claude-code/cli/.satori/debug/
-
-# ── Screenshots ───────────────────────────────────────────────────────────────
 harnesses/opencode/docs/imgs/*.png
-
-# ── OpenCLAW — generated binary/report files per workspace ────────────────────
 harnesses/openclaw/agents/*/docs/*.pdf
 harnesses/openclaw/agents/*/docs/*.zip
 harnesses/openclaw/agents/*/reports/
 
+# ── Claude Code / Īdisu local runtime scratch (repo-relative) ─────────────────
+harnesses/claude-code/cli/.idisu/
+harnesses/claude-code/config/statusline-sidecar.json
 
+# ── Graphify transient outputs (tracked: graph.json, graph.html, GRAPH_REPORT.md, manifest.json) ──
+graphify-out/cache/
+graphify-out/cost.json
+graphify-out/.graphify_*
+graphify-out/.needs_update
+graphify-out/chunks.json
+graphify-out/prompt_chunk_*.txt
