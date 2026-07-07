@@ -24,6 +24,14 @@
       "type": "builtin",
       "notes": "Provided by Claude Code itself or an installed plugin. No clone needed — present when Claude Code or the relevant plugin is installed.",
       "ecosystem": ["claude-code"]
+    },
+    "ponytail": {
+      "type": "git",
+      "url": "https://github.com/DietrichGebert/ponytail.git",
+      "clone_to": "~/.agents/skill-repos/ponytail",
+      "skills_dir": "skills",
+      "notes": "YAGNI/scope-gating decision ladder — software-development and research tasks only, not general-purpose.",
+      "ecosystem": ["claude-code"]
     }
   },
 
@@ -271,6 +279,20 @@
           "name": "github",
           "source": "friday",
           "description": "GitHub workflow recipes — the six standard F.R.I.D.A.Y. git/GitHub workflows. Installed via scripts/install-vendored-skills.sh; executed by the hanko--git-seal subagent."
+        }
+      ]
+    },
+
+    "dev-research": {
+      "label": "Dev/research (scoped, opt-in)",
+      "description": "Narrow-scope skills for software-development and research tasks specifically — not part of the always-on global set. Install by hand when working in this mode.",
+      "install_target": "manual",
+      "ecosystem": ["claude-code"],
+      "skills": [
+        {
+          "name": "ponytail",
+          "source": "ponytail",
+          "description": "YAGNI/reuse/scope gate for software-dev and research tasks — invoke before writing code. Measured gains are largely a verbosity-suppression effect, not proof of deeper gating value; worth having for the explicit YAGNI ladder, not a magic quality multiplier."
         }
       ]
     },
