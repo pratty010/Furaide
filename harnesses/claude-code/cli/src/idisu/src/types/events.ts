@@ -8,13 +8,10 @@ export type Harness = z.infer<typeof HarnessSchema>
 
 export const EventTypeSchema = z.enum([
   'session.observed',
-  'turn.observed',
-  'prompt.observed',
   'capability.invoked',
   'tool.called',
   'outcome.observed',
-  'feedback.observed',
-  'catalog.snapshot',
+  'turn.observed',
 ])
 export type EventType = z.infer<typeof EventTypeSchema>
 
@@ -63,19 +60,6 @@ export const TurnObservedPayloadSchema = z.object({
   is_meta:       z.boolean().default(false),
 })
 
-export const PromptObservedPayloadSchema = z.object({
-  session_id:        z.string(),
-  turn_index:        z.number().int().nonnegative(),
-  prompt_source:     z.string().optional(),
-  features: z.object({
-    text_hash:    z.string(),
-    token_count:  z.number().int().nonnegative(),
-    bm25_terms:   z.array(z.string()),
-    embedding_id: z.string().optional(),
-  }),
-  intent_cluster_id: z.string().optional(),
-})
-
 export const ObservabilityLevelSchema = z.enum(['observed', 'inferred', 'unobservable'])
 export type ObservabilityLevel = z.infer<typeof ObservabilityLevelSchema>
 
@@ -116,22 +100,13 @@ export const OutcomeObservedPayloadSchema = z.object({
   error_class: z.string().optional(),
 })
 
-export const FeedbackObservedPayloadSchema = z.object({
-  session_id:       z.string(),
-  turn_index:       z.number().int().nonnegative(),
-  signal:           z.enum(['correction', 'retry', 'negative', 'positive']),
-  evidence_pointer: z.string(),
-})
-
 // ── Payload type exports ──────────────────────────────────────────────────────
 
 export type SessionObservedPayload    = z.infer<typeof SessionObservedPayloadSchema>
 export type TurnObservedPayload       = z.infer<typeof TurnObservedPayloadSchema>
-export type PromptObservedPayload     = z.infer<typeof PromptObservedPayloadSchema>
 export type CapabilityInvokedPayload  = z.infer<typeof CapabilityInvokedPayloadSchema>
 export type ToolCalledPayload         = z.infer<typeof ToolCalledPayloadSchema>
 export type OutcomeObservedPayload    = z.infer<typeof OutcomeObservedPayloadSchema>
-export type FeedbackObservedPayload   = z.infer<typeof FeedbackObservedPayloadSchema>
 
 // ── Factory helpers ───────────────────────────────────────────────────────────
 

@@ -50,3 +50,13 @@ test('makeEventId is deterministic', () => {
   expect(makeEventId('src', 0)).toBe(makeEventId('src', 0))
   expect(makeEventId('src', 0)).not.toBe(makeEventId('src', 1))
 })
+
+test('makeEventId produces stable 32-character hex strings', () => {
+  const eventId = makeEventId('s', 3)
+  // Verify stability: same input always produces same output
+  expect(eventId).toBe(makeEventId('s', 3))
+  // Verify length: exactly 32 characters
+  expect(eventId).toHaveLength(32)
+  // Verify hex format: only contains 0-9 and a-f
+  expect(/^[0-9a-f]{32}$/.test(eventId)).toBe(true)
+})
