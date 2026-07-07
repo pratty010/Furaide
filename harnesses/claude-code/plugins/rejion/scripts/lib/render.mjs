@@ -206,7 +206,7 @@ export function renderResult(job) {
     return [
       header,
       "",
-      "Kuma did not receive valid structured JSON from the backend.",
+      "Rejion did not receive valid structured JSON from the backend.",
       "",
       "Raw final message:",
       "```text",

@@ -10,7 +10,7 @@ import { saveModelIndex } from "../scripts/lib/models.mjs"
 import { listJobs } from "../scripts/lib/state.mjs"
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
-const companionPath = path.join(__dirname, "..", "scripts", "kuma-companion.mjs")
+const companionPath = path.join(__dirname, "..", "scripts", "rejion-companion.mjs")
 const fixturesDir = path.join(__dirname, "fixtures")
 
 function runCli(args, { cwd, env = {} } = {}) {
@@ -67,10 +67,10 @@ function git(cwd, args) {
 }
 
 function initGitRepo() {
-  const repoDir = fs.mkdtempSync(path.join(os.tmpdir(), "kuma-repo-"))
+  const repoDir = fs.mkdtempSync(path.join(os.tmpdir(), "rejion-repo-"))
   git(repoDir, ["init", "-b", "main"])
-  git(repoDir, ["config", "user.email", "kuma@example.com"])
-  git(repoDir, ["config", "user.name", "Kuma Tests"])
+  git(repoDir, ["config", "user.email", "rejion@example.com"])
+  git(repoDir, ["config", "user.name", "Rejion Tests"])
   fs.writeFileSync(path.join(repoDir, "demo.js"), "export const value = 1\n", "utf8")
   git(repoDir, ["add", "demo.js"])
   git(repoDir, ["commit", "-m", "init"])
@@ -88,22 +88,22 @@ function seedModelIndex(workspaceDir, pluginDataDir) {
 }
 
 function withPluginDataEnv(pluginDataDir, fn) {
-  const previous = process.env.KUMA_PLUGIN_DATA
-  process.env.KUMA_PLUGIN_DATA = pluginDataDir
+  const previous = process.env.REJION_PLUGIN_DATA
+  process.env.REJION_PLUGIN_DATA = pluginDataDir
   try {
     const result = fn()
     if (result && typeof result.then === "function") {
       return result.finally(() => {
-        if (previous === undefined) Reflect.deleteProperty(process.env, "KUMA_PLUGIN_DATA")
-        else process.env.KUMA_PLUGIN_DATA = previous
+        if (previous === undefined) Reflect.deleteProperty(process.env, "REJION_PLUGIN_DATA")
+        else process.env.REJION_PLUGIN_DATA = previous
       })
     }
-    if (previous === undefined) Reflect.deleteProperty(process.env, "KUMA_PLUGIN_DATA")
-    else process.env.KUMA_PLUGIN_DATA = previous
+    if (previous === undefined) Reflect.deleteProperty(process.env, "REJION_PLUGIN_DATA")
+    else process.env.REJION_PLUGIN_DATA = previous
     return result
   } catch (error) {
-    if (previous === undefined) Reflect.deleteProperty(process.env, "KUMA_PLUGIN_DATA")
-    else process.env.KUMA_PLUGIN_DATA = previous
+    if (previous === undefined) Reflect.deleteProperty(process.env, "REJION_PLUGIN_DATA")
+    else process.env.REJION_PLUGIN_DATA = previous
     throw error
   }
 }
@@ -115,40 +115,40 @@ test("no subcommand prints usage and exits non-zero", () => {
 })
 
 test("models prints a hint when no index is cached", () => {
-  withTempDir("kuma-cli-test-", (dir) => {
-    const result = runCli(["models"], { env: { KUMA_PLUGIN_DATA: dir } })
+  withTempDir("rejion-cli-test-", (dir) => {
+    const result = runCli(["models"], { env: { REJION_PLUGIN_DATA: dir } })
     assert.equal(result.status, 0)
     assert.ok(result.stdout.includes("No model index cached yet"))
   })
 })
 
 test("status prints a message when no jobs are recorded", () => {
-  withTempDir("kuma-cli-test-", (dir) => {
-    const result = runCli(["status"], { env: { KUMA_PLUGIN_DATA: dir } })
+  withTempDir("rejion-cli-test-", (dir) => {
+    const result = runCli(["status"], { env: { REJION_PLUGIN_DATA: dir } })
     assert.equal(result.status, 0)
     assert.ok(result.stdout.includes("No jobs recorded"))
   })
 })
 
 test("task fails clearly when no backend/model default is configured", () => {
-  withTempDir("kuma-cli-test-", (dir) => {
-    const result = runCli(["task", "do something"], { env: { KUMA_PLUGIN_DATA: dir } })
+  withTempDir("rejion-cli-test-", (dir) => {
+    const result = runCli(["task", "do something"], { env: { REJION_PLUGIN_DATA: dir } })
     assert.notEqual(result.status, 0)
-    assert.ok(result.stderr.includes("/kuma:setup"))
+    assert.ok(result.stderr.includes("/rejion:setup"))
   })
 })
 
 test("review fails clearly when no backend/model default is configured", () => {
-  withTempDir("kuma-cli-test-", (dir) => {
-    const result = runCli(["review"], { env: { KUMA_PLUGIN_DATA: dir } })
+  withTempDir("rejion-cli-test-", (dir) => {
+    const result = runCli(["review"], { env: { REJION_PLUGIN_DATA: dir } })
     assert.notEqual(result.status, 0)
-    assert.ok(result.stderr.includes("/kuma:setup"))
+    assert.ok(result.stderr.includes("/rejion:setup"))
   })
 })
 
 test("review prompt includes working-tree diff code and untracked text", () => {
   withFakeBackendsOnPath(() =>
-    withTempDir("kuma-plugin-data-", (pluginDataDir) => {
+    withTempDir("rejion-plugin-data-", (pluginDataDir) => {
       const repoDir = initGitRepo()
       try {
         fs.writeFileSync(path.join(repoDir, "demo.js"), "export const value = 2\n", "utf8")
@@ -170,7 +170,7 @@ test("review prompt includes working-tree diff code and untracked text", () => {
           {
             cwd: repoDir,
             env: {
-              KUMA_PLUGIN_DATA: pluginDataDir,
+              REJION_PLUGIN_DATA: pluginDataDir,
               PATH: `${fixturesDir}${path.delimiter}${process.env.PATH}`,
               OPENCODE_CAPTURE_PROMPT_FILE: promptFile,
             },
@@ -194,7 +194,7 @@ test("review prompt includes working-tree diff code and untracked text", () => {
 
 test("review prompt includes branch diff code from merge-base..HEAD", () => {
   withFakeBackendsOnPath(() =>
-    withTempDir("kuma-plugin-data-", (pluginDataDir) => {
+    withTempDir("rejion-plugin-data-", (pluginDataDir) => {
       const repoDir = initGitRepo()
       try {
         fs.writeFileSync(path.join(repoDir, "demo.js"), "export const value = 5\n", "utf8")
@@ -214,7 +214,7 @@ test("review prompt includes branch diff code from merge-base..HEAD", () => {
           {
             cwd: repoDir,
             env: {
-              KUMA_PLUGIN_DATA: pluginDataDir,
+              REJION_PLUGIN_DATA: pluginDataDir,
               PATH: `${fixturesDir}${path.delimiter}${process.env.PATH}`,
               OPENCODE_CAPTURE_PROMPT_FILE: promptFile,
             },
@@ -235,7 +235,7 @@ test("review prompt includes branch diff code from merge-base..HEAD", () => {
 
 test("review backend failure is stored as job error", () => {
   withFakeBackendsOnPath(() =>
-    withTempDir("kuma-plugin-data-", (pluginDataDir) => {
+    withTempDir("rejion-plugin-data-", (pluginDataDir) => {
       const repoDir = initGitRepo()
       try {
         fs.writeFileSync(path.join(repoDir, "demo.js"), "export const value = 9\n", "utf8")
@@ -252,7 +252,7 @@ test("review backend failure is stored as job error", () => {
           {
             cwd: repoDir,
             env: {
-              KUMA_PLUGIN_DATA: pluginDataDir,
+              REJION_PLUGIN_DATA: pluginDataDir,
               PATH: `${fixturesDir}${path.delimiter}${process.env.PATH}`,
               OPENCODE_FIXTURE_FAIL: "1",
             },
@@ -272,8 +272,8 @@ test("review backend failure is stored as job error", () => {
 
 test("task backend failure is stored as job error", () => {
   withFakeBackendsOnPath(() =>
-    withTempDir("kuma-plugin-data-", (pluginDataDir) => {
-      const workspaceDir = fs.mkdtempSync(path.join(os.tmpdir(), "kuma-workspace-"))
+    withTempDir("rejion-plugin-data-", (pluginDataDir) => {
+      const workspaceDir = fs.mkdtempSync(path.join(os.tmpdir(), "rejion-workspace-"))
       try {
         seedModelIndex(workspaceDir, pluginDataDir)
         const result = runCli(
@@ -281,7 +281,7 @@ test("task backend failure is stored as job error", () => {
           {
             cwd: workspaceDir,
             env: {
-              KUMA_PLUGIN_DATA: pluginDataDir,
+              REJION_PLUGIN_DATA: pluginDataDir,
               PATH: `${fixturesDir}${path.delimiter}${process.env.PATH}`,
               PI_FIXTURE_FAIL: "1",
             },
@@ -301,8 +301,8 @@ test("task backend failure is stored as job error", () => {
 
 test("explicit provider/model does not double-prefix provider", () => {
   withFakeBackendsOnPath(() =>
-    withTempDir("kuma-plugin-data-", (pluginDataDir) => {
-      const workspaceDir = fs.mkdtempSync(path.join(os.tmpdir(), "kuma-workspace-"))
+    withTempDir("rejion-plugin-data-", (pluginDataDir) => {
+      const workspaceDir = fs.mkdtempSync(path.join(os.tmpdir(), "rejion-workspace-"))
       try {
         const argsFile = path.join(pluginDataDir, "args.json")
         const result = runCli(
@@ -317,7 +317,7 @@ test("explicit provider/model does not double-prefix provider", () => {
           {
             cwd: workspaceDir,
             env: {
-              KUMA_PLUGIN_DATA: pluginDataDir,
+              REJION_PLUGIN_DATA: pluginDataDir,
               PATH: `${fixturesDir}${path.delimiter}${process.env.PATH}`,
               OPENCODE_CAPTURE_ARGS_FILE: argsFile,
             },
@@ -337,8 +337,8 @@ test("explicit provider/model does not double-prefix provider", () => {
 
 test("bare model resolves provider from cached index", () => {
   withFakeBackendsOnPath(() =>
-    withTempDir("kuma-plugin-data-", (pluginDataDir) => {
-      const workspaceDir = fs.mkdtempSync(path.join(os.tmpdir(), "kuma-workspace-"))
+    withTempDir("rejion-plugin-data-", (pluginDataDir) => {
+      const workspaceDir = fs.mkdtempSync(path.join(os.tmpdir(), "rejion-workspace-"))
       try {
         seedModelIndex(workspaceDir, pluginDataDir)
         const argsFile = path.join(pluginDataDir, "args.json")
@@ -347,7 +347,7 @@ test("bare model resolves provider from cached index", () => {
           {
             cwd: workspaceDir,
             env: {
-              KUMA_PLUGIN_DATA: pluginDataDir,
+              REJION_PLUGIN_DATA: pluginDataDir,
               PATH: `${fixturesDir}${path.delimiter}${process.env.PATH}`,
               OPENCODE_CAPTURE_ARGS_FILE: argsFile,
             },
@@ -367,15 +367,15 @@ test("bare model resolves provider from cached index", () => {
 
 test("resume ignores a differently-backed session and starts fresh", () => {
   withFakeBackendsOnPath(() =>
-    withTempDir("kuma-plugin-data-", (pluginDataDir) => {
-      const workspaceDir = fs.mkdtempSync(path.join(os.tmpdir(), "kuma-workspace-"))
+    withTempDir("rejion-plugin-data-", (pluginDataDir) => {
+      const workspaceDir = fs.mkdtempSync(path.join(os.tmpdir(), "rejion-workspace-"))
       try {
         const first = runCli(
           ["task", "--backend", "pi", "--model", "opencode-go/deepseek-v4-pro", "do something"],
           {
             cwd: workspaceDir,
             env: {
-              KUMA_PLUGIN_DATA: pluginDataDir,
+              REJION_PLUGIN_DATA: pluginDataDir,
               PATH: `${fixturesDir}${path.delimiter}${process.env.PATH}`,
             },
           }
@@ -395,7 +395,7 @@ test("resume ignores a differently-backed session and starts fresh", () => {
           {
             cwd: workspaceDir,
             env: {
-              KUMA_PLUGIN_DATA: pluginDataDir,
+              REJION_PLUGIN_DATA: pluginDataDir,
               PATH: `${fixturesDir}${path.delimiter}${process.env.PATH}`,
             },
           }
@@ -418,8 +418,8 @@ test("resume ignores a differently-backed session and starts fresh", () => {
 
 test("resume reuses the session handle when backend and provider match", () => {
   withFakeBackendsOnPath(() =>
-    withTempDir("kuma-plugin-data-", (pluginDataDir) => {
-      const workspaceDir = fs.mkdtempSync(path.join(os.tmpdir(), "kuma-workspace-"))
+    withTempDir("rejion-plugin-data-", (pluginDataDir) => {
+      const workspaceDir = fs.mkdtempSync(path.join(os.tmpdir(), "rejion-workspace-"))
       try {
         const first = runCli(
           [
@@ -433,7 +433,7 @@ test("resume reuses the session handle when backend and provider match", () => {
           {
             cwd: workspaceDir,
             env: {
-              KUMA_PLUGIN_DATA: pluginDataDir,
+              REJION_PLUGIN_DATA: pluginDataDir,
               PATH: `${fixturesDir}${path.delimiter}${process.env.PATH}`,
             },
           }
@@ -453,7 +453,7 @@ test("resume reuses the session handle when backend and provider match", () => {
           {
             cwd: workspaceDir,
             env: {
-              KUMA_PLUGIN_DATA: pluginDataDir,
+              REJION_PLUGIN_DATA: pluginDataDir,
               PATH: `${fixturesDir}${path.delimiter}${process.env.PATH}`,
             },
           }
@@ -472,11 +472,11 @@ test("resume reuses the session handle when backend and provider match", () => {
 })
 
 test("active review blocks task even with --fresh", () => {
-  withTempDir("kuma-plugin-data-", (pluginDataDir) => {
-    const previous = process.env.KUMA_PLUGIN_DATA
-    process.env.KUMA_PLUGIN_DATA = pluginDataDir
+  withTempDir("rejion-plugin-data-", (pluginDataDir) => {
+    const previous = process.env.REJION_PLUGIN_DATA
+    process.env.REJION_PLUGIN_DATA = pluginDataDir
     try {
-      const workspaceDir = fs.mkdtempSync(path.join(os.tmpdir(), "kuma-workspace-"))
+      const workspaceDir = fs.mkdtempSync(path.join(os.tmpdir(), "rejion-workspace-"))
       try {
         createJob(workspaceDir, {
           kind: "review",
@@ -494,7 +494,7 @@ test("active review blocks task even with --fresh", () => {
             "--fresh",
             "do something",
           ],
-          { cwd: workspaceDir, env: { KUMA_PLUGIN_DATA: pluginDataDir } }
+          { cwd: workspaceDir, env: { REJION_PLUGIN_DATA: pluginDataDir } }
         )
         assert.notEqual(result.status, 0)
         assert.match(result.stderr, /already active/)
@@ -502,16 +502,16 @@ test("active review blocks task even with --fresh", () => {
         fs.rmSync(workspaceDir, { recursive: true, force: true })
       }
     } finally {
-      if (previous === undefined) Reflect.deleteProperty(process.env, "KUMA_PLUGIN_DATA")
-      else process.env.KUMA_PLUGIN_DATA = previous
+      if (previous === undefined) Reflect.deleteProperty(process.env, "REJION_PLUGIN_DATA")
+      else process.env.REJION_PLUGIN_DATA = previous
     }
   })
 })
 
 test("active task blocks review", () => {
-  withTempDir("kuma-plugin-data-", (pluginDataDir) => {
-    const previous = process.env.KUMA_PLUGIN_DATA
-    process.env.KUMA_PLUGIN_DATA = pluginDataDir
+  withTempDir("rejion-plugin-data-", (pluginDataDir) => {
+    const previous = process.env.REJION_PLUGIN_DATA
+    process.env.REJION_PLUGIN_DATA = pluginDataDir
     try {
       const repoDir = initGitRepo()
       try {
@@ -533,7 +533,7 @@ test("active task blocks review", () => {
             "--scope",
             "working-tree",
           ],
-          { cwd: repoDir, env: { KUMA_PLUGIN_DATA: pluginDataDir } }
+          { cwd: repoDir, env: { REJION_PLUGIN_DATA: pluginDataDir } }
         )
         assert.notEqual(result.status, 0)
         assert.match(result.stderr, /already active/)
@@ -541,19 +541,19 @@ test("active task blocks review", () => {
         fs.rmSync(repoDir, { recursive: true, force: true })
       }
     } finally {
-      if (previous === undefined) Reflect.deleteProperty(process.env, "KUMA_PLUGIN_DATA")
-      else process.env.KUMA_PLUGIN_DATA = previous
+      if (previous === undefined) Reflect.deleteProperty(process.env, "REJION_PLUGIN_DATA")
+      else process.env.REJION_PLUGIN_DATA = previous
     }
   })
 })
 
 test("backend/provider incompatibility fails before job creation", () => {
-  withTempDir("kuma-plugin-data-", (pluginDataDir) => {
-    const workspaceDir = fs.mkdtempSync(path.join(os.tmpdir(), "kuma-workspace-"))
+  withTempDir("rejion-plugin-data-", (pluginDataDir) => {
+    const workspaceDir = fs.mkdtempSync(path.join(os.tmpdir(), "rejion-workspace-"))
     try {
       const result = runCli(
         ["task", "--backend", "pi", "--model", "ollama-cloud/tiny", "do something"],
-        { cwd: workspaceDir, env: { KUMA_PLUGIN_DATA: pluginDataDir } }
+        { cwd: workspaceDir, env: { REJION_PLUGIN_DATA: pluginDataDir } }
       )
       assert.notEqual(result.status, 0)
       assert.match(result.stderr, /cannot reach ollama-cloud/)
@@ -566,12 +566,12 @@ test("backend/provider incompatibility fails before job creation", () => {
 
 test("setup warns clearly when opencode returns no ollama-cloud models", () => {
   withFakeBackendsOnPath(() =>
-    withTempDir("kuma-plugin-data-", (pluginDataDir) => {
-      const workspaceDir = fs.mkdtempSync(path.join(os.tmpdir(), "kuma-workspace-"))
+    withTempDir("rejion-plugin-data-", (pluginDataDir) => {
+      const workspaceDir = fs.mkdtempSync(path.join(os.tmpdir(), "rejion-workspace-"))
       try {
         const result = runCli(["setup"], {
           cwd: workspaceDir,
-          env: { KUMA_PLUGIN_DATA: pluginDataDir },
+          env: { REJION_PLUGIN_DATA: pluginDataDir },
         })
         assert.equal(result.status, 0, result.stderr)
         assert.ok(result.stdout.includes("ollama-cloud"))
@@ -585,12 +585,12 @@ test("setup warns clearly when opencode returns no ollama-cloud models", () => {
 
 test("setup confirms ollama-cloud when opencode returns ollama-cloud models", () => {
   withFakeBackendsOnPath(() =>
-    withTempDir("kuma-plugin-data-", (pluginDataDir) => {
-      const workspaceDir = fs.mkdtempSync(path.join(os.tmpdir(), "kuma-workspace-"))
+    withTempDir("rejion-plugin-data-", (pluginDataDir) => {
+      const workspaceDir = fs.mkdtempSync(path.join(os.tmpdir(), "rejion-workspace-"))
       try {
         const result = runCli(["setup"], {
           cwd: workspaceDir,
-          env: { KUMA_PLUGIN_DATA: pluginDataDir, OPENCODE_FIXTURE_INCLUDE_OLLAMA: "1" },
+          env: { REJION_PLUGIN_DATA: pluginDataDir, OPENCODE_FIXTURE_INCLUDE_OLLAMA: "1" },
         })
         assert.equal(result.status, 0, result.stderr)
         assert.ok(result.stdout.includes("ollama-cloud"))
@@ -604,11 +604,11 @@ test("setup confirms ollama-cloud when opencode returns ollama-cloud models", ()
 })
 
 test("cancel does not mark cancelled when pid is not available yet", () => {
-  withTempDir("kuma-plugin-data-", (pluginDataDir) => {
-    const previous = process.env.KUMA_PLUGIN_DATA
-    process.env.KUMA_PLUGIN_DATA = pluginDataDir
+  withTempDir("rejion-plugin-data-", (pluginDataDir) => {
+    const previous = process.env.REJION_PLUGIN_DATA
+    process.env.REJION_PLUGIN_DATA = pluginDataDir
     try {
-      const workspaceDir = fs.mkdtempSync(path.join(os.tmpdir(), "kuma-workspace-"))
+      const workspaceDir = fs.mkdtempSync(path.join(os.tmpdir(), "rejion-workspace-"))
       try {
         const job = createJob(workspaceDir, {
           kind: "task",
@@ -619,7 +619,7 @@ test("cancel does not mark cancelled when pid is not available yet", () => {
         markRunning(workspaceDir, job.id, { pid: null })
         const result = runCli(["cancel", job.id], {
           cwd: workspaceDir,
-          env: { KUMA_PLUGIN_DATA: pluginDataDir },
+          env: { REJION_PLUGIN_DATA: pluginDataDir },
         })
         assert.notEqual(result.status, 0)
         assert.match(result.stderr, /no backend pid yet/)
@@ -631,8 +631,8 @@ test("cancel does not mark cancelled when pid is not available yet", () => {
         fs.rmSync(workspaceDir, { recursive: true, force: true })
       }
     } finally {
-      if (previous === undefined) Reflect.deleteProperty(process.env, "KUMA_PLUGIN_DATA")
-      else process.env.KUMA_PLUGIN_DATA = previous
+      if (previous === undefined) Reflect.deleteProperty(process.env, "REJION_PLUGIN_DATA")
+      else process.env.REJION_PLUGIN_DATA = previous
     }
   })
 })

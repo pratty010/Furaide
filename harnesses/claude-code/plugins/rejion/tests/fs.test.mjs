@@ -6,7 +6,7 @@ import { isProbablyText, readJsonFile, writeJsonFile } from "../scripts/lib/fs.m
 import { createTempDir } from "../scripts/lib/fs.mjs"
 
 test("writeJsonFile/readJsonFile round-trip", () => {
-  const dir = createTempDir("kuma-fs-test-")
+  const dir = createTempDir("rejion-fs-test-")
   const filePath = path.join(dir, "state.json")
   writeJsonFile(filePath, { hello: "world" })
   assert.deepEqual(readJsonFile(filePath), { hello: "world" })

@@ -3,7 +3,7 @@ import { test } from "node:test"
 import { binaryAvailable, terminateProcessTree } from "../scripts/lib/process.mjs"
 
 test("binaryAvailable reports unavailable for a nonexistent command", () => {
-  const result = binaryAvailable("kuma-definitely-not-a-real-binary")
+  const result = binaryAvailable("rejion-definitely-not-a-real-binary")
   assert.equal(result.available, false)
 })
 

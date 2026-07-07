@@ -7,7 +7,7 @@ allowed-tools: Bash(node:*)
 Run:
 
 ```bash
-node "${CLAUDE_PLUGIN_ROOT}/scripts/kuma-companion.mjs" setup $ARGUMENTS
+node "${CLAUDE_PLUGIN_ROOT}/scripts/rejion-companion.mjs" setup $ARGUMENTS
 ```
 
 Present the output verbatim. Do not summarize or paraphrase it.

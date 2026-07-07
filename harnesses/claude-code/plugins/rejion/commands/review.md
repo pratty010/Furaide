@@ -1,11 +1,11 @@
 ---
-description: Run a Kuma backend review against local git state
+description: Run a Rejion backend review against local git state
 argument-hint: '[--backend opencode|pi] [--model <model>] [--mode adversarial] [--wait|--background] [--base <ref>] [--scope auto|working-tree|branch]'
 disable-model-invocation: true
 allowed-tools: Read, Glob, Grep, Bash(node:*), Bash(git:*), AskUserQuestion
 ---
 
-Run a Kuma review through the shared backend adapter.
+Run a Rejion review through the shared backend adapter.
 
 Raw slash-command arguments:
 `$ARGUMENTS`
@@ -33,12 +33,12 @@ Execution mode rules:
 Argument handling:
 - Preserve the user's arguments exactly.
 - Do not strip `--wait` or `--background` yourself.
-- If `--backend`/`--model` are omitted, Kuma falls back to the configured defaults from `/kuma:setup`, and fails clearly if none are set.
+- If `--backend`/`--model` are omitted, Rejion falls back to the configured defaults from `/rejion:setup`, and fails clearly if none are set.
 
 Foreground flow:
 - Run:
 ```bash
-node "${CLAUDE_PLUGIN_ROOT}/scripts/kuma-companion.mjs" review $ARGUMENTS
+node "${CLAUDE_PLUGIN_ROOT}/scripts/rejion-companion.mjs" review $ARGUMENTS
 ```
 - Return the command stdout verbatim, exactly as-is.
 - Do not paraphrase, summarize, or add commentary before or after it.
@@ -48,10 +48,10 @@ Background flow:
 - Launch the review with `Bash` in the background:
 ```typescript
 Bash({
-  command: `node "${CLAUDE_PLUGIN_ROOT}/scripts/kuma-companion.mjs" review $ARGUMENTS`,
-  description: "Kuma review",
+  command: `node "${CLAUDE_PLUGIN_ROOT}/scripts/rejion-companion.mjs" review $ARGUMENTS`,
+  description: "Rejion review",
   run_in_background: true
 })
 ```
 - Do not call `BashOutput` or wait for completion in this turn.
-- After launching the command, tell the user: "Kuma review started in the background. Check `/kuma:status` for progress."
+- After launching the command, tell the user: "Rejion review started in the background. Check `/rejion:status` for progress."

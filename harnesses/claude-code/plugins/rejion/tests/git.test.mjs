@@ -17,11 +17,11 @@ function git(cwd, args) {
 }
 
 function withRepo(fn) {
-  const repoDir = fs.mkdtempSync(path.join(os.tmpdir(), "kuma-git-test-"))
+  const repoDir = fs.mkdtempSync(path.join(os.tmpdir(), "rejion-git-test-"))
   try {
     git(repoDir, ["init", "-b", "main"])
-    git(repoDir, ["config", "user.email", "kuma@example.com"])
-    git(repoDir, ["config", "user.name", "Kuma Tests"])
+    git(repoDir, ["config", "user.email", "rejion@example.com"])
+    git(repoDir, ["config", "user.name", "Rejion Tests"])
     fs.writeFileSync(path.join(repoDir, "demo.js"), "export const value = 1\n", "utf8")
     git(repoDir, ["add", "demo.js"])
     git(repoDir, ["commit", "-m", "init"])

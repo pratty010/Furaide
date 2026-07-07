@@ -1,9 +1,9 @@
-# Kuma reference notes
+# Rejion reference notes
 
 Behavioral reference (persistent local clone, gitignored at the repo root):
 - `.reference/codex-plugin-cc/plugins/codex/` (cloned from `https://github.com/openai/codex-plugin-cc`)
 
-Locked scope for Kuma v1:
+Locked scope for Rejion v1:
 - Public commands: setup, models, review, task, status, result, cancel
 - No transfer, no public rescue, no bundled skill, no bundled subagent
 - One review command with `--mode adversarial`

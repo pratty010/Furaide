@@ -101,7 +101,7 @@ async function runSetup(args) {
     console.log(
       ollamaCloudCount > 0
         ? `ollama-cloud: configured (${ollamaCloudCount} model(s) available)`
-        : "ollama-cloud: NOT CONFIGURED (opencode returned no ollama-cloud models — configure Ollama, then re-run /kuma:setup)"
+        : "ollama-cloud: NOT CONFIGURED (opencode returned no ollama-cloud models — configure Ollama, then re-run /rejion:setup)"
     )
   } else {
     console.log("ollama-cloud: unknown (opencode binary not found)")
@@ -113,7 +113,7 @@ async function runSetup(args) {
 function runModels() {
   const { entries } = loadModelIndex(cwd)
   if (entries.length === 0) {
-    console.log("No model index cached yet. Run `/kuma:setup` first.")
+    console.log("No model index cached yet. Run `/rejion:setup` first.")
     return
   }
   const header = ["model", "provider", "backend", "capabilities", "context", "status"]
@@ -151,7 +151,7 @@ function runStatus(args) {
 function runResult(args) {
   const jobId = args[0]
   if (!jobId) {
-    console.error("Usage: kuma-companion.mjs result <job-id>")
+    console.error("Usage: rejion-companion.mjs result <job-id>")
     process.exitCode = 1
     return
   }
@@ -167,7 +167,7 @@ function runResult(args) {
 async function runCancel(args) {
   const jobId = args[0]
   if (!jobId) {
-    console.error("Usage: kuma-companion.mjs cancel <job-id>")
+    console.error("Usage: rejion-companion.mjs cancel <job-id>")
     process.exitCode = 1
     return
   }
@@ -205,7 +205,7 @@ function ensureNoActiveJobOrFail() {
   if (!existingActive) return true
 
   console.error(
-    `A ${existingActive.kind} job (${existingActive.id}) is already active for this workspace. Use \`/kuma:cancel ${existingActive.id}\` or wait for it to finish before starting another.`
+    `A ${existingActive.kind} job (${existingActive.id}) is already active for this workspace. Use \`/rejion:cancel ${existingActive.id}\` or wait for it to finish before starting another.`
   )
   process.exitCode = 1
   return false
@@ -223,7 +223,9 @@ function resolveDefaultsOrFail(options) {
   const backend = options.backend ?? config.defaultBackend
   const model = options.model ?? config.defaultModel
   if (!backend || !model) {
-    console.error("Missing --backend/--model and no defaults configured. Run `/kuma:setup` first.")
+    console.error(
+      "Missing --backend/--model and no defaults configured. Run `/rejion:setup` first."
+    )
     process.exitCode = 1
     return null
   }
@@ -357,9 +359,9 @@ async function runTask(args) {
   }
   const prompt = positionals.join(" ")
 
-  // Kuma owns the session handle rather than waiting for the backend to hand one back:
+  // Rejion owns the session handle rather than waiting for the backend to hand one back:
   // neither adapter's `sendPrompt` returns a generated session id (opencode/pi don't surface
-  // one in a way we can parse reliably), so Kuma pre-generates a handle and always passes it
+  // one in a way we can parse reliably), so Rejion pre-generates a handle and always passes it
   // via `--session <handle>`, making resume deterministic instead of best-effort.
   let sessionHandle = null
   if (options.resume) {
@@ -444,7 +446,7 @@ async function main() {
       break
     default:
       console.error(
-        "Usage: kuma-companion.mjs <setup|models|review|task|status|result|cancel> [...args]"
+        "Usage: rejion-companion.mjs <setup|models|review|task|status|result|cancel> [...args]"
       )
       process.exitCode = 1
   }
