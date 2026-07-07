@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # Atomic JSONL append. Args: $1 = JSON object string (single line).
-# Output path: $IDISU_HOME/events/YYYY-MM-DD/claude_code.jsonl
+# Output path: $IDISU_HOME/spool/YYYY-MM-DD.jsonl
 set -euo pipefail
 
 IDISU_HOME="${IDISU_HOME:-$HOME/.idisu}"
-DATE="$(date -u +%Y-%m-%d)"
-OUT_DIR="$IDISU_HOME/events/$DATE"
+DATE="$(date -u +%F)"
+OUT_DIR="$IDISU_HOME/spool"
 mkdir -p "$OUT_DIR"
 
 if ! command -v flock >/dev/null 2>&1; then
@@ -13,7 +13,7 @@ if ! command -v flock >/dev/null 2>&1; then
   exit 0
 fi
 
-OUT_FILE="$OUT_DIR/claude_code.jsonl"
+OUT_FILE="$OUT_DIR/$DATE.jsonl"
 LOCK_FILE="$OUT_FILE.lock"
 
 # Append under a file lock so concurrent sessions don't tear lines.
