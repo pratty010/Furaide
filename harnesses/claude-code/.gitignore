@@ -1,5 +1,3 @@
-# Satori runtime data — lives in ~/.satori/ but dev-linked repos may write here
-cli/.satori/
-
-# Statusline sidecar written by hooks at runtime
+# Īdisu local runtime scratch (dev-linked)
+cli/.idisu/
 config/statusline-sidecar.json

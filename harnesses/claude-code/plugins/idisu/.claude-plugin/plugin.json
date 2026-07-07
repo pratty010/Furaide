@@ -1,0 +1,10 @@
+{
+  "name": "idisu",
+  "displayName": "Īdisu (エディス · Learning Platform)",
+  "version": "0.2.0",
+  "description": "Furaidē's dreaming eye — watches how you work across harnesses and surfaces skill usage, gaps, and improvement suggestions. Run packages/cli/src/targets/claude-code/install.sh to install.",
+  "author": {
+    "name": "pratty010",
+    "url": "https://github.com/pratty010/Furaide"
+  }
+}

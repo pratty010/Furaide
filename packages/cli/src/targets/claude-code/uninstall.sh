@@ -2,8 +2,8 @@
 # uninstall.sh — F.R.I.D.A.Y. claude-code uninstaller
 #
 # Removes everything installed by bootstrap.sh in two tiers:
-#   Tier 1 (always): machinery — skills, agents, CLI venv, caches, report server
-#   Tier 2 (prompt): user data — ~/.mekiki, config files (with backup restore offer)
+#   Tier 1 (always): machinery — skills, agents, CLI venv, caches
+#   Tier 2 (prompt): user data — config files (with backup restore offer)
 #
 # Usage:
 #   bash packages/cli/src/targets/claude-code/uninstall.sh            # interactive tier-2 prompts
@@ -12,13 +12,11 @@
 #   bash packages/cli/src/targets/claude-code/uninstall.sh -h         # help
 #
 # Environment overrides:
-#   MEKIKI_HOME       (default: ~/.mekiki)
 #   AGENTS_SKILLS     (default: ~/.agents/skills)
 #   CLAUDE_SKILLS     (default: ~/.claude/skills)
 
 set -euo pipefail
 
-MEKIKI_HOME="${MEKIKI_HOME:-$HOME/.mekiki}"
 AGENTS_SKILLS="${AGENTS_SKILLS:-$HOME/.agents/skills}"
 CLAUDE_SKILLS="${CLAUDE_SKILLS:-$HOME/.claude/skills}"
 CLAUDE_AGENTS="$HOME/.claude/agents"
@@ -86,34 +84,7 @@ remove() {
 # ===========================================================================
 printf '\n%s\n' "=== Tier 1: removing machinery ==="
 
-# 1a. Kill report server (if running)
-PID_FILE="$MEKIKI_HOME/reports/.server.pid"
-REPORT_PORT="${SATORI_REPORT_PORT:-8765}"
-if [[ -f "$PID_FILE" ]]; then
-  PID=$(cat "$PID_FILE")
-  if kill -0 "$PID" 2>/dev/null; then
-    if $DRY_RUN; then
-      printf "[dry-run] would kill report server (PID %s)\n" "$PID"
-    else
-      kill "$PID" && ok "killed report server (PID $PID)" || warn "could not kill PID $PID"
-    fi
-  fi
-  remove "$PID_FILE" "report server PID file"
-else
-  # Also check by port as fallback
-  if command -v lsof >/dev/null 2>&1; then
-    PID=$(lsof -ti tcp:"$REPORT_PORT" 2>/dev/null || true)
-    if [[ -n "$PID" ]]; then
-      if $DRY_RUN; then
-        printf "[dry-run] would kill process on port %s (PID %s)\n" "$REPORT_PORT" "$PID"
-      else
-        kill "$PID" && ok "killed process on port $REPORT_PORT (PID $PID)" || true
-      fi
-    fi
-  fi
-fi
-
-# 1b. Remove named skills from ~/.agents/skills/ and ~/.claude/skills/
+# 1a. Remove named skills from ~/.agents/skills/ and ~/.claude/skills/
 SKILL_NAMES=(bx html-preview brave-search plan github)
 for skill in "${SKILL_NAMES[@]}"; do
   remove "$AGENTS_SKILLS/$skill" "~/.agents/skills/$skill"
@@ -126,14 +97,14 @@ remove "$CLAUDE_AGENTS/hanko--git-seal.md" "~/.claude/agents/hanko--git-seal.md"
 # 1d. Remove CLI venv and egg-info (relative to the script's repo location)
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../../../harnesses/claude-code" && pwd)"
 remove "$REPO/cli/.venv"                    "cli/.venv"
-remove "$REPO/cli/src/mekiki.egg-info"      "cli/src/mekiki.egg-info"
+
 
 # 1e. Remove setup state file
 remove "$HOME/.github-setup-state-friday" "~/.github-setup-state-friday"
 
 # 1f. Print Claude Code CLI steps (cannot automate)
 printf '\n[note] Complete removal in Claude Code:\n'
-printf '  /plugin uninstall satori@fr1d4y\n'
+printf '  /plugin uninstall idisu@fr1d4y\n'
 printf '  /plugin marketplace remove fr1d4y\n'
 
 # ===========================================================================
@@ -141,8 +112,8 @@ printf '  /plugin marketplace remove fr1d4y\n'
 # ===========================================================================
 printf '\n%s\n' "=== Tier 2: user data ==="
 
-# 2a. ~/.mekiki (and legacy ~/.satori)
-for datadir in "$MEKIKI_HOME" "$HOME/.satori"; do
+# 2a. ~/.idisu
+for datadir in "$HOME/.idisu"; do
   if [[ -d "$datadir" ]]; then
     if $PURGE; then
       remove "$datadir" "$datadir"

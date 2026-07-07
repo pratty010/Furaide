@@ -2,8 +2,8 @@
 
 [![MIT](https://img.shields.io/badge/License-MIT-blue)](LICENSE)
 [![GitHub](https://img.shields.io/badge/GitHub-pratty010%2FFuraide-8b5cf6)](https://github.com/pratty010/Furaide)
-[![Satori](https://img.shields.io/badge/Satori-Capability%20Analytics-8b5cf6)](https://github.com/pratty010/Furaide)
-[![Kuma](https://img.shields.io/badge/Kuma-Review%20%26%20Task%20Delegation-8b5cf6)](https://github.com/pratty010/Furaide)
+[![Īdisu](https://img.shields.io/badge/Īdisu-Capability%20Analytics-8b5cf6)](https://github.com/pratty010/Furaide)
+[![Rejion](https://img.shields.io/badge/Rejion-Review%20%26%20Task%20Delegation-8b5cf6)](https://github.com/pratty010/Furaide)
 
 > *Two plugins, one skill. Furaidē's shikigami for Claude Code.*
 
@@ -13,11 +13,10 @@ Part of the [F.R.I.D.A.Y.](https://github.com/pratty010/Furaide) monorepo.
 
 ## Prerequisites
 
-- **bun**: runtime for the Satori CLI engine and the Kuma plugin
-- **Python 3.11+**: runtime for mekiki event processing
-- **jq**: JSON processing in bootstrap hooks
+- **bun**: runtime for the Īdisu CLI engine and the Rejion plugin
+- **jq**: JSON processing in bootstrap hooks and the statusline
 - **Claude Code CLI**: registered and authenticated
-- **`opencode` and/or `pi` CLIs**: only if you install Kuma, which delegates to whichever of these are on `PATH`
+- **`opencode` and/or `pi` CLIs**: only if you install Rejion, which delegates to whichever of these are on `PATH`
 
 ---
 
@@ -25,12 +24,12 @@ Part of the [F.R.I.D.A.Y.](https://github.com/pratty010/Furaide) monorepo.
 
 | Piece | What it does |
 |-------|-------------|
-| **Satori plugin** | Capability analytics shikigami. Captures skill invocations, runs dream passes, surfaces improvement suggestions |
-| **Kuma plugin** | Delegates code review and task execution to `opencode-go`, `opencode` (OpenCode Zen), and `ollama-cloud` via one-shot `opencode`/`pi` CLI backends. Commands: `/kuma:setup`, `/kuma:models`, `/kuma:review`, `/kuma:task`, `/kuma:status`, `/kuma:result`, `/kuma:cancel` |
+| **Īdisu plugin** | Capability-analytics + learning platform. Captures skill invocations and session outcomes, mines recurring workflows into skill candidates, tracks their real-world usage, and surfaces staleness/overlap/deprecation proposals |
+| **Rejion plugin** | Delegates code review and task execution to `opencode-go`, `opencode` (OpenCode Zen), and `ollama-cloud` via one-shot `opencode`/`pi` CLI backends. Commands: `/rejion:setup`, `/rejion:models`, `/rejion:review`, `/rejion:task`, `/rejion:status`, `/rejion:result`, `/rejion:cancel` |
 | **`github` skill** | Git/GitHub workflow recipes for the `hanko--git-seal` subagent |
 | **`hanko--git-seal` shikigami** | Quiet executor for all git/GitHub ops; routes through the `github` skill |
 
-Satori and the `github` skill share a single engine (`cli/`) installed by `packages/cli/src/targets/claude-code/install.sh`.
+Īdisu and the `github` skill share a single engine (`cli/`) installed by `packages/cli/src/targets/claude-code/install.sh`.
 
 ---
 
@@ -38,41 +37,44 @@ Satori and the `github` skill share a single engine (`cli/`) installed by `packa
 
 | Component | Role |
 |-----------|------|
-| **Satori** (plugin) | Capability analytics shikigami. Captures skill invocations across harnesses, runs dream passes, surfaces improvement suggestions |
-| **Kuma** (plugin) | Delegates code review and task execution to `opencode-go`, `opencode` (OpenCode Zen), and `ollama-cloud` via one-shot CLI backends |
+| **Īdisu** (plugin) | Observes work across harnesses, judges outcomes, mines skill candidates, and tracks/curates what's been promoted — a self-improving loop, not just a metrics dashboard |
+| **Rejion** (plugin) | Delegates code review and task execution to `opencode-go`, `opencode` (OpenCode Zen), and `ollama-cloud` via one-shot CLI backends |
 | **`github` skill** | Git/GitHub workflow recipes for the `hanko--git-seal` subagent |
 | **`hanko--git-seal`** (shikigami) | Quiet executor for all git/GitHub ops; routes through the `github` skill |
 
-### Satori architecture
+### Īdisu architecture
 
-Satori runs a four-phase **dream loop** over your session data:
+Īdisu runs a **dream pass** — the same `/idisu dream` invocation that used to be a simple four-phase loop is now an 8-stage pipeline, run in this actual order:
 
 ```
-Orient → Gather → Consolidate → Prune
+Orient → Gather → Measure → Judge → Track → Curate → Mine → Consolidate (write profile) → Prune
 ```
 
-- **Orient**: loads config, manifest, and previous state
-- **Gather**: scans harness transcripts via adapters (Claude Code, Codex, OpenCode), deduplicates hook events against transcript events, appends new events to the log
-- **Consolidate**: computes capability metrics, builds intent clusters from BM25 terms, writes profile and backlog projections
+- **Orient**: loads config, manifest, previous state from `~/.idisu/`
+- **Gather**: scans harness transcripts via adapters (Claude Code, Codex, OpenCode), dedupes hook events against transcript events, writes new events into `idisu.db`
+- **Measure**: computes deterministic per-capability metrics (invocation count, model-trigger rate, attribution rate) — no LLM involved
+- **Judge**: two-tier outcome labeling — Tier 1 is deterministic (pr-link merged, tool-result failure, clean stop); Tier 2 falls back to a budgeted `claude -p` headless call only for the residual unknowns
+- **Track**: imports pre-existing installed skills into the artifact registry, then updates each attributed skill's evidence ledger (`applied`/`win`/`loss`/`score`) from the session's outcome label
+- **Curate**: proposes (never auto-applies) staleness flags, score-based deprecation, and BM25-overlap merge candidates for existing active artifacts
+- **Mine**: extracts recurring tool-sequence n-grams, filters them into skill candidates (repetition/session/success thresholds + rejection memory + overlap suppression), and stages surviving candidates to `pending/`
+- **Consolidate**: writes the reconciled `profile.json`/`profile.md` + state manifest
 - **Prune**: evicts evidence past the retention window, reindexes
 
-The dream loop acquires a directory-based lock (`.dream.lock.d/` with PID/timestamp metadata) to prevent concurrent runs. Scheduled runs (triggered by the `Stop` hook) respect `dream_interval_hours` from config.
+A directory-based lock (`.dream.lock`) prevents concurrent dream runs. Scheduled runs are triggered by the plugin's `Stop` hook and respect `dream_interval_hours` from config.
 
-**Adapters** implement a `SessionAdapter` interface (`scan(checkpoints): AsyncGenerator<EventEnvelope>`) to read harness-native session data:
+**Adapters** implement a `scan(checkpoints): AsyncGenerator<EventEnvelope>` interface to read harness-native session data:
 
 | Adapter | Reads from | Default path |
 |---------|-----------|--------------|
-| `ClaudeCodeAdapter` | JSONL transcripts | `~/.claude/projects/` |
+| `ClaudeCodeAdapter` | JSONL transcripts (deep: tool calls, skill attribution, turn duration, pr-link outcomes) | `~/.claude/projects/` |
 | `CodexAdapter` | Codex session files | `~/.codex/sessions/` |
 | `OpenCodeAdapter` | SQLite database | `~/.local/share/opencode/opencode.db` |
 
-Satori deduplicates hook events and transcript events at read time using canonical `event_id` values derived from `source_id` + `source_position`. When a `tool_use_id` exists in transcript data, the adapter emits events with `cc-hook:sessionId` source format so they collide with hook-captured events and deduplicate naturally.
+Īdisu deduplicates hook events and transcript events at read time using canonical `event_id` values derived from `source_id` + `source_position`. When a `tool_use_id` exists in transcript data, the adapter emits events with the `cc-hook:sessionId` source format hooks use, so they collide and dedupe naturally.
 
-**Projections** are the output artifacts written to `~/.satori/state/`:
+**Storage**: everything lands in a single `idisu.db` (SQLite, WAL mode) — `events`, `sessions`, `outcome_labels`, `workflow_ngrams`, `artifacts`, `evidence_ledger`, `nodes`/`edges` (a lightweight evidence graph), `rejected_signatures`, `metric_rollups`, plus FTS5 virtual tables for BM25 lookups. The legacy JSONL event-log and its separate SQLite cache were removed once ingest fully moved onto `idisu.db`.
 
-- `profile.json`: per-capability metrics (recency, frequency, session spread, intent cluster membership)
-- `backlog.json`: open improvement suggestions with priority scoring
-- `findings.json`: gap detection results
+**Artifact lifecycle** (never hard-deletes): mined signal → staged candidate (`pending/<id>/draft.md` + `evidence.md`) → human review (`/idisu review`) → `promoted` (moved to a real `~/.agents/skills/` directory) or `rejected` (moved to `archive/`, signature remembered so it's never re-proposed) → tracked via the evidence ledger → eventually flagged `stale`/`deprecated` by Curate, again as a proposal, never automatically.
 
 ---
 
@@ -88,8 +90,8 @@ bash ~/Furaidē/packages/cli/src/targets/claude-code/install.sh
 ```
 
 The bootstrap script is interactive by default (Y/n prompt per step). Pass `--yes`/`-y` to run unattended:
-1. Archives legacy `~/.mekiki` and creates `~/.satori`
-2. Installs the `satori` CLI engine via `bun install`
+1. Creates `~/.idisu`
+2. Installs the `idisu` CLI engine via `bun install`
 3. Installs shared common skills (`github`, `bx`, `html-preview`, `brave-search`, `plan`): copies to `~/.agents/skills/`, symlinks `~/.claude/skills/` → `~/.agents/skills/`
 4. Copies `config/agents/hanko--git-seal.md` → `~/.claude/agents/`
 5. Backs up and copies `config/CLAUDE.md` + `config/statusline-command.sh` → `~/.claude/`
@@ -100,58 +102,62 @@ Flags: `--yes`/`-y` (non-interactive), `--minimal` (steps 1-2 only), `--no-confi
 
 ```
 /plugin marketplace add pratty010/Furaide
-/plugin install satori@fr1d4y
-/plugin install kuma@fr1d4y
+/plugin install idisu@fr1d4y
+/plugin install rejion@fr1d4y
 /reload-plugins
 ```
 
-Install just one of the two if you only need capability analytics (Satori) or only need review/task delegation (Kuma). Neither depends on the other.
+Install just one of the two if you only need capability analytics (Īdisu) or only need review/task delegation (Rejion). Neither depends on the other.
 
 ---
 
 ## 🚀 Usage
 
-### Satori: capability analytics
+### Īdisu: capability analytics + learning
 
 ```
-/satori                          # overview and latest profile
-/satori dream                    # ingest + consolidate
-/satori profile                  # print current work-style profile
-/satori backlog                  # open improvement suggestions
-/satori backlog --status=open    # filter to open suggestions only
-/satori report                   # generate HTML report
-/satori report --serve           # generate report and open in browser
-/satori improve <capability-id>   # print improvement brief for handoff
-/satori mark <id> accepted       # record outcome after applying an improvement
-/satori reset                    # clear all state (event log preserved)
-/satori reset --projections-only # clear projections only, keep events
+/idisu                                # overview and latest profile
+/idisu dream                          # run a dream pass (gather + measure + judge + track/curate + mine)
+/idisu dream --force                  # ignore dream_interval_hours, run now
+/idisu profile                        # print current work-style profile
+/idisu profile --json                 # same, machine-readable
+/idisu report                         # generate HTML report
+/idisu report --serve                 # generate report and open in browser
+/idisu review                         # list candidates pending review (read-only)
+/idisu review --json                  # same, machine-readable
+/idisu promote <id> --to <path>       # move a staged candidate into an installed skill
+/idisu reject <id> --reason "<text>"  # archive a candidate, remember its signature
+/idisu learn --source <dir|file|url|session:id>  # assemble evidence + standards into a skill-authoring prompt
+/idisu reset                          # clear all state (event log preserved)
+/idisu reset --projections-only       # clear projections only, keep events
 ```
+
+`/idisu review` is a conversational approval gate, not just a listing command: it presents each pending candidate with its evidence, and on approval hands off to `Skill(skill-creator)` conventions to author the real `SKILL.md` before calling `promote`. `/idisu learn` follows the same author-then-promote handoff for an explicit, user-directed skill request rather than a mined candidate.
 
 Or call the CLI directly:
 
 ```bash
-bun run ~/Furaidē/harnesses/claude-code/cli/src/satori/src/cli/index.ts dream
-bun run ~/Furaidē/harnesses/claude-code/cli/src/satori/src/cli/index.ts dream --scheduled  # respects cadence config
-bun run ~/Furaidē/harnesses/claude-code/cli/src/satori/src/cli/index.ts profile --json
-bun run ~/Furaidē/harnesses/claude-code/cli/src/satori/src/cli/index.ts report --serve
-bun run ~/Furaidē/harnesses/claude-code/cli/src/satori/src/cli/index.ts improve <name>
-bun run ~/Furaidē/harnesses/claude-code/cli/src/satori/src/cli/index.ts mark <id> accepted
-bun run ~/Furaidē/harnesses/claude-code/cli/src/satori/src/cli/index.ts reset --projections-only
+bun run ~/Furaidē/harnesses/claude-code/cli/src/idisu/src/cli/index.ts dream
+bun run ~/Furaidē/harnesses/claude-code/cli/src/idisu/src/cli/index.ts dream --force
+bun run ~/Furaidē/harnesses/claude-code/cli/src/idisu/src/cli/index.ts profile --json
+bun run ~/Furaidē/harnesses/claude-code/cli/src/idisu/src/cli/index.ts report --serve
+bun run ~/Furaidē/harnesses/claude-code/cli/src/idisu/src/cli/index.ts review --json
+bun run ~/Furaidē/harnesses/claude-code/cli/src/idisu/src/cli/index.ts reset --projections-only
 ```
 
-### Kuma: review and task delegation
+### Rejion: review and task delegation
 
 ```
-/kuma:setup                          # detect opencode/pi binaries, cache the model index
-/kuma:models                         # list models reachable across opencode-go, opencode, ollama-cloud
-/kuma:review                         # review the working-tree diff (or --base <ref> for a branch diff)
-/kuma:task "implement X"             # delegate an implementation/debugging/research task
-/kuma:status                         # list jobs for this workspace, or /kuma:status <job-id> for one job
-/kuma:result <job-id>                # print a completed job's structured result
-/kuma:cancel <job-id>                # kill a running backend process
+/rejion:setup                          # detect opencode/pi binaries, cache the model index
+/rejion:models                         # list models reachable across opencode-go, opencode, ollama-cloud
+/rejion:review                         # review the working-tree diff (or --base <ref> for a branch diff)
+/rejion:task "implement X"             # delegate an implementation/debugging/research task
+/rejion:status                         # list jobs for this workspace, or /rejion:status <job-id> for one job
+/rejion:result <job-id>                # print a completed job's structured result
+/rejion:cancel <job-id>                # kill a running backend process
 ```
 
-Each command accepts `--backend opencode|pi` and `--model <model>` (either a bare cached model name or an explicit `provider/model` string) to override the defaults set by `/kuma:setup`. `/kuma:review` and `/kuma:task` also accept `--wait`/`--background` to control whether Claude Code blocks on the result; if neither is passed, Kuma asks once. At most one review or task job runs per workspace at a time.
+Each command accepts `--backend opencode|pi` and `--model <model>` (either a bare cached model name or an explicit `provider/model` string) to override the defaults set by `/rejion:setup`. `/rejion:review` and `/rejion:task` also accept `--wait`/`--background` to control whether Claude Code blocks on the result; if neither is passed, Rejion asks once. At most one review or task job runs per workspace at a time.
 
 ### Git/GitHub: hanko--git-seal + github skill
 
@@ -164,49 +170,61 @@ check CI status for my branch
 push to dev
 ```
 
-The subagent invokes `Skill(github)` for the six standard workflow recipes and reads `GITHUB.md` for setup, SSH signing, PAT config, rulesets, and troubleshooting. It **asks before every commit, push, or PR creation**.
+Commits are autonomous (local, reversible); push/PR-create/PR-merge/worktree-merge-back require two-hop approval — the subagent returns `NEEDS APPROVAL: <command> — <details>` to the main agent, which asks you before re-dispatching to execute (subagents can't prompt you directly). See `skills/github/SKILL.md` for the 7 workflow recipes, `GITHUB.md` for branch strategy/troubleshooting, and `SECURITY.md` for signing/PAT setup and the full hook/CI security inventory.
 
 ---
 
 ## 🗂️ Data directory
 
-Runtime data lives in `~/.satori/` (or `$SATORI_HOME`):
+Runtime data lives in `~/.idisu/` (or `$IDISU_HOME`):
 
 ```
-~/.satori/
-  events/claude-code/YYYY-MM-DD.jsonl   # captured events (hook + transcript)
-  state/                                  # generated profile, backlog, findings, manifest.json
-  cache/                                  # disposable SQLite / report artifacts
-  evidence/                               # snapshotted evidence bands
-  catalog/                                # capability catalog
-  config.json                             # user config (all fields optional)
-  checkpoints.json                        # scan progress tracking per source
-  cli-path                                # executable path used to launch the Satori CLI
-  .dream.lock.d/                           # directory-based dream lock (with owner.json)
-  .last_dream                             # Unix timestamp of last completed dream
-  debug/                                  # diagnostic logs from hook dependency failures
+~/.idisu/
+  idisu.db                 # SQLite (WAL): events, sessions, outcome_labels, workflow_ngrams,
+                            #   artifacts, evidence_ledger, nodes/edges, rejected_signatures,
+                            #   metric_rollups, FTS5 tables
+  spool/                    # JSONL event spool, drained into idisu.db each dream pass
+  pending/<id>/              # staged candidates awaiting review: draft.md + evidence.md
+  archive/<id>/               # rejected/deprecated candidates (draft + evidence preserved, never deleted)
+  reports/                  # generated HTML reports
+  state/                     # profile.json / profile.md / manifest.json projections
+  cache/index.sqlite        # disposable BM25/capability cache
+  config.json                # user config (all fields optional)
+  checkpoints.json           # scan progress tracking per source
+  cli-path                   # executable path used to launch the Īdisu CLI
+  .dream.lock                # single-file dream-pass lock
+  .last_dream                # Unix timestamp of last completed dream
+  debug/                     # diagnostic logs from hook dependency failures
 ```
 
 To capture raw hook payloads during smoke testing:
 
 ```bash
-SATORI_CAPTURE_HOOK_PAYLOADS=1 claude
+IDISU_CAPTURE_HOOK_PAYLOADS=1 claude
 ```
 
 ---
 
 ## ⚙️ Configuration
 
-Satori reads optional config from `~/.satori/config.json` (or `$SATORI_HOME/config.json`). All fields have defaults:
+Īdisu reads optional config from `~/.idisu/config.json` (or `$IDISU_HOME/config.json`). All fields have defaults:
 
 | Field | Default | Description |
-|-------|---------|-------------|
+|-------|---------|--------------|
 | `dream_interval_hours` | 24 | Minimum hours between scheduled dream passes |
 | `harnesses` | `["claude_code"]` | Which session adapters to enable (`claude_code`, `codex`, `opencode`) |
 | `lookback_days` | 30 | How far back to scan for events |
-| `llm_budget_per_dream` | 50000 | Token budget reserved for future LLM-assisted analysis |
-| `evidence_retention_days` | 90 | Days to retain snapshotted evidence |
+| `llm_budget_per_dream` | 50000 | Token budget for the Tier-2 LLM judge per dream pass |
+| `judge_backend` | `claude_cli` | Judge backend — `claude_cli` or `none` (Tier-1 deterministic labeling still runs either way) |
+| `judge_model` | `claude-haiku-4-5` | Model used for Tier-2 judge calls |
+| `evidence_retention_days` | 90 | Days to retain snapshotted evidence before pruning |
 | `min_sample_threshold` | 5 | Minimum events before a capability appears in projections |
+| `min_repetition` | 3 | Minimum total occurrences of a tool-sequence n-gram before it's mining-eligible |
+| `min_candidate_sessions` | 2 | Minimum distinct sessions contributing to a mined candidate |
+| `min_candidate_successes` | 1 | Minimum success-labeled sessions among those |
+| `candidate_overlap_bm25_max` | 2.0 | BM25 distance ceiling below which a candidate is suppressed as a near-duplicate of an existing artifact (untuned — the artifact corpus is small pre-adoption) |
+| `stale_after_sessions` | 30 | Intended threshold for "no hits in N sessions" staleness; current implementation flags zero-hit artifacts only — a documented interim gap, not a silent bug |
+| `merge_overlap_threshold` | 0.6 | Token-overlap ratio above which two active artifacts get a merge proposal |
 
 ---
 
@@ -214,7 +232,7 @@ Satori reads optional config from `~/.satori/config.json` (or `$SATORI_HOME/conf
 
 ### Workflow skills
 
-Satori observes skills, so you need skills installed for it to observe anything. Bootstrap offers to run the common installer. You can also run it separately:
+Īdisu observes skills, so you need skills installed for it to observe anything. Bootstrap offers to run the common installer. You can also run it separately:
 
 ```bash
 bash ~/Furaidē/packages/cli/src/shared/install-vendored-skills.sh --global      # bx, html-preview, brave-search, plan
@@ -232,13 +250,13 @@ cp ~/Furaidē/harnesses/claude-code/config/statusline-command.sh ~/.claude/statu
 # Then merge relevant keys from config/settings.json manually
 ```
 
-See [`config/README.md`](config/README.md) for per-file notes.
+See [`config/README.md`](config/README.md) for per-file notes, including the statusline's per-session sidecar (`~/.claude/statusline-state/`).
 
-> The `hooks` block is intentionally absent from `config/settings.json`. Satori's plugin ships its own hook scripts using `${CLAUDE_PLUGIN_ROOT}`, so no manual hook wiring is required.
+> The `hooks` block is intentionally absent from `config/settings.json`. Īdisu's plugin ships its own hook scripts using `${CLAUDE_PLUGIN_ROOT}`, so no manual hook wiring is required.
 
 ### Why `.claude-plugin/` is at the repo root
 
-Claude Code's marketplace command fetches `.claude-plugin/marketplace.json` from the repository root. That path is part of the discovery protocol: `/plugin marketplace add pratty010/Furaide` reads the repo-root copy, and each plugin `source` path is relative to that root (e.g. `./harnesses/claude-code/plugins/satori`). The file is a small JSON index; the actual plugin code lives in `plugins/` here.
+Claude Code's marketplace command fetches `.claude-plugin/marketplace.json` from the repository root. That path is part of the discovery protocol: `/plugin marketplace add pratty010/Furaide` reads the repo-root copy, and each plugin `source` path is relative to that root (e.g. `./harnesses/claude-code/plugins/idisu`). The file is a small JSON index; the actual plugin code lives in `plugins/` here.
 
 It stays at the root by design. Moving it under `claude-code/` would break the `owner/repo` install shorthand, which only resolves a marketplace at the repository root.
 
@@ -255,8 +273,8 @@ Default: interactive (prompts for user data). Flags: `--dry-run` (print what wou
 Then in Claude Code:
 
 ```
-/plugin uninstall satori@fr1d4y
-/plugin uninstall kuma@fr1d4y
+/plugin uninstall idisu@fr1d4y
+/plugin uninstall rejion@fr1d4y
 /plugin marketplace remove fr1d4y
 ```
 
@@ -264,24 +282,24 @@ Then in Claude Code:
 
 ## 🔧 Development
 
-Satori engine:
+Īdisu engine:
 
 ```bash
-cd cli/src/satori
-bun test                # run test suite
-bun test -x -q          # fail fast
+cd cli/src/idisu
+bun test                 # run test suite
+bun test -x -q           # fail fast
 bun run typecheck        # TypeScript type checking
-bun run lint             # biome check
-bun run fmt              # biome format --write
+bun run lint              # biome check
+bun run fmt               # biome format --write
 ```
 
-Kuma plugin:
+Rejion plugin:
 
 ```bash
-cd plugins/kuma
+cd plugins/rejion
 bun install              # installs the pinned @biomejs/biome
-bun test                 # run test suite
-bun run lint             # biome check, run from here so the pinned version resolves
+bun test                  # run test suite
+bun run lint              # biome check, run from here so the pinned version resolves
 ```
 
 ### Experimental `dev` branch
@@ -300,7 +318,7 @@ For testing upcoming features on the `dev` branch:
    Ensure dependencies are synced and the test suite passes:
 
    ```bash
-   cd ~/furaide-dev/harnesses/claude-code/cli/src/satori
+   cd ~/furaide-dev/harnesses/claude-code/cli/src/idisu
    bun install
    bun test
    ```
@@ -311,44 +329,75 @@ For testing upcoming features on the `dev` branch:
    - **For Claude Code plugins**: because `/plugin marketplace add` fetches the marketplace metadata from the default branch on GitHub, live marketplace commands resolve to the remote repo. For local plugin development, use the checked-out copy with local bootstrap, then run Claude Code while capturing event payloads:
 
      ```bash
-      SATORI_CAPTURE_HOOK_PAYLOADS=1 claude
+      IDISU_CAPTURE_HOOK_PAYLOADS=1 claude
      ```
 
 **Plugin structure:**
 ```
 plugins/
-  satori/
+  idisu/
     .claude-plugin/plugin.json   # plugin manifest
-    commands/satori.md           # /satori slash command
-    commands/mekiki.md           # deprecated alias (forwards to /satori)
-    hooks/hooks.json             # event capture hooks (CLAUDE_PLUGIN_ROOT-relative)
-    hooks/session_start.sh       # session.start event
-    hooks/skill_pre.sh           # skill.invoke (PreToolUse matcher: Skill)
-    hooks/skill_post.sh          # skill outcome (PostToolUse matcher: Skill)
-    hooks/skill_post_failure.sh  # skill failure outcome
-    hooks/user_prompt_expansion.sh # skill.user_typed events
-    hooks/stop.sh                # triggers scheduled dream pass on session end
-    hooks/_emit.sh               # shared event emitter
-    hooks/_capture_payload.sh    # raw payload capture (debug mode)
-    hooks/_mark_inactive.sh      # dependency fail-open observability
-    bin/mekiki                   # legacy PATH shim → $SATORI_HOME/cli-path
-  kuma/
-    .claude-plugin/plugin.json   # plugin manifest
-    commands/*.md                 # setup, models, review, task, status, result, cancel
-    scripts/kuma-companion.mjs   # entry point all commands shell out to
-    scripts/lib/                 # backend adapters, state, git diff collection, rendering
-    schemas/                     # review-output and bridge-event JSON schemas
-    tests/                       # bun test suite
+    commands/idisu.md            # /idisu slash command
+    hooks/hooks.json              # event capture hooks (CLAUDE_PLUGIN_ROOT-relative)
+    hooks/session_start.sh        # session.observed event
+    hooks/skill_post.sh           # skill outcome (PostToolUse matcher: Skill)
+    hooks/stop.sh                 # triggers scheduled dream pass on session end
+    hooks/_emit.sh                # shared event emitter (writes to spool/)
+    hooks/_capture_payload.sh     # raw payload capture (debug mode)
+    hooks/_mark_inactive.sh       # dependency fail-open observability
+  rejion/
+    .claude-plugin/plugin.json    # plugin manifest
+    commands/*.md                  # setup, models, review, task, status, result, cancel
+    scripts/rejion-companion.mjs   # entry point all commands shell out to
+    scripts/lib/                  # backend adapters, state, git diff collection, rendering
+    schemas/                       # review-output and bridge-event JSON schemas
+    tests/                         # bun test suite
 ```
 config/
   agents/
     hanko--git-seal.md           # git/GitHub subagent (installed → ~/.claude/agents/)
-  CLAUDE.md                      # global config (installed → ~/.claude/)
-  statusline-command.sh          # statusline helper (installed → ~/.claude/)
+  CLAUDE.md                       # global config (installed → ~/.claude/)
+  statusline-command.sh           # statusline helper (installed → ~/.claude/)
 
 **Adding a new skill:** add to `skills/`, then update `packages/manifests/skills-manifest.json`.
 
 **Adding a new plugin:** create `plugins/<name>/.claude-plugin/plugin.json`, then register it in `/.claude-plugin/marketplace.json` at the repo root.
+
+---
+
+## 📅 Timeline
+
+Shipped vs. upcoming, grouped by offering. Everything is pre-1.0.
+
+### Īdisu (capability analytics)
+
+- [x] ~~v0.1.0 — skills-only capture, 4-phase dream loop, dead backlog/findings writers~~
+- [x] ~~v0.2.0 — full 8-stage pipeline (capture → ingest → measure → judge → mine → stage → approve/promote → track/curate), `/idisu learn` command surface~~
+- [ ] v0.3.0 — memory mining, judge expansion (correction classification, gap detection)
+- [ ] v0.4.0 — instruction-edit candidates, deep Codex/OpenCode adapters
+- [ ] future — paired A/B lift measurement, cross-harness skill sync
+
+### Rejion (review & task delegation)
+
+- [x] ~~v0.1.0 — one-shot `opencode`/`pi` CLI delegation, seven slash commands, per-workspace state~~
+- [ ] v0.2.0 — smart backend routing, `llm-council`
+- [ ] future — cross-workspace job visibility, more providers
+
+### Statusline
+
+- [x] ~~v0.1.0 — two-line layout, glyph modes, path/branch truncation~~
+- [x] ~~v0.2.0 — per-session sidecar, duration fold across resume, transcript tail-cursor totals, subagent share, window-aware ramps~~
+
+### Git tooling / hanko-git-seal
+
+- [x] ~~v0.1.0 — baseline hanko--git-seal + github skill~~
+- [x] ~~v0.2.0 — two-hop approval model, Assisted-by trailer, commit/PR templates, worktree merge-back recipe, SECURITY.md~~
+- [ ] future — root installer entry-point fix (deferred, separate repo-level effort)
+
+### Config bundle
+
+- [x] ~~v0.1.0 — global CLAUDE.md, settings.json, statusline, hanko agent definition~~
+- [x] ~~v0.2.0 — ponytail skill wiring~~
 
 ---
 

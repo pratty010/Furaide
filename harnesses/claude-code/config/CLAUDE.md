@@ -6,8 +6,6 @@
 
 She names every plugin and agent in this collection after a yōkai whose nature matches its function. She does not waste words.
 
-**Satori(Capability Overseer)** (覚) is her eye in Claude Code: the shikigami that watches every skill invocation and reports back without being asked.
-
 ---
 
 ## Rules (always-on, highest priority)
@@ -18,30 +16,32 @@ She names every plugin and agent in this collection after a yōkai whose nature 
 - Plain technical voice. No filler adjectives or marketing language.
 - Fact-check all numbers, dates, and claims before stating them.
 - **Invoke skills via the `Skill` tool. Typing a skill name is not invocation.**
-- **Plans must be Haiku-executable**: exact file paths, exact changes, exact verification commands. No judgment calls left to the executor. Invest in planning to save downstream tokens.
+- **Plan altitude is conditional, not always maximal.** Before invoking `Skill(writing-plans)`, choose a tier via `AskUserQuestion` (default based on executor): **Step-level** (current skill default — bite-sized TDD steps, full code per step, zero-context-assumed; use for a fresh subagent with no session context, unfamiliar code, or high-risk changes — this is where "Haiku-executable: exact file paths, exact changes, exact verification commands, no judgment calls left to the executor" fully applies) · **Task-level** (per-file breakdown, exact paths + acceptance criteria per task, no forced TDD micro-steps; executor has some session context, moderate familiarity) · **Milestone-level** (phases/checkpoints + key architecture decisions only, step detail deferred to execution time; executor is the current agent continuing inline with full session context, low-risk/familiar work). State the chosen tier as an explicit instruction prepended to the `Skill(writing-plans)` invocation — the skill's own structure/no-placeholders rules stay intact underneath.
 - If a plan exceeds the output context window, chunk it (Part 1/N → confirm → Part 2/N). Never compress a plan to fit.
-- Right-size the model to the task. Session model over-qualified for trivial work → delegate to Haiku.
+- Right-size the model to the task. Session model over-qualified for trivial work → delegate to Haiku. Reserve high intelligence (Opus/Fable) for planning/guidance; default implementation to Haiku or Sonnet 4.6; escalate only for a genuinely hard sub-problem.
 - `./.claude/projects/<slug>/memory/MEMORY.md` auto-loads per project. Check it before recommending project-specific patterns or past decisions.
 - `Skill(find-skills)` only when a pattern repeats in this session or the user explicitly asks. Not a default for unknown tasks.
-- **All git/GitHub operations** (commit, push, branch, PR, merge, CI checks) → delegate to the `hanko--git-seal` subagent. Never run `git commit`/`git push`/`gh pr` directly from the main agent.
+- **All git/GitHub operations** (commit, push, branch, PR, merge, CI checks) → delegate to the `hanko--git-seal` subagent. Never run `git commit`/`git push`/`gh pr` directly from the main agent. `hanko--git-seal` commits autonomously; when it returns `NEEDS APPROVAL: ...` (push/PR/merge/worktree-merge-back), the main agent calls `AskUserQuestion` with those details before re-dispatching to execute — subagents can't call `AskUserQuestion` directly.
 - Use `bun` / `bunx` instead of `npm` / `npx` for all JS/TS work.
 - Use `uv` for all Python script environments and package management.
+
+**Ponytail Gate**: software-development/research tasks only — invoke `Skill(ponytail)` before writing code (YAGNI/reuse/scope gate). Not for general assistant work.
 
 ---
 
 ## Active Plugins
 
-- **Satori(Capability Overseer)** (覚): watches every skill invocation across harnesses (Claude Code, Codex, OpenCode) and surfaces improvement suggestions via `/satori` commands:
-  - `/satori` or `/satori dream` — run dream pass (ingest + consolidate)
-  - `/satori profile` — print current work-style profile
-  - `/satori backlog` — list open improvement suggestions
-  - `/satori report` — generate HTML report
-  - `/satori improve <id>` — print improvement brief for handoff
-  - `/satori mark <id> accepted|rejected` — record outcome
-  - `/satori reset` — clear state (events preserved)
-  - Events stored in `~/.satori/` (or `$SATORI_HOME`). Dream runs respect `dream_interval_hours` config (default 24h).
+- **Īdisu(Capability Overseer)** (覚): watches every skill invocation across harnesses (Claude Code, Codex, OpenCode) and surfaces improvement suggestions via `/idisu` commands:
+  - `/idisu` or `/idisu dream` — run dream pass (ingest + consolidate)
+  - `/idisu profile` — print current work-style profile
+  - `/idisu backlog` — list open improvement suggestions
+  - `/idisu report` — generate HTML report
+  - `/idisu improve <id>` — print improvement brief for handoff
+  - `/idisu mark <id> accepted|rejected` — record outcome
+  - `/idisu reset` — clear state (events preserved)
+  - Events stored in `~/.idisu/` (or `$IDISU_HOME`). Dream runs respect `dream_interval_hours` config (default 24h).
 - **`github` skill + `hanko--git-seal` agent**: ALL git/GitHub work routes through the `hanko--git-seal` subagent. Never run `git commit`/`git push`/`gh pr` directly from the main agent.
-- **Kuma**: delegates code review and general task execution to `opencode-go`, `opencode` (OpenCode Zen), and `ollama-cloud` via the `opencode`/`pi` backends, invoked as one-shot CLI processes. Commands: `/kuma:setup`, `/kuma:models`, `/kuma:review`, `/kuma:task`, `/kuma:status`, `/kuma:result`, `/kuma:cancel`.
+- **Rejion**: delegates code review and general task execution to `opencode-go`, `opencode` (OpenCode Zen), and `ollama-cloud` via the `opencode`/`pi` backends, invoked as one-shot CLI processes. Commands: `/rejion:setup`, `/rejion:models`, `/rejion:review`, `/rejion:task`, `/rejion:status`, `/rejion:result`, `/rejion:cancel`.
 
 ---
 
@@ -84,6 +84,8 @@ Before the first non-readonly tool call, state which row applies and justify if 
 | Refactor / Architecture | `improve-codebase-architecture` → `grill-with-docs` (if CONTEXT.md/ADRs exist) → `writing-plans` → execute |
 | Issues | `to-prd` → `to-issues` → `triage` |
 | Writing / content | `brainstorming` → check installed writing skills, else native tools |
+| Research / analysis (non-code) | Explore/general-purpose agent(s) for gathering → synthesize directly; no writing-plans/execute phase unless findings require a code change |
+| Decision support (compare options, no execution) | Open prose questions → recommend + tradeoff; don't implement until the user chooses |
 | Unknown | Match to closest row above and proceed. Do NOT auto-invoke `Skill(find-skills)`; see Rules. |
 
 ---
@@ -92,12 +94,21 @@ Before the first non-readonly tool call, state which row applies and justify if 
 
 *For subagent delegation only. Main model set manually per session.*
 
+Sonnet 5 caveat: ~30-40% more output tokens/task than Sonnet 4.6 (artificialanalysis.ai) → costs *more* than Opus for reasoning-heavy work despite the lower sticker price. Wins on CLI/terminal-heavy agentic execution (Terminal-Bench); loses on broader SWE benchmarks vs Opus. Not a safe blanket "cheap middle tier" — narrow it to what it actually wins at.
+
+*Planning & guidance* (reserve intelligence here):
 | Model | Use for |
 |---|---|
-| **Haiku 4.5** | File scan, parse, extract, format, boilerplate, single-step edits, structured output, research with clear scope |
-| **Sonnet 4.6** | Multi-file implementation, moderate-complexity code, research synthesis, decisions with clear tradeoffs, code review, debugging known issues |
-| **Opus 4.7** | Architecture decisions, novel problem-solving, synthesis across many sources, adversarial review, high-stakes plans, deep judgment |
-| **`codex:codex-rescue`** *(subagent)* | Expert external review, critical second opinion, independent diagnosis |
+| Opus 4.8 | Architecture decisions, plan review, adversarial review, high-stakes synthesis, novel problem framing |
+| Fable 5 *(manual `/model` only)* | Escalation beyond Opus — large migrations, multi-day autonomous runs, genuinely stuck problems. Not a default delegation target given cost |
+
+*Implementation / worker* (Haiku + Sonnet 4.6 carry most of the actual work; Sonnet 5 and Opus are narrow/edge-case tiers, not defaults):
+| Model | Use for |
+|---|---|
+| Haiku 4.5 | File scan/parse/extract/format/boilerplate, single-step edits, structured output, and direct/well-specified simple changes (clear inputs/outputs, no design choice) |
+| Sonnet 4.6 *(default for the rest)* | Moderate-complexity code changes with clear direction |
+| Sonnet 5 | CLI/terminal-heavy agentic execution specifically — narrow use, not a blanket default |
+| Opus 4.8 | Edge case only — a genuinely hard sub-problem hit mid-implementation. Escalate, don't default |
 
 ---
 
@@ -130,7 +141,7 @@ Native tools only: `WebSearch`, `WebFetch`. No tavily, bx, or external search to
 
 ## Caveman Mode
 
-Default: verbose. Trigger `Skill(caveman)` for file scan/parse/extract/boilerplate/subagent prompts/diffs.
+Explicit gate, not a vibe-trigger: invoke `Skill(caveman)` *before* drafting for the mechanical-task trigger list (file scan/parse/extract/boilerplate/subagent prompts/diffs). Then, while active, run a mandatory self-check *after* drafting each response — articles stripped, filler cut, fragments used, code/errors kept verbatim, materially shorter than normal prose — don't trust the skill's own "stays active" claim to hold unaided.
 Override (stay off until task ends): *verbose, detailed, explain, walk me through, break it down*.
 
 ---
@@ -142,7 +153,6 @@ Invoke these directly; they are not auto-triggered by workflows above.
 - `Skill(code-review)`: review current diff / PR at the configured effort level
 - `Skill(security-review)`: branch security audit
 - `Skill(skill-creator)`: create, modify, or eval skills
-- `codex:codex-rescue` *(subagent)*: external expert review / independent diagnosis
 
 ---
 
@@ -150,7 +160,7 @@ Invoke these directly; they are not auto-triggered by workflows above.
 
 All git and GitHub operations route to the `hanko--git-seal` subagent (model: Haiku):
 
-- **Recipes:** `hanko--git-seal` invokes `Skill(github)` which encodes the six standard workflows (commit→push to dev, feature branch, finish feature → PR to dev, dev→master PR, back-merge conflict, status/CI checks).
-- **Edge cases:** for SSH signing setup, fine-grained PAT, branch rulesets, secret-scrubbing, and troubleshooting, `hanko--git-seal` reads the bundled `GITHUB.md` from the github skill.
-- **Approval gates:** read-only ops (status/diff/log/pr view) run freely; mutating ops (commit/push/PR/merge) require explicit user approval before execution.
-- **Conventions:** Conventional Commits format, SSH-signed, `Co-Authored-By` trailer, never `--force`/`--no-verify`, never push to master.
+- **Recipes:** `hanko--git-seal` invokes `Skill(github)` which encodes the 7 standard workflows (commit→push to dev, feature branch, finish feature → PR to dev, dev→master PR, back-merge conflict, status/CI checks, worktree merge-back).
+- **Edge cases:** for SSH signing setup, fine-grained PAT, branch rulesets, and troubleshooting, `hanko--git-seal` reads the bundled `GITHUB.md`; for signing/PAT setup specifically, `SECURITY.md`.
+- **Approval gates (two-hop):** read-only ops (status/diff/log/pr view) run freely; commits run autonomously (local, reversible). Push/PR-create/PR-merge/worktree-merge-back require approval — since subagents can't call `AskUserQuestion` directly, `hanko--git-seal` returns `NEEDS APPROVAL: <command> — <details>` to the main agent, which calls `AskUserQuestion` before re-dispatching.
+- **Conventions:** Conventional Commits format, SSH-signed, `Assisted-by:` trailer, never `--force`/`--no-verify`, never push to master.

@@ -15,7 +15,7 @@
 | Component | What it is | Local guide |
 |---|---|---|
 | `harnesses/opencode/` | 30-agent OpenCode fleet plus installer | `harnesses/opencode/AGENTS.md` |
-| `harnesses/claude-code/` | Satori plugin plus github skill support bundle | `harnesses/claude-code/AGENTS.md` |
+| `harnesses/claude-code/` | Īdisu + Rejion plugins plus github skill support bundle | `harnesses/claude-code/AGENTS.md` |
 | `harnesses/pi-agent/` | Pi coding-agent extension package | `harnesses/pi-agent/AGENTS.md` |
 | `harnesses/openclaw/` | OpenCLAW persona workspace configs | `harnesses/openclaw/AGENTS.md` |
 | Root shared layer | `skills/`, `docs/`, `scripts/`, `packages/`, `graphify-out/` | this file |

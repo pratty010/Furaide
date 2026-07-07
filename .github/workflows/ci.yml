@@ -34,10 +34,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v5
-        with:
-          enable-cache: true
-          cache-dependency-glob: "harnesses/claude-code/cli/uv.lock"
-      - run: cd harnesses/claude-code/cli && uv sync --frozen
-      - run: cd harnesses/claude-code/cli && uv run pytest -x -q --tb=short
+      - uses: oven-sh/setup-bun@v2
+      - name: Test Īdisu engine
+        run: cd harnesses/claude-code/cli/src/idisu && bun install && bun test && bun run typecheck
+      - name: Test Rejion plugin
+        run: cd harnesses/claude-code/plugins/rejion && bun install && bun test
 

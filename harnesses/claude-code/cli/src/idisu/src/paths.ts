@@ -1,0 +1,20 @@
+import { homedir } from 'node:os'
+import { join } from 'node:path'
+
+export const IDISU_HOME       = process.env.IDISU_HOME ?? join(homedir(), '.idisu')
+export const EVENTS_DIR        = join(IDISU_HOME, 'events')
+export const STATE_DIR         = join(IDISU_HOME, 'state')
+export const EVIDENCE_DIR      = join(IDISU_HOME, 'evidence')
+export const CATALOG_DIR       = join(IDISU_HOME, 'catalog')
+export const CACHE_DIR         = join(IDISU_HOME, 'cache')
+export const CHECKPOINTS_FILE  = join(IDISU_HOME, 'checkpoints.json')
+export const CONFIG_FILE       = join(IDISU_HOME, 'config.json')
+export const SQLITE_CACHE      = join(CACHE_DIR, 'index.sqlite')
+export const DREAM_LOCK_FILE   = join(IDISU_HOME, '.dream.lock')
+export const LAST_DREAM_FILE   = join(IDISU_HOME, '.last_dream')
+export const STATE_MANIFEST    = join(STATE_DIR, 'manifest.json')
+export const IDISU_DB          = join(IDISU_HOME, 'idisu.db')
+export const SPOOL_DIR         = join(IDISU_HOME, 'spool')
+export const PENDING_DIR       = join(IDISU_HOME, 'pending')
+export const ARCHIVE_DIR       = join(IDISU_HOME, 'archive')
+export const REPORTS_DIR       = join(IDISU_HOME, 'reports')
