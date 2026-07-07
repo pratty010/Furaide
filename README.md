@@ -32,7 +32,7 @@ Three files worth reading:
 | `graphify-out/graph.html` | Interactive visual, open in any browser |
 
 **Note (2026-07-03):** `graphify-out/` was generated against a different branch (`dev`) and is currently
-stale for this branch's actual file tree — it references at least one plugin (`kuma`) that does not exist here.
+stale for this branch's actual file tree — it references at least one plugin (`rejion`) that does not exist here.
 Treat it as historical/reference only until it's regenerated; verify anything it claims against the real source
 tree first.
 
@@ -43,7 +43,7 @@ Copy any of these into your Claude Code or OpenCode session:
 graphify query "what is the overall architecture and how do the five components relate?"
 
 # Per-component deep dives
-graphify query "how does the satori capability analytics pipeline work end to end?"
+graphify query "how does the idisu learning pipeline work end to end?"
 graphify query "how does the opencode fleet route tasks between specialist agents?"
 graphify query "what does the pi-agent extension register and how does web search work?"
 
@@ -71,7 +71,7 @@ Harness integrations and shared resources that wire Furaidē into AI coding harn
 |-----------|---------|-------------|
 | `harnesses/opencode/` | [OpenCode](https://opencode.ai) | 15-agent fleet: 6 specialists + 6 subagents + 3 worker-tier, web-tools plugin (3 tools, AI Studio / Vertex AI auto transport) |
 | `harnesses/opencode/tools/opencode-all/` | OpenCode | Standalone OpenTUI session dashboard companion tool for OpenCode |
-| `harnesses/claude-code/` | [Claude Code](https://claude.ai/code) | Satori plugin (capability analytics), Kuma plugin (delegates review/task to opencode-go, opencode, ollama-cloud) + `github` skill / `hanko--git-seal` agent (git workflow) |
+| `harnesses/claude-code/` | [Claude Code](https://claude.ai/code) | Īdisu plugin (session learning platform), Rejion plugin (delegates review/task to opencode-go, opencode, ollama-cloud) + `github` skill / `hanko--git-seal` agent (git workflow) |
 | `harnesses/pi-agent/` | [pi.dev](https://pi.dev) | Extension package: web-RAG tools, `/usage` cost tracking, animated TUI, friday and chimu themes, GSD skills |
 | `harnesses/openclaw/` | [OpenCLAW](https://docs.openclaw.ai) | Persona workspace configs for four pre-built identities: kinyo, koda, kagakusha, tengan |
 | `docs/` | All of the above | Shared cross-harness docs: GITHUB.md |
@@ -85,7 +85,7 @@ Furaidē/
 ├── harnesses/
 │   ├── opencode/      # 15-agent OpenCode fleet
 │   │   └── tools/     # Standalone companion tools (opencode-all, …)
-│   ├── claude-code/   # Satori + Kuma plugins + github skill / hanko--git-seal agent
+│   ├── claude-code/   # Īdisu + Rejion plugins + github skill / hanko--git-seal agent
 │   ├── pi-agent/      # Pi extension (friday-furaidee)
 │   └── openclaw/      # OpenCLAW persona workspaces
 ├── docs/              # Shared cross-harness docs
@@ -141,7 +141,7 @@ bash ~/Furaidē/harnesses/opencode/tools/opencode-all/scripts/install.sh
 
 See [harnesses/opencode/tools/opencode-all/README.md](harnesses/opencode/tools/opencode-all/README.md).
 
-### Claude Code: Satori
+### Claude Code: Īdisu & Rejion
 
 ```bash
 git clone https://github.com/pratty010/Furaide.git ~/Furaidē
@@ -152,7 +152,8 @@ Then in Claude Code:
 
 ```
 /plugin marketplace add pratty010/Furaide
-/plugin install satori@fr1d4y
+/plugin install idisu@fr1d4y
+/plugin install rejion@fr1d4y
 /reload-plugins
 ```
 
