@@ -16,7 +16,6 @@ desktop.ini
 *~
 .cursor/
 .opencode/
-opencode.json
 
 # ── Secrets — never commit these ─────────────────────────────────────────────
 .env
