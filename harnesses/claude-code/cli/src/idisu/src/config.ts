@@ -15,6 +15,25 @@ export const ConfigSchema = z.object({
   cc_transcripts_dir:       z.string().default('~/.claude/projects'),
   codex_sessions_dir:       z.string().default('~/.codex/sessions'),
   opencode_db:              z.string().default('~/.local/share/opencode/opencode.db'),
+  // Phase 5 (Mine, Task 5.2) — candidate-generation thresholds. A mined
+  // `workflow_ngrams` row becomes a skill candidate only once it clears all
+  // three: seen at least `min_repetition` times total, contributed by at
+  // least `min_candidate_sessions` distinct sessions, and with at least
+  // `min_candidate_successes` of those sessions labeled 'success'. Defaults
+  // match the task's own literal test fixture (frequency>=3, >=2 sessions,
+  // >=1 success).
+  min_repetition:            z.number().int().positive().default(3),
+  min_candidate_sessions:    z.number().int().positive().default(2),
+  min_candidate_successes:   z.number().int().nonnegative().default(1),
+  // FTS5 `bm25()` score below which a candidate is considered an overlapping
+  // near-duplicate of an existing `artifacts` row and gets suppressed
+  // (excluded from `generateCandidates`'s output entirely). Lower bm25 means
+  // a closer match, so this is a maximum-distance cutoff, not a minimum —
+  // see `mine/mine.ts#checkArtifactOverlap` for the full rationale. This is
+  // an untuned starting default: `artifacts`/`artifacts_fts` are empty until
+  // Phase 6 imports preexisting skills, so there is no real corpus yet to
+  // calibrate against.
+  candidate_overlap_bm25_max: z.number().nonnegative().default(2.0),
 })
 
 export type Config = z.infer<typeof ConfigSchema>

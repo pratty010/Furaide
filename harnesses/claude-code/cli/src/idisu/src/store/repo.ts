@@ -184,3 +184,53 @@ export function upsertOutcomeLabel(db: Database, l: SegmentLabel): void {
     l.judge_model ?? null,
   );
 }
+
+// Phase 5 (Mine, Task 5.1) — session-level outcome lookup for the n-gram ->
+// outcome join in mine/mine.ts. `segment_key='session'` is the granularity
+// that maps to "this session's tool sequence was part of a
+// successful/failed run" (see orchestrator.ts's own session-level updates
+// via `updateSessionOutcomeLabel`). Returns `null` when the session has no
+// session-level label at all (not yet judged) — callers treat that the same
+// as `unknown`/`abandoned`: doesn't count toward success or failure.
+export function getSessionOutcomeLabel(
+  db: Database,
+  sessionId: string,
+): string | null {
+  const row = db
+    .query(
+      "SELECT label FROM outcome_labels WHERE session_id=? AND segment_key='session'",
+    )
+    .get(sessionId) as { label: string } | null;
+  return row?.label ?? null;
+}
+
+export interface WorkflowNgramRow {
+  signature: string;
+  n: number;
+  frequency: number;
+  success_count: number;
+  failure_count: number;
+  sample_sessions: string[];
+  last_seen: string;
+}
+
+// Phase 5 (Mine, Task 5.1) — upserts a mined n-gram's outcome-split stats.
+// Keyed on `signature` (the table's PRIMARY KEY): a re-mine (next dream
+// pass) overwrites the previous counts wholesale rather than accumulating,
+// since `mine.ts` recomputes frequency/success/failure from the full event
+// history each time it runs (not an incremental delta).
+export function upsertWorkflowNgram(db: Database, row: WorkflowNgramRow): void {
+  db.query(`INSERT INTO workflow_ngrams
+    (signature,n,frequency,success_count,failure_count,sample_sessions,last_seen)
+    VALUES (?,?,?,?,?,?,?)
+    ON CONFLICT(signature) DO UPDATE SET
+      n=excluded.n, frequency=excluded.frequency, success_count=excluded.success_count,
+      failure_count=excluded.failure_count, sample_sessions=excluded.sample_sessions,
+      last_seen=excluded.last_seen`).run(
+    row.signature,
+    row.n,
+    row.frequency,
+    row.success_count,
+    row.failure_count,
+    JSON.stringify(row.sample_sessions),
+    row.last_seen,
