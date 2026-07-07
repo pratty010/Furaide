@@ -519,22 +519,9 @@ Caveat carried into the doc (Scott Logic review): ponytail's measured benchmark 
 - Historical filenames are NOT renamed retroactively where they're citations to files that literally existed under the old name: `docs/superpowers/plans/2026-05-27-satori-v1.md` (still on disk under that name — renaming it to `2026-05-27-idisu-v1.md` is itself a Part III execution step, not a citation to fix now) and `docs/superpowers/archive/plans/2026-06-23-kuma-v1.md` (same — becomes `2026-06-23-rejion-v1.md` when Part III executes, cited under its real current name until then).
 - Badges, READMEs, plugin manifests (`plugin.json` name fields), marketplace registration (`.claude-plugin/marketplace.json` source paths and plugin names) all need the same substitution when Part III executes.
 
-## Item 5 — Installer entry-point fix (finalized; scope note: touches shared `packages/cli/`, not exclusive to this harness)
+> **Out of scope for this v2 pass**: the `scripts/install.sh`/`uninstall.sh` root installer entry-point (interactive target picker, `opencode`→`opencode-fleet` alias, `packages/cli/src/router.ts`) was researched and designed during this session's discussion, but is deliberately **removed from this spec and its plan**. It touches shared `packages/cli/` code, not `harnesses/claude-code/`, and is deferred to a separate repo-level fix after this plan ships.
 
-**Root cause, confirmed by reading `packages/cli/src/router.ts` directly (not assumed):** `scripts/install.sh`'s own header comment promises `bash scripts/install.sh` (bare) gives an "interactive target picker." It doesn't exist. The wrapper scripts hardcode the action (`bun run bin/furaide.ts install "$@"`), so a bare invocation reaches `router.ts` as `argv = ["install"]` — `target` is `undefined`, which hits the `!KNOWN_TARGETS.includes(target)` branch, prints the usage string, and **exits 1**. The documented behavior and actual behavior diverge; this is a real bug, not a docs gap.
-
-**Second, related bug**: `KNOWN_TARGETS = ["opencode-fleet", "claude-code", "pi-agent"]` — there is no `"opencode"` alias. `harnesses/opencode/README.md` correctly uses `opencode-fleet` throughout, but the shorter, more natural `opencode` (matching the harness directory name) hits the same usage-error branch.
-
-**Fix, in `packages/cli/src/router.ts`:**
-1. When `target` is missing, prompt interactively via `@clack/prompts`' `select()` — list the 3 known targets with the one-line descriptions already written in `printUsage()`, read the choice, then dispatch normally. `@clack/prompts` is already a declared dependency (used today by `opencode-fleet/wizard.ts`) and already installed by the existing `bun install` step in `scripts/install.sh` — **zero new dependency fetch, no binary download introduced**. Fall back to the current usage+exit(1) only when stdin isn't a TTY (piped/CI context) — never hang non-interactively.
-2. Add a target-alias map (`{ opencode: "opencode-fleet" }`) resolved before the `KNOWN_TARGETS` check, so `bash scripts/install.sh opencode ...` resolves correctly.
-3. No change to the "shell-target dispatch is a thin passthrough" behavior (`claude-code`/`pi-agent` still just `spawnSync bash <target script>`, unchanged) — the fix is scoped to target resolution only, not the dispatch mechanism.
-
-**Docs**: flip `harnesses/claude-code/README.md`'s Install section to lead with `bash scripts/install.sh` (bare, interactive) / `bash scripts/install.sh claude-code --yes` as the primary documented command — matching the convention `harnesses/opencode/README.md` already uses — with direct target-script invocation (`bash packages/cli/src/targets/claude-code/install.sh`) demoted to a secondary/advanced note (still valid: for shell-based targets it's functionally identical to going through the router, just skips packages/cli's own `bun install` step).
-
-**Verification addendum**: `bash scripts/install.sh` (bare, TTY) → picker appears, all 3 targets listed, selecting `claude-code` dispatches correctly; `bash scripts/install.sh opencode --yes` → resolves to `opencode-fleet`, no usage-error; `bash scripts/install.sh </dev/null` (non-TTY) → falls back to usage+exit(1), does not hang.
-
-## Item 6 — Plan-writing verbosity as a user choice (finalized)
+## Item 5 — Plan-writing verbosity as a user choice (finalized)
 
 **Problem, confirmed by reading the actual skill file**: `writing-plans` (sourced from external `superpowers` marketplace, same as `caveman`) hardcodes exactly ONE verbosity: maximal detail — bite-sized 2–5-minute TDD steps, full code blocks in every step, written for a "zero-context engineer." There is no lever for a lighter plan; our own global CLAUDE.md rule ("Plans must be Haiku-executable... no judgment calls left to the executor") currently mandates this tier unconditionally, for every plan, regardless of who executes it or how much context they'll have.
 
