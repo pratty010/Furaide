@@ -10,8 +10,26 @@ import type { EventEnvelope, EventType, Harness } from "../types/events.js";
 import type { IntentCluster, StateManifest } from "../types/projections.js";
 import { ALL_TIME_WINDOW, buildMetricProjections, measure, readMetricRollups, rollupSessions } from "./consolidate.js";
 import { gather } from "./gather.js";
+import { ClaudeCliJudgeBackend } from "../judge/claude-cli.js";
+import type { JudgeBackend } from "../judge/interface.js";
+import { runJudgeOrchestrator } from "../judge/orchestrator.js";
 import { orient } from "./orient.js";
 import { pruneAndIndex } from "./prune.js";
+
+// Task 4.3: constructs the LLM judge backend for this dream pass, or `null`
+// when it's unavailable/not configured — the orchestrator itself already
+// treats a `null` backend and a `budgetTokens` too small for even one call
+// as no-ops (Tier-1 results still persist either way), so this only needs
+// to cheaply decide "is there a backend to hand it at all."
+//   - `judge_backend: 'none'` in config -> explicitly disabled, skip.
+//   - otherwise, only construct `ClaudeCliJudgeBackend` if the `claude`
+//     binary is actually resolvable on PATH (`Bun.which`) — cheap presence
+//     check, not a full health-check/auth probe.
+function resolveJudgeBackend(judgeBackend: string): JudgeBackend | null {
+  if (judgeBackend !== "claude_cli") return null;
+  if (!Bun.which("claude")) return null;
+  return new ClaudeCliJudgeBackend();
+}
 
 export interface DreamRunResult {
   eventsIngested: number;
@@ -136,6 +154,23 @@ export async function runDream(
       // load_success_rate aren't part of this task's metric set and remain
       // sourced from buildMetricProjections above.
       measure(db);
+
+      // Phase 4 Judge (Task 4.3): two-tier (deterministic Tier-1 + budgeted
+      // LLM) outcome labeling, run right after Measure so it sees the same
+      // event corpus Consolidate just rolled up. Tier-1 always persists;
+      // the LLM tier no-ops when the backend is unavailable/disabled or the
+      // budget can't afford one call (see `resolveJudgeBackend` and
+      // `runJudgeOrchestrator`).
+      const judgeBackend = resolveJudgeBackend(config.judge_backend);
+      const judgeResult = await runJudgeOrchestrator(db, {
+        backend: judgeBackend,
+        model: config.judge_model,
+        budgetTokens: config.llm_budget_per_dream,
+      });
+      console.log(
+        `[idisu/dream] Phase 4 Judge: ${judgeResult.segmentsLabeled} segments labeled (${judgeResult.llmCallsMade} LLM calls)`,
+      );
+
       const rollups = readMetricRollups(db, ALL_TIME_WINDOW);
       for (const [capId, m] of metrics.entries()) {
         const rollup = rollups.get(capId);
