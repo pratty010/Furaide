@@ -110,7 +110,7 @@
         {
           "name": "skill-creator",
           "source": "superpowers",
-          "description": "Creates, modifies, and evals Claude Code skills. Required for Mekiki improve workflow."
+          "description": "Creates, modifies, and evals Claude Code skills. Required for the Īdisu improvement workflow."
         },
         {
           "name": "writing-skills",
@@ -257,20 +257,6 @@
           "name": "notebooklm",
           "source": "friday",
           "description": "Customized NotebookLM skill. Copy from source manually to preserve local patches."
-        }
-      ]
-    },
-
-    "mekiki": {
-      "label": "Mekiki (plugin-native)",
-      "description": "Installed automatically when the Mekiki plugin is active (via /mekiki command). No manual install needed.",
-      "install_target": "plugin",
-      "ecosystem": ["claude-code"],
-      "skills": [
-        {
-          "name": "mekiki",
-          "source": "friday",
-          "description": "Inspect skill-usage analytics — overview, per-skill deep-dive, evidence packs. Ships with the Mekiki plugin."
         }
       ]
     },

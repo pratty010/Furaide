@@ -4,7 +4,7 @@
 # Prompts yes/no before each step. Pass --yes to run unattended.
 #
 # Steps:
-#   0) Archive legacy ~/.mekiki, create ~/.satori (one-time, always runs)
+#   0) create ~/.satori (one-time, always runs)
 #   1) Satori CLI: bun install in cli/src/satori/; writes ~/.satori/cli-path
 #   2) Common skills: bash "$SCRIPTS_DIR/install-vendored-skills.sh" --global
 #   3) Agents: copy config/agents/*.md → ~/.claude/agents/ (skip if exists)
@@ -88,12 +88,6 @@ for arg in "$@"; do
   esac
 done
 
-# ── 0) One-time data migration (runs before flag checks — always safe) ────────
-# Migration: archive ~/.mekiki → ~/.mekiki.bak, create ~/.satori (R8)
-if [[ -d "$HOME/.mekiki" && ! -d "$HOME/.mekiki.bak" ]]; then
-  cp -r "$HOME/.mekiki" "$HOME/.mekiki.bak"
-  ok "archived legacy ~/.mekiki → ~/.mekiki.bak (kept for rollback)"
-fi
 if [[ ! -d "$HOME/.satori" ]]; then
   mkdir -p "$HOME/.satori"
   ok "created ~/.satori"

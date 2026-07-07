@@ -29,7 +29,7 @@ trigger_negative:
 
 Type frequency (most → least common in this repo): `feat` > `fix` > `chore` > `docs` > `ci` > `refactor`
 
-Multi-level scopes are allowed: `feat(mekiki/judge): ...`, `fix(mekiki/transcript): ...`
+Multi-level scopes are allowed: `feat(idisu/judge): ...`, `fix(idisu/mine): ...`
 
 **SSH signing** — commits are automatically signed. Never use `--no-gpg-sign`.
 
