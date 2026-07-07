@@ -885,17 +885,13 @@ test("e2e: check 9 — repo is clean of 'mekiki' references outside historical a
   //   - `.git/`: object store (git history retains old names).
   //   - `.worktrees/`: other worktrees.
   //
-  // GAP (known, not blocking Task 7.3):
-  //   `harnesses/claude-code/README.md` and
-  //   `harnesses/claude-code/CLAUDE.md` still contain `mekiki`
-  //   references that should be cleaned. The Phase 0 commit
-  //   (a483762) explicitly deferred the content rewrite for
-  //   harness-level docs to "Phase 9", so these are pending that
-  //   sweep. We exclude both files from the rg scope here so the
-  //   test verifies the state of the rest of the active code, and
-  //   document the carve-out inline. When Phase 9 lands, the two
-  //   `-g` exclusions below can be removed and the test will
-  //   automatically tighten the assertion.
+  // GAP (known, not blocking):
+  //   `harnesses/claude-code/CLAUDE.md` still contains `mekiki`
+  //   references. Phase 9 (2026-07-08, user decision) rewrote
+  //   README.md but deferred CLAUDE.md's rewrite to a later,
+  //   separate pass — so only CLAUDE.md is excluded here now.
+  //   When that pass lands, this remaining `-g` exclusion can be
+  //   removed and the test will automatically tighten further.
   // The test file lives at
   // `<worktree>/harnesses/claude-code/cli/src/idisu/tests/integration/`,
   // so the worktree root is 6 levels up from `import.meta.dir`.
@@ -923,10 +919,8 @@ test("e2e: check 9 — repo is clean of 'mekiki' references outside historical a
     "!.worktrees",
     "-g",
     "!harnesses/claude-code/cli/.venv",
-    // Phase 9 carve-out: README.md + CLAUDE.md still mention
-    // `mekiki`. When Phase 9 cleans them, drop these two excludes.
-    "-g",
-    "!harnesses/claude-code/README.md",
+    // CLAUDE.md rewrite deferred (2026-07-08) — still mentions mekiki.
+    // Drop this exclude once that separate pass lands.
     "-g",
     "!harnesses/claude-code/CLAUDE.md",
     // Exclude the test file itself — it mentions "mekiki" in its
