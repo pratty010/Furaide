@@ -1,5 +1,5 @@
 {
-  "name": "kuma",
+  "name": "rejion",
   "version": "0.1.0",
   "description": "Delegate review and task execution to opencode-go, opencode (OpenCode Zen), and ollama-cloud from Claude Code.",
   "author": {

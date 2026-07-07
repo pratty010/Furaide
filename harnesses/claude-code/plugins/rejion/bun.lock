@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "@friday/kuma",
+      "name": "@friday/rejion",
       "dependencies": {
         "zod": "^3.22.4",
       },
