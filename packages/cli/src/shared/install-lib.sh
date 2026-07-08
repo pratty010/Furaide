@@ -115,5 +115,5 @@ furaide_write_receipt() {
 # furaide_read_receipt <path> -> prints the file contents, or nothing if absent
 furaide_read_receipt() {
   local path="$1"
-  [[ -f "$path" ]] && cat "$path"
+  [[ -f "$path" ]] && cat "$path" || true
 }
