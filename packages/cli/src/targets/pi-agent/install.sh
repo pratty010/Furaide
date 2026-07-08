@@ -2,35 +2,69 @@
 # install.sh — F.R.I.D.A.Y. pi-agent installer
 #
 # Usage:
-#   bash ~/F.R.I.D.A.Y/packages/cli/src/targets/pi-agent/install.sh
+#   bash packages/cli/src/targets/pi-agent/install.sh
 #
-# Prerequisites: bun, pi CLI (https://pi.dev)
+# Prerequisites: bun or node+npm, and the pi CLI (https://pi.dev)
 
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SHARED_DIR="$(cd "$SCRIPT_DIR/../../shared" && pwd)"
+source "$SHARED_DIR/install-lib.sh"
 AGENT_DIR="$(cd "$SCRIPT_DIR/../../../../../harnesses/pi-agent" && pwd)"
 
-GREEN='\033[0;32m'; YELLOW='\033[1;33m'; NC='\033[0m'
+GREEN='\033[0;32m'; YELLOW='\033[1;33m'; RED='\033[0;31m'; NC='\033[0m'
 ok()   { printf "${GREEN}[ok]${NC}   %s\n" "$*"; }
 warn() { printf "${YELLOW}[warn]${NC} %s\n" "$*" >&2; }
+err()  { printf "${RED}[error]${NC} %s\n" "$*" >&2; }
 
-# ── Check prerequisites ───────────────────────────────────────────────────────
-if ! command -v bun &>/dev/null; then
-  warn "bun not found. Install from https://bun.sh then re-run."
+DRY_RUN=0
+for arg in "$@"; do
+  case "$arg" in
+    --dry-run) DRY_RUN=1 ;;
+    -h|--help)
+      sed -n '2,/^set -euo/{ /^set -euo/d; s/^# \{0,1\}//; p }' "${BASH_SOURCE[0]}"
+      exit 0 ;;
+  esac
+done
+
+# ── Pre-checks ────────────────────────────────────────────────────────────────
+furaide_detect_js_runtime || exit 1
+ok "JS runtime: $JS_RUNTIME"
+
+if ! command -v pi >/dev/null 2>&1; then
+  err "pi CLI not found. Install from https://pi.dev then re-run."
   exit 1
 fi
-if ! command -v pi &>/dev/null; then
-  warn "pi CLI not found. Install from https://pi.dev then re-run."
-  exit 1
+ok "pi CLI found"
+
+if [[ "$DRY_RUN" -eq 1 ]]; then
+  echo "[dry-run] would run: ($PKG_INSTALL) in $AGENT_DIR"
+  echo "[dry-run] would run: pi install $AGENT_DIR"
+  echo "[dry-run] would copy config/system.example.yml -> ~/.pi/agent/extensions/friday/config/system.yml (if not present)"
+  exit 0
 fi
 
 # ── Install dependencies ──────────────────────────────────────────────────────
-( cd "$AGENT_DIR" && bun install )
-ok "bun dependencies installed"
+if [[ "$JS_RUNTIME" == "bun" ]]; then
+  ( cd "$AGENT_DIR" && bun install )
+else
+  ( cd "$AGENT_DIR" && npm install )
+fi
+ok "dependencies installed ($JS_RUNTIME)"
 
 # ── Register extension with Pi ────────────────────────────────────────────────
 pi install "$AGENT_DIR"
 ok "pi-agent registered with Pi"
 
+# ── Copy example config on first install ─────────────────────────────────────
+CONFIG_DEST="$HOME/.pi/agent/extensions/friday/config"
+if [[ -f "$AGENT_DIR/config/system.example.yml" && ! -f "$CONFIG_DEST/system.yml" ]]; then
+  mkdir -p "$CONFIG_DEST"
+  cp "$AGENT_DIR/config/system.example.yml" "$CONFIG_DEST/system.yml"
+  ok "copied example config -> $CONFIG_DEST/system.yml"
+fi
+
 printf '\n%s\n' "Done. Restart Pi for the extension to take effect."
 printf '%s\n' "Themes available: friday, chimu"
+printf '%s\n' "Skills from ~/.agents/skills/ are automatically available (no copy step needed)."
+printf '%s\n' "Edit $CONFIG_DEST/system.yml to configure quota limits and provider keys."
