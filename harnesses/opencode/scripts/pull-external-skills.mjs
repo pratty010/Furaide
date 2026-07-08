@@ -14,7 +14,7 @@
  *   node scripts/pull-external-skills.mjs --pull
  */
 
-import { existsSync, mkdirSync, cpSync, writeFileSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, cpSync, writeFileSync, readFileSync, rmSync, lstatSync, symlinkSync } from 'node:fs';
 import { resolve, join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execSync, spawnSync } from 'node:child_process';
@@ -46,6 +46,26 @@ function expandHome(p) {
     return join(process.env.HOME ?? process.env.USERPROFILE ?? '', p.slice(2));
   }
   return p;
+}
+
+function symlinkToClaudeSkills(skillName, agentsPoolDir) {
+  const claudeSkillsDir = expandHome('~/.claude/skills');
+  const linkPath = join(claudeSkillsDir, skillName);
+  const targetPath = join(agentsPoolDir, skillName);
+  mkdirSync(claudeSkillsDir, { recursive: true });
+  try {
+    const stat = lstatSync(linkPath);
+    if (stat.isSymbolicLink()) {
+      rmSync(linkPath, { force: true });
+    } else {
+      // A real (non-symlink) directory already exists — don't clobber it.
+      return false;
+    }
+  } catch {
+    // linkPath doesn't exist yet — proceed to create it.
+  }
+  symlinkSync(targetPath, linkPath, 'dir');
+  return true;
 }
 
 function run(cmd, opts = {}) {
@@ -118,6 +138,14 @@ async function checkMode(manifest) {
 
 // ---------- --pull mode ----------
 
+// NOTE (migration, one-time): skills pulled before this change live under
+// ~/.config/opencode/skills/. This version's install_target is
+// ~/.agents/skills/ (the shared cross-tool pool). Re-running --pull writes
+// the new location; it does NOT delete the old ~/.config/opencode/skills/
+// copy — remove that manually if desired, or leave it (OpenCode's own skill
+// loader also reads ~/.config/opencode/skills/, so a stale copy there is
+// inert, not harmful, once ~/.agents/skills/ has the current version).
+
 async function pullMode(manifest) {
   const installTarget = expandHome(manifest.install_target);
   mkdirSync(installTarget, { recursive: true });
@@ -185,6 +213,10 @@ async function pullMode(manifest) {
         } else {
           err(`  skill not found in repo: ${skill} (checked ${srcDir} and ${srcFile})`);
           continue;
+        }
+
+        if (symlinkToClaudeSkills(skill, installTarget)) {
+          log(`  symlinked ~/.claude/skills/${skill} → ${installTarget}/${skill}`);
         }
 
         receipt[skill] = { repo: src.repo, pin: src.pin, date };

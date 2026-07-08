@@ -1,5 +1,5 @@
 {
-  "install_target": "~/.config/opencode/skills",
+  "install_target": "~/.agents/skills",
   "sources": [
     {
       "repo": "obra/superpowers",
