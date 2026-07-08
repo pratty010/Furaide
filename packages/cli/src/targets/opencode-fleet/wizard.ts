@@ -239,6 +239,7 @@ export interface NonInteractiveFlags {
   agents?: string;
   webTools?: boolean;
   yes?: boolean;
+  dryRun?: boolean;
 }
 
 function requireCustomDir(dir: string | undefined): string {
@@ -279,6 +280,20 @@ export async function runNonInteractive(flags: NonInteractiveFlags): Promise<voi
 
   const credentials = probeWebToolsCredentials();
   const webTools = flags.webTools ?? credentials.anyFound;
+
+  const { agents: previewAgents } = advancedAgents && advancedAgents.length > 0
+    ? { agents: advancedAgents }
+    : resolveWorkflowClosure(selectedWorkflows);
+
+  if (flags.dryRun) {
+    process.stdout.write(
+      `[dry-run] would install opencode-fleet to ${targetDir} (scope=${scope})\n` +
+        `[dry-run] agents (${previewAgents.length}): ${previewAgents.join(", ")}\n` +
+        `[dry-run] web tools: ${webTools ? "yes" : "no"}\n` +
+        `[dry-run] no changes made.\n`
+    );
+    return;
+  }
 
   process.stdout.write(`[furaide] Installing opencode-fleet to ${targetDir} (scope=${scope})...\n`);
 

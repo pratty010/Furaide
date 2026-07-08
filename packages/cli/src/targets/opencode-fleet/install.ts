@@ -348,6 +348,9 @@ function parseFlags(argv: string[]): NonInteractiveFlags {
       case "--yes":
         flags.yes = true;
         break;
+      case "--dry-run":
+        flags.dryRun = true;
+        break;           
       default:
         throw new Error(`Unknown flag: ${arg}. Run 'furaide install opencode-fleet --help' for usage.`);
     }
@@ -369,6 +372,7 @@ function printHelp(): void {
       "  --agents <name,name,...>           Advanced mode: install exactly these agents (ignores --workflows)",
       "  --web-tools / --no-web-tools       Force Web Tools on/off (default: auto-probe env)",
       "  --yes                              Required to confirm a non-interactive run",
+      "  --dry-run                          Print what would be installed, make no changes",
       "  -h, --help                         Show this help",
     ].join("\n") + "\n"
   );
