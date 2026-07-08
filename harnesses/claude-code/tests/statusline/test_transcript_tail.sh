@@ -136,10 +136,10 @@ echo "== Test 1: initial pass sums main-thread usage + real subagent transcript 
 _subagent_transcript_line 300 150 20 0 > "$SUB1_FILE"
 
 OUT1=$(_run "$(_mk_payload "$SID" "$TRANSCRIPT")" "$STATE")
-_assert_contains "run1: main-thread in/out totals rendered (1500/300 -> 1k/300)" "$OUT1" "↑1k"
-_assert_contains "run1: main-thread cache read% rendered (50/1500 -> 3%)" "$OUT1" "⚡3%"
-_assert_contains "run1: main-thread out total rendered" "$OUT1" "↓300"
-_assert_contains "run1: subagent share rendered (sub in=300,out=150 vs totals 1500/300)" "$OUT1" "[⑂16%/33%]"
+_assert_contains "run1: grand-total in rendered (1500+50+10+300+20+0=1880 -> 1k)" "$OUT1" "↑1k"
+_assert_contains "run1: cache-hit% rendered ((50+20)*100/1880 -> 3%)" "$OUT1" "⚡3%"
+_assert_contains "run1: grand-total out rendered (300+150=450)" "$OUT1" "↓450"
+_assert_contains "run1: subagent share rendered (sub_in=300 vs grand_total_in=1880; sub_out=150 vs grand_total_out=450)" "$OUT1" "[⑂15%/33%]"
 
 SIDECAR="$STATE/$SID.json"
 _assert_json_field "run1: sidecar in_total" "$SIDECAR" '.in_total' "1500"
@@ -157,7 +157,7 @@ _assert_json_field "run1: transcript_offset advanced to full file size" "$SIDECA
 echo "== Test 2: second run with no new transcript lines adds nothing (idempotency) =="
 OUT2=$(_run "$(_mk_payload "$SID" "$TRANSCRIPT")" "$STATE")
 _assert_contains "run2: totals unchanged (no new data)" "$OUT2" "↑1k"
-_assert_contains "run2: subagent share unchanged (sub1 not double-counted)" "$OUT2" "[⑂16%/33%]"
+_assert_contains "run2: subagent share unchanged (sub1 not double-counted)" "$OUT2" "[⑂15%/33%]"
 _assert_json_field "run2: sidecar in_total unchanged" "$SIDECAR" '.in_total' "1500"
 _assert_json_field "run2: sidecar transcript_offset unchanged" "$SIDECAR" '.transcript_offset' "$OFFSET1"
 _assert_json_field "run2: subagents[sub1] still counted exactly once" "$SIDECAR" '.subagents["a11111111111111a1"].in' "300"
@@ -174,9 +174,9 @@ echo "== Test 3: new lines + missing subagent transcript file falls back to <usa
 } >> "$TRANSCRIPT"
 
 OUT3=$(_run "$(_mk_payload "$SID" "$TRANSCRIPT")" "$STATE")
-_assert_contains "run3: main-thread out total advanced (350)" "$OUT3" "↓350"
-_assert_contains "run3: main-thread cache read% advanced (55/1700 -> 3%)" "$OUT3" "⚡3%"
-_assert_contains "run3: subagent share advanced (sub1 in=300 + fallback=777 vs total 1700; sub_out=150 vs 350)" "$OUT3" "[⑂38%/30%]"
+_assert_contains "run3: grand-total out advanced (350+150=500)" "$OUT3" "↓500"
+_assert_contains "run3: cache-hit% advanced ((55+20)*100/2863 -> 2%)" "$OUT3" "⚡2%"
+_assert_contains "run3: subagent share advanced (sub_in=300+777=1077 vs grand_total_in=2863; sub_out=150 vs grand_total_out=500)" "$OUT3" "[⑂37%/30%]"
 
 _assert_json_field "run3: sidecar in_total advanced" "$SIDECAR" '.in_total' "1700"
 _assert_json_field "run3: sidecar out_total advanced" "$SIDECAR" '.out_total' "350"
