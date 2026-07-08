@@ -3,6 +3,16 @@
 // Top-level `furaide install|uninstall <target> [flags]` dispatch.
 // opencode-fleet routes to real TypeScript logic. claude-code and pi-agent
 // dispatch, unchanged, to their relocated shell installers (Task 42B).
+//
+// Unified skill model (see harnesses/*/README.md "Shared skills" section):
+//   ~/.agents/skills/            <- master pool. OpenCode + Pi read natively;
+//                                   Claude Code reads via ~/.claude/skills/<n> symlinks.
+//   ~/.config/opencode/skills/   <- OpenCode-only fleet-specific skills (not shareable).
+//   ~/.claude/skills/<name>      <- CC-only direct skills OR symlinks into ~/.agents/.
+// The claude-code target must never write to ~/.config/opencode/skills/.
+// The opencode-fleet target's *external* skills (skills-manifest.json) install
+// to ~/.agents/skills/ (Phase 6) — its *bundled* fleet-specific skills still
+// install to ~/.config/opencode/skills/ via copySkillTree() in install.ts.
 
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
