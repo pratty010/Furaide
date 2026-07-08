@@ -17,6 +17,7 @@ import {
   resolveAdvancedClosure,
   buildAgentDelegationMap,
   listAllAgentNames,
+  findProjectScopeDir,
 } from "./resolve.ts";
 import { createBackupState, backupExistingFile, wasBackupCreated, existingReceiptBackupRoot, type BackupState } from "./backup.ts";
 import { readReceipt, writeReceipt } from "./receipt.ts";
@@ -29,7 +30,7 @@ export const HARNESS_ROOT = join(REPO_ROOT, "harnesses", "opencode");
 
 export const GLOBAL_SCOPE = join(homedir(), ".config", "opencode");
 export function projectScope(cwd: string = process.env.FURAIDE_INVOKED_FROM || process.cwd()): string {
-  return join(cwd, ".opencode");
+  return findProjectScopeDir(cwd);
 }
 
 export function resolveScopeDir(scope: Scope, customDir?: string): string {

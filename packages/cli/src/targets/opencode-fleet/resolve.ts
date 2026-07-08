@@ -73,6 +73,26 @@ export function harnessRootToRepoRoot(harnessRoot: string): string {
   return resolvePath(harnessRoot, "..", "..");
 }
 
+/** Walks up from `startDir` looking for an existing `.opencode` directory,
+ * stopping at the nearest `.git` parent or filesystem root. Mirrors
+ * packages/cli/src/shared/install-lib.sh's furaide_find_project_dir() for
+ * the bash-based installers -- kept as a separate TS implementation here
+ * since opencode-fleet doesn't source that shell library. Always returns a
+ * path (existing match, or `<repo-root-or-startDir>/.opencode` as a
+ * not-yet-created default); never throws. */
+export function findProjectScopeDir(startDir: string): string {
+  let dir = resolvePath(startDir);
+  let repoRoot: string | null = null;
+  while (true) {
+    if (existsSync(join(dir, ".opencode"))) return join(dir, ".opencode");
+    if (repoRoot === null && existsSync(join(dir, ".git"))) repoRoot = dir;
+    const parent = resolvePath(dir, "..");
+    if (parent === dir) break;
+    dir = parent;
+  }
+  return join(repoRoot ?? startDir, ".opencode");
+}
+
 function assertKnownWorkflowIds(ids: string[]): WorkflowId[] {
   const seen = new Set<WorkflowId>();
   for (const id of ids) {
