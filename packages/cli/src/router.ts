@@ -37,6 +37,7 @@ const SHELL_TARGET_SCRIPTS: Record<ShellTarget, { install: string; uninstall?: s
   },
   "pi-agent": {
     install: join(__dirname, "targets", "pi-agent", "install.sh"),
+    uninstall: join(__dirname, "targets", "pi-agent", "uninstall.sh"),
   },
 };
 
@@ -67,15 +68,6 @@ export async function runCli(argv: string[]): Promise<void> {
   if (resolvedTarget === "opencode-fleet") {
     const mod = resolvedAction === "install" ? await import("./targets/opencode-fleet/install.ts") : await import("./targets/opencode-fleet/uninstall.ts");
     await mod.main(rest);
-    return;
-  }
-
-  if (resolvedTarget === "pi-agent" && resolvedAction === "uninstall") {
-    process.stdout.write(
-      "pi-agent has no bundled uninstaller — remove it via Pi's own extension management:\n" +
-      "  pi extensions list\n" +
-      "  pi uninstall friday-furaidee\n"
-    );
     return;
   }
 
