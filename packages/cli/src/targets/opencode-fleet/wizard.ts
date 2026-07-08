@@ -77,116 +77,159 @@ export async function runInteractiveWizard(): Promise<void> {
   }
 
   const credentials = probeWebToolsCredentials();
+  const BACK = Symbol("BACK");
 
-  const scopeChoice = await select({
-    message: "Where should Furaide's Fleet be installed?",
-    options: [
-      { value: "global" as const, label: "Global", hint: GLOBAL_SCOPE },
-      { value: "project" as const, label: "Project", hint: projectScope() },
-      { value: "custom" as const, label: "Custom directory" },
-    ],
-  });
-  if (isCancel(scopeChoice)) bail();
+  let scope: Scope | undefined;
+  let targetDir = "";
+  let selectedWorkflows: WorkflowId[] = [];
+  let webTools = credentials.anyFound;
 
-  let targetDir: string;
-  let scope: Scope;
-  if (scopeChoice === "custom") {
-    const customPath = await text({
-      message: "Absolute path to install target:",
-      validate: (v) => (v && isAbsolute(v) ? undefined : "Must be an absolute path"),
-    });
-    if (isCancel(customPath)) bail();
-    scope = "custom";
-    targetDir = customPath as string;
-  } else {
-    scope = scopeChoice as Scope;
-    targetDir = resolveScopeDir(scope);
+  let step: 1 | 2 | 3 = 1;
+  while (step <= 3) {
+    if (step === 1) {
+      const scopeChoice = await select({
+        message: "Where should Furaide's Fleet be installed?",
+        options: [
+          { value: "global" as const, label: "Global", hint: GLOBAL_SCOPE },
+          { value: "project" as const, label: "Project", hint: projectScope() },
+          { value: "custom" as const, label: "Custom directory" },
+        ],
+      });
+      if (isCancel(scopeChoice)) bail();
+
+      if (scopeChoice === "custom") {
+        const customPath = await text({
+          message: "Absolute path to install target: (leave empty to go back)",
+          validate: (v) => (v === "" || isAbsolute(v) ? undefined : "Must be an absolute path"),
+        });
+        if (isCancel(customPath)) bail();
+        if (customPath === "") continue; // stay on step 1
+        scope = "custom";
+        targetDir = customPath as string;
+      } else {
+        scope = scopeChoice as Scope;
+        targetDir = resolveScopeDir(scope);
+      }
+
+      if (!checkWriteAccess(targetDir)) {
+        cancel(`No write access to ${targetDir} (or its nearest existing parent directory). Choose a different scope or fix permissions.`);
+        process.exit(1);
+      }
+
+      const existingReceipt: InstallReceiptV2 | null = readReceipt(targetDir);
+      if (existingReceipt) {
+        note(
+          `An existing install was found at ${targetDir} (installed ${existingReceipt.installedAt}, ` +
+            `workflows: ${existingReceipt.selectedWorkflows.join(", ") || "none"}).\n` +
+            `This run will be treated as an UPDATE -- any file it overwrites is backed up first, reusing the original backup location.`,
+          "Existing install detected"
+        );
+        selectedWorkflows = existingReceipt.selectedWorkflows;
+      } else if (selectedWorkflows.length === 0) {
+        selectedWorkflows = [...WORKFLOW_IDS];
+      }
+
+      step = 2;
+      continue;
+    }
+
+    if (step === 2) {
+      const workflowChoice = await multiselect({
+        message: "Select workflows to install (core infrastructure is always included). Cancel (Ctrl+C is not back -- use Esc/empty submit per your terminal) to go back to scope.",
+        options: [
+          { value: BACK as unknown as WorkflowId, label: "← Go back to scope selection" },
+          ...WORKFLOW_CATALOG.map((wf) => ({ value: wf.id, label: `${wf.label} (${wf.id})`, hint: wf.description })),
+        ],
+        initialValues: selectedWorkflows,
+        required: false,
+      });
+      if (isCancel(workflowChoice)) bail();
+      const picked = workflowChoice as unknown as Array<WorkflowId | typeof BACK>;
+      if (picked.includes(BACK)) {
+        step = 1;
+        continue;
+      }
+      selectedWorkflows = picked as WorkflowId[];
+
+      const webToolsChoice = await confirm({
+        message: credentials.anyFound
+          ? `Install Web Tools plugin (web_search / fetch_content / maps)? Detected credentials: ${credentials.found.join(", ")}.`
+          : `Install Web Tools plugin (web_search / fetch_content / maps)? No provider credentials detected (${WEB_TOOLS_CREDENTIAL_ENV_VARS.join(", ")}) -- it will install but calls will fail until configured.`,
+        initialValue: webTools,
+      });
+      if (isCancel(webToolsChoice)) bail();
+      webTools = webToolsChoice as boolean;
+
+      step = 3;
+      continue;
+    }
+
+    if (step === 3) {
+      const { agents } = resolveWorkflowClosure(selectedWorkflows);
+      const scripts = resolveAgentScripts(agents, HARNESS_ROOT);
+      const skills = resolveAgentSkills(agents, HARNESS_ROOT);
+      const existingReceipt = readReceipt(targetDir);
+
+      note(
+        [
+          `Target: ${targetDir} (${existingReceipt ? "update" : "fresh install"})`,
+          `Workflows: ${selectedWorkflows.join(", ") || "(none -- core infra only)"}`,
+          `Agents (${agents.length}): ${agents.join(", ")}`,
+          `Scripts (${scripts.length}): ${scripts.join(", ") || "(none)"}`,
+          `Bundled skills (${skills.bundled.length}): ${skills.bundled.join(", ") || "(none)"}`,
+          `External skills referenced (${skills.external.length}, not auto-pulled): ${skills.external.join(", ") || "(none)"}`,
+          `Web Tools: ${webTools ? "yes" : "no"}`,
+          `Backups: any file this run overwrites is copied first to ${targetDir}/${BACKUP_DIR_NAME}/<timestamp-or-reused-root>`,
+        ].join("\n"),
+        "Install summary"
+      );
+
+      const proceedChoice = await select({
+        message: "Proceed with install?",
+        options: [
+          { value: "yes" as const, label: "Yes, install" },
+          { value: "back" as const, label: "← Go back to workflow selection" },
+          { value: "cancel" as const, label: "Cancel" },
+        ],
+      });
+      if (isCancel(proceedChoice) || proceedChoice === "cancel") bail();
+      if (proceedChoice === "back") {
+        step = 2;
+        continue;
+      }
+
+      const s = spinner();
+      s.start("Installing Furaide's Fleet...");
+      let receipt: InstallReceiptV2;
+      try {
+        receipt = await performInstall({
+          scope: scope!,
+          targetDir,
+          selectedWorkflows,
+          webTools,
+          harnessRoot: HARNESS_ROOT,
+          repoRoot: REPO_ROOT,
+          installTimestamp: makeInstallTimestamp(),
+        });
+        s.stop("Install complete.");
+      } catch (err) {
+        s.stop("Install failed.");
+        log.error(err instanceof Error ? err.message : String(err));
+        process.exit(1);
+      }
+
+      outro(
+        [
+          `Furaide's Fleet installed to ${targetDir}.`,
+          `${receipt.selectedAgents.length} agent(s), ${receipt.requiredSkills.bundled.length} bundled skill(s).`,
+          ``,
+          `To uninstall later, run:`,
+          `  furaide uninstall opencode-fleet --scope custom --custom-dir ${targetDir} --yes`,
+        ].join("\n")
+      );
+      return;
+    }
   }
-
-  if (!checkWriteAccess(targetDir)) {
-    cancel(`No write access to ${targetDir} (or its nearest existing parent directory). Choose a different scope or fix permissions.`);
-    process.exit(1);
-  }
-
-  const existingReceipt: InstallReceiptV2 | null = readReceipt(targetDir);
-  const isUpdate = existingReceipt !== null;
-  if (isUpdate && existingReceipt) {
-    note(
-      `An existing install was found at ${targetDir} (installed ${existingReceipt.installedAt}, ` +
-        `workflows: ${existingReceipt.selectedWorkflows.join(", ") || "none"}).\n` +
-        `This run will be treated as an UPDATE -- any file it overwrites is backed up first, reusing the original backup location.`,
-      "Existing install detected"
-    );
-  }
-
-  const workflowChoice = await multiselect({
-    message: "Select workflows to install (core infrastructure is always included):",
-    options: WORKFLOW_CATALOG.map((wf) => ({ value: wf.id, label: `${wf.label} (${wf.id})`, hint: wf.description })),
-    initialValues: existingReceipt ? existingReceipt.selectedWorkflows : [...WORKFLOW_IDS],
-    required: false,
-  });
-  if (isCancel(workflowChoice)) bail();
-  const selectedWorkflows = workflowChoice as WorkflowId[];
-
-  const webToolsChoice = await confirm({
-    message: credentials.anyFound
-      ? `Install Web Tools plugin (web_search / fetch_content / maps)? Detected credentials: ${credentials.found.join(", ")}.`
-      : `Install Web Tools plugin (web_search / fetch_content / maps)? No provider credentials detected (${WEB_TOOLS_CREDENTIAL_ENV_VARS.join(", ")}) -- it will install but calls will fail until configured.`,
-    initialValue: credentials.anyFound,
-  });
-  if (isCancel(webToolsChoice)) bail();
-  const webTools = webToolsChoice as boolean;
-
-  const { agents } = resolveWorkflowClosure(selectedWorkflows);
-  const scripts = resolveAgentScripts(agents, HARNESS_ROOT);
-  const skills = resolveAgentSkills(agents, HARNESS_ROOT);
-
-  note(
-    [
-      `Target: ${targetDir} (${isUpdate ? "update" : "fresh install"})`,
-      `Workflows: ${selectedWorkflows.join(", ") || "(none -- core infra only)"}`,
-      `Agents (${agents.length}): ${agents.join(", ")}`,
-      `Scripts (${scripts.length}): ${scripts.join(", ") || "(none)"}`,
-      `Bundled skills (${skills.bundled.length}): ${skills.bundled.join(", ") || "(none)"}`,
-      `External skills referenced (${skills.external.length}, not auto-pulled): ${skills.external.join(", ") || "(none)"}`,
-      `Web Tools: ${webTools ? "yes" : "no"}`,
-      `Backups: any file this run overwrites is copied first to ${targetDir}/${BACKUP_DIR_NAME}/<timestamp-or-reused-root>`,
-    ].join("\n"),
-    "Install summary"
-  );
-
-  const proceed = await confirm({ message: "Proceed with install?", initialValue: true });
-  if (isCancel(proceed) || proceed !== true) bail();
-
-  const s = spinner();
-  s.start("Installing Furaide's Fleet...");
-  let receipt: InstallReceiptV2;
-  try {
-    receipt = await performInstall({
-      scope,
-      targetDir,
-      selectedWorkflows,
-      webTools,
-      harnessRoot: HARNESS_ROOT,
-      repoRoot: REPO_ROOT,
-      installTimestamp: makeInstallTimestamp(),
-    });
-    s.stop("Install complete.");
-  } catch (err) {
-    s.stop("Install failed.");
-    log.error(err instanceof Error ? err.message : String(err));
-    process.exit(1);
-  }
-
-  outro(
-    [
-      `Furaide's Fleet installed to ${targetDir}.`,
-      `${receipt.selectedAgents.length} agent(s), ${receipt.requiredSkills.bundled.length} bundled skill(s).`,
-      ``,
-      `To uninstall later, run:`,
-      `  furaide uninstall opencode-fleet --scope custom --custom-dir ${targetDir} --yes`,
-    ].join("\n")
-  );
 }
 
 export interface NonInteractiveFlags {
