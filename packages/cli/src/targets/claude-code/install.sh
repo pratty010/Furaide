@@ -69,6 +69,7 @@ WITH_SKILLS=0
 DRY_RUN=0
 FORCED_SCOPE=""
 FORCED_RUNTIME=""
+SKIP_CHECKS=0
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -79,6 +80,7 @@ while [[ $# -gt 0 ]]; do
     --dry-run)     DRY_RUN=1; shift ;;
     --scope)       FORCED_SCOPE="$2"; shift 2 ;;
     --js-runtime)  FORCED_RUNTIME="$2"; shift 2 ;;
+    --skip-checks) SKIP_CHECKS=1; shift ;;
     -h|--help)
       sed -n '2,/^set -euo/{ /^set -euo/d; s/^# \{0,1\}//; p }' "${BASH_SOURCE[0]}"
       exit 0 ;;
@@ -156,9 +158,11 @@ ok "scope: $SCOPE ($TARGET_DIR)"
 
 # ── Step 2: Pre-checks ───────────────────────────────────────────────────────
 [[ "$JS_RUNTIME" == "npm" ]] && warn "bun not found — Īdisu CLI (bun:sqlite) will not install; falling back for skills/agents/config only."
-command -v jq    >/dev/null 2>&1 || warn "jq not found - Īdisu hooks and settings merge fall back to python3."
-command -v flock >/dev/null 2>&1 || warn "flock not found - Īdisu hooks expect flock from util-linux."
-command -v git    >/dev/null 2>&1 || warn "git not found - statusline branch display will be blank."
+if [[ "$SKIP_CHECKS" -ne 1 ]]; then
+  command -v jq    >/dev/null 2>&1 || warn "jq not found - Īdisu hooks and settings merge fall back to python3."
+  command -v flock >/dev/null 2>&1 || warn "flock not found - Īdisu hooks expect flock from util-linux."
+  command -v git    >/dev/null 2>&1 || warn "git not found - statusline branch display will be blank."
+fi
 
 # ── Step 3: Prior install / receipt detection ───────────────────────────────
 RECEIPT_PATH="$TARGET_DIR/.furaide-receipt.json"

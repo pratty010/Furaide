@@ -5,6 +5,8 @@
 #   bash packages/cli/src/targets/pi-agent/install.sh
 #
 # Prerequisites: bun or node+npm, and the pi CLI (https://pi.dev)
+#   --skip-checks     N/A here — pi-agent has no non-fatal pre-checks to skip
+#                     (bun/npm and pi CLI absence are both hard errors)
 
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
