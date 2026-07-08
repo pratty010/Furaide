@@ -4,7 +4,7 @@
 # Re-runs on: new assistant message, /compact, permission/vim mode change, refreshInterval timer.
 # Terminal resize is NOT an automatic trigger — refreshInterval is the only mitigation.
 #
-# Line 1  L: 🧠 <model> │ <effort> │ 🕐 dur (📡api%)   R: ↑inΣ⚡r%/↓outΣ⚡w% [⑂in/out%] │ CTX: [bar] cur/win/+turn
+# Line 1  L: 🧠 <model> │ <effort> │ 🕐 dur (📡api%)   R: ↑inΣ⚡r%/↓outΣ [⑂in/out%] │ CTX: [bar] cur/win/+turn
 # Line 2  L: 📁 path (branch) │ +add/-rem        R: 5hr: % (reset) │ 1wk: % (reset) │ $cost
 #
 # Env: STATUSLINE_GLYPHS=emoji|nerd|text   (default emoji)
@@ -384,7 +384,7 @@ if [ "$DURATION_MS" -ge 60000 ]; then
   fi
 fi
 
-# ── Line 1 RIGHT: ↑inΣ⚡r%/↓outΣ⚡w% [⑂in/out%] │ CTX: [bar] cur/win/+turn ──
+# ── Line 1 RIGHT: ↑inΣ⚡r%/↓outΣ [⑂in/out%] │ CTX: [bar] cur/win/+turn ──
 # Token totals: prefer Task 8.2's transcript tail-pass sums (whole-session);
 # fall back to the payload's own context_window fields when the tail pass
 # didn't run (missing/unreadable transcript, no jq, etc — fail-open).
@@ -409,7 +409,7 @@ if [ "$GRAND_TOTAL_IN" -gt 0 ] && [ "$READ_TOTAL" -gt 0 ]; then
   IN_STR="${IN_STR} ${DIM}⚡${READ_PCT}%${RST}"
 fi
 OUT_STR="${BLU}↓$(_human "$GRAND_TOTAL_OUT")${RST}"
-TOK="${IN_STR} ${DIM}/${RST}${OUT_STR}"
+TOK="${IN_STR} ${DIM}/${RST} ${OUT_STR}"
 
 # Subagent share: real per-task sums (SUBAGENT_IN_TOTAL/SUBAGENT_OUT_TOTAL)
 # plus SUBAGENT_FALLBACK_TOTAL folded in as best-effort (the fallback lump has
