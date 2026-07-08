@@ -9,7 +9,7 @@
 import { existsSync, unlinkSync, rmdirSync, readdirSync, copyFileSync } from "node:fs";
 import { dirname, join, isAbsolute } from "node:path";
 import { spawnSync } from "node:child_process";
-import { confirm, isCancel, cancel, intro, outro, note } from "@clack/prompts";
+import { confirm, select, isCancel, cancel, intro, outro, note } from "@clack/prompts";
 import type { Scope } from "./manifest-schema.ts";
 import { deleteReceipt, readReceipt } from "./receipt.ts";
 import { HARNESS_ROOT, resolveScopeDir } from "./install.ts";
@@ -152,11 +152,55 @@ export async function main(argv: string[]): Promise<void> {
   }
 
   const flags = parseFlags(argv);
-  const scope: Scope = flags.scope ?? "project";
-  if (scope === "custom" && (!flags.customDir || !isAbsolute(flags.customDir))) {
-    throw new Error("--scope custom requires --custom-dir <absolute path>");
+  let scope: Scope;
+  let targetDir: string;
+
+  if (flags.scope) {
+    scope = flags.scope;
+    if (scope === "custom" && (!flags.customDir || !isAbsolute(flags.customDir))) {
+      throw new Error("--scope custom requires --custom-dir <absolute path>");
+    }
+    targetDir = resolveScopeDir(scope, flags.customDir);
+  } else {
+    const globalDir = resolveScopeDir("global");
+    const projectDir = resolveScopeDir("project");
+    const hasGlobal = readReceipt(globalDir) !== null;
+    const hasProject = readReceipt(projectDir) !== null;
+
+    if (hasGlobal && hasProject) {
+      if (flags.yes) {
+        throw new Error(
+          `Installs found at both global (${globalDir}) and project (${projectDir}) scope. ` +
+            `Pass --scope global or --scope project to disambiguate under --yes.`
+        );
+      }
+      const choice = await select({
+        message: "Installs found at both scopes. Which one to uninstall?",
+        options: [
+          { value: "global" as const, label: "Global", hint: globalDir },
+          { value: "project" as const, label: "Project", hint: projectDir },
+        ],
+      });
+      if (isCancel(choice)) {
+        cancel("Uninstall cancelled.");
+        return;
+      }
+      scope = choice as Scope;
+      targetDir = scope === "global" ? globalDir : projectDir;
+    } else if (hasGlobal) {
+      scope = "global";
+      targetDir = globalDir;
+    } else if (hasProject) {
+      scope = "project";
+      targetDir = projectDir;
+    } else {
+      process.stdout.write(
+        `[furaide] No install receipt found at global (${globalDir}) or project (${projectDir}) scope.\n` +
+          `[furaide] If this was installed with --scope custom, pass --scope custom --custom-dir <path>.\n`
+      );
+      return;
+    }
   }
-  const targetDir = resolveScopeDir(scope, flags.customDir);
 
   const receipt = readReceipt(targetDir);
   if (!receipt) {
