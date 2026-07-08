@@ -77,8 +77,11 @@ _until() {
   elif [ "$h" -gt 0 ]; then printf '%dh%dm' "$h" "$m"
   else printf '%dm' "$m"; fi
 }
-_dur() {  # ms -> compact h/m (e.g. 3900000 -> "1h5m", 2400000 -> "40m")
-  local ms="${1:-0}" tot h m
+_dur() {  # ms -> compact h/m/s (e.g. 3900000 -> "1h5m", 2400000 -> "40m", 3000 -> "3s")
+  local ms="${1:-0}" tot h m s
+  if [ "$ms" -lt 60000 ]; then
+    s=$(( ms / 1000 )); printf '%ds' "$s"; return
+  fi
   tot=$(( ms / 60000 )); h=$(( tot / 60 )); m=$(( tot % 60 ))
   if [ "$h" -gt 0 ]; then printf '%dh%dm' "$h" "$m"; else printf '%dm' "$m"; fi
 }
@@ -249,7 +252,7 @@ _transcript_tail_pass() {  # path -> mutates SIDECAR_JSON + sets *_TOTAL globals
     if [ -n "$completions" ]; then
       while IFS= read -r line; do
         [ -z "$line" ] && continue
-        local aid ftok already sub_in=0 sub_out=0 counted=0 sub_usage subfile
+        local aid ftok already sub_in=0 sub_out=0 sub_cr=0 sub_cc=0 counted=0 sub_usage subfile
         aid=$(printf '%s' "$line" | jq -r '.agent_id // empty' 2>/dev/null)
         [ -z "$aid" ] && continue
         already=$(printf '%s' "$SIDECAR_JSON" | jq -r --arg t "$aid" '.subagents[$t].done // false' 2>/dev/null)
@@ -258,13 +261,14 @@ _transcript_tail_pass() {  # path -> mutates SIDECAR_JSON + sets *_TOTAL globals
 
         subfile="$(dirname "$path")/subagents/agent-${aid}.jsonl"
         if [ -r "$subfile" ] && sub_usage=$(_sum_assistant_usage_stdin < "$subfile" 2>/dev/null); then
-          read -r sub_in sub_out _ _ <<<"$sub_usage"
+          read -r sub_in sub_out sub_cr sub_cc <<<"$sub_usage"
           counted=1
         fi
 
         if [ "$counted" -eq 1 ]; then
           SIDECAR_JSON=$(printf '%s' "$SIDECAR_JSON" | jq --arg t "$aid" --argjson i "$sub_in" --argjson o "$sub_out" \
-            '.subagents[$t] = {in: $i, out: $o, done: true}' 2>/dev/null) || continue
+            --argjson cr "$sub_cr" --argjson cc "$sub_cc" \
+            '.subagents[$t] = {in: $i, out: $o, cache_read: $cr, cache_creation: $cc, done: true}' 2>/dev/null) || continue
         elif [ -n "$ftok" ]; then
           case "$ftok" in ''|*[!0-9]*) ftok=0 ;; esac
           SUBAGENT_FALLBACK_TOTAL=$(( SUBAGENT_FALLBACK_TOTAL + ftok ))
@@ -281,8 +285,12 @@ _transcript_tail_pass() {  # path -> mutates SIDECAR_JSON + sets *_TOTAL globals
 
   SUBAGENT_IN_TOTAL=$(printf '%s' "$SIDECAR_JSON" | jq -r '[.subagents[]?.in // 0] | add // 0' 2>/dev/null)
   SUBAGENT_OUT_TOTAL=$(printf '%s' "$SIDECAR_JSON" | jq -r '[.subagents[]?.out // 0] | add // 0' 2>/dev/null)
+  SUBAGENT_CR_TOTAL=$(printf '%s' "$SIDECAR_JSON" | jq -r '[.subagents[]?.cache_read // 0] | add // 0' 2>/dev/null)
+  SUBAGENT_CC_TOTAL=$(printf '%s' "$SIDECAR_JSON" | jq -r '[.subagents[]?.cache_creation // 0] | add // 0' 2>/dev/null)
   case "$SUBAGENT_IN_TOTAL" in ''|*[!0-9]*) SUBAGENT_IN_TOTAL=0 ;; esac
   case "$SUBAGENT_OUT_TOTAL" in ''|*[!0-9]*) SUBAGENT_OUT_TOTAL=0 ;; esac
+  case "$SUBAGENT_CR_TOTAL" in ''|*[!0-9]*) SUBAGENT_CR_TOTAL=0 ;; esac
+  case "$SUBAGENT_CC_TOTAL" in ''|*[!0-9]*) SUBAGENT_CC_TOTAL=0 ;; esac
   return 0
 }
 
@@ -313,6 +321,7 @@ fi
 TRANSCRIPT_PATH=$(_jq '.transcript_path')
 IN_TOTAL=0; OUT_TOTAL=0; CACHE_READ_TOTAL=0; CACHE_CREATION_TOTAL=0
 SUBAGENT_IN_TOTAL=0; SUBAGENT_OUT_TOTAL=0; SUBAGENT_FALLBACK_TOTAL=0
+SUBAGENT_CR_TOTAL=0; SUBAGENT_CC_TOTAL=0
 TAIL_OK=0
 if command -v jq >/dev/null 2>&1 && [ -n "$SESSION_ID" ] \
    && [ -n "$TRANSCRIPT_PATH" ] && [ -r "$TRANSCRIPT_PATH" ]; then
@@ -369,10 +378,9 @@ fi
 if [ "$DURATION_MS" -ge 60000 ]; then
   case "$GLYPHS" in emoji) CG="🕐 " ;; nerd) CG=$' ' ;; *) CG="" ;; esac
   L1L+=" ${DIM}│${RST} ${DIM}${CG}$(_dur "$DURATION_MS")${RST}"
-  if [ "$DURATION_MS" -gt 0 ]; then
-    API_PCT=$(( API_MS * 100 / DURATION_MS ))
+  if [ "$API_MS" -gt 0 ]; then
     case "$GLYPHS" in emoji) PG="📡" ;; nerd) PG=$'' ;; *) PG="" ;; esac
-    L1L+=" ${DIM}(${PG}${API_PCT}%)${RST}"
+    L1L+=" ${DIM}(${PG}$(_dur "$API_MS"))${RST}"
   fi
 fi
 
@@ -382,23 +390,26 @@ fi
 # didn't run (missing/unreadable transcript, no jq, etc — fail-open).
 DISPLAY_IN="$IN_TOTAL"; DISPLAY_OUT="$OUT_TOTAL"
 DISPLAY_CR="$CACHE_READ_TOTAL"; DISPLAY_CC="$CACHE_CREATION_TOTAL"
+DISPLAY_SUB_IN=$(( SUBAGENT_IN_TOTAL + SUBAGENT_FALLBACK_TOTAL ))
+DISPLAY_SUB_OUT="$SUBAGENT_OUT_TOTAL"
+DISPLAY_SUB_CR="$SUBAGENT_CR_TOTAL"; DISPLAY_SUB_CC="$SUBAGENT_CC_TOTAL"
 if [ "$TAIL_OK" -ne 1 ]; then
   DISPLAY_IN=$(_jq_int '.context_window.total_input_tokens')
   DISPLAY_OUT=$(_jq_int '.context_window.total_output_tokens')
   DISPLAY_CR=$(_jq_int '.context_window.current_usage.cache_read_input_tokens')
   DISPLAY_CC=0
+  DISPLAY_SUB_IN=0; DISPLAY_SUB_OUT=0; DISPLAY_SUB_CR=0; DISPLAY_SUB_CC=0
 fi
-IN_STR="${GRN}↑$(_human "$DISPLAY_IN")${RST}"
-if [ "$DISPLAY_IN" -gt 0 ] && [ "$DISPLAY_CR" -gt 0 ]; then
-  READ_PCT=$(( DISPLAY_CR * 100 / DISPLAY_IN ))
-  IN_STR="${IN_STR}${DIM}⚡${READ_PCT}%${RST}"
+GRAND_TOTAL_IN=$(( DISPLAY_IN + DISPLAY_CR + DISPLAY_CC + DISPLAY_SUB_IN + DISPLAY_SUB_CR + DISPLAY_SUB_CC ))
+GRAND_TOTAL_OUT=$(( DISPLAY_OUT + DISPLAY_SUB_OUT ))
+IN_STR="${GRN}↑$(_human "$GRAND_TOTAL_IN")${RST}"
+READ_TOTAL=$(( DISPLAY_CR + DISPLAY_SUB_CR ))
+if [ "$GRAND_TOTAL_IN" -gt 0 ] && [ "$READ_TOTAL" -gt 0 ]; then
+  READ_PCT=$(( READ_TOTAL * 100 / GRAND_TOTAL_IN ))
+  IN_STR="${IN_STR} ${DIM}⚡${READ_PCT}%${RST}"
 fi
-OUT_STR="${BLU}↓$(_human "$DISPLAY_OUT")${RST}"
-if [ "$DISPLAY_IN" -gt 0 ] && [ "$DISPLAY_CC" -gt 0 ]; then
-  WRITE_PCT=$(( DISPLAY_CC * 100 / DISPLAY_IN ))
-  OUT_STR="${OUT_STR}${DIM}⚡${WRITE_PCT}%${RST}"
-fi
-TOK="${IN_STR}/${OUT_STR}"
+OUT_STR="${BLU}↓$(_human "$GRAND_TOTAL_OUT")${RST}"
+TOK="${IN_STR} ${DIM}/${RST}${OUT_STR}"
 
 # Subagent share: real per-task sums (SUBAGENT_IN_TOTAL/SUBAGENT_OUT_TOTAL)
 # plus SUBAGENT_FALLBACK_TOTAL folded in as best-effort (the fallback lump has
@@ -408,10 +419,10 @@ SUB_IN_EFF=$(( SUBAGENT_IN_TOTAL + SUBAGENT_FALLBACK_TOTAL ))
 SUB_OUT_EFF="$SUBAGENT_OUT_TOTAL"
 SUB_SEG=""
 if [ "$SUB_IN_EFF" -gt 0 ] || [ "$SUB_OUT_EFF" -gt 0 ]; then
-  IN_SHARE_DEN=$(( DISPLAY_IN + SUB_IN_EFF )); IN_SHARE=0
-  [ "$IN_SHARE_DEN" -gt 0 ] && IN_SHARE=$(( SUB_IN_EFF * 100 / IN_SHARE_DEN ))
-  OUT_SHARE_DEN=$(( DISPLAY_OUT + SUB_OUT_EFF )); OUT_SHARE=0
-  [ "$OUT_SHARE_DEN" -gt 0 ] && OUT_SHARE=$(( SUB_OUT_EFF * 100 / OUT_SHARE_DEN ))
+  IN_SHARE=0
+  [ "$GRAND_TOTAL_IN" -gt 0 ] && IN_SHARE=$(( SUB_IN_EFF * 100 / GRAND_TOTAL_IN ))
+  OUT_SHARE=0
+  [ "$GRAND_TOTAL_OUT" -gt 0 ] && OUT_SHARE=$(( SUB_OUT_EFF * 100 / GRAND_TOTAL_OUT ))
   SUB_SEG=" ${DIM}[⑂${IN_SHARE}%/${OUT_SHARE}%]${RST}"
 fi
 
