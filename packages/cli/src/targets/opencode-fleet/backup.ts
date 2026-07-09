@@ -1,6 +1,6 @@
 // packages/cli/src/targets/opencode-fleet/backup.ts
 //
-// Backup root is `<targetDir>/.kura_backup/<installTimestamp>` (leading-dot
+// Backup root is `<targetDir>/.furaide-backup/<installTimestamp>` (leading-dot
 // required). On a repeat install, if the target already has an install
 // receipt with a recorded backup.root, that root is REUSED instead of
 // minting a new timestamped one -- otherwise the true original backup from
@@ -10,8 +10,12 @@
 import { existsSync, mkdirSync, copyFileSync, lstatSync, readlinkSync, symlinkSync, readFileSync } from "node:fs";
 import { dirname, join, relative, isAbsolute } from "node:path";
 
-export const BACKUP_DIR_NAME = ".kura_backup";
-export const RECEIPT_FILENAME = ".furaide-install-receipt.json";
+export const BACKUP_DIR_NAME = ".furaide-backup";
+export const RECEIPT_FILENAME = ".furaide-receipt.json";
+/** Read-only fallback so installs from before this rename aren't orphaned —
+ * existingReceiptBackupRoot() and receipt.ts's readReceipt() both check this
+ * name if the current RECEIPT_FILENAME isn't found. Never written to. */
+export const LEGACY_RECEIPT_FILENAME = ".furaide-install-receipt.json";
 
 /** Per-install-run backup bookkeeping. Threaded explicitly (not module-level
  * global state) so this stays independently unit-testable. */
@@ -29,8 +33,12 @@ export function createBackupState(): BackupState {
  * schema-validated readReceipt() -- a receipt with an otherwise malformed
  * shape should still let backup-root reuse work for this one field. */
 export function existingReceiptBackupRoot(targetDir: string): string | null {
-  const receiptPath = join(targetDir, RECEIPT_FILENAME);
-  if (!existsSync(receiptPath)) return null;
+  let receiptPath = join(targetDir, RECEIPT_FILENAME);
+  if (!existsSync(receiptPath)) {
+    const legacyPath = join(targetDir, LEGACY_RECEIPT_FILENAME);
+    if (!existsSync(legacyPath)) return null;
+    receiptPath = legacyPath;
+  }
   try {
     const raw = readFileSync(receiptPath, "utf8");
     const parsed = JSON.parse(raw) as { backup?: { root?: string | null } };

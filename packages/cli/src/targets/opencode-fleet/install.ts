@@ -4,7 +4,7 @@
 // back up conflicting files -> copy -> merge config -> write receipt.
 // Also the CLI entrypoint (main()) deciding interactive vs non-interactive.
 
-import { existsSync, mkdirSync, copyFileSync, readdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, copyFileSync, readdirSync, writeFileSync, unlinkSync } from "node:fs";
 import { dirname, join, basename, relative, resolve as resolvePath } from "node:path";
 import { homedir } from "node:os";
 import { fileURLToPath } from "node:url";
@@ -17,6 +17,7 @@ import {
   resolveAdvancedClosure,
   buildAgentDelegationMap,
   listAllAgentNames,
+  findProjectScopeDir,
 } from "./resolve.ts";
 import { createBackupState, backupExistingFile, wasBackupCreated, existingReceiptBackupRoot, type BackupState } from "./backup.ts";
 import { readReceipt, writeReceipt } from "./receipt.ts";
@@ -29,7 +30,7 @@ export const HARNESS_ROOT = join(REPO_ROOT, "harnesses", "opencode");
 
 export const GLOBAL_SCOPE = join(homedir(), ".config", "opencode");
 export function projectScope(cwd: string = process.env.FURAIDE_INVOKED_FROM || process.cwd()): string {
-  return join(cwd, ".opencode");
+  return findProjectScopeDir(cwd);
 }
 
 export function resolveScopeDir(scope: Scope, customDir?: string): string {
@@ -293,7 +294,7 @@ export async function performInstall(opts: ResolvedInstallOptions): Promise<Inst
   for (const skillName of skills.bundled) copySkillTree(opts.repoRoot, skillName, opts.targetDir, opts.installTimestamp, backupState, componentFiles);
   if (skills.external.length > 0) {
     process.stderr.write(
-      `[furaide] Manual follow-up: run 'bun ${opts.targetDir}/scripts/pull-external-skills.mjs' to pull/update pinned external skills: ${skills.external.join(", ")}\n`
+      `[furaide] Manual follow-up: run 'bun ${opts.harnessRoot}/scripts/pull-external-skills.mjs --pull' to pull/update pinned external skills: ${skills.external.join(", ")}\n`
     );
   }
 
@@ -318,6 +319,17 @@ export async function performInstall(opts: ResolvedInstallOptions): Promise<Inst
   };
 
   writeReceipt(opts.targetDir, receipt);
+
+  // Clean up legacy receipt filename if present
+  const legacyReceiptPath = join(opts.targetDir, ".furaide-install-receipt.json");
+  if (existsSync(legacyReceiptPath)) {
+    try {
+      unlinkSync(legacyReceiptPath);
+    } catch {
+      // Silent on error
+    }
+  }
+
   return receipt;
 }
 
@@ -347,6 +359,9 @@ function parseFlags(argv: string[]): NonInteractiveFlags {
       case "--yes":
         flags.yes = true;
         break;
+      case "--dry-run":
+        flags.dryRun = true;
+        break;
       default:
         throw new Error(`Unknown flag: ${arg}. Run 'furaide install opencode-fleet --help' for usage.`);
     }
@@ -368,6 +383,7 @@ function printHelp(): void {
       "  --agents <name,name,...>           Advanced mode: install exactly these agents (ignores --workflows)",
       "  --web-tools / --no-web-tools       Force Web Tools on/off (default: auto-probe env)",
       "  --yes                              Required to confirm a non-interactive run",
+      "  --dry-run                          Print what would be installed, make no changes",
       "  -h, --help                         Show this help",
     ].join("\n") + "\n"
   );

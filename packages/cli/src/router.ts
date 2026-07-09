@@ -3,6 +3,17 @@
 // Top-level `furaide install|uninstall <target> [flags]` dispatch.
 // opencode-fleet routes to real TypeScript logic. claude-code and pi-agent
 // dispatch, unchanged, to their relocated shell installers (Task 42B).
+//
+// Unified skill model (see harnesses/*/README.md "Shared skills" section):
+//   ~/.agents/skills/            <- master pool. OpenCode + Pi read natively;
+//                                   Claude Code reads via ~/.claude/skills/<n> symlinks.
+//   ~/.config/opencode/skills/   <- OpenCode-only fleet-specific skills (not shareable).
+//   ~/.claude/skills/<name>      <- CC-only direct skills OR symlinks into ~/.agents/.
+// The claude-code target must never write to ~/.config/opencode/skills/.
+// The opencode-fleet target's *external* skills (skills-manifest.json) install
+// to ~/.agents/skills/ (Phase 6) — its *bundled* fleet-specific skills still
+// install to <targetDir>/skills (scope-relative: ~/.config/opencode/skills/ for global,
+// <project>/.opencode/skills/ for project) via copySkillTree() in install.ts.
 
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
@@ -27,6 +38,7 @@ const SHELL_TARGET_SCRIPTS: Record<ShellTarget, { install: string; uninstall?: s
   },
   "pi-agent": {
     install: join(__dirname, "targets", "pi-agent", "install.sh"),
+    uninstall: join(__dirname, "targets", "pi-agent", "uninstall.sh"),
   },
 };
 
@@ -57,15 +69,6 @@ export async function runCli(argv: string[]): Promise<void> {
   if (resolvedTarget === "opencode-fleet") {
     const mod = resolvedAction === "install" ? await import("./targets/opencode-fleet/install.ts") : await import("./targets/opencode-fleet/uninstall.ts");
     await mod.main(rest);
-    return;
-  }
-
-  if (resolvedTarget === "pi-agent" && resolvedAction === "uninstall") {
-    process.stdout.write(
-      "pi-agent has no bundled uninstaller — remove it via Pi's own extension management:\n" +
-      "  pi extensions list\n" +
-      "  pi uninstall friday-furaidee\n"
-    );
     return;
   }
 

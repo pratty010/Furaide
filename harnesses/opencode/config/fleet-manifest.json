@@ -237,7 +237,7 @@
     {
       "id": "skills",
       "label": "Skills Pipeline",
-      "description": "Pinned external skill pulls (superpowers, mattpocock, addyosmani) plus bundled addendum/native skills, installed to ~/.config/opencode/skills/ by the packages/cli installer.",
+      "description": "Pinned external skill pulls (superpowers, mattpocock, addyosmani) plus bundled addendum/native skills, installed to ~/.agents/skills/ by the packages/cli installer.",
       "atomic": false,
       "coupling": {
         "usedBy": [

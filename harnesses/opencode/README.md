@@ -77,7 +77,7 @@ Your OpenCode session receives:
 
 Pre-existing files at the installation target get backed up before being overwritten:
 
-- Backups are stored in a timestamped directory: `<target>/.kura_backup/<timestamp>/<relative-path>`
+- Backups are stored in a timestamped directory: `<target>/.furaide-backup/<timestamp>/<relative-path>`
 - The install receipt records the backup location
 - On uninstall, pre-existing files are automatically restored from the backup
 - New files installed by the fleet are removed cleanly without affecting your originals
@@ -157,7 +157,7 @@ The web-tools bucket exposes:
 
 `/tools-config` edits tool defaults and budgets. `docs/models/gemini-tool-fees.yml` remains shipped because pricing code reads it at runtime.
 
-The new fleet installer supports installing the web-tools bucket as a standalone component (the same files a normal `install opencode-fleet` run includes as part of its `web-tools` manifest component). You don't need it for a standard install; it's there for direct/manual web-tools-only installs. Standalone runs are still covered by the same uninstall process — backups use the same shared `.kura_backup` convention as the main installer.
+The new fleet installer supports installing the web-tools bucket as a standalone component (the same files a normal `install opencode-fleet` run includes as part of its `web-tools` manifest component). You don't need it for a standard install; it's there for direct/manual web-tools-only installs. Standalone runs are still covered by the same uninstall process — backups use the same shared `.furaide-backup` convention as the main installer.
 
 ---
 

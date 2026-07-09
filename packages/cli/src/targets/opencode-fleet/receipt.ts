@@ -9,7 +9,7 @@ import { existsSync, readFileSync, writeFileSync, renameSync, mkdirSync, unlinkS
 import { dirname, join } from "node:path";
 import { tmpdir } from "node:os";
 import { InstallReceiptV2Schema, type InstallReceiptV2 } from "./manifest-schema.ts";
-import { RECEIPT_FILENAME } from "./backup.ts";
+import { RECEIPT_FILENAME, LEGACY_RECEIPT_FILENAME } from "./backup.ts";
 
 export { RECEIPT_FILENAME };
 
@@ -23,8 +23,16 @@ export function receiptPath(targetDir: string): string {
  * error as "not installed" -- that would silently proceed over an existing,
  * differently-shaped install. */
 export function readReceipt(targetDir: string): InstallReceiptV2 | null {
-  const path = receiptPath(targetDir);
-  if (!existsSync(path)) return null;
+  let path = receiptPath(targetDir);
+  if (!existsSync(path)) {
+    const legacyPath = join(targetDir, LEGACY_RECEIPT_FILENAME);
+    if (!existsSync(legacyPath)) return null;
+    path = legacyPath;
+    process.stderr.write(
+      `[furaide] note: reading receipt from legacy filename ${LEGACY_RECEIPT_FILENAME}. ` +
+        `The next install/uninstall at this target will migrate it to ${RECEIPT_FILENAME}.\n`
+    );
+  }
 
   let raw: string;
   try {
@@ -78,6 +86,7 @@ export function writeReceipt(targetDir: string, receipt: InstallReceiptV2): void
 /** No-op if there is no receipt at targetDir. */
 export function deleteReceipt(targetDir: string): void {
   const path = receiptPath(targetDir);
-  if (!existsSync(path)) return;
-  unlinkSync(path);
+  if (existsSync(path)) unlinkSync(path);
+  const legacyPath = join(targetDir, LEGACY_RECEIPT_FILENAME);
+  if (existsSync(legacyPath)) unlinkSync(legacyPath);
 }
