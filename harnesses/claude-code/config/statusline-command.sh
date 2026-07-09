@@ -4,14 +4,24 @@
 # Re-runs on: new assistant message, /compact, permission/vim mode change, refreshInterval timer.
 # Terminal resize is NOT an automatic trigger — refreshInterval is the only mitigation.
 #
-# Line 1  L: 🧠 <model> │ <effort> │ 🕐 dur (📡api%)   R: ↑inΣ⚡r%/↓outΣ [⑂in/out%] │ CTX: [bar] cur/win/+turn
-# Line 2  L: 📁 path (branch) │ +add/-rem        R: 5hr: % (reset) │ 1wk: % (reset) │ $cost
+# Line 1  L: 🧠 <model> │ <effort> │ 🕐 dur (📡api-dur)   R: ↑inΣ⚡r% /↓outΣ[turn] [⫂ subin/subout] ~est(n) │ CTX: [bar] cur/win
+# Line 2  L: 📁 path (branch) │ +add/-rem        R: 5hr: % (reset) │ 1wk: % (reset) │ $: cost [subcost]
 #
 # Env: STATUSLINE_GLYPHS=emoji|nerd|text   (default emoji)
 # Env: STATUSLINE_STATE_DIR=<dir>          (default ~/.claude/statusline-state; test override)
+#
+# Standalone mode: `statusline-command.sh --recompute-all` skips the stdin
+# hook payload and instead rebuilds every sidecar under STATUSLINE_STATE_DIR
+# from a full-file (dedup-correct) scan of every local session transcript.
 
 set -euo pipefail
-input=$(cat)
+if [ "${1:-}" = "--recompute-all" ]; then
+  FURAIDE_SL_MODE="recompute"
+  input='{}'
+else
+  FURAIDE_SL_MODE="render"
+  input=$(cat)
+fi
 
 # ── ANSI ──────────────────────────────────────────────────────────────────
 RST=$'\033[0m'; BOLD=$'\033[1m'; DIM=$'\033[2m'
@@ -147,52 +157,105 @@ _fold_metric() {  # current base_key last_key -> sets FOLD_RESULT=base+current (
 # ── Task 8.2: transcript tail pass (token totals + subagent share) ─────────
 # Incremental jq pass over the session transcript from the sidecar's
 # transcript_offset (byte cursor). Sums main-thread assistant message.usage
-# into {in,out,cache_read,cache_creation}_total, and folds in per-subagent
-# totals discovered from real Task-tool subagent completions:
+# into {in,out,cache_read,cache_creation}_total plus per-model buckets, and
+# folds in per-subagent totals discovered from Task-tool completions.
+#
+# DEDUP INVARIANT (verified against real transcripts, 2026-07-09): Claude Code
+# writes one JSONL line per content block (thinking/text/tool_use) of a single
+# API response; every line repeats that response's usage snapshot. For a given
+# message.id, input/cache_read/cache_creation are identical across all its
+# lines, while output_tokens grows monotonically (last line == max). Naive
+# per-line summation therefore overcounts 2-4x; the fix is last-per-id via
+# group_by(.message.id) | map(.[-1]).
+#
+# INCREMENTAL BOUNDARY: a message's lines can span two tail passes. The
+# sidecar stores last_msg_id + last_msg_out (output counted so far for that
+# id); the next pass zeroes the in/cache contributions for records matching
+# last_msg_id and counts only the output growth. The byte cursor only ever
+# advances over newline-complete data so a mid-write partial line is re-read
+# whole on the next pass instead of being lost.
+#
+# Subagent completion sources, in priority order:
 #   - A completed Task-tool subagent surfaces in the MAIN transcript as a
 #     type:"user" tool_result record whose (recursively flattened) text
-#     contains both "agentId: <id>" and a "<usage>subagent_tokens: N ...
-#     </usage>" block — this combination (not just "agentId:" alone, which
-#     also appears on the *launch* notification) is the "done" signal.
-#   - Once an agent id is seen "done" and isn't already recorded in the
-#     sidecar, its own full transcript at
-#     <transcript-dir>/subagents/agent-<id>.jsonl is fed through the same
-#     _sum_assistant_usage_stdin used for the main thread (identical
-#     type:"assistant"/message.usage record shape) — this is the primary,
-#     accurate source.
-#   - subagent_fallback_tokens is the last-resort bucket: used only when the
-#     agent id's transcript file is missing/unreadable, in which case the
-#     <usage> block's own subagent_tokens: N value (a lump sum with no
-#     in/out split) is folded in instead. If neither source is available the
-#     agent id is left unmarked (not done) rather than fabricating a count;
-#     since the "done" signal is only visible once (it scrolls out of the
-#     incremental newdata window after this pass), such an id will not be
-#     retried on a later pass — the risk is bounded (a missing/racing
-#     subagent transcript file at exactly the point its completion record
-#     appears is rare) and preferred over marking done with zero counts.
+#     contains both "agentId: <id>" and a "<usage>...</usage>" block — this
+#     combination (not "agentId:" alone, which also appears on the *launch*
+#     notification) is the "done" signal.
+#   - Primary: the subagent's own transcript at
+#     <transcript-dir>/subagents/agent-<id>.jsonl, scanned with the same
+#     dedup logic (nested subagents write there too, as flat siblings — a
+#     flat glob is complete at any spawn depth).
+#   - If that file isn't readable yet, the agent is stored as
+#     {pending:true, fallback_estimate, model} — the completion record's own
+#     subagent_tokens lump (proven to undercount 14-28x: it is the FINAL
+#     TURN's usage, not cumulative) is kept only as a flagged estimate and
+#     retried against the real file on every subsequent render. Pending
+#     estimates are never folded into the confirmed sums.
+#   - subagent_fallback_tokens is a legacy lump written by older versions of
+#     this script; it is still read (and shown in the confirmed "in" side)
+#     but never written to anymore.
 # Fail-open: any jq/parse failure leaves SIDECAR_JSON and the *_TOTAL
 # globals untouched (caller keeps prior values).
-_sum_assistant_usage_stdin() {  # stdin: JSONL -> stdout "in out cache_read cache_creation"; returns 1 on failure
-  local out
-  out=$(jq -r -R -s '
+_scan_usage_stdin() {  # prev_msg_id prev_msg_out; stdin: JSONL
+  # -> stdout: one compact JSON {in,out,cr,cc,models:{<model>:{in,out,cr,cc,cc_5m,cc_1h}},last_id,last_out}
+  # Dedup by message.id (last-per-id); records matching prev_msg_id contribute
+  # only output growth beyond prev_msg_out. "<synthetic>" rate-limit-retry
+  # placeholders (all-zero usage, non-msg_ ids) are excluded so they never
+  # reach the pricing table. cache_creation splits into 5m/1h tiers when the
+  # cache_creation sub-object exists; absent (older transcripts) the whole
+  # value is treated as 5m-tier. Every add is null-guarded: a transcript with
+  # zero assistant records must yield zeros, not null.
+  local prev_id="${1:-}" prev_out="${2:-0}" out
+  case "$prev_out" in ''|*[!0-9]*) prev_out=0 ;; esac
+  out=$(jq -c -R -s --arg pid "$prev_id" --argjson pout "$prev_out" '
     (split("\n") | map(select(length>0)) | map(try fromjson catch null)
-     | map(select(. != null and .type == "assistant"))) as $recs
-    | ($recs | map(.message.usage // {})) as $u
-    | [ ($u | map(.input_tokens // 0) | add // 0),
-        ($u | map(.output_tokens // 0) | add // 0),
-        ($u | map(.cache_read_input_tokens // 0) | add // 0),
-        ($u | map(.cache_creation_input_tokens // 0) | add // 0) ] | @tsv
+     | map(select(. != null and .type == "assistant"
+                  and ((.message.usage? // null) != null)
+                  and ((.message.model // "") != "<synthetic>")))) as $recs
+    | (($recs | map(select((.message.id // "") != "")) | group_by(.message.id) | map(.[-1]))
+       + ($recs | map(select((.message.id // "") == ""))))    # id-less records (not seen in real transcripts) pass through undeduped
+       as $ded
+    | ($ded
+       | map(. as $r | ($r.message.usage) as $u
+         | (if (($u.cache_creation? // null) != null)
+            then {c5: ($u.cache_creation.ephemeral_5m_input_tokens // 0),
+                  c1: ($u.cache_creation.ephemeral_1h_input_tokens // 0)}
+            else {c5: ($u.cache_creation_input_tokens // 0), c1: 0} end) as $ccs
+         | ((($r.message.id // "") == $pid) and ($pid != "")) as $dup
+         | { model: ($r.message.model // "unknown"),
+             in:    (if $dup then 0 else ($u.input_tokens // 0) end),
+             out:   (if $dup then ([(($u.output_tokens // 0) - $pout), 0] | max)
+                     else ($u.output_tokens // 0) end),
+             cr:    (if $dup then 0 else ($u.cache_read_input_tokens // 0) end),
+             cc:    (if $dup then 0 else ($u.cache_creation_input_tokens // 0) end),
+             cc_5m: (if $dup then 0 else $ccs.c5 end),
+             cc_1h: (if $dup then 0 else $ccs.c1 end) })) as $adj
+    | { in:  ([$adj[].in]  | add // 0),
+        out: ([$adj[].out] | add // 0),
+        cr:  ([$adj[].cr]  | add // 0),
+        cc:  ([$adj[].cc]  | add // 0),
+        models: ($adj | group_by(.model)
+          | map({key: .[0].model,
+                 value: {in: (map(.in)|add//0), out: (map(.out)|add//0),
+                         cr: (map(.cr)|add//0), cc: (map(.cc)|add//0),
+                         cc_5m: (map(.cc_5m)|add//0), cc_1h: (map(.cc_1h)|add//0)}})
+          | from_entries),
+        last_id:  (if ($recs|length) > 0 then ($recs[-1].message.id // "") else "" end),
+        last_out: (if ($recs|length) > 0 then ($recs[-1].message.usage.output_tokens // 0) else 0 end) }
   ' 2>/dev/null) || return 1
   [ -z "$out" ] && return 1
-  printf '%s' "$out" | tr '\t' ' '
+  printf '%s' "$out"
 }
-_extract_subagent_completions_stdin() {  # stdin: JSONL -> stdout one JSON object/line: {agent_id,fallback_tokens}
+_extract_subagent_completions_stdin() {  # stdin: JSONL -> stdout one JSON object/line: {agent_id,fallback_tokens,resolved_model}
   # Real Task-tool subagent completions surface as a type:"user" tool_result
   # record. Flattening all nested .text fields catches the case where the
   # "agentId: <id> (...)" text and the "<usage>subagent_tokens: N ...</usage>"
   # block live in separate content blocks of the same tool_result. Requiring
   # BOTH excludes the earlier launch-acknowledgement record, which mentions
-  # agentId but never carries a <usage> block.
+  # agentId but never carries a <usage> block. resolvedModel (the model the
+  # subagent actually ran on — often different from the main session's) comes
+  # from the record's structured toolUseResult, and is what prices a pending
+  # entry's fallback estimate.
   jq -c -R -s '
     (split("\n") | map(select(length>0)) | map(try fromjson catch null)
      | map(select(. != null and .type == "user"))) as $recs
@@ -203,32 +266,66 @@ _extract_subagent_completions_stdin() {  # stdin: JSONL -> stdout one JSON objec
     | select($m != null)
     | {
         agent_id: $m.id,
-        fallback_tokens: (try ($txt | capture("subagent_tokens:\\s*(?<n>[0-9]+)").n) catch null)
+        # Array-collect the capture: a non-match yields an EMPTY STREAM (not
+        # null), which would otherwise collapse this whole object construction
+        # to zero outputs and silently drop the completion record.
+        fallback_tokens: ([$txt | capture("subagent_tokens:\\s*(?<n>[0-9]+)").n] | first),
+        resolved_model: (.toolUseResult.resolvedModel? // null)
       }
   ' 2>/dev/null
 }
+_complete_bytes_end() {  # path offset -> stdout: byte position just past the last newline at/after offset
+  # Ensures the cursor only advances over newline-terminated lines, so a line
+  # caught mid-write is re-read whole next pass instead of being lost.
+  # Fail-open: python3 absent/error -> echoes the full file size (old behavior).
+  local path="$1" offset="$2" adv
+  adv=$(python3 -c 'import sys
+p, off = sys.argv[1], int(sys.argv[2])
+with open(p, "rb") as f:
+    f.seek(off)
+    d = f.read()
+i = d.rfind(b"\n")
+print(off + (i + 1 if i >= 0 else 0))' "$path" "$offset" 2>/dev/null) || adv=""
+  case "$adv" in ''|*[!0-9]*) adv=$(wc -c < "$path" 2>/dev/null | tr -d ' ') ;; esac
+  printf '%s' "$adv"
+}
 _transcript_tail_pass() {  # path -> mutates SIDECAR_JSON + sets *_TOTAL globals; returns 1 on any failure (no mutation)
-  local path="$1" offset size newdata usage
+  local path="$1" offset size adv newdata scan
   offset=$(printf '%s' "$SIDECAR_JSON" | jq -r '.transcript_offset // 0' 2>/dev/null)
   case "$offset" in ''|*[!0-9]*) offset=0 ;; esac
   size=$(wc -c < "$path" 2>/dev/null | tr -d ' ') || return 1
   case "$size" in ''|*[!0-9]*) return 1 ;; esac
   [ "$offset" -gt "$size" ] && offset=0  # transcript truncated/rotated: restart cursor defensively
+  adv=$(_complete_bytes_end "$path" "$offset")
+  case "$adv" in ''|*[!0-9]*) adv="$size" ;; esac
+  [ "$adv" -lt "$offset" ] && adv="$offset"
 
   newdata=""
-  [ "$offset" -lt "$size" ] && { newdata=$(tail -c +$((offset+1)) "$path" 2>/dev/null) || return 1; }
+  [ "$offset" -lt "$adv" ] && { newdata=$(tail -c +$((offset+1)) "$path" 2>/dev/null | head -c $((adv - offset))) || return 1; }
 
-  local base_in base_out base_cr base_cc base_fb
+  local base_in base_out base_cr base_cc base_fb last_id last_out
   base_in=$(printf '%s' "$SIDECAR_JSON" | jq -r '.in_total // 0' 2>/dev/null); case "$base_in" in ''|*[!0-9]*) base_in=0 ;; esac
   base_out=$(printf '%s' "$SIDECAR_JSON" | jq -r '.out_total // 0' 2>/dev/null); case "$base_out" in ''|*[!0-9]*) base_out=0 ;; esac
   base_cr=$(printf '%s' "$SIDECAR_JSON" | jq -r '.cache_read_total // 0' 2>/dev/null); case "$base_cr" in ''|*[!0-9]*) base_cr=0 ;; esac
   base_cc=$(printf '%s' "$SIDECAR_JSON" | jq -r '.cache_creation_total // 0' 2>/dev/null); case "$base_cc" in ''|*[!0-9]*) base_cc=0 ;; esac
   base_fb=$(printf '%s' "$SIDECAR_JSON" | jq -r '.subagent_fallback_tokens // 0' 2>/dev/null); case "$base_fb" in ''|*[!0-9]*) base_fb=0 ;; esac
+  last_id=$(printf '%s' "$SIDECAR_JSON" | jq -r '.last_msg_id // ""' 2>/dev/null) || last_id=""
+  last_out=$(printf '%s' "$SIDECAR_JSON" | jq -r '.last_msg_out // 0' 2>/dev/null); case "$last_out" in ''|*[!0-9]*) last_out=0 ;; esac
 
-  local d_in=0 d_out=0 d_cr=0 d_cc=0
+  local d_in=0 d_out=0 d_cr=0 d_cc=0 dmodels='{}' new_last_id="$last_id" new_last_out="$last_out" sl_id
   if [ -n "$newdata" ]; then
-    usage=$(printf '%s' "$newdata" | _sum_assistant_usage_stdin) || usage="0 0 0 0"
-    read -r d_in d_out d_cr d_cc <<<"$usage"
+    if scan=$(printf '%s' "$newdata" | _scan_usage_stdin "$last_id" "$last_out"); then
+      d_in=$(printf '%s' "$scan" | jq -r '.in // 0' 2>/dev/null); case "$d_in" in ''|*[!0-9]*) d_in=0 ;; esac
+      d_out=$(printf '%s' "$scan" | jq -r '.out // 0' 2>/dev/null); case "$d_out" in ''|*[!0-9]*) d_out=0 ;; esac
+      d_cr=$(printf '%s' "$scan" | jq -r '.cr // 0' 2>/dev/null); case "$d_cr" in ''|*[!0-9]*) d_cr=0 ;; esac
+      d_cc=$(printf '%s' "$scan" | jq -r '.cc // 0' 2>/dev/null); case "$d_cc" in ''|*[!0-9]*) d_cc=0 ;; esac
+      dmodels=$(printf '%s' "$scan" | jq -c '.models // {}' 2>/dev/null) || dmodels='{}'
+      sl_id=$(printf '%s' "$scan" | jq -r '.last_id // ""' 2>/dev/null) || sl_id=""
+      if [ -n "$sl_id" ]; then
+        new_last_id="$sl_id"
+        new_last_out=$(printf '%s' "$scan" | jq -r '.last_out // 0' 2>/dev/null); case "$new_last_out" in ''|*[!0-9]*) new_last_out=0 ;; esac
+      fi
+    fi
   fi
 
   IN_TOTAL=$(( base_in + d_in ))
@@ -238,10 +335,19 @@ _transcript_tail_pass() {  # path -> mutates SIDECAR_JSON + sets *_TOTAL globals
   SUBAGENT_FALLBACK_TOTAL="$base_fb"
 
   SIDECAR_JSON=$(printf '%s' "$SIDECAR_JSON" | jq \
-    --argjson offset "$size" --argjson in "$IN_TOTAL" --argjson out "$OUT_TOTAL" \
+    --argjson offset "$adv" --argjson in "$IN_TOTAL" --argjson out "$OUT_TOTAL" \
     --argjson cr "$CACHE_READ_TOTAL" --argjson cc "$CACHE_CREATION_TOTAL" \
+    --argjson dm "$dmodels" --arg lid "$new_last_id" --argjson lout "$new_last_out" \
     '.transcript_offset = $offset | .in_total = $in | .out_total = $out
      | .cache_read_total = $cr | .cache_creation_total = $cc
+     | .last_msg_id = $lid | .last_msg_out = $lout
+     | .models = (reduce ($dm | to_entries[]) as $e ((.models // {});
+         .[$e.key] = { in:    ((.[$e.key].in    // 0) + ($e.value.in    // 0)),
+                       out:   ((.[$e.key].out   // 0) + ($e.value.out   // 0)),
+                       cr:    ((.[$e.key].cr    // 0) + ($e.value.cr    // 0)),
+                       cc:    ((.[$e.key].cc    // 0) + ($e.value.cc    // 0)),
+                       cc_5m: ((.[$e.key].cc_5m // 0) + ($e.value.cc_5m // 0)),
+                       cc_1h: ((.[$e.key].cc_1h // 0) + ($e.value.cc_1h // 0)) }))
      | .subagents = (.subagents // {}) | .subagent_fallback_tokens = (.subagent_fallback_tokens // 0)' \
     2>/dev/null) || return 1
   [ -n "$SIDECAR_JSON" ] || return 1
@@ -252,47 +358,123 @@ _transcript_tail_pass() {  # path -> mutates SIDECAR_JSON + sets *_TOTAL globals
     if [ -n "$completions" ]; then
       while IFS= read -r line; do
         [ -z "$line" ] && continue
-        local aid ftok already sub_in=0 sub_out=0 sub_cr=0 sub_cc=0 counted=0 sub_usage subfile
+        local aid ftok rmodel already sub_scan subfile
         aid=$(printf '%s' "$line" | jq -r '.agent_id // empty' 2>/dev/null)
         [ -z "$aid" ] && continue
         already=$(printf '%s' "$SIDECAR_JSON" | jq -r --arg t "$aid" '.subagents[$t].done // false' 2>/dev/null)
         [ "$already" = "true" ] && continue
         ftok=$(printf '%s' "$line" | jq -r '.fallback_tokens // empty' 2>/dev/null)
+        case "$ftok" in ''|*[!0-9]*) ftok=0 ;; esac
+        rmodel=$(printf '%s' "$line" | jq -r '.resolved_model // empty' 2>/dev/null) || rmodel=""
 
         subfile="$(dirname "$path")/subagents/agent-${aid}.jsonl"
-        if [ -r "$subfile" ] && sub_usage=$(_sum_assistant_usage_stdin < "$subfile" 2>/dev/null); then
-          read -r sub_in sub_out sub_cr sub_cc <<<"$sub_usage"
-          counted=1
+        if [ -r "$subfile" ] && sub_scan=$(_scan_usage_stdin "" 0 < "$subfile" 2>/dev/null); then
+          SIDECAR_JSON=$(printf '%s' "$SIDECAR_JSON" | jq --arg t "$aid" --argjson s "$sub_scan" \
+            '.subagents[$t] = {in: ($s.in // 0), out: ($s.out // 0), cache_read: ($s.cr // 0),
+                               cache_creation: ($s.cc // 0), models: ($s.models // {}), done: true}' 2>/dev/null) || continue
+        else
+          # Transcript file not readable yet: record a pending entry with the
+          # completion record's lump as a flagged ESTIMATE (final-turn-only,
+          # undercounts real usage 14-28x) and retry the file on every
+          # subsequent render. Never folded into the confirmed sums.
+          SIDECAR_JSON=$(printf '%s' "$SIDECAR_JSON" | jq --arg t "$aid" --argjson fb "$ftok" --arg m "$rmodel" \
+            '.subagents[$t] = {pending: true, fallback_estimate: $fb,
+                               model: (if $m == "" then null else $m end), done: false}' 2>/dev/null) || continue
         fi
-
-        if [ "$counted" -eq 1 ]; then
-          SIDECAR_JSON=$(printf '%s' "$SIDECAR_JSON" | jq --arg t "$aid" --argjson i "$sub_in" --argjson o "$sub_out" \
-            --argjson cr "$sub_cr" --argjson cc "$sub_cc" \
-            '.subagents[$t] = {in: $i, out: $o, cache_read: $cr, cache_creation: $cc, done: true}' 2>/dev/null) || continue
-        elif [ -n "$ftok" ]; then
-          case "$ftok" in ''|*[!0-9]*) ftok=0 ;; esac
-          SUBAGENT_FALLBACK_TOTAL=$(( SUBAGENT_FALLBACK_TOTAL + ftok ))
-          SIDECAR_JSON=$(printf '%s' "$SIDECAR_JSON" | jq --arg t "$aid" --argjson fb "$SUBAGENT_FALLBACK_TOTAL" \
-            '.subagents[$t] = {in: 0, out: 0, done: true} | .subagent_fallback_tokens = $fb' 2>/dev/null) || continue
-        fi
-        # else: neither the subagent transcript file nor a fallback <usage>
-        # token count is available. Leave this agent id unmarked rather than
-        # fabricating a zero count; the completion record only appears once
-        # in the incremental newdata window so it will not be retried later.
       done <<<"$completions"
     fi
   fi
 
-  SUBAGENT_IN_TOTAL=$(printf '%s' "$SIDECAR_JSON" | jq -r '[.subagents[]?.in // 0] | add // 0' 2>/dev/null)
-  SUBAGENT_OUT_TOTAL=$(printf '%s' "$SIDECAR_JSON" | jq -r '[.subagents[]?.out // 0] | add // 0' 2>/dev/null)
-  SUBAGENT_CR_TOTAL=$(printf '%s' "$SIDECAR_JSON" | jq -r '[.subagents[]?.cache_read // 0] | add // 0' 2>/dev/null)
-  SUBAGENT_CC_TOTAL=$(printf '%s' "$SIDECAR_JSON" | jq -r '[.subagents[]?.cache_creation // 0] | add // 0' 2>/dev/null)
+  # Pending retry: runs every render (with or without new transcript bytes) —
+  # a subagent transcript that raced the completion record usually lands
+  # within the next render or two.
+  local pend_ids pid p_scan p_file
+  pend_ids=$(printf '%s' "$SIDECAR_JSON" | jq -r '(.subagents // {}) | to_entries[] | select(.value.pending == true) | .key' 2>/dev/null) || pend_ids=""
+  if [ -n "$pend_ids" ]; then
+    while IFS= read -r pid; do
+      [ -z "$pid" ] && continue
+      p_file="$(dirname "$path")/subagents/agent-${pid}.jsonl"
+      [ -r "$p_file" ] || continue
+      p_scan=$(_scan_usage_stdin "" 0 < "$p_file" 2>/dev/null) || continue
+      SIDECAR_JSON=$(printf '%s' "$SIDECAR_JSON" | jq --arg t "$pid" --argjson s "$p_scan" \
+        '.subagents[$t] = {in: ($s.in // 0), out: ($s.out // 0), cache_read: ($s.cr // 0),
+                           cache_creation: ($s.cc // 0), models: ($s.models // {}), done: true}' 2>/dev/null) || continue
+    done <<<"$pend_ids"
+  fi
+
+  # Confirmed sums come from done entries only; pending estimates aggregate
+  # separately so the display can flag them as approximate.
+  SUBAGENT_IN_TOTAL=$(printf '%s' "$SIDECAR_JSON" | jq -r '[.subagents[]? | select(.done == true) | .in // 0] | add // 0' 2>/dev/null)
+  SUBAGENT_OUT_TOTAL=$(printf '%s' "$SIDECAR_JSON" | jq -r '[.subagents[]? | select(.done == true) | .out // 0] | add // 0' 2>/dev/null)
+  SUBAGENT_CR_TOTAL=$(printf '%s' "$SIDECAR_JSON" | jq -r '[.subagents[]? | select(.done == true) | .cache_read // 0] | add // 0' 2>/dev/null)
+  SUBAGENT_CC_TOTAL=$(printf '%s' "$SIDECAR_JSON" | jq -r '[.subagents[]? | select(.done == true) | .cache_creation // 0] | add // 0' 2>/dev/null)
+  PENDING_EST_TOTAL=$(printf '%s' "$SIDECAR_JSON" | jq -r '[.subagents[]? | select(.pending == true) | .fallback_estimate // 0] | add // 0' 2>/dev/null)
+  PENDING_COUNT=$(printf '%s' "$SIDECAR_JSON" | jq -r '[.subagents[]? | select(.pending == true)] | length' 2>/dev/null)
   case "$SUBAGENT_IN_TOTAL" in ''|*[!0-9]*) SUBAGENT_IN_TOTAL=0 ;; esac
   case "$SUBAGENT_OUT_TOTAL" in ''|*[!0-9]*) SUBAGENT_OUT_TOTAL=0 ;; esac
   case "$SUBAGENT_CR_TOTAL" in ''|*[!0-9]*) SUBAGENT_CR_TOTAL=0 ;; esac
   case "$SUBAGENT_CC_TOTAL" in ''|*[!0-9]*) SUBAGENT_CC_TOTAL=0 ;; esac
+  case "$PENDING_EST_TOTAL" in ''|*[!0-9]*) PENDING_EST_TOTAL=0 ;; esac
+  case "$PENDING_COUNT" in ''|*[!0-9]*) PENDING_COUNT=0 ;; esac
   return 0
 }
+
+# ── --recompute-all: one-shot full rebuild of every local sidecar ──────────
+# Iterates every top-level main transcript under ~/.claude/projects/*/ (only
+# main sessions live at that level — subagent transcripts always sit under a
+# parent session's subagents/ dir and never get their own sidecar). For each:
+# full-file dedup scan of the main thread + every subagents/agent-*.jsonl
+# sibling (direct glob — more robust than completion-record parsing, and a
+# full local rescan can always read the files, so no pending entries remain),
+# then rebuild the sidecar's token fields wholesale. Duration-fold keys from
+# an existing sidecar are preserved; the byte cursor is set past the last
+# complete line so future incremental passes start from a correct baseline.
+_recompute_all() {
+  local sess sid sidecar existing scan size adv subs sub aid subscan sdir new count=0
+  mkdir -p "$SIDECAR_DIR" 2>/dev/null || true
+  for sess in "$HOME"/.claude/projects/*/*.jsonl; do
+    [ -f "$sess" ] || continue
+    sid=$(basename "$sess" .jsonl)
+    sidecar="${SIDECAR_DIR}/${sid}.json"
+    existing='{}'
+    if [ -f "$sidecar" ]; then
+      existing=$(cat "$sidecar" 2>/dev/null) || existing='{}'
+      printf '%s' "$existing" | jq -e . >/dev/null 2>&1 || existing='{}'
+    fi
+    scan=$(_scan_usage_stdin "" 0 < "$sess" 2>/dev/null) || { echo "skip  $sid (main scan failed)"; continue; }
+    size=$(wc -c < "$sess" 2>/dev/null | tr -d ' '); case "$size" in ''|*[!0-9]*) size=0 ;; esac
+    adv=$(_complete_bytes_end "$sess" 0); case "$adv" in ''|*[!0-9]*) adv="$size" ;; esac
+    subs='{}'
+    sdir="$(dirname "$sess")/${sid}/subagents"
+    if [ -d "$sdir" ]; then
+      for sub in "$sdir"/agent-*.jsonl; do
+        [ -f "$sub" ] || continue
+        aid=$(basename "$sub" .jsonl); aid=${aid#agent-}
+        subscan=$(_scan_usage_stdin "" 0 < "$sub" 2>/dev/null) || continue
+        subs=$(printf '%s' "$subs" | jq -c --arg t "$aid" --argjson s "$subscan" \
+          '.[$t] = {in: ($s.in // 0), out: ($s.out // 0), cache_read: ($s.cr // 0),
+                    cache_creation: ($s.cc // 0), models: ($s.models // {}), done: true}' 2>/dev/null) || continue
+      done
+    fi
+    new=$(printf '%s' "$existing" | jq -c --argjson s "$scan" --argjson subs "$subs" --argjson off "$adv" '
+      . + {transcript_offset: $off, in_total: ($s.in // 0), out_total: ($s.out // 0),
+           cache_read_total: ($s.cr // 0), cache_creation_total: ($s.cc // 0),
+           models: ($s.models // {}), last_msg_id: ($s.last_id // ""), last_msg_out: ($s.last_out // 0),
+           subagents: $subs, subagent_fallback_tokens: 0}' 2>/dev/null) || { echo "skip  $sid (merge failed)"; continue; }
+    if _sidecar_save "$sidecar" "$new"; then
+      count=$((count+1))
+      echo "rebuilt $sid: in=$(printf '%s' "$scan" | jq -r '.in') out=$(printf '%s' "$scan" | jq -r '.out') cr=$(printf '%s' "$scan" | jq -r '.cr') cc=$(printf '%s' "$scan" | jq -r '.cc') subagents=$(printf '%s' "$subs" | jq -r 'length')"
+    else
+      echo "skip  $sid (sidecar write failed)"
+    fi
+  done
+  echo "recomputed ${count} sidecar(s) into ${SIDECAR_DIR}"
+}
+if [ "$FURAIDE_SL_MODE" = "recompute" ]; then
+  command -v jq >/dev/null 2>&1 || { echo "error: --recompute-all requires jq" >&2; exit 1; }
+  _recompute_all
+  exit 0
+fi
 
 RAW_DURATION_MS=$(_jq_int '.cost.total_duration_ms')
 RAW_API_MS=$(_jq_int '.cost.total_api_duration_ms')
@@ -322,6 +504,7 @@ TRANSCRIPT_PATH=$(_jq '.transcript_path')
 IN_TOTAL=0; OUT_TOTAL=0; CACHE_READ_TOTAL=0; CACHE_CREATION_TOTAL=0
 SUBAGENT_IN_TOTAL=0; SUBAGENT_OUT_TOTAL=0; SUBAGENT_FALLBACK_TOTAL=0
 SUBAGENT_CR_TOTAL=0; SUBAGENT_CC_TOTAL=0
+PENDING_EST_TOTAL=0; PENDING_COUNT=0
 TAIL_OK=0
 if command -v jq >/dev/null 2>&1 && [ -n "$SESSION_ID" ] \
    && [ -n "$TRANSCRIPT_PATH" ] && [ -r "$TRANSCRIPT_PATH" ]; then
@@ -363,7 +546,8 @@ _lr() {  # left right [pre-ll] [pre-rl] -> outer-pinned line with truncation
 # ── Line 1 LEFT: model │ effort │ 🕐 dur (📡api%) ──────────────────────────
 MODEL=$(_jq '.model.display_name'); [ -z "$MODEL" ] && MODEL="?"
 case "$MODEL" in
-  *Opus*)   MC="$MAG" ;; *Sonnet*) MC="$BLU" ;; *Haiku*) MC="$GRN" ;; *) MC="$BOLD" ;;
+  *Opus*)   MC="$MAG" ;; *Sonnet*) MC="$BLU" ;; *Haiku*) MC="$GRN" ;;
+  *Fable*|*Mythos*) MC="$ORANGE" ;; *) MC="$BOLD" ;;
 esac
 case "$GLYPHS" in emoji) MG="🧠 " ;; nerd) MG=$' ' ;; *) MG="" ;; esac
 L1L="${BOLD}${MC}${MG}${MODEL}${RST}"
@@ -384,50 +568,14 @@ if [ "$DURATION_MS" -ge 60000 ]; then
   fi
 fi
 
-# ── Line 1 RIGHT: ↑inΣ⚡r%/↓outΣ [⑂in/out%] │ CTX: [bar] cur/win/+turn ──
-# Token totals: prefer Task 8.2's transcript tail-pass sums (whole-session);
-# fall back to the payload's own context_window fields when the tail pass
-# didn't run (missing/unreadable transcript, no jq, etc — fail-open).
-DISPLAY_IN="$IN_TOTAL"; DISPLAY_OUT="$OUT_TOTAL"
-DISPLAY_CR="$CACHE_READ_TOTAL"; DISPLAY_CC="$CACHE_CREATION_TOTAL"
-SUB_IN_EFF=$(( SUBAGENT_IN_TOTAL + SUBAGENT_FALLBACK_TOTAL ))
-DISPLAY_SUB_OUT="$SUBAGENT_OUT_TOTAL"
-DISPLAY_SUB_CR="$SUBAGENT_CR_TOTAL"; DISPLAY_SUB_CC="$SUBAGENT_CC_TOTAL"
-if [ "$TAIL_OK" -ne 1 ]; then
-  DISPLAY_IN=$(_jq_int '.context_window.total_input_tokens')
-  DISPLAY_OUT=$(_jq_int '.context_window.total_output_tokens')
-  DISPLAY_CR=$(_jq_int '.context_window.current_usage.cache_read_input_tokens')
-  DISPLAY_CC=0
-  SUB_IN_EFF=0; DISPLAY_SUB_OUT=0; DISPLAY_SUB_CR=0; DISPLAY_SUB_CC=0
-fi
-GRAND_TOTAL_IN=$(( DISPLAY_IN + DISPLAY_CR + DISPLAY_CC + SUB_IN_EFF + DISPLAY_SUB_CR + DISPLAY_SUB_CC ))
-GRAND_TOTAL_OUT=$(( DISPLAY_OUT + DISPLAY_SUB_OUT ))
-IN_STR="${GRN}↑$(_human "$GRAND_TOTAL_IN")${RST}"
-READ_TOTAL=$(( DISPLAY_CR + DISPLAY_SUB_CR ))
-if [ "$GRAND_TOTAL_IN" -gt 0 ] && [ "$READ_TOTAL" -gt 0 ]; then
-  READ_PCT=$(( READ_TOTAL * 100 / GRAND_TOTAL_IN ))
-  IN_STR="${IN_STR} ${DIM}⚡${READ_PCT}%${RST}"
-fi
-OUT_STR="${BLU}↓$(_human "$GRAND_TOTAL_OUT")${RST}"
-TOK="${IN_STR} ${DIM}/${RST}${OUT_STR}"
-
-# Subagent share: real per-task sums (SUBAGENT_IN_TOTAL/SUBAGENT_OUT_TOTAL)
-# plus SUBAGENT_FALLBACK_TOTAL folded in as best-effort (the fallback lump has
-# no in/out split, so it is conservatively counted against the input side).
-# Omit the whole segment when there is no subagent activity at all.
-SUB_OUT_EFF="$SUBAGENT_OUT_TOTAL"
-SUB_SEG=""
-if [ "$SUB_IN_EFF" -gt 0 ] || [ "$SUB_OUT_EFF" -gt 0 ]; then
-  IN_SHARE=0
-  [ "$GRAND_TOTAL_IN" -gt 0 ] && IN_SHARE=$(( SUB_IN_EFF * 100 / GRAND_TOTAL_IN ))
-  OUT_SHARE=0
-  [ "$GRAND_TOTAL_OUT" -gt 0 ] && OUT_SHARE=$(( SUB_OUT_EFF * 100 / GRAND_TOTAL_OUT ))
-  SUB_SEG=" ${DIM}[⑂${IN_SHARE}%/${OUT_SHARE}%]${RST}"
-fi
-
-# CTX: window-aware ramp tiers (>300K tier: 20/50; <=300K tier: 50/75).
-WIN=$(_jq_int '.context_window.context_window_size')
-CTX_PCT_RAW=$(_jq '.context_window.used_percentage')
+# ── Line 1 RIGHT: ↑inΣ⚡r% /↓outΣ[turn] [⫂ subin/subout] ~est(n) │ CTX: [bar] cur/win ──
+# Token totals: prefer the transcript tail-pass sums (whole-session, deduped
+# by message.id); fall back to the payload's own context_window fields when
+# the tail pass didn't run (missing/unreadable transcript, no jq — fail-open).
+# current_usage is read first because its output_tokens feeds the [turn]
+# bracket on the ↓ figure. Documented quirk: current_usage can be null before
+# the first response or right after /compact — CUR then falls back to the
+# session-total input field and the [turn] bracket is omitted.
 CU_PRESENT=$(_jq '.context_window.current_usage')
 if [ -n "$CU_PRESENT" ] && [ "$CU_PRESENT" != "null" ]; then
   CUR_IN=$(_jq_int '.context_window.current_usage.input_tokens')
@@ -438,11 +586,60 @@ if [ -n "$CU_PRESENT" ] && [ "$CU_PRESENT" != "null" ]; then
   TURN_OUT="$CUR_OUT_T"
   HAVE_TURN_OUT=1
 else
-  # documented quirk: current_usage can be null before the first response or
-  # right after /compact — fall back to the session-total input field.
   CUR=$(_jq_int '.context_window.total_input_tokens')
+  TURN_OUT=0
   HAVE_TURN_OUT=0
 fi
+
+DISPLAY_IN="$IN_TOTAL"; DISPLAY_OUT="$OUT_TOTAL"
+DISPLAY_CR="$CACHE_READ_TOTAL"; DISPLAY_CC="$CACHE_CREATION_TOTAL"
+if [ "$TAIL_OK" -ne 1 ]; then
+  DISPLAY_IN=$(_jq_int '.context_window.total_input_tokens')
+  DISPLAY_OUT=$(_jq_int '.context_window.total_output_tokens')
+  DISPLAY_CR=$(_jq_int '.context_window.current_usage.cache_read_input_tokens')
+  DISPLAY_CC=0
+  SUBAGENT_IN_TOTAL=0; SUBAGENT_OUT_TOTAL=0; SUBAGENT_CR_TOTAL=0; SUBAGENT_CC_TOTAL=0
+  SUBAGENT_FALLBACK_TOTAL=0; PENDING_EST_TOTAL=0; PENDING_COUNT=0
+fi
+# The subagent "in" figure folds its own cache reads/writes (mirroring how
+# the grand ↑ figure folds the main thread's) plus the legacy fallback lump
+# from pre-pending sidecars. Pending estimates stay out of confirmed sums.
+SUB_IN_EFF=$(( SUBAGENT_IN_TOTAL + SUBAGENT_CR_TOTAL + SUBAGENT_CC_TOTAL + SUBAGENT_FALLBACK_TOTAL ))
+SUB_OUT_EFF="$SUBAGENT_OUT_TOTAL"
+GRAND_TOTAL_IN=$(( DISPLAY_IN + DISPLAY_CR + DISPLAY_CC + SUB_IN_EFF ))
+GRAND_TOTAL_OUT=$(( DISPLAY_OUT + SUB_OUT_EFF ))
+# Token glyphs honor STATUSLINE_GLYPHS: emoji (default) keeps the compact
+# unicode set; nerd swaps the subagent glyph for the git-branch icon; text
+# degrades to pure-ASCII labels.
+case "$GLYPHS" in
+  text) TG_IN="in:"; TG_CACHE=" cache:"; TG_OUT="out:"; TG_SUB="sub " ;;
+  nerd) TG_IN="↑"; TG_CACHE="⚡"; TG_OUT="↓"; TG_SUB=$' ' ;;
+  *)    TG_IN="↑"; TG_CACHE="⚡"; TG_OUT="↓"; TG_SUB="⫂ " ;;
+esac
+IN_STR="${GRN}${TG_IN}$(_human "$GRAND_TOTAL_IN")${RST}"
+READ_TOTAL=$(( DISPLAY_CR + SUBAGENT_CR_TOTAL ))
+if [ "$GRAND_TOTAL_IN" -gt 0 ] && [ "$READ_TOTAL" -gt 0 ]; then
+  READ_PCT=$(( READ_TOTAL * 100 / GRAND_TOTAL_IN ))
+  IN_STR+="${DIM}${TG_CACHE}${READ_PCT}%${RST}"
+fi
+OUT_STR="${BLU}${TG_OUT}$(_human "$GRAND_TOTAL_OUT")${RST}"
+[ "$HAVE_TURN_OUT" -eq 1 ] && OUT_STR+="${DIM}[$(_human "$TURN_OUT")]${RST}"
+TOK="${IN_STR} ${DIM}/${RST}${OUT_STR}"
+
+# Subagent segment: confirmed raw counts as [⫂ in/out]; any still-pending
+# (transcript-not-yet-readable) subagents render separately as ~est(n) so an
+# estimate never blends into the confirmed figures. Omit both when idle.
+SUB_SEG=""
+if [ "$SUB_IN_EFF" -gt 0 ] || [ "$SUB_OUT_EFF" -gt 0 ]; then
+  SUB_SEG=" ${DIM}[${TG_SUB}$(_human "$SUB_IN_EFF")/$(_human "$SUB_OUT_EFF")]${RST}"
+fi
+if [ "${PENDING_COUNT:-0}" -gt 0 ]; then
+  SUB_SEG+=" ${DIM}~$(_human "$PENDING_EST_TOTAL")(${PENDING_COUNT})${RST}"
+fi
+
+# CTX: window-aware ramp tiers (>300K tier: 20/50; <=300K tier: 50/75).
+WIN=$(_jq_int '.context_window.context_window_size')
+CTX_PCT_RAW=$(_jq '.context_window.used_percentage')
 if [ -n "$CTX_PCT_RAW" ]; then
   CTX_PCT=$(printf '%s' "$CTX_PCT_RAW" | cut -d. -f1)
 elif [ "$WIN" -gt 0 ]; then
@@ -453,9 +650,7 @@ fi
 if [ "$WIN" -gt 300000 ]; then CTXC=$(_ramp "$CTX_PCT" 20 50)
 else CTXC=$(_ramp "$CTX_PCT" 50 75)
 fi
-CTX_SEG="${DIM}CTX:${RST} ${CTXC}[$(_bar "$CTX_PCT" 10)]${RST} ${DIM}$(_human "$CUR")/$(_human "$WIN")"
-[ "$HAVE_TURN_OUT" -eq 1 ] && CTX_SEG+="/+$(_human "$TURN_OUT")"
-CTX_SEG+="${RST}"
+CTX_SEG="${DIM}CTX:${RST} ${CTXC}[$(_bar "$CTX_PCT" 10)]${RST} ${DIM}$(_human "$CUR")/$(_human "$WIN")${RST}"
 
 L1R="${TOK}${SUB_SEG} ${DIM}│${RST} ${CTX_SEG}"
 
@@ -470,17 +665,61 @@ BRANCH=""
 WT=$(_jq '.workspace.git_worktree')
 [ -z "$BRANCH" ] && BRANCH="$WT"
 case "$GLYPHS" in emoji) DG="📁 " ;; nerd) DG=$' ' ;; *) DG="" ;; esac
+case "$GLYPHS" in nerd) BG=$' ' ;; *) BG="" ;; esac  # powerline branch glyph, nerd mode only
 L2L="${DG}${BOLD}${DIR}${RST}"
-[ -n "$BRANCH" ] && L2L+=" ${YLW}(${BRANCH})${RST}"
+[ -n "$BRANCH" ] && L2L+=" ${YLW}(${BG}${BRANCH})${RST}"
 LINES_ADD=$(_jq_int '.cost.total_lines_added')
 LINES_REM=$(_jq_int '.cost.total_lines_removed')
 if [ "$LINES_ADD" -gt 0 ] || [ "$LINES_REM" -gt 0 ]; then
   L2L+=" ${DIM}│${RST} ${GRN}+${LINES_ADD}${RST}/${RED}-${LINES_REM}${RST}"
 fi
 
-# ── Line 2 RIGHT: rate limits (each window independently optional) │ cost ──
+# ── Line 2 RIGHT: rate limits (each window independently optional) │ $: cost [subcost] ──
 COST=$(_jq '.cost.total_cost_usd // empty')
 [ -n "$COST" ] && COST=$(echo "$COST" | awk '{printf "%.2f",$1}')
+# Subagent cost estimate: per-model token buckets × the static pricing table
+# below. No per-call cost exists anywhere in the harness data (total_cost_usd
+# is one session-wide number), so this is a computed ESTIMATE by design — do
+# not try to reconcile it against the harness total.
+# Prices (USD/MTok, input/output) from the official table at
+# platform.claude.com/docs/en/about-claude/pricing, fetched 2026-07-09.
+# Cache multipliers are universal across models: read 0.1x input, 5m write
+# 1.25x input, 1h write 2x input. sonnet-5 is introductory $2/$10 until
+# 2026-08-31, then $3/$15 — bump on cutover. Unknown models deliberately
+# price at sonnet tier ($3/$15) rather than silently costing zero.
+SUB_COST=""
+if [ "$TAIL_OK" -eq 1 ]; then
+  SUB_COST=$(printf '%s' "$SIDECAR_JSON" | jq -r '
+    def price($m):
+      if   ($m | startswith("claude-opus-4-8")) or ($m | startswith("claude-opus-4-7"))
+        or ($m | startswith("claude-opus-4-6")) or ($m | startswith("claude-opus-4-5")) then {i: 5.0,  o: 25.0}
+      elif ($m | startswith("claude-opus-4-1")) or ($m == "claude-opus-4")
+        or ($m | startswith("claude-opus-4-2025"))                                      then {i: 15.0, o: 75.0}
+      elif ($m | startswith("claude-sonnet-5"))                                         then {i: 2.0,  o: 10.0}
+      elif ($m | startswith("claude-sonnet-4"))                                         then {i: 3.0,  o: 15.0}
+      elif ($m | startswith("claude-haiku-4-5"))                                        then {i: 1.0,  o: 5.0}
+      elif ($m | startswith("claude-haiku-3-5"))                                        then {i: 0.8,  o: 4.0}
+      elif ($m | startswith("claude-fable-5")) or ($m | startswith("claude-mythos-5"))  then {i: 10.0, o: 50.0}
+      else {i: 3.0, o: 15.0} end;
+    def bcost($m; $b): (price($m)) as $p
+      | ( ($b.in // 0) * $p.i + ($b.out // 0) * $p.o
+          + ($b.cr // $b.cache_read // 0) * $p.i * 0.1
+          + (if (($b.cc_5m? // null) != null) or (($b.cc_1h? // null) != null)
+             then (($b.cc_5m // 0) * $p.i * 1.25 + ($b.cc_1h // 0) * $p.i * 2)
+             else (($b.cc // $b.cache_creation // 0) * $p.i * 1.25) end) ) / 1000000;
+    ([ (.subagents // {}) | to_entries[] | .value
+       | if .done == true then
+           (if ((.models? // null) != null) and ((.models | length) > 0)
+            then ([.models | to_entries[] | bcost(.key; .value)] | add // 0)
+            else bcost("unknown"; {in: (.in // 0), out: (.out // 0),
+                                   cache_read: (.cache_read // 0), cache_creation: (.cache_creation // 0)}) end)
+         elif .pending == true then ((.fallback_estimate // 0) * (price(.model // "unknown").i) / 1000000)
+         else 0 end
+     ] | add // 0) + ((.subagent_fallback_tokens // 0) * (price("unknown").i) / 1000000)
+    | if . > 0 then tostring else empty end
+  ' 2>/dev/null) || SUB_COST=""
+  [ -n "$SUB_COST" ] && SUB_COST=$(printf '%s' "$SUB_COST" | awk '{printf "%.2f",$1}')
+fi
 R5_RAW=$(_jq '.rate_limits.five_hour.used_percentage')
 R7_RAW=$(_jq '.rate_limits.seven_day.used_percentage')
 L2R=""
@@ -497,8 +736,18 @@ if [ -n "$R7_RAW" ]; then
   [ -n "$L2R" ] && L2R+=" ${DIM}│${RST} "
   L2R+="${DIM}1wk:${RST} ${R7C}${R7}%${RST}"; [ -n "$T7" ] && L2R+=" (${T7})"
 fi
+# Cost magnitude ramp (total only; the [sub] estimate stays dim):
+# dim < $5 <= yellow < $25 <= orange < $50 <= red.
+COST_C="$DIM"
+COST_INT=$(printf '%s' "${COST:-0}" | cut -d. -f1)
+case "$COST_INT" in ''|*[!0-9]*) COST_INT=0 ;; esac
+if   [ "$COST_INT" -ge 50 ]; then COST_C="$RED"
+elif [ "$COST_INT" -ge 25 ]; then COST_C="$ORANGE"
+elif [ "$COST_INT" -ge 5 ];  then COST_C="$YLW"
+fi
 [ -n "$L2R" ] && L2R+=" ${DIM}│${RST} "
-L2R+="${DIM}\$:${RST} ${COST:-0.00}"
+L2R+="${DIM}\$:${RST} ${COST_C}${COST:-0.00}${RST}"
+[ -n "$SUB_COST" ] && L2R+=" ${DIM}[${SUB_COST}]${RST}"
 
 # ── Batch width computation → render both lines ────────────────────────────
 read -r _w1l _w1r _w2l _w2r < <(

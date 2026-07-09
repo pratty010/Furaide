@@ -31,10 +31,8 @@ Three files worth reading:
 | `graphify-out/graph.json` | Full queryable graph, used by `graphify query` |
 | `graphify-out/graph.html` | Interactive visual, open in any browser |
 
-**Note (2026-07-03):** `graphify-out/` was generated against a different branch (`dev`) and is currently
-stale for this branch's actual file tree — it references at least one plugin (`rejion`) that does not exist here.
-Treat it as historical/reference only until it's regenerated; verify anything it claims against the real source
-tree first.
+**Note:** `graphify-out/` may lag behind the active branch. For the most up-to-date architecture,
+verify claims against the real source tree first.
 
 Copy any of these into your Claude Code or OpenCode session:
 
@@ -196,7 +194,7 @@ Installs `bx`, `html-preview`, `brave-search`, and `plan` across all ecosystems.
 ## 🗺️ Roadmap
 
 - **`harnesses/opencode/tools/opencode-all/`**: shipped standalone session dashboard companion tool
-- **`web-tools v0.1`**: planning-stage native OpenCode web tools plugin (search/fetch/maps with provider fallback and budgets)
+- **`web-tools v0.1`**: shipped native OpenCode plugin exposing web_search, fetch_content, and maps_search (see harnesses/opencode/README.md)
 - **Brand Builder / Kitsune**: opt-in profile/portfolio optimization domain, still in development and intentionally excluded from the default fleet install; assets parked at `harnesses/opencode/future-work/`
 
 ---
