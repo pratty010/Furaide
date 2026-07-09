@@ -70,7 +70,8 @@ fi
 _assert_contains "fresh: model name renders" "$OUT1" "Sonnet"
 _assert_not_contains "fresh: no literal 'null' leaks into output" "$(printf '%s' "$OUT1" | _strip_ansi)" "null"
 _assert_not_contains "fresh: no +null turn-out suffix" "$OUT1" "+null"
-_assert_not_contains "fresh: no subagent share segment (no subagent activity)" "$OUT1" "[⑂"
+_assert_not_contains "fresh: no subagent share segment, old glyph (no subagent activity)" "$OUT1" "[⑂"
+_assert_not_contains "fresh: no subagent share segment, new glyph (no subagent activity)" "$OUT1" "[⫂"
 _assert_contains "fresh: rate-limit segment absent, cost still renders" "$(printf '%s' "$OUT1" | _strip_ansi)" '$: 0.00'
 _assert_not_contains "fresh: no 5hr segment when rate_limits absent" "$OUT1" "5hr:"
 _assert_not_contains "fresh: no 1wk segment when rate_limits absent" "$OUT1" "1wk:"

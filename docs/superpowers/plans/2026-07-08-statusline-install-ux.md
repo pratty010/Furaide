@@ -3243,3 +3243,51 @@ Expected: no output (everything committed phase-by-phase already; this step is a
 Skip unless explicitly requested — this plan does not assume tagging conventions beyond what `hanko--git-seal`'s `Skill(github)` recipes already cover.
 
 **Phase 9 checkpoint — plan complete.** Statusline shows correct, bounded values. All three harness installers share one predictable UX: top-level picker, CWD walk-up scope, dual bun/npm, in-target backups, back-navigable wizards, receipt-driven uninstalls, and one shared `~/.agents/skills/` pool. Documentation refresh (README/CLAUDE.md/AGENTS.md content updates) is the next plan, written after this one ships.
+
+---
+
+# Addendum (2026-07-09): Token/cost accuracy — verification findings & fix spec
+
+> Post-ship review of the statusline shipped above found two deeper accounting bugs plus a new cost-breakdown requirement. Investigated and independently verified against real local session transcripts on 2026-07-09. Implemented on branch `feat/statusline-token-accuracy`.
+
+## Verified findings
+
+### F1 — Naive per-line summation overcounts all token totals 2-4x (ship-blocker class)
+
+Claude Code writes **one JSONL line per content block** (thinking/text/tool_use) of a single API response; each line repeats that response's full `message.usage` snapshot. `_sum_assistant_usage_stdin` summed every `type:"assistant"` line with no dedup by `message.id`, so every `↑`/`↓`/`⚡read%`/subagent figure shown was inflated.
+
+Measured (real transcripts, two independent passes on disjoint session sets):
+- Session `e2cfd0af`: naive 429,753,750 vs deduped 215,287,588 (2.00×)
+- Session `773c7510` (independent verification, never used in the first pass): input 596,434→198,141 (3.01×), output 2,069,900→874,963 (2.37×), cache_read 94.5M→40.8M, cache_creation 6.6M→2.6M
+
+Dedup invariants, verified with **zero violations** across 755 + 373 unique message ids (incl. 265 multi-line ids in the verification session, plus subagent files checked separately):
+- `input_tokens`, `cache_read_input_tokens`, `cache_creation_input_tokens` are byte-identical across every line sharing a `message.id` — any occurrence is authoritative.
+- `output_tokens` grows monotonically as blocks stream; the **last** line per id always equals the max. → Correct rule: `group_by(.message.id) | map(.[-1])`.
+- Synthetic rate-limit placeholders (`"model":"<synthetic>"`, non-`msg_` id, all-zero usage) never collide with real ids; harmless for sums, but must be filtered from pricing buckets.
+- A real main transcript with **zero** assistant lines exists (aborted session) — every jq `add` needs a `// 0` guard against `null`.
+
+The existing test fixtures model one line per turn, which is why suites stayed green through this bug.
+
+### F2 — Subagent fallback lump undercounts 14-28x
+
+When a subagent's `subagents/agent-<id>.jsonl` isn't readable at the moment its completion record scrolls through the incremental tail window, the script permanently stores the completion record's `totalTokens` as that agent's total (`done:true`). That field is only the subagent's **final API turn**, not cumulative. Measured: 90,847 stored vs 1,248,760 actual; 152,615 vs 3,430,686; 89,953 vs 2,557,390. Fix: mark `pending` and retry the file read on subsequent renders instead of locking in the lump.
+
+### F3 — Structural invariants (verified, relied upon by the fix)
+
+- Nested subagents (depth 2 confirmed in the wild, 16/136 in one session) write their transcripts as **flat siblings** in the parent session's `subagents/` dir — a flat glob-sum is complete and double-count-free at any depth.
+- Only main sessions get sidecars: all sidecars in `~/.claude/statusline-state/` map to top-level `<id>.jsonl` transcripts; 0 of 366 local subagent agentIds have one; 0 orphan `subagents/` dirs.
+- Resume (`SessionStart:resume`) and `/compact` (`compact_boundary`) are in-line markers in one append-only file — full-file dedup-sum stays valid ground truth across both.
+- Main threads span multiple models per session (`773c7510`: fable-5 + opus-4-8 + sonnet-4-6) and subagent files carry their own per-line `message.model` — per-model bucketing is required and fully derivable from the files.
+- No per-message cost field exists anywhere in any transcript; `cost.total_cost_usd` in the hook payload is the only harness-provided cost figure (session-wide, no breakdown).
+
+## Fix spec (Track A)
+
+- **A1/A2**: dedup-by-`message.id` (last-per-id) in `_sum_assistant_usage_stdin`; emit per-model buckets and 5m/1h cache-creation split (`.message.usage.cache_creation.ephemeral_{5m,1h}_input_tokens`, absent→treat whole `cache_creation_input_tokens` as 5m); `// 0` guards throughout. Same function serves main-thread and subagent sums.
+- **A3**: fold subagent cache tokens into `SUB_IN_EFF` (removes the numerator/denominator asymmetry noted in the Phase 1 design).
+- **A4**: fallback path stores `{pending:true, fallback_estimate, model:<resolvedModel>}` and retries the subagent file read each render; on success replaces with the real deduped sum. Pending estimates are never blended into confirmed sums.
+- **A5**: static pricing table (official rates fetched 2026-07-09): opus-4.5→4.8 $5/$25, opus-4/4.1 $15/$75, sonnet-5 $2/$10 (→$3/$15 after 2026-08-31), sonnet-4→4.6 $3/$15, haiku-4.5 $1/$5, haiku-3.5 $0.80/$4, fable-5/mythos-5 $10/$50, unknown→sonnet-tier $3/$15. Cache multipliers are universal: read 0.1×, 5m write 1.25×, 1h write 2× input price. `SUB_COST` computed per-model per-subagent; displayed as `$: <total_cost_usd> [<SUB_COST>]` (computed estimate, not reconcilable against the harness total by design).
+- **A6**: display format `↑<grand-in>⚡<read%> /↓<grand-out>[<turn-out>] [⫂ <sub-in>/<sub-out>] │ CTX: [bar] cur/win` — turn-output relocated from the CTX `+suffix` into `[...]` after the out-total; subagent bracket switches from percentages to raw counts with a space after the `⫂` glyph; pending estimates appear as a trailing `~Nk(count)` marker outside the confirmed bracket. `⚡read%` stays grand-total-based.
+- **A7**: new fixtures — multi-line-per-id (the F1 regression), done+pending subagent split, pricing spot-checks.
+- **A8**: `--recompute-all` standalone mode — full-file dedup pass over every `~/.claude/projects/*/<session>.jsonl` + its `subagents/*.jsonl`, rebuild every sidecar with correct values and per-model buckets, reset `transcript_offset` to EOF. One-time migration for all existing local sessions.
+
+Out of scope, noted: orphaned `<session>/statusline-state.json` files (retired `last_cost`/`last_delta` schema, nothing reads or writes them); the separate `subagentStatusLine` hook (`tasks[]`/`tokenCount` live payload) as a possible future data source.
