@@ -42,24 +42,24 @@ When you need to modify an external skill, create a patch instead of editing the
 After pulling updated skills, apply patches using:
 
 ```bash
-bun scripts/apply-patches.mjs
+bun harnesses/opencode/scripts/apply-patches.mjs
 ```
 
 ### Modes
 
 - **Default**: Apply all patches, skip any already applied
   ```bash
-  bun scripts/apply-patches.mjs
+  bun harnesses/opencode/scripts/apply-patches.mjs
   ```
 
 - **Dry-run**: List what would be applied without making changes
   ```bash
-  bun scripts/apply-patches.mjs --dry-run
+  bun harnesses/opencode/scripts/apply-patches.mjs --dry-run
   ```
 
 - **Check**: Verify all patches would apply cleanly (exit 1 if any fail)
   ```bash
-  bun scripts/apply-patches.mjs --check
+  bun harnesses/opencode/scripts/apply-patches.mjs --check
   ```
 
 ## Idempotency

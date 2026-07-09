@@ -166,7 +166,7 @@ cp -r harnesses/openclaw/agents/workspace-kinyo harnesses/openclaw/agents/worksp
 
 ---
 
-## 🛡️ GOSHIN v2 security protocol (from workspace-kinyo)
+## 🛡️ GOSHIN v2 security protocol (from workspace-tengan)
 
 GOSHIN v2 is a behavioral security protocol embedded in the `workspace-kinyo` persona. Key principles:
 

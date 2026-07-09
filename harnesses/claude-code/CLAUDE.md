@@ -8,7 +8,7 @@ Two independent Claude Code plugins, plus install-target config, bundled under `
 
 - **Īdisu** (`plugins/idisu/`): capability-analytics shikigami. Hooks capture skill invocations; a Bun/TypeScript CLI (`cli/src/idisu/`) plus a Python package (`cli/src/mekiki/`) run a "dream loop" that consolidates events into a work-style profile and improvement backlog.
 - **Rejion** (`plugins/rejion/`): delegates code review and task execution to `opencode-go`, `opencode` (OpenCode Zen), and `ollama-cloud`, invoked as one-shot `opencode`/`pi` CLI processes (no server, no RPC daemon).
-- **`config/`**: install-target material copied into `~/.claude/` by `scripts/bootstrap.sh` (global `CLAUDE.md`, `settings.json`, statusline, the `hanko--git-seal` subagent definition).
+- **`config/`**: install-target material copied into `~/.claude/` by the installer (global `CLAUDE.md`, `settings.json`, statusline, the `hanko--git-seal` subagent definition).
 
 Both plugins are registered in the repo-root `.claude-plugin/marketplace.json` (source paths `./harnesses/claude-code/plugins/idisu` and `./harnesses/claude-code/plugins/rejion`). That file must stay at the repo root: `/plugin marketplace add owner/repo` only resolves a marketplace there.
 
@@ -18,7 +18,7 @@ Both plugins are registered in the repo-root `.claude-plugin/marketplace.json` (
 - `plugins/idisu/`: Claude Code plugin. Hooks, commands, and manifest, all resolved via `${CLAUDE_PLUGIN_ROOT}`
 - `plugins/rejion/`: Claude Code plugin. One-shot `opencode`/`pi` CLI backend adapters, per-workspace state, seven slash commands
 - `config/`: install-target material. `CLAUDE.md`, `settings.json`, `statusline-command.sh`, `agents/hanko--git-seal.md`
-- `scripts/`: `bootstrap.sh`, `uninstall.sh`
+- Installer scripts: `packages/cli/src/targets/claude-code/install.sh`, `uninstall.sh`
 
 ## Commands
 
@@ -52,21 +52,26 @@ bun run lint               # biome check . (run from plugins/rejion/; a global/n
 ### Installer
 
 ```bash
-bash scripts/bootstrap.sh --help   # --yes, --minimal, --no-config, --with-skills
-bash scripts/uninstall.sh --help   # --dry-run, --purge
+bash packages/cli/src/targets/claude-code/install.sh --help
+bash packages/cli/src/targets/claude-code/uninstall.sh --help
 ```
 
 ## Architecture
 
-### Īdisu: four-phase dream loop
+### Īdisu: 8-stage dream pipeline
 
 ```
-Orient → Gather → Consolidate → Prune
+Orient → Gather → Measure → Judge → Track → Curate → Mine → Consolidate → Prune
 ```
 
 - **Orient**: loads config, manifest, previous state from `~/.idisu/` (or `$IDISU_HOME`)
 - **Gather**: scans harness transcripts through adapters (`ClaudeCodeAdapter` reads `~/.claude/projects/` JSONL, `CodexAdapter` reads `~/.codex/sessions/`, `OpenCodeAdapter` reads a SQLite DB), dedupes hook events against transcript events by `event_id` (`source_id` + `source_position`), appends new events to the log
-- **Consolidate**: computes capability metrics, builds intent clusters from BM25 terms, writes `profile.json` / `backlog.json` / `findings.json` projections
+- **Measure**: computes deterministic per-capability metrics (invocation count, model-trigger rate, attribution rate)
+- **Judge**: two-tier outcome labeling — Tier 1 is deterministic; Tier 2 uses budgeted headless Claude for residual unknowns
+- **Track**: imports pre-existing installed skills into the artifact registry, then updates each attributed skill's evidence ledger
+- **Curate**: proposes staleness flags, score-based deprecation, and merge candidates for existing active artifacts
+- **Mine**: extracts recurring tool-sequence n-grams into skill candidates (repetition/session/success thresholds + rejection memory + overlap suppression)
+- **Consolidate**: writes the reconciled `profile.json`/`profile.md` + state manifest
 - **Prune**: evicts evidence past the retention window, reindexes
 
 A directory-based lock (`.dream.lock.d/` with PID/timestamp metadata) prevents concurrent dream runs. Scheduled runs are triggered by the plugin's `Stop` hook (`plugins/idisu/hooks/stop.sh`) and respect `dream_interval_hours` from `~/.idisu/config.json`.
