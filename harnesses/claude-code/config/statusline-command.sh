@@ -546,7 +546,8 @@ _lr() {  # left right [pre-ll] [pre-rl] -> outer-pinned line with truncation
 # ── Line 1 LEFT: model │ effort │ 🕐 dur (📡api%) ──────────────────────────
 MODEL=$(_jq '.model.display_name'); [ -z "$MODEL" ] && MODEL="?"
 case "$MODEL" in
-  *Opus*)   MC="$MAG" ;; *Sonnet*) MC="$BLU" ;; *Haiku*) MC="$GRN" ;; *) MC="$BOLD" ;;
+  *Opus*)   MC="$MAG" ;; *Sonnet*) MC="$BLU" ;; *Haiku*) MC="$GRN" ;;
+  *Fable*|*Mythos*) MC="$ORANGE" ;; *) MC="$BOLD" ;;
 esac
 case "$GLYPHS" in emoji) MG="🧠 " ;; nerd) MG=$' ' ;; *) MG="" ;; esac
 L1L="${BOLD}${MC}${MG}${MODEL}${RST}"
@@ -607,13 +608,21 @@ SUB_IN_EFF=$(( SUBAGENT_IN_TOTAL + SUBAGENT_CR_TOTAL + SUBAGENT_CC_TOTAL + SUBAG
 SUB_OUT_EFF="$SUBAGENT_OUT_TOTAL"
 GRAND_TOTAL_IN=$(( DISPLAY_IN + DISPLAY_CR + DISPLAY_CC + SUB_IN_EFF ))
 GRAND_TOTAL_OUT=$(( DISPLAY_OUT + SUB_OUT_EFF ))
-IN_STR="${GRN}↑$(_human "$GRAND_TOTAL_IN")${RST}"
+# Token glyphs honor STATUSLINE_GLYPHS: emoji (default) keeps the compact
+# unicode set; nerd swaps the subagent glyph for the git-branch icon; text
+# degrades to pure-ASCII labels.
+case "$GLYPHS" in
+  text) TG_IN="in:"; TG_CACHE=" cache:"; TG_OUT="out:"; TG_SUB="sub " ;;
+  nerd) TG_IN="↑"; TG_CACHE="⚡"; TG_OUT="↓"; TG_SUB=$' ' ;;
+  *)    TG_IN="↑"; TG_CACHE="⚡"; TG_OUT="↓"; TG_SUB="⫂ " ;;
+esac
+IN_STR="${GRN}${TG_IN}$(_human "$GRAND_TOTAL_IN")${RST}"
 READ_TOTAL=$(( DISPLAY_CR + SUBAGENT_CR_TOTAL ))
 if [ "$GRAND_TOTAL_IN" -gt 0 ] && [ "$READ_TOTAL" -gt 0 ]; then
   READ_PCT=$(( READ_TOTAL * 100 / GRAND_TOTAL_IN ))
-  IN_STR+="${DIM}⚡${READ_PCT}%${RST}"
+  IN_STR+="${DIM}${TG_CACHE}${READ_PCT}%${RST}"
 fi
-OUT_STR="${BLU}↓$(_human "$GRAND_TOTAL_OUT")${RST}"
+OUT_STR="${BLU}${TG_OUT}$(_human "$GRAND_TOTAL_OUT")${RST}"
 [ "$HAVE_TURN_OUT" -eq 1 ] && OUT_STR+="${DIM}[$(_human "$TURN_OUT")]${RST}"
 TOK="${IN_STR} ${DIM}/${RST}${OUT_STR}"
 
@@ -622,7 +631,7 @@ TOK="${IN_STR} ${DIM}/${RST}${OUT_STR}"
 # estimate never blends into the confirmed figures. Omit both when idle.
 SUB_SEG=""
 if [ "$SUB_IN_EFF" -gt 0 ] || [ "$SUB_OUT_EFF" -gt 0 ]; then
-  SUB_SEG=" ${DIM}[⫂ $(_human "$SUB_IN_EFF")/$(_human "$SUB_OUT_EFF")]${RST}"
+  SUB_SEG=" ${DIM}[${TG_SUB}$(_human "$SUB_IN_EFF")/$(_human "$SUB_OUT_EFF")]${RST}"
 fi
 if [ "${PENDING_COUNT:-0}" -gt 0 ]; then
   SUB_SEG+=" ${DIM}~$(_human "$PENDING_EST_TOTAL")(${PENDING_COUNT})${RST}"
@@ -656,8 +665,9 @@ BRANCH=""
 WT=$(_jq '.workspace.git_worktree')
 [ -z "$BRANCH" ] && BRANCH="$WT"
 case "$GLYPHS" in emoji) DG="📁 " ;; nerd) DG=$' ' ;; *) DG="" ;; esac
+case "$GLYPHS" in nerd) BG=$' ' ;; *) BG="" ;; esac  # powerline branch glyph, nerd mode only
 L2L="${DG}${BOLD}${DIR}${RST}"
-[ -n "$BRANCH" ] && L2L+=" ${YLW}(${BRANCH})${RST}"
+[ -n "$BRANCH" ] && L2L+=" ${YLW}(${BG}${BRANCH})${RST}"
 LINES_ADD=$(_jq_int '.cost.total_lines_added')
 LINES_REM=$(_jq_int '.cost.total_lines_removed')
 if [ "$LINES_ADD" -gt 0 ] || [ "$LINES_REM" -gt 0 ]; then
@@ -726,8 +736,17 @@ if [ -n "$R7_RAW" ]; then
   [ -n "$L2R" ] && L2R+=" ${DIM}│${RST} "
   L2R+="${DIM}1wk:${RST} ${R7C}${R7}%${RST}"; [ -n "$T7" ] && L2R+=" (${T7})"
 fi
+# Cost magnitude ramp (total only; the [sub] estimate stays dim):
+# dim < $5 <= yellow < $25 <= orange < $50 <= red.
+COST_C="$DIM"
+COST_INT=$(printf '%s' "${COST:-0}" | cut -d. -f1)
+case "$COST_INT" in ''|*[!0-9]*) COST_INT=0 ;; esac
+if   [ "$COST_INT" -ge 50 ]; then COST_C="$RED"
+elif [ "$COST_INT" -ge 25 ]; then COST_C="$ORANGE"
+elif [ "$COST_INT" -ge 5 ];  then COST_C="$YLW"
+fi
 [ -n "$L2R" ] && L2R+=" ${DIM}│${RST} "
-L2R+="${DIM}\$:${RST} ${COST:-0.00}"
+L2R+="${DIM}\$:${RST} ${COST_C}${COST:-0.00}${RST}"
 [ -n "$SUB_COST" ] && L2R+=" ${DIM}[${SUB_COST}]${RST}"
 
 # ── Batch width computation → render both lines ────────────────────────────
