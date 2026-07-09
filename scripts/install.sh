@@ -17,13 +17,14 @@ FURAIDE_INVOKED_FROM="$(pwd)"
 export FURAIDE_INVOKED_FROM
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CLI_DIR="$ROOT/packages/cli"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 RED='\033[0;31m'; YELLOW='\033[1;33m'; NC='\033[0m'
 err()  { printf "${RED}[error]${NC} %s\n" "$*" >&2; }
 warn() { printf "${YELLOW}[warn]${NC} %s\n" "$*" >&2; }
 
 if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
-  sed -n '2,15p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+  sed -n '2,/^set -euo/{ /^set -euo/d; s/^# \{0,1\}//; p }' "${BASH_SOURCE[0]}"
   exit 0
 fi
 
@@ -32,24 +33,12 @@ if [[ ! -d "$CLI_DIR" ]]; then
   exit 1
 fi
 
-pick_target() {
-  printf 'Which harness would you like to install?\n\n' >&2
-  printf '  1) Claude Code   — statusline, agents, skills, Idisu + Rejion plugins\n' >&2
-  printf '  2) OpenCode      — 15-agent fleet, plugins, rules, skills\n' >&2
-  printf '  3) Pi Agent      — web tools, TUI, themes, skills\n\n' >&2
-  local choice
-  read -rp 'Enter 1, 2, or 3: ' choice </dev/tty
-  case "$choice" in
-    1) printf 'claude-code\n' ;;
-    2) printf 'opencode-fleet\n' ;;
-    3) printf 'pi-agent\n' ;;
-    *) err "invalid choice: $choice"; exit 1 ;;
-  esac
-}
+# Source shared target picker
+source "$SCRIPT_DIR/lib/picker.sh"
 
 ARGS=("$@")
 if [[ ${#ARGS[@]} -eq 0 ]]; then
-  TARGET="$(pick_target)"
+  TARGET="$(pick_target install)"
   ARGS=("$TARGET")
 fi
 

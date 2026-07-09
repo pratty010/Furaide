@@ -7,7 +7,7 @@
 #   source "$(dirname "${BASH_SOURCE[0]}")/../../shared/install-lib.sh"
 #
 # Functions:
-#   furaide_detect_js_runtime   -> sets JS_RUNTIME, PKG_INSTALL, PKG_RUN
+#   furaide_detect_js_runtime   -> sets JS_RUNTIME
 #   furaide_backup_file <dst> <target_dir> <timestamp>
 #                               -> copies dst to <target_dir>/.furaide-backup/<timestamp>/<rel>
 #                                  if dst exists and no backup for that rel path exists yet
@@ -19,24 +19,20 @@
 #                               -> atomic write (temp file + mv)
 
 # ── JS runtime detection ────────────────────────────────────────────────────
-# Sets three globals: JS_RUNTIME ("bun"|"npm"), PKG_INSTALL, PKG_RUN.
+# Sets one global: JS_RUNTIME ("bun"|"npm").
 # Exits 1 with an install-instructions message if neither is found.
 furaide_detect_js_runtime() {
   if command -v bun >/dev/null 2>&1; then
     JS_RUNTIME="bun"
-    PKG_INSTALL="bun install"
-    PKG_RUN="bun run"
   elif command -v node >/dev/null 2>&1 && command -v npm >/dev/null 2>&1; then
     JS_RUNTIME="npm"
-    PKG_INSTALL="npm install"
-    PKG_RUN="npx --yes"
   else
     printf 'Neither bun nor node+npm found.\n' >&2
     printf '  Install bun (recommended): https://bun.sh\n' >&2
     printf '  or Node.js 18+ with npm:  https://nodejs.org\n' >&2
     return 1
   fi
-  export JS_RUNTIME PKG_INSTALL PKG_RUN
+  export JS_RUNTIME
 }
 
 # ── In-target-dir backup ────────────────────────────────────────────────────

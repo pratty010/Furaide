@@ -104,20 +104,23 @@ else
 fi
 ok "JS runtime: $JS_RUNTIME"
 
+_install_idisu_cli() {
+  local idisu_src="$REPO/cli/src/idisu"
+  if [[ "$DRY_RUN" -eq 1 ]]; then
+    echo "[dry-run] would run: bun install in $idisu_src"
+    return 0
+  fi
+  [[ "$JS_RUNTIME" != "bun" ]] && { warn "npm runtime: Īdisu CLI requires bun specifically (bun:sqlite). Install bun to enable it."; return 0; }
+  ( cd "$idisu_src" && bun install )
+  chmod +x "$idisu_src/src/cli/index.ts"
+  mkdir -p "$IDISU_HOME"
+  printf '%s\n' "$idisu_src/src/cli/index.ts" > "$IDISU_HOME/cli-path"
+  ok "Īdisu CLI installed -> $idisu_src/src/cli/index.ts"
+}
+
 [[ "$MINIMAL" -eq 1 ]] && {
   [[ ! -d "$HOME/.idisu" ]] && { [[ "$DRY_RUN" -eq 1 ]] && echo "[dry-run] would create ~/.idisu" || { mkdir -p "$HOME/.idisu"; ok "created ~/.idisu"; }; }
-  IDISU_SRC="$REPO/cli/src/idisu"
-  if [[ "$DRY_RUN" -eq 1 ]]; then
-    echo "[dry-run] would run: ($JS_RUNTIME install) in $IDISU_SRC"
-  elif [[ "$JS_RUNTIME" == "bun" ]]; then
-    ( cd "$IDISU_SRC" && bun install )
-    chmod +x "$IDISU_SRC/src/cli/index.ts"
-    mkdir -p "$IDISU_HOME"
-    printf '%s\n' "$IDISU_SRC/src/cli/index.ts" > "$IDISU_HOME/cli-path"
-    ok "Īdisu CLI installed -> $IDISU_SRC/src/cli/index.ts"
-  else
-    warn "npm runtime: Īdisu CLI requires bun specifically (bun:sqlite). Install bun to enable it."
-  fi
+  _install_idisu_cli
   printf '\n%s\n' "$(printf "${GREEN}[done]${NC} minimal mode complete.")"
   exit 0
 }
@@ -184,31 +187,25 @@ INSTALL_REJION=1
 INSTALL_EXTENDED_SKILLS=0
 [[ "$WITH_SKILLS" -eq 1 ]] && INSTALL_EXTENDED_SKILLS=1
 
-if [[ "$SCOPE" == "project" || "$SCOPE" == "custom" ]]; then
-  # statusline is not installable at project scope in a self-contained way
-  # (no per-project statusline-command.sh copy is planned — settings.json
-  # in project scope references the repo's absolute path instead).
-  :
-fi
-
 if [[ "$ASSUME_YES" -ne 1 && "$MINIMAL" -ne 1 ]]; then
   printf '\nComponents to install (Enter=yes, n=no, b=back to scope selection):\n\n' >&2
   select_component() {  # var_name prompt
-    local __var="$1" __prompt="$2" __reply
-    read -rp "  $__prompt [Y/n/b]: " __reply </dev/tty
-    case "$__reply" in
-      b|B) pick_scope; return 1 ;;
-      n|N) printf -v "$__var" '0' ;;
-      *)   printf -v "$__var" '1' ;;
-    esac
-    return 0
+    while true; do
+      local __var="$1" __prompt="$2" __reply
+      read -rp "  $__prompt [Y/n/b]: " __reply </dev/tty
+      case "$__reply" in
+        b|B) pick_scope ;;
+        n|N) printf -v "$__var" '0'; return 0 ;;
+        *)   printf -v "$__var" '1'; return 0 ;;
+      esac
+    done
   }
-  select_component INSTALL_CLAUDE_MD "CLAUDE.md"                          || select_component INSTALL_CLAUDE_MD "CLAUDE.md"
-  select_component INSTALL_SETTINGS  "Settings (statusline + prefs)"      || select_component INSTALL_SETTINGS  "Settings (statusline + prefs)"
-  select_component INSTALL_AGENTS    "Core agents (hanko--git-seal)"      || select_component INSTALL_AGENTS    "Core agents (hanko--git-seal)"
-  select_component INSTALL_SKILLS    "Core skills (github, bx, ...)"      || select_component INSTALL_SKILLS    "Core skills (github, bx, ...)"
-  select_component INSTALL_IDISU     "Idisu plugin"                      || select_component INSTALL_IDISU     "Idisu plugin"
-  select_component INSTALL_REJION    "Rejion plugin"                     || select_component INSTALL_REJION    "Rejion plugin"
+  select_component INSTALL_CLAUDE_MD "CLAUDE.md"
+  select_component INSTALL_SETTINGS  "Settings (statusline + prefs)"
+  select_component INSTALL_AGENTS    "Core agents (hanko--git-seal)"
+  select_component INSTALL_SKILLS    "Core skills (github, bx, ...)"
+  select_component INSTALL_IDISU     "Idisu plugin"
+  select_component INSTALL_REJION    "Rejion plugin"
 fi
 
 [[ "$NO_CONFIG" -eq 1 ]] && { INSTALL_CLAUDE_MD=0; INSTALL_SETTINGS=0; }
@@ -235,17 +232,9 @@ mkdir -p "$TARGET_DIR"
 
 # ── Execute: Īdisu CLI (bun only; global scope only — project scope has no
 #    per-project Idisu CLI concept, it's a user-level tool) ─────────────────
-COMPONENTS_INSTALLED=()
 if [[ "$SCOPE" == "global" ]]; then
   if [[ ! -d "$HOME/.idisu" ]]; then mkdir -p "$HOME/.idisu"; ok "created ~/.idisu"; fi
-  if [[ "$JS_RUNTIME" == "bun" ]]; then
-    IDISU_SRC="$REPO/cli/src/idisu"
-    ( cd "$IDISU_SRC" && bun install )
-    chmod +x "$IDISU_SRC/src/cli/index.ts"
-    mkdir -p "$IDISU_HOME"
-    printf '%s\n' "$IDISU_SRC/src/cli/index.ts" > "$IDISU_HOME/cli-path"
-    ok "Īdisu CLI installed -> $IDISU_SRC/src/cli/index.ts"
-  fi
+  _install_idisu_cli
 fi
 
 # ── Execute: Skills ──────────────────────────────────────────────────────────
@@ -254,19 +243,16 @@ if [[ "$INSTALL_SKILLS" -eq 1 ]]; then
   if [[ "$SCOPE" == "global" ]]; then
     bash "$SHARED_DIR/install-vendored-skills.sh" --global
   else
-    bash "$SHARED_DIR/install-vendored-skills.sh" --project "$(dirname "$TARGET_DIR")"
+    bash "$SHARED_DIR/install-vendored-skills.sh" --custom "$TARGET_DIR"
   fi
-  for d in "$REPO/config/../../../skills"/*/; do :; done 2>/dev/null || true
   for d in "$REPO"/../../skills/*/; do
     [[ -d "$d" ]] && SKILL_NAMES+=("$(basename "$d")")
   done
-  COMPONENTS_INSTALLED+=("skills")
 fi
 if [[ "$INSTALL_EXTENDED_SKILLS" -eq 1 ]]; then
   if confirm "Install extended skill manifest (heavier, git-clones repos)?"; then
     bash "$SHARED_DIR/install-external-skills.sh" --ecosystem claude-code
     ok "extended skill manifest installed"
-    COMPONENTS_INSTALLED+=("extended-skills")
   fi
 fi
 
@@ -286,7 +272,6 @@ if [[ "$INSTALL_AGENTS" -eq 1 ]]; then
     fi
     AGENT_FILES+=("$dest")
   done
-  COMPONENTS_INSTALLED+=("agents")
 fi
 
 # ── Execute: Config bundle (CLAUDE.md, settings.json, statusline) ───────────
@@ -295,7 +280,6 @@ if [[ "$INSTALL_CLAUDE_MD" -eq 1 ]]; then
   furaide_backup_file "$dest" "$TARGET_DIR" "$INSTALL_TIMESTAMP"
   cp "$REPO/config/CLAUDE.md" "$dest"
   ok "copied CLAUDE.md → $TARGET_DIR/"
-  COMPONENTS_INSTALLED+=("claudeMd")
 fi
 
 if [[ "$INSTALL_SETTINGS" -eq 1 ]]; then
@@ -310,17 +294,16 @@ if [[ "$INSTALL_SETTINGS" -eq 1 ]]; then
     # Project scope: statusline command references the repo's absolute path
     # directly in the merged settings.json rather than a per-project symlink.
     TMP_SETTINGS="$(mktemp)"
-    python3 -c "
-import json
-with open('$REPO/config/settings.json') as f: cfg = json.load(f)
+    python3 - "$REPO/config/settings.json" "$TMP_SETTINGS" "$REPO/config/statusline-command.sh" <<'PYEOF' 2>/dev/null || cp "$REPO/config/settings.json" "$TMP_SETTINGS"
+import json,sys
+cfg = json.load(open(sys.argv[1]))
 if 'statusLine' in cfg and isinstance(cfg['statusLine'], dict):
-    cfg['statusLine']['command'] = '$REPO/config/statusline-command.sh'
-json.dump(cfg, open('$TMP_SETTINGS', 'w'), indent=2)
-" 2>/dev/null || cp "$REPO/config/settings.json" "$TMP_SETTINGS"
+    cfg['statusLine']['command'] = sys.argv[3]
+json.dump(cfg, open(sys.argv[2], 'w'), indent=2)
+PYEOF
     _merge_settings "$TMP_SETTINGS" "$TARGET_DIR/settings.json"
     rm -f "$TMP_SETTINGS"
   fi
-  COMPONENTS_INSTALLED+=("settings")
 fi
 
 # ── Execute: Plugins ──────────────────────────────────────────────────────────
@@ -343,26 +326,52 @@ else
 fi
 
 # ── Write receipt ─────────────────────────────────────────────────────────────
-python3 -c "
-import json, sys
+_agent_args=("${AGENT_FILES[@]+"${AGENT_FILES[@]}"}")
+_skill_args=("${SKILL_NAMES[@]+"${SKILL_NAMES[@]}"}")
+_plugin_args=("${PLUGINS_INSTALLED[@]+"${PLUGINS_INSTALLED[@]}"}")
+
+python3 - \
+  "$RECEIPT_PATH" \
+  "$JS_RUNTIME" \
+  "$SCOPE" \
+  "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+  "$TARGET_DIR" \
+  "$TARGET_DIR/.furaide-backup/$INSTALL_TIMESTAMP" \
+  "$( [[ $INSTALL_CLAUDE_MD -eq 1 ]] && echo "$TARGET_DIR/CLAUDE.md" || echo "" )" \
+  "$( [[ $INSTALL_SETTINGS  -eq 1 ]] && echo "$TARGET_DIR/settings.json" || echo "" )" \
+  "${_agent_args[@]+"${_agent_args[@]}"}" \
+  -- \
+  "${_skill_args[@]+"${_skill_args[@]}"}" \
+  -- \
+  "${_plugin_args[@]+"${_plugin_args[@]}"}" \
+<<'PYEOF' 2>/dev/null || warn "could not write receipt to $RECEIPT_PATH (python3 unavailable) — uninstall will need --scope to target this install manually"
+import json,sys
+args = sys.argv[1:]
+receipt_path, js_runtime, scope, installed_at, target_dir, backup_dir, claude_md, settings_json = args[:8]
+rest = args[8:]
+sep = rest.index('--') if '--' in rest else len(rest)
+agent_files = rest[:sep]
+rest2 = rest[sep+1:] if sep < len(rest) else []
+sep2 = rest2.index('--') if '--' in rest2 else len(rest2)
+skill_names = rest2[:sep2]
+plugin_names = rest2[sep2+1:] if sep2 < len(rest2) else []
 receipt = {
     'version': 1,
-    'jsRuntime': '$JS_RUNTIME',
-    'scope': '$SCOPE',
-    'installedAt': '$(date -u +%Y-%m-%dT%H:%M:%SZ)',
-    'targetDir': '$TARGET_DIR',
-    'backupDir': '$TARGET_DIR/.furaide-backup/$INSTALL_TIMESTAMP',
+    'jsRuntime': js_runtime,
+    'scope': scope,
+    'installedAt': installed_at,
+    'targetDir': target_dir,
+    'backupDir': backup_dir,
     'components': {
-        'claudeMd': $([[ $INSTALL_CLAUDE_MD -eq 1 ]] && echo "'$TARGET_DIR/CLAUDE.md'" || echo 'None'),
-        'settings': $([[ $INSTALL_SETTINGS -eq 1 ]] && echo "'$TARGET_DIR/settings.json'" || echo 'None'),
-        'agents': [$(printf '"%s",' "${AGENT_FILES[@]}" 2>/dev/null)],
-        'skillNames': [$(printf '"%s",' "${SKILL_NAMES[@]}" 2>/dev/null)],
-        'plugins': [$(printf '"%s",' "${PLUGINS_INSTALLED[@]}" 2>/dev/null)],
+        'claudeMd': claude_md if claude_md else None,
+        'settings': settings_json if settings_json else None,
+        'agents': agent_files,
+        'skillNames': skill_names,
+        'plugins': plugin_names,
     },
 }
-json.dump(receipt, open('$RECEIPT_PATH', 'w'), indent=2)
-print()
-" 2>/dev/null || warn "could not write receipt to $RECEIPT_PATH (python3 unavailable) — uninstall will need --scope to target this install manually"
+json.dump(receipt, open(receipt_path, 'w'), indent=2)
+PYEOF
 [[ -f "$RECEIPT_PATH" ]] && ok "receipt written → $RECEIPT_PATH"
 
 # ── Done ──────────────────────────────────────────────────────────────────────

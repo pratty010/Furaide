@@ -135,7 +135,7 @@ export async function runInteractiveWizard(): Promise<void> {
 
     if (step === 2) {
       const workflowChoice = await multiselect({
-        message: "Select workflows to install (core infrastructure is always included). Cancel (Ctrl+C is not back -- use Esc/empty submit per your terminal) to go back to scope.",
+        message: "Select workflows to install (core infrastructure is always included). Use '← Go back to scope selection' to return to scope, or Esc/Ctrl+C to cancel.",
         options: [
           { value: BACK as unknown as WorkflowId, label: "← Go back to scope selection" },
           ...WORKFLOW_CATALOG.map((wf) => ({ value: wf.id, label: `${wf.label} (${wf.id})`, hint: wf.description })),

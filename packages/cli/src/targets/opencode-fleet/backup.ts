@@ -1,6 +1,6 @@
 // packages/cli/src/targets/opencode-fleet/backup.ts
 //
-// Backup root is `<targetDir>/.kura_backup/<installTimestamp>` (leading-dot
+// Backup root is `<targetDir>/.furaide-backup/<installTimestamp>` (leading-dot
 // required). On a repeat install, if the target already has an install
 // receipt with a recorded backup.root, that root is REUSED instead of
 // minting a new timestamped one -- otherwise the true original backup from

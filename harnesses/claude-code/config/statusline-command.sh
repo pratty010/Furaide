@@ -22,7 +22,7 @@ GLYPHS="${STATUSLINE_GLYPHS:-emoji}"
 
 # ── jq helpers ─────────────────────────────────────────────────────────────
 _jq()     { echo "$input" | jq -r "${1} // empty" 2>/dev/null || true; }
-_jq_int() { echo "$input" | jq -r "${1} // 0" 2>/dev/null | cut -d. -f1; }
+_jq_int() { echo "$input" | jq -r "${1} // 0" 2>/dev/null | cut -d. -f1 || true; }
 
 # ── width / format helpers ─────────────────────────────────────────────────
 ESC=$'\033'
@@ -390,7 +390,7 @@ fi
 # didn't run (missing/unreadable transcript, no jq, etc — fail-open).
 DISPLAY_IN="$IN_TOTAL"; DISPLAY_OUT="$OUT_TOTAL"
 DISPLAY_CR="$CACHE_READ_TOTAL"; DISPLAY_CC="$CACHE_CREATION_TOTAL"
-DISPLAY_SUB_IN=$(( SUBAGENT_IN_TOTAL + SUBAGENT_FALLBACK_TOTAL ))
+SUB_IN_EFF=$(( SUBAGENT_IN_TOTAL + SUBAGENT_FALLBACK_TOTAL ))
 DISPLAY_SUB_OUT="$SUBAGENT_OUT_TOTAL"
 DISPLAY_SUB_CR="$SUBAGENT_CR_TOTAL"; DISPLAY_SUB_CC="$SUBAGENT_CC_TOTAL"
 if [ "$TAIL_OK" -ne 1 ]; then
@@ -398,9 +398,9 @@ if [ "$TAIL_OK" -ne 1 ]; then
   DISPLAY_OUT=$(_jq_int '.context_window.total_output_tokens')
   DISPLAY_CR=$(_jq_int '.context_window.current_usage.cache_read_input_tokens')
   DISPLAY_CC=0
-  DISPLAY_SUB_IN=0; DISPLAY_SUB_OUT=0; DISPLAY_SUB_CR=0; DISPLAY_SUB_CC=0
+  SUB_IN_EFF=0; DISPLAY_SUB_OUT=0; DISPLAY_SUB_CR=0; DISPLAY_SUB_CC=0
 fi
-GRAND_TOTAL_IN=$(( DISPLAY_IN + DISPLAY_CR + DISPLAY_CC + DISPLAY_SUB_IN + DISPLAY_SUB_CR + DISPLAY_SUB_CC ))
+GRAND_TOTAL_IN=$(( DISPLAY_IN + DISPLAY_CR + DISPLAY_CC + SUB_IN_EFF + DISPLAY_SUB_CR + DISPLAY_SUB_CC ))
 GRAND_TOTAL_OUT=$(( DISPLAY_OUT + DISPLAY_SUB_OUT ))
 IN_STR="${GRN}↑$(_human "$GRAND_TOTAL_IN")${RST}"
 READ_TOTAL=$(( DISPLAY_CR + DISPLAY_SUB_CR ))
@@ -409,13 +409,12 @@ if [ "$GRAND_TOTAL_IN" -gt 0 ] && [ "$READ_TOTAL" -gt 0 ]; then
   IN_STR="${IN_STR} ${DIM}⚡${READ_PCT}%${RST}"
 fi
 OUT_STR="${BLU}↓$(_human "$GRAND_TOTAL_OUT")${RST}"
-TOK="${IN_STR} ${DIM}/${RST} ${OUT_STR}"
+TOK="${IN_STR} ${DIM}/${RST}${OUT_STR}"
 
 # Subagent share: real per-task sums (SUBAGENT_IN_TOTAL/SUBAGENT_OUT_TOTAL)
 # plus SUBAGENT_FALLBACK_TOTAL folded in as best-effort (the fallback lump has
 # no in/out split, so it is conservatively counted against the input side).
 # Omit the whole segment when there is no subagent activity at all.
-SUB_IN_EFF=$(( SUBAGENT_IN_TOTAL + SUBAGENT_FALLBACK_TOTAL ))
 SUB_OUT_EFF="$SUBAGENT_OUT_TOTAL"
 SUB_SEG=""
 if [ "$SUB_IN_EFF" -gt 0 ] || [ "$SUB_OUT_EFF" -gt 0 ]; then

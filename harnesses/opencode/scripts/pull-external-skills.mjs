@@ -59,12 +59,18 @@ function symlinkToClaudeSkills(skillName, agentsPoolDir) {
       rmSync(linkPath, { force: true });
     } else {
       // A real (non-symlink) directory already exists — don't clobber it.
+      log(`  skipped symlink at ${linkPath} — real directory already exists`);
       return false;
     }
   } catch {
     // linkPath doesn't exist yet — proceed to create it.
   }
-  symlinkSync(targetPath, linkPath, 'dir');
+  try {
+    symlinkSync(targetPath, linkPath, 'dir');
+  } catch (e) {
+    err(`  failed to create symlink ${linkPath}: ${e.message}`);
+    return false;
+  }
   return true;
 }
 
@@ -190,8 +196,19 @@ async function pullMode(manifest) {
       // Checkout the exact pin
       const checkout = run(`git -C ${tmpDir}/repo checkout ${src.pin}`, { stdio: 'pipe' });
       if (checkout.status !== 0) {
-        err(`Failed to checkout ${src.pin} in ${src.repo}: ${checkout.stderr?.trim()}`);
-        continue;
+        err(`Checkout failed for ${src.pin} in ${src.repo}, retrying with full clone: ${checkout.stderr?.trim()}`);
+        // Fallback: try a full clone then retry checkout
+        rmSync(join(tmpDir, 'repo'), { recursive: true, force: true });
+        const fullCloneRetry = run(`git clone ${cloneUrl} ${tmpDir}/repo`, { stdio: 'pipe' });
+        if (fullCloneRetry.status !== 0) {
+          err(`Full clone retry failed for ${src.repo}: ${fullCloneRetry.stderr?.trim()}`);
+          continue;
+        }
+        const checkoutRetry = run(`git -C ${tmpDir}/repo checkout ${src.pin}`, { stdio: 'pipe' });
+        if (checkoutRetry.status !== 0) {
+          err(`Checkout retry still failed for ${src.pin} in ${src.repo}: ${checkoutRetry.stderr?.trim()}`);
+          continue;
+        }
       }
 
       // Copy each skill dir/file into install_target

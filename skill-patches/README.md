@@ -21,10 +21,10 @@ Each `.patch` file is a unified diff that can be applied to the installed skill 
 
 When you need to modify an external skill, create a patch instead of editing the installed copy directly. This preserves your changes across skill pin bumps.
 
-1. Make changes to the installed skill (typically at `~/.config/opencode/skills/<skill-name>`)
+1. Make changes to the installed skill (typically at `~/.agents/skills/<skill-name>`)
 2. Generate a patch from your changes:
    ```bash
-   cd ~/.config/opencode/skills/<skill-name>
+   cd ~/.agents/skills/<skill-name>
    git init  # if not already a git repo
    git add -A
    git diff --cached > /path/to/skill-patches/<skill-name>/my-change.patch

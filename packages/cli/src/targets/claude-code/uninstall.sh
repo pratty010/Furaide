@@ -82,18 +82,22 @@ if [[ -z "$RECEIPT_JSON" ]]; then
   exit 1
 fi
 
-_receipt_field() {  # jq-style path (python fallback) -> value or empty
-  printf '%s' "$RECEIPT_JSON" | python3 -c "
+RECEIPT_TMP="$(mktemp)"
+printf '%s' "$RECEIPT_JSON" > "$RECEIPT_TMP"
+trap 'rm -f "$RECEIPT_TMP"' EXIT
+
+_receipt_field() {  # dotted.path -> value or empty
+  python3 - "$1" "$RECEIPT_TMP" <<'PYEOF' 2>/dev/null
 import json,sys
-d = json.load(sys.stdin)
+d = json.load(open(sys.argv[2]))
 try:
     v = d
-    for k in '$1'.split('.'):
+    for k in sys.argv[1].split('.'):
         v = v[k] if not k.isdigit() else v[int(k)]
     print(v if isinstance(v,str) else json.dumps(v))
 except Exception:
     print('')
-" 2>/dev/null
+PYEOF
 }
 
 INSTALLED_AT="$(_receipt_field installedAt)"
@@ -154,15 +158,16 @@ fi
 # ── Step 3: Execute ──────────────────────────────────────────────────────────
 [[ "$DO_CLAUDE_MD" -eq 1 ]] && restore_or_remove "$TARGET_DIR/CLAUDE.md" "CLAUDE.md" "CLAUDE.md"
 
-if [[ "$DO_SETTINGS" -eq 1 ]]; then
-  src_settings="$REPO/config/settings.json"
-  dst_settings="$TARGET_DIR/settings.json"
-  if [[ -f "$dst_settings" && -f "$src_settings" ]]; then
-    if [[ "$DRY_RUN" -eq 1 ]]; then
-      keys=$(python3 -c "import json; print(', '.join(json.load(open('$src_settings')).keys()))" 2>/dev/null || echo "(see $src_settings)")
-      printf "[dry-run] would remove settings.json keys: %s\n" "$keys"
-    else
-      python3 -c "
+_remove_settings_keys() {  # src_settings dst_settings
+  local src_settings="$1" dst_settings="$2"
+  [[ -f "$dst_settings" && -f "$src_settings" ]] || return 0
+  if [[ "$DRY_RUN" -eq 1 ]]; then
+    local keys
+    keys=$(python3 -c "import json,sys; print(', '.join(json.load(open(sys.argv[1])).keys()))" \
+      "$src_settings" 2>/dev/null || echo "(see $src_settings)")
+    printf "[dry-run] would remove settings.json keys: %s\n" "$keys"
+  else
+    python3 -c "
 import json,sys
 keys=list(json.load(open(sys.argv[1])).keys())
 try: dst=json.load(open(sys.argv[2]))
@@ -170,9 +175,12 @@ except: sys.exit()
 [dst.pop(k,None) for k in keys]
 open(sys.argv[2],'w').write(json.dumps(dst,indent=2)+'\n')
 " "$src_settings" "$dst_settings" 2>/dev/null && ok "removed settings.json keys from $dst_settings" \
-        || warn "could not modify settings.json — remove keys from $dst_settings manually"
-    fi
+      || warn "could not modify settings.json — remove keys from $dst_settings manually"
   fi
+}
+
+if [[ "$DO_SETTINGS" -eq 1 ]]; then
+  _remove_settings_keys "$REPO/config/settings.json" "$TARGET_DIR/settings.json"
   [[ "$TARGET_DIR" == "$GLOBAL_TARGET" ]] && remove "$TARGET_DIR/statusline-command.sh" "statusline-command.sh symlink"
 fi
 
@@ -198,7 +206,12 @@ for n in names: print(n)
 " 2>/dev/null | while IFS= read -r skill_name; do
     [[ -z "$skill_name" ]] && continue
     if [[ "$TARGET_DIR" == "$GLOBAL_TARGET" ]]; then
-      remove "$HOME/.claude/skills/$skill_name" "~/.claude/skills/$skill_name (symlink only)"
+      skill_link="$HOME/.claude/skills/$skill_name"
+      if [[ -L "$skill_link" ]] && [[ "$(readlink "$skill_link")" == "$HOME/.agents/skills/"* ]]; then
+        remove "$skill_link" "~/.claude/skills/$skill_name (symlink → ~/.agents/skills/)"
+      elif [[ -e "$skill_link" ]]; then
+        warn "~/.claude/skills/$skill_name is a real directory, not our symlink — skipped (remove manually if needed)"
+      fi
       if [[ "$PURGE" -eq 1 ]]; then
         remove "$HOME/.agents/skills/$skill_name" "~/.agents/skills/$skill_name (--purge: shared pool content)"
       else

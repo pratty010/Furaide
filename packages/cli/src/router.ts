@@ -12,7 +12,8 @@
 // The claude-code target must never write to ~/.config/opencode/skills/.
 // The opencode-fleet target's *external* skills (skills-manifest.json) install
 // to ~/.agents/skills/ (Phase 6) — its *bundled* fleet-specific skills still
-// install to ~/.config/opencode/skills/ via copySkillTree() in install.ts.
+// install to <targetDir>/skills (scope-relative: ~/.config/opencode/skills/ for global,
+// <project>/.opencode/skills/ for project) via copySkillTree() in install.ts.
 
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";

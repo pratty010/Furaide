@@ -40,7 +40,11 @@ fi
 ok "pi CLI found"
 
 if [[ "$DRY_RUN" -eq 1 ]]; then
-  echo "[dry-run] would run: ($PKG_INSTALL) in $AGENT_DIR"
+  if [[ "$JS_RUNTIME" == "bun" ]]; then
+    echo "[dry-run] would run: bun install in $AGENT_DIR"
+  else
+    echo "[dry-run] would run: npm install in $AGENT_DIR"
+  fi
   echo "[dry-run] would run: pi install $AGENT_DIR"
   echo "[dry-run] would copy config/system.example.yml -> ~/.pi/agent/extensions/friday/config/system.yml (if not present)"
   exit 0
