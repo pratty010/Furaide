@@ -143,6 +143,39 @@ else
 fi
 _assert_contains "narrow: truncation ellipsis appears somewhere (long model/path forced truncation)" "$OUT3" "…"
 
+echo "== Scenario 3b: clock/API segment spacing in all glyph modes =="
+STATE3B="$SCRATCH/spacing"
+mkdir -p "$STATE3B"
+PAYLOAD3B='{
+  "session_id": "sess-spacing",
+  "model": {"display_name": "Sonnet"},
+  "cost": {"total_duration_ms": 90000, "total_api_duration_ms": 45000, "total_cost_usd": 0.5,
+           "total_lines_added": 0, "total_lines_removed": 0},
+  "context_window": {"used_percentage": 5, "total_input_tokens": 500, "total_output_tokens": 100,
+                      "context_window_size": 200000,
+                      "current_usage": {"input_tokens": 500, "output_tokens": 100,
+                                         "cache_read_input_tokens": 0, "cache_creation_input_tokens": 0}},
+  "workspace": {"current_dir": "/tmp", "git_worktree": ""}
+}'
+for GLYPH in emoji nerd text; do
+  OUT3B=$(COLUMNS=120 STATUSLINE_STATE_DIR="$STATE3B" STATUSLINE_GLYPHS="$GLYPH" bash "$SCRIPT" <<<"$PAYLOAD3B" 2>&1)
+  OUT3B_PLAIN=$(printf '%s' "$OUT3B" | _strip_ansi)
+  case "$GLYPH" in
+    emoji)
+      _assert_contains "spacing emoji: no space before '(', space after 📡" "$OUT3B_PLAIN" 'm(📡 '
+      _assert_not_contains "spacing emoji: must not render '( ' (stray space before paren)" "$OUT3B_PLAIN" 'm ('
+      ;;
+    nerd)
+      _assert_contains "spacing nerd: no space before '(', trailing space after '('" "$OUT3B_PLAIN" 'm( '
+      _assert_not_contains "spacing nerd: must not render '( ' (stray space before paren)" "$OUT3B_PLAIN" 'm ('
+      ;;
+    text)
+      _assert_contains "spacing text: no glyph, no stray space" "$OUT3B_PLAIN" 'm(45s)'
+      _assert_not_contains "spacing text: must not render '( ' (stray space before paren)" "$OUT3B_PLAIN" 'm ('
+      ;;
+  esac
+done
+
 echo "== Scenario 4: one rate-limit window present, the other absent =="
 STATE4="$SCRATCH/onerate"
 mkdir -p "$STATE4"

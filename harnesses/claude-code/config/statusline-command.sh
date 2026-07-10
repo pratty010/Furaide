@@ -4,7 +4,7 @@
 # Re-runs on: new assistant message, /compact, permission/vim mode change, refreshInterval timer.
 # Terminal resize is NOT an automatic trigger — refreshInterval is the only mitigation.
 #
-# Line 1  L: 🧠 <model> │ <effort> │ 🕐 dur (📡api-dur)   R: ↑inΣ⚡r% /↓outΣ[turn] [⫂ subin/subout] ~est(n) │ CTX: [bar] cur/win
+# Line 1  L: 🧠 <model> │ <effort> │ 🕐 dur(📡 api-dur)   R: ↑inΣ⚡r% /↓outΣ[turn] [⫂ subin/subout] ~est(n) │ CTX: [bar] cur/win
 # Line 2  L: 📁 path (branch) │ +add/-rem        R: 5hr: % (reset) │ 1wk: % (reset) │ $: cost [subcost]
 #
 # Env: STATUSLINE_GLYPHS=emoji|nerd|text   (default emoji)
@@ -222,6 +222,7 @@ _scan_usage_stdin() {  # prev_msg_id prev_msg_out; stdin: JSONL
                   c1: ($u.cache_creation.ephemeral_1h_input_tokens // 0)}
             else {c5: ($u.cache_creation_input_tokens // 0), c1: 0} end) as $ccs
          | ((($r.message.id // "") == $pid) and ($pid != "")) as $dup
+         | (($u.input_tokens // 0) + ($u.cache_read_input_tokens // 0) + ($u.cache_creation_input_tokens // 0)) as $denom
          | { model: ($r.message.model // "unknown"),
              in:    (if $dup then 0 else ($u.input_tokens // 0) end),
              out:   (if $dup then ([(($u.output_tokens // 0) - $pout), 0] | max)
@@ -229,7 +230,9 @@ _scan_usage_stdin() {  # prev_msg_id prev_msg_out; stdin: JSONL
              cr:    (if $dup then 0 else ($u.cache_read_input_tokens // 0) end),
              cc:    (if $dup then 0 else ($u.cache_creation_input_tokens // 0) end),
              cc_5m: (if $dup then 0 else $ccs.c5 end),
-             cc_1h: (if $dup then 0 else $ccs.c1 end) })) as $adj
+             cc_1h: (if $dup then 0 else $ccs.c1 end),
+             rate:  (if $dup then 0 elif $denom > 0 then ($u.cache_read_input_tokens // 0) / $denom else 0 end),
+             dup:   $dup })) as $adj
     | { in:  ([$adj[].in]  | add // 0),
         out: ([$adj[].out] | add // 0),
         cr:  ([$adj[].cr]  | add // 0),
@@ -240,6 +243,8 @@ _scan_usage_stdin() {  # prev_msg_id prev_msg_out; stdin: JSONL
                          cr: (map(.cr)|add//0), cc: (map(.cc)|add//0),
                          cc_5m: (map(.cc_5m)|add//0), cc_1h: (map(.cc_1h)|add//0)}})
           | from_entries),
+        rate_sum:   ([$adj[] | select(.dup | not) | .rate] | add // 0),
+        rate_turns: ([$adj[] | select((.dup | not) and ((.in + .cr + .cc) > 0))] | length),
         last_id:  (if ($recs|length) > 0 then ($recs[-1].message.id // "") else "" end),
         last_out: (if ($recs|length) > 0 then ($recs[-1].message.usage.output_tokens // 0) else 0 end) }
   ' 2>/dev/null) || return 1
@@ -312,13 +317,15 @@ _transcript_tail_pass() {  # path -> mutates SIDECAR_JSON + sets *_TOTAL globals
   last_id=$(printf '%s' "$SIDECAR_JSON" | jq -r '.last_msg_id // ""' 2>/dev/null) || last_id=""
   last_out=$(printf '%s' "$SIDECAR_JSON" | jq -r '.last_msg_out // 0' 2>/dev/null); case "$last_out" in ''|*[!0-9]*) last_out=0 ;; esac
 
-  local d_in=0 d_out=0 d_cr=0 d_cc=0 dmodels='{}' new_last_id="$last_id" new_last_out="$last_out" sl_id
+  local d_in=0 d_out=0 d_cr=0 d_cc=0 d_rs=0 d_rt=0 dmodels='{}' new_last_id="$last_id" new_last_out="$last_out" sl_id
   if [ -n "$newdata" ]; then
     if scan=$(printf '%s' "$newdata" | _scan_usage_stdin "$last_id" "$last_out"); then
       d_in=$(printf '%s' "$scan" | jq -r '.in // 0' 2>/dev/null); case "$d_in" in ''|*[!0-9]*) d_in=0 ;; esac
       d_out=$(printf '%s' "$scan" | jq -r '.out // 0' 2>/dev/null); case "$d_out" in ''|*[!0-9]*) d_out=0 ;; esac
       d_cr=$(printf '%s' "$scan" | jq -r '.cr // 0' 2>/dev/null); case "$d_cr" in ''|*[!0-9]*) d_cr=0 ;; esac
       d_cc=$(printf '%s' "$scan" | jq -r '.cc // 0' 2>/dev/null); case "$d_cc" in ''|*[!0-9]*) d_cc=0 ;; esac
+      d_rs=$(printf '%s' "$scan" | jq -r '.rate_sum // 0' 2>/dev/null); [ -z "$d_rs" ] && d_rs=0
+      d_rt=$(printf '%s' "$scan" | jq -r '.rate_turns // 0' 2>/dev/null); case "$d_rt" in ''|*[!0-9]*) d_rt=0 ;; esac
       dmodels=$(printf '%s' "$scan" | jq -c '.models // {}' 2>/dev/null) || dmodels='{}'
       sl_id=$(printf '%s' "$scan" | jq -r '.last_id // ""' 2>/dev/null) || sl_id=""
       if [ -n "$sl_id" ]; then
@@ -338,9 +345,11 @@ _transcript_tail_pass() {  # path -> mutates SIDECAR_JSON + sets *_TOTAL globals
     --argjson offset "$adv" --argjson in "$IN_TOTAL" --argjson out "$OUT_TOTAL" \
     --argjson cr "$CACHE_READ_TOTAL" --argjson cc "$CACHE_CREATION_TOTAL" \
     --argjson dm "$dmodels" --arg lid "$new_last_id" --argjson lout "$new_last_out" \
+    --argjson rs "$d_rs" --argjson rt "$d_rt" \
     '.transcript_offset = $offset | .in_total = $in | .out_total = $out
      | .cache_read_total = $cr | .cache_creation_total = $cc
      | .last_msg_id = $lid | .last_msg_out = $lout
+     | .rate_sum = ((.rate_sum // 0) + $rs) | .rate_turns = ((.rate_turns // 0) + $rt)
      | .models = (reduce ($dm | to_entries[]) as $e ((.models // {});
          .[$e.key] = { in:    ((.[$e.key].in    // 0) + ($e.value.in    // 0)),
                        out:   ((.[$e.key].out   // 0) + ($e.value.out   // 0)),
@@ -371,7 +380,9 @@ _transcript_tail_pass() {  # path -> mutates SIDECAR_JSON + sets *_TOTAL globals
         if [ -r "$subfile" ] && sub_scan=$(_scan_usage_stdin "" 0 < "$subfile" 2>/dev/null); then
           SIDECAR_JSON=$(printf '%s' "$SIDECAR_JSON" | jq --arg t "$aid" --argjson s "$sub_scan" \
             '.subagents[$t] = {in: ($s.in // 0), out: ($s.out // 0), cache_read: ($s.cr // 0),
-                               cache_creation: ($s.cc // 0), models: ($s.models // {}), done: true}' 2>/dev/null) || continue
+                               cache_creation: ($s.cc // 0), models: ($s.models // {}),
+                               rate_sum: ($s.rate_sum // 0), rate_turns: ($s.rate_turns // 0),
+                               done: true}' 2>/dev/null) || continue
         else
           # Transcript file not readable yet: record a pending entry with the
           # completion record's lump as a flagged ESTIMATE (final-turn-only,
@@ -398,7 +409,9 @@ _transcript_tail_pass() {  # path -> mutates SIDECAR_JSON + sets *_TOTAL globals
       p_scan=$(_scan_usage_stdin "" 0 < "$p_file" 2>/dev/null) || continue
       SIDECAR_JSON=$(printf '%s' "$SIDECAR_JSON" | jq --arg t "$pid" --argjson s "$p_scan" \
         '.subagents[$t] = {in: ($s.in // 0), out: ($s.out // 0), cache_read: ($s.cr // 0),
-                           cache_creation: ($s.cc // 0), models: ($s.models // {}), done: true}' 2>/dev/null) || continue
+                           cache_creation: ($s.cc // 0), models: ($s.models // {}),
+                           rate_sum: ($s.rate_sum // 0), rate_turns: ($s.rate_turns // 0),
+                           done: true}' 2>/dev/null) || continue
     done <<<"$pend_ids"
   fi
 
@@ -453,13 +466,16 @@ _recompute_all() {
         subscan=$(_scan_usage_stdin "" 0 < "$sub" 2>/dev/null) || continue
         subs=$(printf '%s' "$subs" | jq -c --arg t "$aid" --argjson s "$subscan" \
           '.[$t] = {in: ($s.in // 0), out: ($s.out // 0), cache_read: ($s.cr // 0),
-                    cache_creation: ($s.cc // 0), models: ($s.models // {}), done: true}' 2>/dev/null) || continue
+                    cache_creation: ($s.cc // 0), models: ($s.models // {}),
+                    rate_sum: ($s.rate_sum // 0), rate_turns: ($s.rate_turns // 0),
+                    done: true}' 2>/dev/null) || continue
       done
     fi
     new=$(printf '%s' "$existing" | jq -c --argjson s "$scan" --argjson subs "$subs" --argjson off "$adv" '
       . + {transcript_offset: $off, in_total: ($s.in // 0), out_total: ($s.out // 0),
            cache_read_total: ($s.cr // 0), cache_creation_total: ($s.cc // 0),
            models: ($s.models // {}), last_msg_id: ($s.last_id // ""), last_msg_out: ($s.last_out // 0),
+           rate_sum: ($s.rate_sum // 0), rate_turns: ($s.rate_turns // 0),
            subagents: $subs, subagent_fallback_tokens: 0}' 2>/dev/null) || { echo "skip  $sid (merge failed)"; continue; }
     if _sidecar_save "$sidecar" "$new"; then
       count=$((count+1))
@@ -491,9 +507,18 @@ if command -v jq >/dev/null 2>&1 && [ -n "$SESSION_ID" ]; then
     FOLDED_DURATION_MS="$FOLD_RESULT"
     if _fold_metric "$RAW_API_MS" base_api_duration_ms last_api_ms; then
       FOLDED_API_MS="$FOLD_RESULT"
-      if _sidecar_save "$SIDECAR_PATH" "$SIDECAR_JSON"; then
-        DURATION_MS="$FOLDED_DURATION_MS"
-        API_MS="$FOLDED_API_MS"
+      # D1: cost is reset by Claude Code on resume, so fold it like duration.
+      # _fold_metric is integer-only; keep cost in cents internally and convert
+      # back to dollars only for display. Non-numeric payload cost falls open to 0.
+      RAW_COST_CENTS=$(awk -v c="$(_jq '.cost.total_cost_usd // 0')" 'BEGIN{printf "%d", c*100 + 0.5}')
+      case "$RAW_COST_CENTS" in ''|*[!0-9]*) RAW_COST_CENTS=0 ;; esac
+      if _fold_metric "$RAW_COST_CENTS" base_cost_cents last_cost_cents; then
+        FOLDED_COST_CENTS="$FOLD_RESULT"
+        if _sidecar_save "$SIDECAR_PATH" "$SIDECAR_JSON"; then
+          DURATION_MS="$FOLDED_DURATION_MS"
+          API_MS="$FOLDED_API_MS"
+          COST=$(awk -v c="$FOLDED_COST_CENTS" 'BEGIN{printf "%.2f", c/100}')
+        fi
       fi
     fi
   fi
@@ -543,7 +568,7 @@ _lr() {  # left right [pre-ll] [pre-rl] -> outer-pinned line with truncation
   printf '%s%*s%s\n' "$left" "$pad" '' "$right"
 }
 
-# ── Line 1 LEFT: model │ effort │ 🕐 dur (📡api%) ──────────────────────────
+# ── Line 1 LEFT: model │ effort │ 🕐 dur(📡 api-dur) ─────────────────────────
 MODEL=$(_jq '.model.display_name'); [ -z "$MODEL" ] && MODEL="?"
 case "$MODEL" in
   *Opus*)   MC="$MAG" ;; *Sonnet*) MC="$BLU" ;; *Haiku*) MC="$GRN" ;;
@@ -563,8 +588,10 @@ if [ "$DURATION_MS" -ge 60000 ]; then
   case "$GLYPHS" in emoji) CG="🕐 " ;; nerd) CG=$' ' ;; *) CG="" ;; esac
   L1L+=" ${DIM}│${RST} ${DIM}${CG}$(_dur "$DURATION_MS")${RST}"
   if [ "$API_MS" -gt 0 ]; then
-    case "$GLYPHS" in emoji) PG="📡" ;; nerd) PG=$'' ;; *) PG="" ;; esac
-    L1L+=" ${DIM}(${PG}$(_dur "$API_MS"))${RST}"
+    # D2: keep the space inside the glyph var so emoji shows "(📡 ", nerd
+    # shows "( ", and text shows "(...)" with no stray leading space.
+    case "$GLYPHS" in emoji) PG="📡 " ;; nerd) PG=$' ' ;; *) PG="" ;; esac
+    L1L+="${DIM}(${PG}$(_dur "$API_MS"))${RST}"
   fi
 fi
 
@@ -617,10 +644,25 @@ case "$GLYPHS" in
   *)    TG_IN="↑"; TG_CACHE="⚡"; TG_OUT="↓"; TG_SUB="⫂ " ;;
 esac
 IN_STR="${GRN}${TG_IN}$(_human "$GRAND_TOTAL_IN")${RST}"
-READ_TOTAL=$(( DISPLAY_CR + SUBAGENT_CR_TOTAL ))
-if [ "$GRAND_TOTAL_IN" -gt 0 ] && [ "$READ_TOTAL" -gt 0 ]; then
-  READ_PCT=$(( READ_TOTAL * 100 / GRAND_TOTAL_IN ))
-  IN_STR+="${DIM}${TG_CACHE}${READ_PCT}%${RST}"
+# D3: cache-hit % is the unweighted average of each turn's own read rate.
+# When we have transcript-derived sidecar data, compute from per-turn rate_sum
+# and rate_turns (main + done subagents); otherwise fall back to the legacy
+# cumulative token-weighted ratio (no per-turn data available).
+if [ "$TAIL_OK" -eq 1 ]; then
+  READ_PCT=$(printf '%s' "$SIDECAR_JSON" | jq -r '
+    ((.rate_sum // 0) + ([.subagents[]? | select(.done == true) | .rate_sum // 0] | add // 0)) as $rs
+    | ((.rate_turns // 0) + ([.subagents[]? | select(.done == true) | .rate_turns // 0] | add // 0)) as $rt
+    | if $rt > 0 and $rs > 0 then ((100 * $rs / $rt) | floor) else 0 end' 2>/dev/null)
+  case "$READ_PCT" in ''|*[!0-9]*) READ_PCT=0 ;; esac
+  if [ "$READ_PCT" -gt 0 ]; then
+    IN_STR+="${DIM}${TG_CACHE}${READ_PCT}%${RST}"
+  fi
+else
+  READ_TOTAL=$(( DISPLAY_CR + SUBAGENT_CR_TOTAL ))
+  if [ "$GRAND_TOTAL_IN" -gt 0 ] && [ "$READ_TOTAL" -gt 0 ]; then
+    READ_PCT=$(( READ_TOTAL * 100 / GRAND_TOTAL_IN ))
+    IN_STR+="${DIM}${TG_CACHE}${READ_PCT}%${RST}"
+  fi
 fi
 OUT_STR="${BLU}${TG_OUT}$(_human "$GRAND_TOTAL_OUT")${RST}"
 [ "$HAVE_TURN_OUT" -eq 1 ] && OUT_STR+="${DIM}[$(_human "$TURN_OUT")]${RST}"
@@ -675,8 +717,12 @@ if [ "$LINES_ADD" -gt 0 ] || [ "$LINES_REM" -gt 0 ]; then
 fi
 
 # ── Line 2 RIGHT: rate limits (each window independently optional) │ $: cost [subcost] ──
-COST=$(_jq '.cost.total_cost_usd // empty')
-[ -n "$COST" ] && COST=$(echo "$COST" | awk '{printf "%.2f",$1}')
+# If the sidecar fold ran, COST was already set to the folded dollars.
+# Fail-open path (no jq/session_id): read the raw payload value directly.
+if [ -z "${COST:-}" ]; then
+  COST=$(_jq '.cost.total_cost_usd // empty')
+  [ -n "$COST" ] && COST=$(printf '%s' "$COST" | awk '{printf "%.2f",$1}')
+fi
 # Subagent cost estimate: per-model token buckets × the static pricing table
 # below. No per-call cost exists anywhere in the harness data (total_cost_usd
 # is one session-wide number), so this is a computed ESTIMATE by design — do
@@ -747,7 +793,14 @@ elif [ "$COST_INT" -ge 5 ];  then COST_C="$YLW"
 fi
 [ -n "$L2R" ] && L2R+=" ${DIM}│${RST} "
 L2R+="${DIM}\$:${RST} ${COST_C}${COST:-0.00}${RST}"
-[ -n "$SUB_COST" ] && L2R+=" ${DIM}[${SUB_COST}]${RST}"
+# D4: subagent cost is displayed as a % of the (folded) session total, not as
+# dollars. SUB_COST is an independent estimate against the harness total, so
+# the % can legitimately exceed 100 — do not clamp it.
+SUB_COST_PCT=""
+if [ -n "$SUB_COST" ] && [ -n "${COST:-}" ]; then
+  SUB_COST_PCT=$(awk -v s="$SUB_COST" -v t="$COST" 'BEGIN{ if (t+0 > 0) printf "%d", (s*100)/t }')
+fi
+[ -n "$SUB_COST_PCT" ] && L2R+=" ${DIM}[${SUB_COST_PCT}%]${RST}"
 
 # ── Batch width computation → render both lines ────────────────────────────
 read -r _w1l _w1r _w2l _w2r < <(

@@ -43,13 +43,14 @@ _run() {  # payload_json state_dir -> stdout captured
   COLUMNS=120 STATUSLINE_STATE_DIR="$state_dir" bash "$SCRIPT" <<<"$payload" 2>&1
 }
 
-_mk_payload() {  # session_id transcript_path
+_mk_payload() {  # session_id transcript_path [total_cost_usd]
+  local cost="${3:-1.23}"
   cat <<EOF
 {
   "session_id": "$1",
   "transcript_path": "$2",
   "model": {"display_name": "Sonnet"},
-  "cost": {"total_duration_ms": 0, "total_api_duration_ms": 0, "total_cost_usd": 1.23,
+  "cost": {"total_duration_ms": 0, "total_api_duration_ms": 0, "total_cost_usd": ${cost},
            "total_lines_added": 0, "total_lines_removed": 0},
   "context_window": {"used_percentage": 10, "total_input_tokens": 1000, "total_output_tokens": 200,
                       "context_window_size": 200000, "current_usage": {"cache_read_input_tokens": 0}},
@@ -360,9 +361,31 @@ TRANSCRIPT9="$SCRATCH/transcript9.jsonl"
 # Subagent transcript lives under the MAIN transcript's dir/subagents/ (same
 # layout as Test 1 — $SUBDIR is already $SCRATCH/subagents).
 _subagent_transcript_line 2000000 1000000 0 0 "" "claude-haiku-4-5-20251001" > "$SUBDIR/agent-c33333333333333c3.jsonl"
-OUT9=$(_run "$(_mk_payload "$SID9" "$TRANSCRIPT9")" "$STATE9")
-_assert_contains "test9: subagent cost priced per-model (haiku-4-5: 2M*\$1/MTok in + 1M*\$5/MTok out = \$7.00)" "$OUT9" "[7.00]"
+OUT9=$(_run "$(_mk_payload "$SID9" "$TRANSCRIPT9" 14.00)" "$STATE9")
+_assert_contains "test9: subagent cost shown as % of total (7.00/14.00 = 50%)" "$OUT9" "[50%]"
+echo "== Test 10: cache-hit% is average of per-turn rates, not cumulative token-weighted =="
+STATE10="$SCRATCH/state10"
+mkdir -p "$STATE10"
+SID10="sess-average"
+TRANSCRIPT10="$SCRATCH/transcript10.jsonl"
+# One huge turn with 0% cache-read (dominates cumulative denominator) plus two
+# tiny turns that are 100% cache-read. Cumulative ratio is ~20/10020 = 0.2%,
+# but the unweighted average across the three turns is (0+1+1)/3 = 66.6...%.
+{
+  _assistant_line 10000 0 0 0
+  printf '\n'
+  _assistant_line 0 0 10 0
+  printf '\n'
+  _assistant_line 0 0 10 0
+  printf '\n'
+} > "$TRANSCRIPT10"
+OUT10=$(_run "$(_mk_payload "$SID10" "$TRANSCRIPT10")" "$STATE10")
+SIDECAR10="$STATE10/$SID10.json"
+_assert_contains "test10: average cache-hit% rendered (66%)" "$OUT10" "⚡66%"
+_assert_json_field "test10: sidecar rate_sum is 2.0 (two 100% turns)" "$SIDECAR10" '.rate_sum' "2"
+_assert_json_field "test10: sidecar rate_turns is 3 (three contributing turns)" "$SIDECAR10" '.rate_turns' "3"
 
 echo
+
 echo "=== Results: $PASS passed, $FAIL failed ==="
 [ "$FAIL" -eq 0 ]

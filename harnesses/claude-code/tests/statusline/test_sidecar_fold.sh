@@ -43,12 +43,13 @@ _run() {  # payload_json state_dir -> stdout captured
   COLUMNS=120 STATUSLINE_STATE_DIR="$state_dir" bash "$SCRIPT" <<<"$payload" 2>&1
 }
 
-_mk_payload() {  # session_id total_duration_ms total_api_duration_ms
+_mk_payload() {  # session_id total_duration_ms total_api_duration_ms [total_cost_usd]
+  local cost="${4:-1.23}"
   cat <<EOF
 {
   "session_id": "$1",
   "model": {"display_name": "Sonnet"},
-  "cost": {"total_duration_ms": $2, "total_api_duration_ms": $3, "total_cost_usd": 1.23,
+  "cost": {"total_duration_ms": $2, "total_api_duration_ms": $3, "total_cost_usd": ${cost},
            "total_lines_added": 0, "total_lines_removed": 0},
   "context_window": {"used_percentage": 10, "total_input_tokens": 1000, "total_output_tokens": 200,
                       "context_window_size": 200000, "current_usage": {"cache_read_input_tokens": 0}},
@@ -133,7 +134,22 @@ if [ -f "$STALE" ]; then
 else
   PASS=$((PASS+1)); echo "PASS: stale sidecar file (>30d) pruned"
 fi
+echo "== Test 6: cost folds on session resume (second payload cost lower than first) =="
+STATE6="$SCRATCH/cost"
+mkdir -p "$STATE6"
+SID6="sess-cost"
+# First run records live cost at $5.00; Claude Code resets cost.* on resume,
+# so the second payload reports only $1.00. Without folding we'd render $1.00;
+# with folding we render 5.00 + 1.00 = $6.00.
+_run "$(_mk_payload "$SID6" 60000 10000 5.00)" "$STATE6" >/dev/null
+OUT6=$(_run "$(_mk_payload "$SID6" 60000 10000 1.00)" "$STATE6")
+OUT6_PLAIN=$(printf '%s' "$OUT6" | sed 's/\x1b\[[0-9;]*m//g')
+_assert_contains "cost fold: rendered total accumulates across reset (\$: 6.00)" "$OUT6_PLAIN" '$: 6.00'
+SIDECAR6_FILE="$STATE6/$SID6.json"
+_assert_json_field "cost fold: sidecar last_cost_cents updated to new raw current (100)" "$SIDECAR6_FILE" '.last_cost_cents' "100"
+_assert_json_field "cost fold: sidecar base_cost_cents accumulated old last (500)" "$SIDECAR6_FILE" '.base_cost_cents' "500"
 
 echo
+
 echo "=== Results: $PASS passed, $FAIL failed ==="
 [ "$FAIL" -eq 0 ]
