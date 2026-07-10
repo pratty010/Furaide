@@ -417,6 +417,8 @@ Shipped vs. upcoming, grouped by offering. Everything is pre-1.0.
 
 - [x] ~~v0.1.0 — two-line layout, glyph modes, path/branch truncation~~
 - [x] ~~v0.2.0 — per-session sidecar, duration fold across resume, transcript tail-cursor totals, subagent share, window-aware ramps~~
+- [x] ~~v0.3.0 — dedup token accounting by `message.id` (was overcounting 2-4x), subagent pending-retry (no undercounted lump estimates), per-model cost buckets, cost folds across session resume, cache-hit % as average of per-turn rates~~
+- [x] ~~v0.4.0 — externalized pricing table (`claude-pricing.json`, env/global/shipped/fallback lookup chain), session-level geo/fast pricing modifiers, sidecar space collapse (per-subagent map → cumulative totals, ~15x smaller on large sessions), estimated-cost fallback for sessions with no live cost payload, web-search cost tracking~~
 
 ### Git tooling / hanko-git-seal
 

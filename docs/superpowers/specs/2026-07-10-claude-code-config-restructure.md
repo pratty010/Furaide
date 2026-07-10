@@ -1,7 +1,7 @@
 # Spec — Claude Code config restructure + per-harness skill boundaries + installer per-skill selection
 
-> **LIVING spec — in active discussion.** Research/Analysis workflow is designed; flows 2–5 (discussion/planning/PRD, development, bug-hunting, design/architecture) still to be walked one section at a time, updating this file as each locks.
-> Companion outstanding-fixes spec: `2026-07-10-statusline-token-cost-fixes.md`.
+> **SHIPPED (2026-07-11).** All 5 flows locked, Track E implemented and code-reviewed, merged to `feat/installer-config-restructure` and ready for merge-back to `dev`. Kept as the durable design record — see the "Bugs found + fixed" and "Code-review fixes" sections below for what changed between design and implementation.
+> Unrelated companion spec (separate track, separate branch, also fully shipped as of 2026-07-11): `2026-07-10-statusline-token-cost-fixes.md` — no functional overlap with this spec, cross-referenced here only because both tracks originated from the same 2026-07-10 planning session.
 
 ## Context & goal
 
