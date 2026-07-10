@@ -1,0 +1,156 @@
+{
+  "source_url": "https://platform.claude.com/docs/en/about-claude/pricing",
+  "fetched": "2026-07-10",
+  "note": "Multipliers STACK: cache tiers x inference_geo(us) x fast. All pricing per Million Tokens (MTok) in USD.",
+  "models": {
+    "claude-fable-5": {
+      "in": 10.0,
+      "out": 50.0,
+      "cache_5m": 12.50,
+      "cache_1h": 20.0,
+      "cache_read": 1.0
+    },
+    "claude-mythos-5": {
+      "in": 10.0,
+      "out": 50.0,
+      "cache_5m": 12.50,
+      "cache_1h": 20.0,
+      "cache_read": 1.0
+    },
+    "claude-opus-4-8": {
+      "in": 5.0,
+      "out": 25.0,
+      "cache_5m": 6.25,
+      "cache_1h": 10.0,
+      "cache_read": 0.50,
+      "fast": {
+        "in": 10.0,
+        "out": 50.0
+      }
+    },
+    "claude-opus-4-7": {
+      "in": 5.0,
+      "out": 25.0,
+      "cache_5m": 6.25,
+      "cache_1h": 10.0,
+      "cache_read": 0.50,
+      "fast": {
+        "in": 30.0,
+        "out": 150.0
+      }
+    },
+    "claude-opus-4-6": {
+      "in": 5.0,
+      "out": 25.0,
+      "cache_5m": 6.25,
+      "cache_1h": 10.0,
+      "cache_read": 0.50
+    },
+    "claude-opus-4-5": {
+      "in": 5.0,
+      "out": 25.0,
+      "cache_5m": 6.25,
+      "cache_1h": 10.0,
+      "cache_read": 0.50
+    },
+    "claude-opus-4-1": {
+      "in": 15.0,
+      "out": 75.0,
+      "cache_5m": 18.75,
+      "cache_1h": 30.0,
+      "cache_read": 1.50
+    },
+    "claude-sonnet-5": {
+      "in": 2.0,
+      "out": 10.0,
+      "cache_5m": 2.50,
+      "cache_1h": 4.0,
+      "cache_read": 0.20,
+      "intro_until": "2026-08-31",
+      "after": {
+        "in": 3.0,
+        "out": 15.0,
+        "cache_5m": 3.75,
+        "cache_1h": 6.0,
+        "cache_read": 0.30
+      }
+    },
+    "claude-sonnet-4-6": {
+      "in": 3.0,
+      "out": 15.0,
+      "cache_5m": 3.75,
+      "cache_1h": 6.0,
+      "cache_read": 0.30
+    },
+    "claude-sonnet-4-5": {
+      "in": 3.0,
+      "out": 15.0,
+      "cache_5m": 3.75,
+      "cache_1h": 6.0,
+      "cache_read": 0.30
+    },
+    "claude-haiku-4-5": {
+      "in": 1.0,
+      "out": 5.0,
+      "cache_5m": 1.25,
+      "cache_1h": 2.0,
+      "cache_read": 0.10
+    },
+    "claude-haiku-3-5": {
+      "in": 0.80,
+      "out": 4.0,
+      "cache_5m": 1.0,
+      "cache_1h": 1.60,
+      "cache_read": 0.08
+    }
+  },
+  "families": {
+    "claude-opus-4": {
+      "in": 15.0,
+      "out": 75.0,
+      "cache_5m": 18.75,
+      "cache_1h": 30.0,
+      "cache_read": 1.50
+    },
+    "claude-sonnet-4": {
+      "in": 3.0,
+      "out": 15.0,
+      "cache_5m": 3.75,
+      "cache_1h": 6.0,
+      "cache_read": 0.30
+    },
+    "claude-sonnet": {
+      "in": 3.0,
+      "out": 15.0,
+      "cache_5m": 3.75,
+      "cache_1h": 6.0,
+      "cache_read": 0.30
+    },
+    "claude-haiku": {
+      "in": 1.0,
+      "out": 5.0,
+      "cache_5m": 1.25,
+      "cache_1h": 2.0,
+      "cache_read": 0.10
+    },
+    "claude-opus": {
+      "in": 5.0,
+      "out": 25.0,
+      "cache_5m": 6.25,
+      "cache_1h": 10.0,
+      "cache_read": 0.50
+    }
+  },
+  "default": {
+    "in": 3.0,
+    "out": 15.0,
+    "cache_5m": 3.75,
+    "cache_1h": 6.0,
+    "cache_read": 0.30
+  },
+  "modifiers": {
+    "inference_geo_us_multiplier": 1.1,
+    "web_search_per_1000": 10.0,
+    "web_fetch_per_1000": 0.0
+  }
+}

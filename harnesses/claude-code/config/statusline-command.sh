@@ -34,6 +34,99 @@ GLYPHS="${STATUSLINE_GLYPHS:-emoji}"
 _jq()     { echo "$input" | jq -r "${1} // empty" 2>/dev/null || true; }
 _jq_int() { echo "$input" | jq -r "${1} // 0" 2>/dev/null | cut -d. -f1 || true; }
 
+# ── Pricing JSON loader ───────────────────────────────────────────────────
+# Reads the pricing table into PRICING_JSON (a shell-global jq string).
+# Lookup order: CLAUDE_PRICING_FILE env → ~/.claude/claude-pricing.json →
+# $HERE/claude-pricing.json (shipped). If the global copy is missing, the
+# shipped copy is copied there (best-effort). Fail-open: any read/parse
+# failure falls back to an in-script copy of the same schema.
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+_load_pricing() {
+  local src=""
+  # 1. Explicit env override
+  if [ -n "${CLAUDE_PRICING_FILE:-}" ] && [ -r "$CLAUDE_PRICING_FILE" ]; then
+    src="$CLAUDE_PRICING_FILE"
+  # 2. Global user copy
+  elif [ -r "$HOME/.claude/claude-pricing.json" ]; then
+    src="$HOME/.claude/claude-pricing.json"
+  # 3. Shipped copy relative to this script
+  elif [ -r "$HERE/claude-pricing.json" ]; then
+    src="$HERE/claude-pricing.json"
+    # Bootstrap: populate global copy for other tools / sessions
+    mkdir -p "$HOME/.claude" 2>/dev/null || true
+    cp "$src" "$HOME/.claude/claude-pricing.json" 2>/dev/null || true
+  fi
+  if [ -n "$src" ]; then
+    PRICING_JSON=$(cat "$src" 2>/dev/null) || PRICING_JSON=""
+    if [ -n "$PRICING_JSON" ]; then
+      printf '%s' "$PRICING_JSON" | jq -e . >/dev/null 2>&1 || PRICING_JSON=""
+    fi
+  fi
+  # Fail-open: hard-coded copy of claude-pricing.json (same schema).
+  # Bump this when the shipped file changes and you want the fallback current.
+  if [ -z "${PRICING_JSON:-}" ]; then
+    PRICING_JSON='{"source_url":"https://platform.claude.com/docs/en/about-claude/pricing","fetched":"2026-07-10","note":"Fallback copy — keep in sync with shipped claude-pricing.json.","models":{"claude-fable-5":{"in":10.0,"out":50.0,"cache_5m":12.50,"cache_1h":20.0,"cache_read":1.0},"claude-mythos-5":{"in":10.0,"out":50.0,"cache_5m":12.50,"cache_1h":20.0,"cache_read":1.0},"claude-opus-4-8":{"in":5.0,"out":25.0,"cache_5m":6.25,"cache_1h":10.0,"cache_read":0.50,"fast":{"in":10.0,"out":50.0}},"claude-opus-4-7":{"in":5.0,"out":25.0,"cache_5m":6.25,"cache_1h":10.0,"cache_read":0.50,"fast":{"in":30.0,"out":150.0}},"claude-opus-4-6":{"in":5.0,"out":25.0,"cache_5m":6.25,"cache_1h":10.0,"cache_read":0.50},"claude-opus-4-5":{"in":5.0,"out":25.0,"cache_5m":6.25,"cache_1h":10.0,"cache_read":0.50},"claude-opus-4-1":{"in":15.0,"out":75.0,"cache_5m":18.75,"cache_1h":30.0,"cache_read":1.50},"claude-sonnet-5":{"in":2.0,"out":10.0,"cache_5m":2.50,"cache_1h":4.0,"cache_read":0.20,"intro_until":"2026-08-31","after":{"in":3.0,"out":15.0,"cache_5m":3.75,"cache_1h":6.0,"cache_read":0.30}},"claude-sonnet-4-6":{"in":3.0,"out":15.0,"cache_5m":3.75,"cache_1h":6.0,"cache_read":0.30},"claude-sonnet-4-5":{"in":3.0,"out":15.0,"cache_5m":3.75,"cache_1h":6.0,"cache_read":0.30},"claude-haiku-4-5":{"in":1.0,"out":5.0,"cache_5m":1.25,"cache_1h":2.0,"cache_read":0.10},"claude-haiku-3-5":{"in":0.80,"out":4.0,"cache_5m":1.0,"cache_1h":1.60,"cache_read":0.08}},"families":{"claude-opus-4":{"in":15.0,"out":75.0,"cache_5m":18.75,"cache_1h":30.0,"cache_read":1.50},"claude-sonnet-4":{"in":3.0,"out":15.0,"cache_5m":3.75,"cache_1h":6.0,"cache_read":0.30},"claude-sonnet":{"in":3.0,"out":15.0,"cache_5m":3.75,"cache_1h":6.0,"cache_read":0.30},"claude-haiku":{"in":1.0,"out":5.0,"cache_5m":1.25,"cache_1h":2.0,"cache_read":0.10},"claude-opus":{"in":5.0,"out":25.0,"cache_5m":6.25,"cache_1h":10.0,"cache_read":0.50}},"default":{"in":3.0,"out":15.0,"cache_5m":3.75,"cache_1h":6.0,"cache_read":0.30},"modifiers":{"inference_geo_us_multiplier":1.1,"web_search_per_1000":10.0,"web_fetch_per_1000":0.0}}'
+  fi
+}
+_load_pricing
+TODAY=$(date +%Y-%m-%d 2>/dev/null) || TODAY="1970-01-01"
+[ -n "$TODAY" ] || TODAY="1970-01-01"
+
+# ── E2: shared jq pricing library (price/bcost/fbcost) ─────────────────────
+# Concatenated (bash-level, single-expansion — safe, no eval) ahead of each
+# call site's own expression so jq sees "defs; expr" as required by its
+# grammar. Every call site passes --argjson PR "$PRICING_JSON" --arg TODAY
+# "$TODAY". Lookup order matches test_pricing.sh's independent reference
+# implementation exactly: exact models[$model] -> longest families prefix ->
+# default; Sonnet 5 swaps to .after once $TODAY > .intro_until. Cache prices
+# use the JSON's explicit cache_5m/cache_1h/cache_read values directly (E2:
+# no more derived 1.25x/2x/0.1x multipliers) with a same-formula fallback
+# only for pricing blocks that omit them. Modifiers STACK: geo_us x fast.
+# shellcheck disable=SC2016  # single-quoted on purpose: $model/$b/... below are jq variables, not bash
+_PRICE_JQ_LIB='
+def price($model):
+  (if ($PR.models | has($model)) then $PR.models[$model]
+   else ($PR.families | to_entries
+         | map(select(.key as $fk | $model | startswith($fk)))
+         | sort_by(.key | length) | last | .value // $PR.default) end)
+  | if ((.intro_until? // null) != null) and ($TODAY > .intro_until) then .after else . end;
+def bcost($model; $b; $geo_us; $fast):
+  price($model) as $p |
+  (if $fast and (($p.fast? // null) != null) then $p.fast else $p end) as $sp |
+  (if $geo_us then ($PR.modifiers.inference_geo_us_multiplier // 1.1) else 1 end) as $gm |
+  {in:  ($sp.in * $gm), out: ($sp.out * $gm),
+   cr:  (($p.cache_read // ($sp.in * 0.1))  * $gm),
+   c5m: (($p.cache_5m   // ($sp.in * 1.25)) * $gm),
+   c1h: (($p.cache_1h   // ($sp.in * 2.0))  * $gm)} as $pr2 |
+  ( (($b.in // 0) * $pr2.in)
+    + (($b.out // 0) * $pr2.out)
+    + (($b.cr // $b.cache_read // 0) * $pr2.cr)
+    + (if (($b.cc_5m? // null) != null) or (($b.cc_1h? // null) != null)
+       then (($b.cc_5m // 0) * $pr2.c5m + ($b.cc_1h // 0) * $pr2.c1h)
+       else (($b.cc // $b.cache_creation // 0) * $pr2.c5m) end)
+  ) / 1000000;
+def fbcost($model; $n; $geo_us):
+  price($model) as $p |
+  (if $geo_us then ($PR.modifiers.inference_geo_us_multiplier // 1.1) else 1 end) as $gm |
+  ($n * $p.in * $gm) / 1000000;
+'
+# E4: total estimated cost over an already-folded sidecar object (main
+# .models + cumulative .subagent_models + .pending_subagents fallback
+# estimates + legacy subagent_fallback_tokens + web-search), geo-multiplied
+# session-wide when .inference_geo_us is set. Operates on "." (the sidecar).
+# shellcheck disable=SC2016  # single-quoted on purpose: $geo/$fast/... below are jq variables, not bash
+_EST_COST_JQ='
+def total_est_cost:
+  ((.inference_geo_us // false)) as $geo
+  | ((.speed_fast // false)) as $fast
+  | ( [ (.models // {}) | to_entries[] | bcost(.key; .value; $geo; $fast) ] | add // 0 )
+    + ( [ (.subagent_models // {}) | to_entries[] | bcost(.key; .value; $geo; $fast) ] | add // 0 )
+    + ( [ (.pending_subagents // {}) | to_entries[] | fbcost(.value.model // "unknown"; .value.fallback_estimate // 0; $geo) ] | add // 0 )
+    + fbcost("unknown"; (.subagent_fallback_tokens // 0); $geo)
+    + (((.web_search_total // 0) * ($PR.modifiers.web_search_per_1000 // 0)) / 1000)
+    + (((.web_fetch_total  // 0) * ($PR.modifiers.web_fetch_per_1000  // 0)) / 1000);
+'
+
 # ── width / format helpers ─────────────────────────────────────────────────
 ESC=$'\033'
 _vlen() {
@@ -141,6 +234,54 @@ _sidecar_save() {  # path json -> atomic write (temp + rename); returns 1 on any
   printf '%s' "$json" > "$tmp" 2>/dev/null || return 1
   mv -f "$tmp" "$path" 2>/dev/null || return 1
 }
+_migrate_sidecar() {  # mutates SIDECAR_JSON in place; no-op when .subagents is absent
+  # E3: folds an OLD-shape sidecar (per-agent `.subagents{<id>:{...,done}}` map)
+  # into the new cumulative-only schema: done entries -> subagent_*_total +
+  # subagent_models + counted_subagents; not-done entries -> pending_subagents
+  # (fallback_estimate/model only, done/pending bool flags dropped since
+  # presence in the map now IS the pending signal). The legacy
+  # subagent_fallback_tokens lump (if any) folds into subagent_in_total.
+  # Idempotent: called after every _sidecar_load; a sidecar already in the
+  # new shape (no .subagents key) passes through untouched. Fail-open: a jq
+  # error leaves SIDECAR_JSON as loaded (old shape survives one more render).
+  local has_old
+  has_old=$(printf '%s' "$SIDECAR_JSON" | jq -r 'has("subagents")' 2>/dev/null) || return 0
+  [ "$has_old" = "true" ] || return 0
+  local migrated
+  migrated=$(printf '%s' "$SIDECAR_JSON" | jq '
+    (.subagents // {}) as $subs
+    | (.subagent_fallback_tokens // 0) as $legacy_fb
+    | ([$subs | to_entries[] | select(.value.done == true)]) as $done
+    | ([$subs | to_entries[] | select(.value.done != true)]) as $notdone
+    | ((.subagent_in_total  // 0) + ([$done[] | .value.in // 0] | add // 0) + $legacy_fb) as $new_in
+    | ((.subagent_out_total // 0) + ([$done[] | .value.out // 0] | add // 0)) as $new_out
+    | ((.subagent_cr_total  // 0) + ([$done[] | (.value.cache_read // 0)] | add // 0)) as $new_cr
+    | ((.subagent_cc_total  // 0) + ([$done[] | (.value.cache_creation // 0)] | add // 0)) as $new_cc
+    | ((.subagent_rate_sum   // 0) + ([$done[] | .value.rate_sum // 0] | add // 0)) as $new_rs
+    | ((.subagent_rate_turns // 0) + ([$done[] | .value.rate_turns // 0] | add // 0)) as $new_rt
+    | (reduce $done[] as $d ((.subagent_models // {});
+        reduce (($d.value.models // {}) | to_entries[]) as $e (.;
+          .[$e.key] = { in:    ((.[$e.key].in    // 0) + ($e.value.in    // 0)),
+                        out:   ((.[$e.key].out   // 0) + ($e.value.out   // 0)),
+                        cr:    ((.[$e.key].cr    // 0) + ($e.value.cr    // 0)),
+                        cc:    ((.[$e.key].cc    // 0) + ($e.value.cc    // 0)),
+                        cc_5m: ((.[$e.key].cc_5m // 0) + ($e.value.cc_5m // 0)),
+                        cc_1h: ((.[$e.key].cc_1h // 0) + ($e.value.cc_1h // 0)) }))
+      ) as $new_models
+    | ((.counted_subagents // []) + [$done[].key]) as $new_counted
+    | ((.pending_subagents // {}) + (reduce $notdone[] as $p ({};
+        .[$p.key] = {fallback_estimate: ($p.value.fallback_estimate // 0), model: ($p.value.model // null)}))
+      ) as $new_pending
+    | . + { subagent_in_total: $new_in, subagent_out_total: $new_out,
+            subagent_cr_total: $new_cr, subagent_cc_total: $new_cc,
+            subagent_rate_sum: $new_rs, subagent_rate_turns: $new_rt,
+            subagent_models: $new_models, counted_subagents: $new_counted,
+            pending_subagents: $new_pending }
+    | del(.subagents) | del(.subagent_fallback_tokens)
+  ' 2>/dev/null) || return 0
+  [ -n "$migrated" ] && SIDECAR_JSON="$migrated"
+  return 0
+}
 _fold_metric() {  # current base_key last_key -> sets FOLD_RESULT=base+current (folds on reset)
   local current="$1" base_key="$2" last_key="$3" base last
   base=$(printf '%s' "$SIDECAR_JSON" | jq -r ".${base_key} // 0" 2>/dev/null)
@@ -197,7 +338,8 @@ _fold_metric() {  # current base_key last_key -> sets FOLD_RESULT=base+current (
 # Fail-open: any jq/parse failure leaves SIDECAR_JSON and the *_TOTAL
 # globals untouched (caller keeps prior values).
 _scan_usage_stdin() {  # prev_msg_id prev_msg_out; stdin: JSONL
-  # -> stdout: one compact JSON {in,out,cr,cc,models:{<model>:{in,out,cr,cc,cc_5m,cc_1h}},last_id,last_out}
+  # -> stdout: one compact JSON {in,out,cr,cc,web_search,web_fetch,geo_us,
+  #    speed_fast,models:{<model>:{in,out,cr,cc,cc_5m,cc_1h}},last_id,last_out}
   # Dedup by message.id (last-per-id); records matching prev_msg_id contribute
   # only output growth beyond prev_msg_out. "<synthetic>" rate-limit-retry
   # placeholders (all-zero usage, non-msg_ ids) are excluded so they never
@@ -205,6 +347,14 @@ _scan_usage_stdin() {  # prev_msg_id prev_msg_out; stdin: JSONL
   # cache_creation sub-object exists; absent (older transcripts) the whole
   # value is treated as 5m-tier. Every add is null-guarded: a transcript with
   # zero assistant records must yield zeros, not null.
+  # E5: web_search/web_fetch counts from usage.server_tool_use, same
+  # dup-zeroing as in/cr/cc (a boundary-duplicate record contributes 0, not a
+  # double count of a value already folded on a prior pass).
+  # E2: geo_us/speed_fast are session-pre-scan booleans (true if ANY record in
+  # THIS batch carries the flag) — checked at both the documented
+  # .message.usage.inference_geo path and a .message.speed sibling path (the
+  # two conventions observed across fixtures/docs), OR'd into the sidecar by
+  # the caller across passes so the flag is sticky once set.
   local prev_id="${1:-}" prev_out="${2:-0}" out
   case "$prev_out" in ''|*[!0-9]*) prev_out=0 ;; esac
   out=$(jq -c -R -s --arg pid "$prev_id" --argjson pout "$prev_out" '
@@ -231,12 +381,20 @@ _scan_usage_stdin() {  # prev_msg_id prev_msg_out; stdin: JSONL
              cc:    (if $dup then 0 else ($u.cache_creation_input_tokens // 0) end),
              cc_5m: (if $dup then 0 else $ccs.c5 end),
              cc_1h: (if $dup then 0 else $ccs.c1 end),
+             ws:    (if $dup then 0 else ($u.server_tool_use.web_search_requests // 0) end),
+             wf:    (if $dup then 0 else ($u.server_tool_use.web_fetch_requests // 0) end),
              rate:  (if $dup then 0 elif $denom > 0 then ($u.cache_read_input_tokens // 0) / $denom else 0 end),
              dup:   $dup })) as $adj
     | { in:  ([$adj[].in]  | add // 0),
         out: ([$adj[].out] | add // 0),
         cr:  ([$adj[].cr]  | add // 0),
         cc:  ([$adj[].cc]  | add // 0),
+        web_search: ([$adj[].ws] | add // 0),
+        web_fetch:  ([$adj[].wf] | add // 0),
+        geo_us:     (([$recs[] | select(((.message.usage.inference_geo? // "") == "us")
+                                      or ((.message.inference_geo? // "") == "us"))] | length) > 0),
+        speed_fast: (([$recs[] | select(((.message.speed? // "") == "fast")
+                                      or ((.message.usage.speed? // "") == "fast"))] | length) > 0),
         models: ($adj | group_by(.model)
           | map({key: .[0].model,
                  value: {in: (map(.in)|add//0), out: (map(.out)|add//0),
@@ -317,7 +475,8 @@ _transcript_tail_pass() {  # path -> mutates SIDECAR_JSON + sets *_TOTAL globals
   last_id=$(printf '%s' "$SIDECAR_JSON" | jq -r '.last_msg_id // ""' 2>/dev/null) || last_id=""
   last_out=$(printf '%s' "$SIDECAR_JSON" | jq -r '.last_msg_out // 0' 2>/dev/null); case "$last_out" in ''|*[!0-9]*) last_out=0 ;; esac
 
-  local d_in=0 d_out=0 d_cr=0 d_cc=0 d_rs=0 d_rt=0 dmodels='{}' new_last_id="$last_id" new_last_out="$last_out" sl_id
+  local d_in=0 d_out=0 d_cr=0 d_cc=0 d_rs=0 d_rt=0 d_ws=0 d_wf=0 d_geo=false d_speed=false
+  local dmodels='{}' new_last_id="$last_id" new_last_out="$last_out" sl_id
   if [ -n "$newdata" ]; then
     if scan=$(printf '%s' "$newdata" | _scan_usage_stdin "$last_id" "$last_out"); then
       d_in=$(printf '%s' "$scan" | jq -r '.in // 0' 2>/dev/null); case "$d_in" in ''|*[!0-9]*) d_in=0 ;; esac
@@ -326,6 +485,10 @@ _transcript_tail_pass() {  # path -> mutates SIDECAR_JSON + sets *_TOTAL globals
       d_cc=$(printf '%s' "$scan" | jq -r '.cc // 0' 2>/dev/null); case "$d_cc" in ''|*[!0-9]*) d_cc=0 ;; esac
       d_rs=$(printf '%s' "$scan" | jq -r '.rate_sum // 0' 2>/dev/null); [ -z "$d_rs" ] && d_rs=0
       d_rt=$(printf '%s' "$scan" | jq -r '.rate_turns // 0' 2>/dev/null); case "$d_rt" in ''|*[!0-9]*) d_rt=0 ;; esac
+      d_ws=$(printf '%s' "$scan" | jq -r '.web_search // 0' 2>/dev/null); case "$d_ws" in ''|*[!0-9]*) d_ws=0 ;; esac
+      d_wf=$(printf '%s' "$scan" | jq -r '.web_fetch // 0' 2>/dev/null); case "$d_wf" in ''|*[!0-9]*) d_wf=0 ;; esac
+      d_geo=$(printf '%s' "$scan" | jq -r '.geo_us // false' 2>/dev/null); [ "$d_geo" = "true" ] || d_geo=false
+      d_speed=$(printf '%s' "$scan" | jq -r '.speed_fast // false' 2>/dev/null); [ "$d_speed" = "true" ] || d_speed=false
       dmodels=$(printf '%s' "$scan" | jq -c '.models // {}' 2>/dev/null) || dmodels='{}'
       sl_id=$(printf '%s' "$scan" | jq -r '.last_id // ""' 2>/dev/null) || sl_id=""
       if [ -n "$sl_id" ]; then
@@ -341,15 +504,23 @@ _transcript_tail_pass() {  # path -> mutates SIDECAR_JSON + sets *_TOTAL globals
   CACHE_CREATION_TOTAL=$(( base_cc + d_cc ))
   SUBAGENT_FALLBACK_TOTAL="$base_fb"
 
+  # E2/E5: geo_us/speed_fast/web_search/web_fetch fold in the same merge as
+  # the token totals. geo_us/speed_fast are sticky booleans — OR'd with
+  # whatever was already true, never reset by a pass that itself saw no flag.
   SIDECAR_JSON=$(printf '%s' "$SIDECAR_JSON" | jq \
     --argjson offset "$adv" --argjson in "$IN_TOTAL" --argjson out "$OUT_TOTAL" \
     --argjson cr "$CACHE_READ_TOTAL" --argjson cc "$CACHE_CREATION_TOTAL" \
     --argjson dm "$dmodels" --arg lid "$new_last_id" --argjson lout "$new_last_out" \
     --argjson rs "$d_rs" --argjson rt "$d_rt" \
+    --argjson dws "$d_ws" --argjson dwf "$d_wf" --argjson dgeo "$d_geo" --argjson dspeed "$d_speed" \
     '.transcript_offset = $offset | .in_total = $in | .out_total = $out
      | .cache_read_total = $cr | .cache_creation_total = $cc
      | .last_msg_id = $lid | .last_msg_out = $lout
      | .rate_sum = ((.rate_sum // 0) + $rs) | .rate_turns = ((.rate_turns // 0) + $rt)
+     | .web_search_total = ((.web_search_total // 0) + $dws)
+     | .web_fetch_total  = ((.web_fetch_total  // 0) + $dwf)
+     | .inference_geo_us = ((.inference_geo_us // false) or $dgeo)
+     | .speed_fast        = ((.speed_fast // false) or $dspeed)
      | .models = (reduce ($dm | to_entries[]) as $e ((.models // {});
          .[$e.key] = { in:    ((.[$e.key].in    // 0) + ($e.value.in    // 0)),
                        out:   ((.[$e.key].out   // 0) + ($e.value.out   // 0)),
@@ -357,10 +528,15 @@ _transcript_tail_pass() {  # path -> mutates SIDECAR_JSON + sets *_TOTAL globals
                        cc:    ((.[$e.key].cc    // 0) + ($e.value.cc    // 0)),
                        cc_5m: ((.[$e.key].cc_5m // 0) + ($e.value.cc_5m // 0)),
                        cc_1h: ((.[$e.key].cc_1h // 0) + ($e.value.cc_1h // 0)) }))
-     | .subagents = (.subagents // {}) | .subagent_fallback_tokens = (.subagent_fallback_tokens // 0)' \
+     | .subagent_fallback_tokens = (.subagent_fallback_tokens // 0)' \
     2>/dev/null) || return 1
   [ -n "$SIDECAR_JSON" ] || return 1
 
+  # E3: subagent completion handler — folds a resolved agent directly into
+  # the cumulative subagent_*_total + subagent_models buckets and appends its
+  # id to counted_subagents (the re-fold guard, replacing the old per-agent
+  # .subagents[$t].done flag). Unresolved agents land in pending_subagents
+  # (fallback_estimate/model only — no per-agent totals kept until resolved).
   if [ -n "$newdata" ]; then
     local completions line
     completions=$(printf '%s' "$newdata" | _extract_subagent_completions_stdin) || completions=""
@@ -370,7 +546,7 @@ _transcript_tail_pass() {  # path -> mutates SIDECAR_JSON + sets *_TOTAL globals
         local aid ftok rmodel already sub_scan subfile
         aid=$(printf '%s' "$line" | jq -r '.agent_id // empty' 2>/dev/null)
         [ -z "$aid" ] && continue
-        already=$(printf '%s' "$SIDECAR_JSON" | jq -r --arg t "$aid" '.subagents[$t].done // false' 2>/dev/null)
+        already=$(printf '%s' "$SIDECAR_JSON" | jq -r --arg t "$aid" '(.counted_subagents // []) | contains([$t])' 2>/dev/null)
         [ "$already" = "true" ] && continue
         ftok=$(printf '%s' "$line" | jq -r '.fallback_tokens // empty' 2>/dev/null)
         case "$ftok" in ''|*[!0-9]*) ftok=0 ;; esac
@@ -378,19 +554,32 @@ _transcript_tail_pass() {  # path -> mutates SIDECAR_JSON + sets *_TOTAL globals
 
         subfile="$(dirname "$path")/subagents/agent-${aid}.jsonl"
         if [ -r "$subfile" ] && sub_scan=$(_scan_usage_stdin "" 0 < "$subfile" 2>/dev/null); then
-          SIDECAR_JSON=$(printf '%s' "$SIDECAR_JSON" | jq --arg t "$aid" --argjson s "$sub_scan" \
-            '.subagents[$t] = {in: ($s.in // 0), out: ($s.out // 0), cache_read: ($s.cr // 0),
-                               cache_creation: ($s.cc // 0), models: ($s.models // {}),
-                               rate_sum: ($s.rate_sum // 0), rate_turns: ($s.rate_turns // 0),
-                               done: true}' 2>/dev/null) || continue
+          SIDECAR_JSON=$(printf '%s' "$SIDECAR_JSON" | jq --arg t "$aid" --argjson s "$sub_scan" '
+            .subagent_in_total    = ((.subagent_in_total    // 0) + ($s.in // 0))
+            | .subagent_out_total   = ((.subagent_out_total   // 0) + ($s.out // 0))
+            | .subagent_cr_total    = ((.subagent_cr_total    // 0) + ($s.cr // 0))
+            | .subagent_cc_total    = ((.subagent_cc_total    // 0) + ($s.cc // 0))
+            | .subagent_rate_sum    = ((.subagent_rate_sum    // 0) + ($s.rate_sum // 0))
+            | .subagent_rate_turns  = ((.subagent_rate_turns  // 0) + ($s.rate_turns // 0))
+            | .subagent_models = (reduce (($s.models // {}) | to_entries[]) as $e ((.subagent_models // {});
+                .[$e.key] = { in:    ((.[$e.key].in    // 0) + ($e.value.in    // 0)),
+                              out:   ((.[$e.key].out   // 0) + ($e.value.out   // 0)),
+                              cr:    ((.[$e.key].cr    // 0) + ($e.value.cr    // 0)),
+                              cc:    ((.[$e.key].cc    // 0) + ($e.value.cc    // 0)),
+                              cc_5m: ((.[$e.key].cc_5m // 0) + ($e.value.cc_5m // 0)),
+                              cc_1h: ((.[$e.key].cc_1h // 0) + ($e.value.cc_1h // 0)) }))
+            | .counted_subagents = ((.counted_subagents // []) + [$t])
+            | .pending_subagents = ((.pending_subagents // {}) | del(.[$t]))
+          ' 2>/dev/null) || continue
         else
           # Transcript file not readable yet: record a pending entry with the
           # completion record's lump as a flagged ESTIMATE (final-turn-only,
           # undercounts real usage 14-28x) and retry the file on every
           # subsequent render. Never folded into the confirmed sums.
-          SIDECAR_JSON=$(printf '%s' "$SIDECAR_JSON" | jq --arg t "$aid" --argjson fb "$ftok" --arg m "$rmodel" \
-            '.subagents[$t] = {pending: true, fallback_estimate: $fb,
-                               model: (if $m == "" then null else $m end), done: false}' 2>/dev/null) || continue
+          SIDECAR_JSON=$(printf '%s' "$SIDECAR_JSON" | jq --arg t "$aid" --argjson fb "$ftok" --arg m "$rmodel" '
+            .pending_subagents = ((.pending_subagents // {}) + {($t): {fallback_estimate: $fb,
+                                   model: (if $m == "" then null else $m end)}})
+          ' 2>/dev/null) || continue
         fi
       done <<<"$completions"
     fi
@@ -400,35 +589,61 @@ _transcript_tail_pass() {  # path -> mutates SIDECAR_JSON + sets *_TOTAL globals
   # a subagent transcript that raced the completion record usually lands
   # within the next render or two.
   local pend_ids pid p_scan p_file
-  pend_ids=$(printf '%s' "$SIDECAR_JSON" | jq -r '(.subagents // {}) | to_entries[] | select(.value.pending == true) | .key' 2>/dev/null) || pend_ids=""
+  pend_ids=$(printf '%s' "$SIDECAR_JSON" | jq -r '(.pending_subagents // {}) | keys[]' 2>/dev/null) || pend_ids=""
   if [ -n "$pend_ids" ]; then
     while IFS= read -r pid; do
       [ -z "$pid" ] && continue
       p_file="$(dirname "$path")/subagents/agent-${pid}.jsonl"
       [ -r "$p_file" ] || continue
       p_scan=$(_scan_usage_stdin "" 0 < "$p_file" 2>/dev/null) || continue
-      SIDECAR_JSON=$(printf '%s' "$SIDECAR_JSON" | jq --arg t "$pid" --argjson s "$p_scan" \
-        '.subagents[$t] = {in: ($s.in // 0), out: ($s.out // 0), cache_read: ($s.cr // 0),
-                           cache_creation: ($s.cc // 0), models: ($s.models // {}),
-                           rate_sum: ($s.rate_sum // 0), rate_turns: ($s.rate_turns // 0),
-                           done: true}' 2>/dev/null) || continue
+      SIDECAR_JSON=$(printf '%s' "$SIDECAR_JSON" | jq --arg t "$pid" --argjson s "$p_scan" '
+        .subagent_in_total    = ((.subagent_in_total    // 0) + ($s.in // 0))
+        | .subagent_out_total   = ((.subagent_out_total   // 0) + ($s.out // 0))
+        | .subagent_cr_total    = ((.subagent_cr_total    // 0) + ($s.cr // 0))
+        | .subagent_cc_total    = ((.subagent_cc_total    // 0) + ($s.cc // 0))
+        | .subagent_rate_sum    = ((.subagent_rate_sum    // 0) + ($s.rate_sum // 0))
+        | .subagent_rate_turns  = ((.subagent_rate_turns  // 0) + ($s.rate_turns // 0))
+        | .subagent_models = (reduce (($s.models // {}) | to_entries[]) as $e ((.subagent_models // {});
+            .[$e.key] = { in:    ((.[$e.key].in    // 0) + ($e.value.in    // 0)),
+                          out:   ((.[$e.key].out   // 0) + ($e.value.out   // 0)),
+                          cr:    ((.[$e.key].cr    // 0) + ($e.value.cr    // 0)),
+                          cc:    ((.[$e.key].cc    // 0) + ($e.value.cc    // 0)),
+                          cc_5m: ((.[$e.key].cc_5m // 0) + ($e.value.cc_5m // 0)),
+                          cc_1h: ((.[$e.key].cc_1h // 0) + ($e.value.cc_1h // 0)) }))
+        | .counted_subagents = ((.counted_subagents // []) + [$t])
+        | .pending_subagents = ((.pending_subagents // {}) | del(.[$t]))
+      ' 2>/dev/null) || continue
     done <<<"$pend_ids"
   fi
 
-  # Confirmed sums come from done entries only; pending estimates aggregate
-  # separately so the display can flag them as approximate.
-  SUBAGENT_IN_TOTAL=$(printf '%s' "$SIDECAR_JSON" | jq -r '[.subagents[]? | select(.done == true) | .in // 0] | add // 0' 2>/dev/null)
-  SUBAGENT_OUT_TOTAL=$(printf '%s' "$SIDECAR_JSON" | jq -r '[.subagents[]? | select(.done == true) | .out // 0] | add // 0' 2>/dev/null)
-  SUBAGENT_CR_TOTAL=$(printf '%s' "$SIDECAR_JSON" | jq -r '[.subagents[]? | select(.done == true) | .cache_read // 0] | add // 0' 2>/dev/null)
-  SUBAGENT_CC_TOTAL=$(printf '%s' "$SIDECAR_JSON" | jq -r '[.subagents[]? | select(.done == true) | .cache_creation // 0] | add // 0' 2>/dev/null)
-  PENDING_EST_TOTAL=$(printf '%s' "$SIDECAR_JSON" | jq -r '[.subagents[]? | select(.pending == true) | .fallback_estimate // 0] | add // 0' 2>/dev/null)
-  PENDING_COUNT=$(printf '%s' "$SIDECAR_JSON" | jq -r '[.subagents[]? | select(.pending == true)] | length' 2>/dev/null)
+  # Confirmed sums now read straight off the cumulative fields (no map scan);
+  # pending estimates aggregate from pending_subagents so the display can
+  # flag them as approximate.
+  SUBAGENT_IN_TOTAL=$(printf '%s' "$SIDECAR_JSON" | jq -r '.subagent_in_total // 0' 2>/dev/null)
+  SUBAGENT_OUT_TOTAL=$(printf '%s' "$SIDECAR_JSON" | jq -r '.subagent_out_total // 0' 2>/dev/null)
+  SUBAGENT_CR_TOTAL=$(printf '%s' "$SIDECAR_JSON" | jq -r '.subagent_cr_total // 0' 2>/dev/null)
+  SUBAGENT_CC_TOTAL=$(printf '%s' "$SIDECAR_JSON" | jq -r '.subagent_cc_total // 0' 2>/dev/null)
+  PENDING_EST_TOTAL=$(printf '%s' "$SIDECAR_JSON" | jq -r '[(.pending_subagents // {})[] | .fallback_estimate // 0] | add // 0' 2>/dev/null)
+  PENDING_COUNT=$(printf '%s' "$SIDECAR_JSON" | jq -r '(.pending_subagents // {}) | length' 2>/dev/null)
   case "$SUBAGENT_IN_TOTAL" in ''|*[!0-9]*) SUBAGENT_IN_TOTAL=0 ;; esac
   case "$SUBAGENT_OUT_TOTAL" in ''|*[!0-9]*) SUBAGENT_OUT_TOTAL=0 ;; esac
   case "$SUBAGENT_CR_TOTAL" in ''|*[!0-9]*) SUBAGENT_CR_TOTAL=0 ;; esac
   case "$SUBAGENT_CC_TOTAL" in ''|*[!0-9]*) SUBAGENT_CC_TOTAL=0 ;; esac
   case "$PENDING_EST_TOTAL" in ''|*[!0-9]*) PENDING_EST_TOTAL=0 ;; esac
   case "$PENDING_COUNT" in ''|*[!0-9]*) PENDING_COUNT=0 ;; esac
+
+  # E4: estimated_cost_cents — best-effort session-level pricing estimate
+  # from main .models + subagent_models cumulative + pending fallbacks +
+  # web-search, geo/fast-modified. Written on every render so a session that
+  # never carried a live cost payload still gets an estimate on file.
+  # Fail-open: any jq error leaves the prior estimated_cost_cents in place.
+  local est_prog est_sc
+  est_prog="$_PRICE_JQ_LIB$_EST_COST_JQ"'
+    . + {estimated_cost_cents: ((total_est_cost * 100) | round)}
+  '
+  est_sc=$(printf '%s' "$SIDECAR_JSON" | jq --argjson PR "$PRICING_JSON" --arg TODAY "$TODAY" "$est_prog" 2>/dev/null) || est_sc=""
+  [ -n "$est_sc" ] && SIDECAR_JSON="$est_sc"
+
   return 0
 }
 
@@ -443,7 +658,7 @@ _transcript_tail_pass() {  # path -> mutates SIDECAR_JSON + sets *_TOTAL globals
 # an existing sidecar are preserved; the byte cursor is set past the last
 # complete line so future incremental passes start from a correct baseline.
 _recompute_all() {
-  local sess sid sidecar existing scan size adv subs sub aid subscan sdir new count=0
+  local sess sid sidecar existing scan size adv subs counted sub aid subscan sdir new count=0 prog
   mkdir -p "$SIDECAR_DIR" 2>/dev/null || true
   for sess in "$HOME"/.claude/projects/*/*.jsonl; do
     [ -f "$sess" ] || continue
@@ -457,29 +672,53 @@ _recompute_all() {
     scan=$(_scan_usage_stdin "" 0 < "$sess" 2>/dev/null) || { echo "skip  $sid (main scan failed)"; continue; }
     size=$(wc -c < "$sess" 2>/dev/null | tr -d ' '); case "$size" in ''|*[!0-9]*) size=0 ;; esac
     adv=$(_complete_bytes_end "$sess" 0); case "$adv" in ''|*[!0-9]*) adv="$size" ;; esac
-    subs='{}'
+    # E3: build the NEW cumulative-only subagent schema directly — a full
+    # local rescan can always read every subagents/agent-*.jsonl sibling, so
+    # every agent found here is "done" (counted_subagents), no pending left.
+    subs='{"in":0,"out":0,"cr":0,"cc":0,"rate_sum":0,"rate_turns":0,"models":{},"ws":0,"wf":0,"geo":false,"speed":false}'
+    counted='[]'
     sdir="$(dirname "$sess")/${sid}/subagents"
     if [ -d "$sdir" ]; then
       for sub in "$sdir"/agent-*.jsonl; do
         [ -f "$sub" ] || continue
         aid=$(basename "$sub" .jsonl); aid=${aid#agent-}
         subscan=$(_scan_usage_stdin "" 0 < "$sub" 2>/dev/null) || continue
-        subs=$(printf '%s' "$subs" | jq -c --arg t "$aid" --argjson s "$subscan" \
-          '.[$t] = {in: ($s.in // 0), out: ($s.out // 0), cache_read: ($s.cr // 0),
-                    cache_creation: ($s.cc // 0), models: ($s.models // {}),
-                    rate_sum: ($s.rate_sum // 0), rate_turns: ($s.rate_turns // 0),
-                    done: true}' 2>/dev/null) || continue
+        subs=$(printf '%s' "$subs" | jq -c --argjson s "$subscan" '
+          .in += ($s.in // 0) | .out += ($s.out // 0) | .cr += ($s.cr // 0) | .cc += ($s.cc // 0)
+          | .rate_sum += ($s.rate_sum // 0) | .rate_turns += ($s.rate_turns // 0)
+          | .ws += ($s.web_search // 0) | .wf += ($s.web_fetch // 0)
+          | .geo = (.geo or ($s.geo_us // false)) | .speed = (.speed or ($s.speed_fast // false))
+          | .models = (reduce (($s.models // {}) | to_entries[]) as $e (.models;
+              .[$e.key] = { in:    ((.[$e.key].in    // 0) + ($e.value.in    // 0)),
+                            out:   ((.[$e.key].out   // 0) + ($e.value.out   // 0)),
+                            cr:    ((.[$e.key].cr    // 0) + ($e.value.cr    // 0)),
+                            cc:    ((.[$e.key].cc    // 0) + ($e.value.cc    // 0)),
+                            cc_5m: ((.[$e.key].cc_5m // 0) + ($e.value.cc_5m // 0)),
+                            cc_1h: ((.[$e.key].cc_1h // 0) + ($e.value.cc_1h // 0)) }))
+        ' 2>/dev/null) || continue
+        counted=$(printf '%s' "$counted" | jq -c --arg a "$aid" '. + [$a]' 2>/dev/null) || continue
       done
     fi
-    new=$(printf '%s' "$existing" | jq -c --argjson s "$scan" --argjson subs "$subs" --argjson off "$adv" '
-      . + {transcript_offset: $off, in_total: ($s.in // 0), out_total: ($s.out // 0),
-           cache_read_total: ($s.cr // 0), cache_creation_total: ($s.cc // 0),
-           models: ($s.models // {}), last_msg_id: ($s.last_id // ""), last_msg_out: ($s.last_out // 0),
-           rate_sum: ($s.rate_sum // 0), rate_turns: ($s.rate_turns // 0),
-           subagents: $subs, subagent_fallback_tokens: 0}' 2>/dev/null) || { echo "skip  $sid (merge failed)"; continue; }
+    # shellcheck disable=SC2016  # single-quoted continuation: jq's own $vars, not bash
+    prog="$_PRICE_JQ_LIB$_EST_COST_JQ"'
+      (. + {transcript_offset: $off, in_total: ($s.in // 0), out_total: ($s.out // 0),
+            cache_read_total: ($s.cr // 0), cache_creation_total: ($s.cc // 0),
+            models: ($s.models // {}), last_msg_id: ($s.last_id // ""), last_msg_out: ($s.last_out // 0),
+            rate_sum: ($s.rate_sum // 0), rate_turns: ($s.rate_turns // 0),
+            web_search_total: (($s.web_search // 0) + $subs.ws), web_fetch_total: (($s.web_fetch // 0) + $subs.wf),
+            inference_geo_us: (($s.geo_us // false) or $subs.geo), speed_fast: (($s.speed_fast // false) or $subs.speed),
+            subagent_in_total: $subs.in, subagent_out_total: $subs.out,
+            subagent_cr_total: $subs.cr, subagent_cc_total: $subs.cc,
+            subagent_rate_sum: $subs.rate_sum, subagent_rate_turns: $subs.rate_turns,
+            subagent_models: $subs.models, counted_subagents: $counted, pending_subagents: {}}
+       | del(.subagents) | del(.subagent_fallback_tokens)) as $clean
+      | $clean + {estimated_cost_cents: (($clean | total_est_cost) * 100 | round)}
+    '
+    new=$(printf '%s' "$existing" | jq -c --argjson s "$scan" --argjson subs "$subs" --argjson counted "$counted" \
+      --argjson off "$adv" --argjson PR "$PRICING_JSON" --arg TODAY "$TODAY" "$prog" 2>/dev/null) || { echo "skip  $sid (merge failed)"; continue; }
     if _sidecar_save "$sidecar" "$new"; then
       count=$((count+1))
-      echo "rebuilt $sid: in=$(printf '%s' "$scan" | jq -r '.in') out=$(printf '%s' "$scan" | jq -r '.out') cr=$(printf '%s' "$scan" | jq -r '.cr') cc=$(printf '%s' "$scan" | jq -r '.cc') subagents=$(printf '%s' "$subs" | jq -r 'length')"
+      echo "rebuilt $sid: in=$(printf '%s' "$scan" | jq -r '.in') out=$(printf '%s' "$scan" | jq -r '.out') cr=$(printf '%s' "$scan" | jq -r '.cr') cc=$(printf '%s' "$scan" | jq -r '.cc') subagents=$(printf '%s' "$counted" | jq -r 'length') est_cost_cents=$(printf '%s' "$new" | jq -r '.estimated_cost_cents // 0')"
     else
       echo "skip  $sid (sidecar write failed)"
     fi
@@ -503,6 +742,7 @@ if command -v jq >/dev/null 2>&1 && [ -n "$SESSION_ID" ]; then
   SIDECAR_PATH="${SIDECAR_DIR}/${SESSION_ID}.json"
   _sidecar_prune
   _sidecar_load "$SIDECAR_PATH" || SIDECAR_JSON='{}'
+  _migrate_sidecar
   if _fold_metric "$RAW_DURATION_MS" base_duration_ms last_duration_ms; then
     FOLDED_DURATION_MS="$FOLD_RESULT"
     if _fold_metric "$RAW_API_MS" base_api_duration_ms last_api_ms; then
@@ -650,8 +890,8 @@ IN_STR="${GRN}${TG_IN}$(_human "$GRAND_TOTAL_IN")${RST}"
 # cumulative token-weighted ratio (no per-turn data available).
 if [ "$TAIL_OK" -eq 1 ]; then
   READ_PCT=$(printf '%s' "$SIDECAR_JSON" | jq -r '
-    ((.rate_sum // 0) + ([.subagents[]? | select(.done == true) | .rate_sum // 0] | add // 0)) as $rs
-    | ((.rate_turns // 0) + ([.subagents[]? | select(.done == true) | .rate_turns // 0] | add // 0)) as $rt
+    ((.rate_sum // 0) + (.subagent_rate_sum // 0)) as $rs
+    | ((.rate_turns // 0) + (.subagent_rate_turns // 0)) as $rt
     | if $rt > 0 and $rs > 0 then ((100 * $rs / $rt) | floor) else 0 end' 2>/dev/null)
   case "$READ_PCT" in ''|*[!0-9]*) READ_PCT=0 ;; esac
   if [ "$READ_PCT" -gt 0 ]; then
@@ -699,7 +939,7 @@ L1R="${TOK}${SUB_SEG} ${DIM}│${RST} ${CTX_SEG}"
 # ── Line 2 LEFT: path (branch) │ +add/-rem ────────────────────────────────
 DIR=$(_jq '.workspace.current_dir // .cwd')
 RAWDIR="$DIR"
-case "$DIR" in "$HOME"*) DIR="~${DIR#$HOME}" ;; esac
+case "$DIR" in "$HOME"*) DIR="~${DIR#"$HOME"}" ;; esac
 DIR=$(_pathshort "$DIR")
 BRANCH=""
 [ -n "$RAWDIR" ] && BRANCH=$(git -C "$RAWDIR" branch --show-current 2>/dev/null \
@@ -717,53 +957,53 @@ if [ "$LINES_ADD" -gt 0 ] || [ "$LINES_REM" -gt 0 ]; then
 fi
 
 # ── Line 2 RIGHT: rate limits (each window independently optional) │ $: cost [subcost] ──
-# If the sidecar fold ran, COST was already set to the folded dollars.
-# Fail-open path (no jq/session_id): read the raw payload value directly.
+# If the sidecar fold ran, COST was already set to the folded dollars (the
+# authoritative live payload total). Fail-open path (no jq/session_id): read
+# the raw payload value directly. E4: when neither source produced a
+# non-zero figure (no live cost payload ever seen for this session), fall
+# back to the sidecar's own estimated_cost_cents (our token x pricing
+# estimate — the only source available for recompute-only sessions). No
+# special "this is an estimate" marker, same convention as SUB_COST below.
 if [ -z "${COST:-}" ]; then
   COST=$(_jq '.cost.total_cost_usd // empty')
   [ -n "$COST" ] && COST=$(printf '%s' "$COST" | awk '{printf "%.2f",$1}')
 fi
-# Subagent cost estimate: per-model token buckets × the static pricing table
-# below. No per-call cost exists anywhere in the harness data (total_cost_usd
-# is one session-wide number), so this is a computed ESTIMATE by design — do
-# not try to reconcile it against the harness total.
-# Prices (USD/MTok, input/output) from the official table at
-# platform.claude.com/docs/en/about-claude/pricing, fetched 2026-07-09.
-# Cache multipliers are universal across models: read 0.1x input, 5m write
-# 1.25x input, 1h write 2x input. sonnet-5 is introductory $2/$10 until
-# 2026-08-31, then $3/$15 — bump on cutover. Unknown models deliberately
-# price at sonnet tier ($3/$15) rather than silently costing zero.
+NEED_EST_FALLBACK=0
+if [ -z "${COST:-}" ]; then
+  NEED_EST_FALLBACK=1
+else
+  awk -v c="$COST" 'BEGIN{exit !(c==0)}' && NEED_EST_FALLBACK=1
+fi
+if [ "$NEED_EST_FALLBACK" -eq 1 ]; then
+  EST_COST_CENTS=""
+  if [ "$TAIL_OK" -eq 1 ]; then
+    EST_COST_CENTS=$(printf '%s' "$SIDECAR_JSON" | jq -r '.estimated_cost_cents // 0' 2>/dev/null)
+    case "$EST_COST_CENTS" in ''|*[!0-9]*) EST_COST_CENTS=0 ;; esac
+  fi
+  if [ -n "$EST_COST_CENTS" ] && [ "$EST_COST_CENTS" -gt 0 ]; then
+    COST=$(awk -v c="$EST_COST_CENTS" 'BEGIN{printf "%.2f", c/100}')
+  fi
+fi
+# Subagent cost estimate: per-model token buckets × the E2 pricing-JSON
+# lookup (exact model -> longest family prefix -> default; date-aware Sonnet
+# 5; explicit cache_5m/cache_1h/cache_read values; geo_us/fast modifiers
+# applied session-wide per the sidecar's sticky flags). No per-call cost
+# exists anywhere in the harness data (total_cost_usd is one session-wide
+# number), so this is a computed ESTIMATE by design — do not try to
+# reconcile it against the harness total. E3: reads the cumulative
+# subagent_models bucket + pending_subagents fallbacks, not a per-agent map.
 SUB_COST=""
 if [ "$TAIL_OK" -eq 1 ]; then
-  SUB_COST=$(printf '%s' "$SIDECAR_JSON" | jq -r '
-    def price($m):
-      if   ($m | startswith("claude-opus-4-8")) or ($m | startswith("claude-opus-4-7"))
-        or ($m | startswith("claude-opus-4-6")) or ($m | startswith("claude-opus-4-5")) then {i: 5.0,  o: 25.0}
-      elif ($m | startswith("claude-opus-4-1")) or ($m == "claude-opus-4")
-        or ($m | startswith("claude-opus-4-2025"))                                      then {i: 15.0, o: 75.0}
-      elif ($m | startswith("claude-sonnet-5"))                                         then {i: 2.0,  o: 10.0}
-      elif ($m | startswith("claude-sonnet-4"))                                         then {i: 3.0,  o: 15.0}
-      elif ($m | startswith("claude-haiku-4-5"))                                        then {i: 1.0,  o: 5.0}
-      elif ($m | startswith("claude-haiku-3-5"))                                        then {i: 0.8,  o: 4.0}
-      elif ($m | startswith("claude-fable-5")) or ($m | startswith("claude-mythos-5"))  then {i: 10.0, o: 50.0}
-      else {i: 3.0, o: 15.0} end;
-    def bcost($m; $b): (price($m)) as $p
-      | ( ($b.in // 0) * $p.i + ($b.out // 0) * $p.o
-          + ($b.cr // $b.cache_read // 0) * $p.i * 0.1
-          + (if (($b.cc_5m? // null) != null) or (($b.cc_1h? // null) != null)
-             then (($b.cc_5m // 0) * $p.i * 1.25 + ($b.cc_1h // 0) * $p.i * 2)
-             else (($b.cc // $b.cache_creation // 0) * $p.i * 1.25) end) ) / 1000000;
-    ([ (.subagents // {}) | to_entries[] | .value
-       | if .done == true then
-           (if ((.models? // null) != null) and ((.models | length) > 0)
-            then ([.models | to_entries[] | bcost(.key; .value)] | add // 0)
-            else bcost("unknown"; {in: (.in // 0), out: (.out // 0),
-                                   cache_read: (.cache_read // 0), cache_creation: (.cache_creation // 0)}) end)
-         elif .pending == true then ((.fallback_estimate // 0) * (price(.model // "unknown").i) / 1000000)
-         else 0 end
-     ] | add // 0) + ((.subagent_fallback_tokens // 0) * (price("unknown").i) / 1000000)
+  # shellcheck disable=SC2016  # single-quoted continuation: jq's own $vars, not bash
+  SUB_COST_PROG="$_PRICE_JQ_LIB"'
+    ((.inference_geo_us // false)) as $geo
+    | ((.speed_fast // false)) as $fast
+    | ( [ (.subagent_models // {}) | to_entries[] | bcost(.key; .value; $geo; $fast) ] | add // 0 )
+      + ( [ (.pending_subagents // {}) | to_entries[] | fbcost(.value.model // "unknown"; .value.fallback_estimate // 0; $geo) ] | add // 0 )
+      + fbcost("unknown"; (.subagent_fallback_tokens // 0); $geo)
     | if . > 0 then tostring else empty end
-  ' 2>/dev/null) || SUB_COST=""
+  '
+  SUB_COST=$(printf '%s' "$SIDECAR_JSON" | jq -r --argjson PR "$PRICING_JSON" --arg TODAY "$TODAY" "$SUB_COST_PROG" 2>/dev/null) || SUB_COST=""
   [ -n "$SUB_COST" ] && SUB_COST=$(printf '%s' "$SUB_COST" | awk '{printf "%.2f",$1}')
 fi
 R5_RAW=$(_jq '.rate_limits.five_hour.used_percentage')
