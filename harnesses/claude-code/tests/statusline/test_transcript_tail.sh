@@ -164,9 +164,9 @@ _assert_json_field "run1: sidecar in_total" "$SIDECAR" '.in_total' "1500"
 _assert_json_field "run1: sidecar out_total" "$SIDECAR" '.out_total' "300"
 _assert_json_field "run1: sidecar cache_read_total" "$SIDECAR" '.cache_read_total' "50"
 _assert_json_field "run1: sidecar cache_creation_total" "$SIDECAR" '.cache_creation_total' "10"
-_assert_json_field "run1: sidecar subagents[sub1].in" "$SIDECAR" '.subagents["a11111111111111a1"].in' "300"
-_assert_json_field "run1: sidecar subagents[sub1].out" "$SIDECAR" '.subagents["a11111111111111a1"].out' "150"
-_assert_json_field "run1: sidecar subagents[sub1].done" "$SIDECAR" '.subagents["a11111111111111a1"].done' "true"
+_assert_json_field "run1: sidecar subagent_in_total" "$SIDECAR" '.subagent_in_total' "300"
+_assert_json_field "run1: sidecar subagent_out_total" "$SIDECAR" '.subagent_out_total' "150"
+_assert_json_field "run1: sidecar counted_subagents includes sub1" "$SIDECAR" '.counted_subagents | contains(["a11111111111111a1"])' "true"
 _assert_json_field "run1: sidecar subagent_fallback_tokens" "$SIDECAR" '.subagent_fallback_tokens' "0"
 OFFSET1=$(jq -r '.transcript_offset' "$SIDECAR" 2>/dev/null)
 SIZE1=$(wc -c < "$TRANSCRIPT" | tr -d ' ')
@@ -178,7 +178,8 @@ _assert_contains "run2: totals unchanged (no new data)" "$OUT2" "↑1k"
 _assert_contains "run2: subagent bracket unchanged (sub1 not double-counted)" "$OUT2" "[⫂ 320/150]"
 _assert_json_field "run2: sidecar in_total unchanged" "$SIDECAR" '.in_total' "1500"
 _assert_json_field "run2: sidecar transcript_offset unchanged" "$SIDECAR" '.transcript_offset' "$OFFSET1"
-_assert_json_field "run2: subagents[sub1] still counted exactly once" "$SIDECAR" '.subagents["a11111111111111a1"].in' "300"
+_assert_json_field "run2: subagent_in_total still counted exactly once (no double-fold)" "$SIDECAR" '.subagent_in_total' "300"
+_assert_json_field "run2: counted_subagents still length 1 (no double-append)" "$SIDECAR" '.counted_subagents | length' "1"
 
 echo "== Test 3: new lines + missing subagent transcript file -> pending (not folded into confirmed sums) =="
 # sub2's transcript file is deliberately never created under $SUBDIR (simulates a
@@ -203,20 +204,20 @@ _assert_json_field "run3: sidecar in_total advanced" "$SIDECAR" '.in_total' "170
 _assert_json_field "run3: sidecar out_total advanced" "$SIDECAR" '.out_total' "350"
 _assert_json_field "run3: sidecar cache_read_total advanced" "$SIDECAR" '.cache_read_total' "55"
 _assert_json_field "run3: sidecar cache_creation_total advanced" "$SIDECAR" '.cache_creation_total' "11"
-_assert_json_field "run3: sidecar subagents[sub2].pending" "$SIDECAR" '.subagents["b22222222222222b2"].pending' "true"
-_assert_json_field "run3: sidecar subagents[sub2].fallback_estimate" "$SIDECAR" '.subagents["b22222222222222b2"].fallback_estimate' "777"
-_assert_json_field "run3: sidecar subagents[sub2].done" "$SIDECAR" '.subagents["b22222222222222b2"].done' "false"
+_assert_json_field "run3: sidecar pending_subagents has sub2" "$SIDECAR" '.pending_subagents | has("b22222222222222b2")' "true"
+_assert_json_field "run3: sidecar pending_subagents[sub2].fallback_estimate" "$SIDECAR" '.pending_subagents["b22222222222222b2"].fallback_estimate' "777"
+_assert_json_field "run3: sidecar counted_subagents does not yet include sub2" "$SIDECAR" '.counted_subagents | contains(["b22222222222222b2"])' "false"
 _assert_json_field "run3: sidecar subagent_fallback_tokens stays 0 (legacy read-only key)" "$SIDECAR" '.subagent_fallback_tokens' "0"
-_assert_json_field "run3: sidecar subagents[sub1] untouched by run3" "$SIDECAR" '.subagents["a11111111111111a1"].in' "300"
+_assert_json_field "run3: sidecar subagent_in_total untouched by run3 (sub1 only)" "$SIDECAR" '.subagent_in_total' "300"
 
 echo "== Test 3b: pending subagent resolves once its transcript file appears (retried every render) =="
 SUB2_FILE="$SUBDIR/agent-b22222222222222b2.jsonl"
 _subagent_transcript_line 400 250 10 5 > "$SUB2_FILE"
 OUT3B=$(_run "$(_mk_payload "$SID" "$TRANSCRIPT")" "$STATE")
-_assert_json_field "run3b: sidecar subagents[sub2].done" "$SIDECAR" '.subagents["b22222222222222b2"].done' "true"
-_assert_json_field "run3b: sidecar subagents[sub2].pending resets" "$SIDECAR" '.subagents["b22222222222222b2"].pending // false' "false"
-_assert_json_field "run3b: sidecar subagents[sub2].in" "$SIDECAR" '.subagents["b22222222222222b2"].in' "400"
-_assert_json_field "run3b: sidecar subagents[sub2].out" "$SIDECAR" '.subagents["b22222222222222b2"].out' "250"
+_assert_json_field "run3b: sidecar counted_subagents now includes sub2" "$SIDECAR" '.counted_subagents | contains(["b22222222222222b2"])' "true"
+_assert_json_field "run3b: sidecar pending_subagents[sub2] resets (removed)" "$SIDECAR" '.pending_subagents | has("b22222222222222b2")' "false"
+_assert_json_field "run3b: sidecar subagent_in_total (300 sub1 + 400 sub2)" "$SIDECAR" '.subagent_in_total' "700"
+_assert_json_field "run3b: sidecar subagent_out_total (150 sub1 + 250 sub2)" "$SIDECAR" '.subagent_out_total' "400"
 _assert_contains "run3b: confirmed subagent bracket now includes sub2 (320+400+10+5=735 / 150+250=400)" "$OUT3B" "[⫂ 735/400]"
 if printf '%s' "$OUT3B" | grep -qF -- '~777(1)'; then
   FAIL=$((FAIL+1)); echo "FAIL: run3b: pending marker must disappear once resolved"
@@ -261,7 +262,8 @@ if printf '%s' "$OUT5" | grep -qF -- '[⫂'; then
 else
   PASS=$((PASS+1)); echo "PASS: launch-only record correctly renders no subagent share segment"
 fi
-_assert_json_field "launch-only: sidecar has no subagents entry" "$SIDECAR5" '.subagents["cdead00000000dead"] // "absent"' "absent"
+_assert_json_field "launch-only: sidecar counted_subagents does not include the launch-ack id" "$SIDECAR5" '(.counted_subagents // []) | contains(["cdead00000000dead"])' "false"
+_assert_json_field "launch-only: sidecar pending_subagents does not include the launch-ack id" "$SIDECAR5" '(.pending_subagents // {}) | has("cdead00000000dead")' "false"
 
 echo "== Test 6: neither subagent transcript file nor parseable <usage> tokens -> pending with 0 estimate (retryable) =="
 STATE6="$SCRATCH/state6"
@@ -286,8 +288,8 @@ if [ "$RC6" -eq 0 ]; then
 else
   FAIL=$((FAIL+1)); echo "FAIL: neither-source case caused nonzero exit ($RC6)"
 fi
-_assert_json_field "neither-source: stored as a pending entry" "$SIDECAR6" '.subagents["dead111111111dead1"].pending' "true"
-_assert_json_field "neither-source: fallback_estimate is 0 (retryable, not fabricated)" "$SIDECAR6" '.subagents["dead111111111dead1"].fallback_estimate' "0"
+_assert_json_field "neither-source: stored as a pending entry" "$SIDECAR6" '.pending_subagents | has("dead111111111dead1")' "true"
+_assert_json_field "neither-source: fallback_estimate is 0 (retryable, not fabricated)" "$SIDECAR6" '.pending_subagents["dead111111111dead1"].fallback_estimate' "0"
 _assert_json_field "neither-source: subagent_fallback_tokens stays 0" "$SIDECAR6" '.subagent_fallback_tokens' "0"
 if printf '%s' "$OUT6" | grep -qF -- '[⫂'; then
   FAIL=$((FAIL+1)); echo "FAIL: neither-source case must not render a confirmed subagent bracket"
@@ -384,6 +386,67 @@ SIDECAR10="$STATE10/$SID10.json"
 _assert_contains "test10: average cache-hit% rendered (66%)" "$OUT10" "⚡66%"
 _assert_json_field "test10: sidecar rate_sum is 2.0 (two 100% turns)" "$SIDECAR10" '.rate_sum' "2"
 _assert_json_field "test10: sidecar rate_turns is 3 (three contributing turns)" "$SIDECAR10" '.rate_turns' "3"
+
+echo "== Test 11: E3 migration — an OLD-shape sidecar (.subagents map) folds into the new cumulative schema =="
+STATE11="$SCRATCH/state11"
+mkdir -p "$STATE11"
+SID11="sess-migrate"
+# A pre-existing OLD-shape sidecar: one done entry (old1, with a per-model
+# bucket + rate data), one pending entry (old2), and a legacy
+# subagent_fallback_tokens lump. No transcript_path resolves (isolates the
+# migration step, which runs on every _sidecar_load, from the tail pass).
+cat > "$STATE11/$SID11.json" <<'EOF'
+{
+  "subagents": {
+    "old1111111111111old1": {
+      "in": 100, "out": 50, "cache_read": 5, "cache_creation": 2,
+      "models": {"claude-sonnet-5": {"in": 100, "out": 50, "cr": 5, "cc": 2, "cc_5m": 2, "cc_1h": 0}},
+      "rate_sum": 0.5, "rate_turns": 1, "done": true
+    },
+    "old2222222222222old2": {
+      "pending": true, "fallback_estimate": 42, "model": "claude-haiku-4-5", "done": false
+    }
+  },
+  "subagent_fallback_tokens": 10
+}
+EOF
+_run "$(_mk_payload "$SID11" "$SCRATCH/does-not-exist-11.jsonl")" "$STATE11" >/dev/null
+SIDECAR11="$STATE11/$SID11.json"
+_assert_json_field "migrate: subagent_in_total folds done.in + legacy fallback (100+10=110)" "$SIDECAR11" '.subagent_in_total' "110"
+_assert_json_field "migrate: subagent_out_total folds done.out (50)" "$SIDECAR11" '.subagent_out_total' "50"
+_assert_json_field "migrate: subagent_cr_total folds done.cache_read (5)" "$SIDECAR11" '.subagent_cr_total' "5"
+_assert_json_field "migrate: subagent_cc_total folds done.cache_creation (2)" "$SIDECAR11" '.subagent_cc_total' "2"
+_assert_json_field "migrate: subagent_rate_sum folds done.rate_sum (0.5)" "$SIDECAR11" '.subagent_rate_sum' "0.5"
+_assert_json_field "migrate: subagent_rate_turns folds done.rate_turns (1)" "$SIDECAR11" '.subagent_rate_turns' "1"
+_assert_json_field "migrate: subagent_models carries the done entry's per-model bucket" "$SIDECAR11" '.subagent_models["claude-sonnet-5"].in' "100"
+_assert_json_field "migrate: counted_subagents includes the done id" "$SIDECAR11" '.counted_subagents | contains(["old1111111111111old1"])' "true"
+_assert_json_field "migrate: pending_subagents carries the not-done entry" "$SIDECAR11" '.pending_subagents["old2222222222222old2"].fallback_estimate' "42"
+_assert_json_field "migrate: old .subagents key is dropped" "$SIDECAR11" 'has("subagents")' "false"
+_assert_json_field "migrate: legacy subagent_fallback_tokens key is dropped" "$SIDECAR11" 'has("subagent_fallback_tokens")' "false"
+
+echo "== Test 11b: E3 migration is idempotent — re-running on an already-migrated (or fresh) sidecar is a no-op =="
+_run "$(_mk_payload "$SID11" "$SCRATCH/does-not-exist-11.jsonl")" "$STATE11" >/dev/null
+_assert_json_field "migrate idempotent: subagent_in_total unchanged on second load (110)" "$SIDECAR11" '.subagent_in_total' "110"
+_assert_json_field "migrate idempotent: counted_subagents still length 1" "$SIDECAR11" '.counted_subagents | length' "1"
+
+echo "== Test 12: E5 captures web_search/web_fetch counts from usage.server_tool_use (dedup-aware) =="
+STATE12="$SCRATCH/state12"
+mkdir -p "$STATE12"
+SID12="sess-websearch"
+TRANSCRIPT12="$SCRATCH/transcript12.jsonl"
+# msg_ws1: 2 web_search + 1 web_fetch. msg_ws2 repeated 3x with the same id
+# (same-pass dedup via group_by/last-per-id, independent of the incremental
+# boundary logic) carrying 0 web_search + 3 web_fetch on its last line only
+# — the earlier duplicate lines must not multiply the count.
+{
+  printf '{"type":"assistant","message":{"id":"msg_ws1","model":"claude-sonnet-5","usage":{"input_tokens":10,"output_tokens":5,"cache_read_input_tokens":0,"cache_creation_input_tokens":0,"server_tool_use":{"web_search_requests":2,"web_fetch_requests":1}}}}\n'
+  printf '{"type":"assistant","message":{"id":"msg_ws2","model":"claude-sonnet-5","usage":{"input_tokens":10,"output_tokens":5,"cache_read_input_tokens":0,"cache_creation_input_tokens":0,"server_tool_use":{"web_search_requests":0,"web_fetch_requests":3}}}}\n'
+  printf '{"type":"assistant","message":{"id":"msg_ws2","model":"claude-sonnet-5","usage":{"input_tokens":10,"output_tokens":9,"cache_read_input_tokens":0,"cache_creation_input_tokens":0,"server_tool_use":{"web_search_requests":0,"web_fetch_requests":3}}}}\n'
+} > "$TRANSCRIPT12"
+_run "$(_mk_payload "$SID12" "$TRANSCRIPT12")" "$STATE12" >/dev/null
+SIDECAR12="$STATE12/$SID12.json"
+_assert_json_field "E5: web_search_total sums across deduped records (2+0=2)" "$SIDECAR12" '.web_search_total' "2"
+_assert_json_field "E5: web_fetch_total sums across deduped records, no double-count of the dup line (1+3=4)" "$SIDECAR12" '.web_fetch_total' "4"
 
 echo
 
