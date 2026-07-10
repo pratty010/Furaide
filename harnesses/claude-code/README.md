@@ -92,7 +92,7 @@ bash ~/Furaidē/packages/cli/src/targets/claude-code/install.sh
 The bootstrap script is interactive by default (Y/n prompt per step; the skills step also offers `s` to pick a subset individually). Pass `--yes`/`-y` to run unattended:
 1. Creates `~/.idisu`
 2. Installs the `idisu` CLI engine via `bun install`
-3. Installs CC's skill boundary: `github`, `html-preview`, `handoff-furaide-addendum`, `post-mortem`, `regression-test-recipe` (repo-vendored, copied to `~/.agents/skills/` + symlinked into `~/.claude/skills/`) plus the bundled `research` skill (`config/skills/research/` → `~/.claude/skills/research/`, a direct copy) plus the canonical external set (superpowers/mattpocock subset, `notebooklm`, `ponytail` — via `install-external-skills.sh --ecosystem claude-code`)
+3. Installs CC's skill boundary: `github`, `html-preview`, `handoff-furaide-addendum`, `post-mortem`, `regression-test-recipe` (repo-vendored, copied to `~/.agents/skills/` + symlinked into `~/.claude/skills/`) plus the bundled `research` skill (`config/skills/research/` → `~/.claude/skills/research/`, a direct copy) plus the canonical external set (superpowers/mattpocock subset, `ponytail` — via `install-external-skills.sh --ecosystem claude-code --all`; `notebooklm` stays manual/hand-install, see below)
 4. Copies `config/agents/*.md` (`hanko--git-seal`, `kamaitachi--scout`) → `~/.claude/agents/`
 5. Backs up and copies `config/CLAUDE.md` + `config/rules/*.md` + `config/statusline-command.sh` → `~/.claude/`
 
@@ -236,7 +236,7 @@ IDISU_CAPTURE_HOOK_PAYLOADS=1 claude
 
 ```bash
 bash ~/Furaidē/packages/cli/src/shared/install-vendored-skills.sh --global --only github,html-preview,handoff-furaide-addendum,post-mortem,regression-test-recipe
-bash ~/Furaidē/packages/cli/src/shared/install-external-skills.sh --ecosystem claude-code --all  # superpowers, mattpocock, notebooklm, ponytail
+bash ~/Furaidē/packages/cli/src/shared/install-external-skills.sh --ecosystem claude-code --all  # superpowers, mattpocock, ponytail ("manual"-tagged sets like notebooklm are excluded from --all by design)
 ```
 
 Run `install-vendored-skills.sh --list` to see every repo-vendored skill with its description (used internally by the `s` picker in `install.sh`); drop `--only` to install the full shared pool instead of just CC's boundary set.

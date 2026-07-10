@@ -166,17 +166,25 @@ _install_skill() {
 }
 
 # ── Process each installable skill set ───────────────────────────────────
+# Positive allow-list on install_target == "global" — the only value that
+# actually means "auto-install via this script's clone+symlink flow" (verified
+# against every value in the manifest: global/manual/common/none). "manual"
+# (e.g. notebooklm's custom auth flow) and "common" (hanko/github — already
+# handled by install-vendored-skills.sh, its own manifest description says so)
+# are both hand/other-path installs; "none"/"plugin" are pre-existing
+# non-installable markers. A deny-list here would silently re-admit any of
+# these on a manifest edit; the allow-list can't.
 # When --ecosystem is set, filter to sets tagged for that ecosystem (or untagged)
 if [[ -n "$OPT_ECOSYSTEM" ]]; then
   INSTALLABLE=$(jq -c --arg eco "$OPT_ECOSYSTEM" '
     .skill_sets | to_entries[] |
-    select(.value.install_target != "none" and .value.install_target != "plugin") |
+    select(.value.install_target == "global") |
     select(.value.ecosystem == null or (.value.ecosystem | index($eco) != null))
   ' "$MANIFEST")
 else
   INSTALLABLE=$(jq -c '
     .skill_sets | to_entries[] |
-    select(.value.install_target != "none" and .value.install_target != "plugin")
+    select(.value.install_target == "global")
   ' "$MANIFEST")
 fi
 

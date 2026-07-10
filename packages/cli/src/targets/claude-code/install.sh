@@ -67,7 +67,6 @@ open(sys.argv[2],'w').write(json.dumps(dst,indent=2)+'\n')
 ASSUME_YES=0
 MINIMAL=0
 NO_CONFIG=0
-WITH_SKILLS=0
 DRY_RUN=0
 FORCED_SCOPE=""
 FORCED_RUNTIME=""
@@ -78,7 +77,7 @@ while [[ $# -gt 0 ]]; do
     --yes|-y)      ASSUME_YES=1; shift ;;
     --minimal)     MINIMAL=1; shift ;;
     --no-config)   NO_CONFIG=1; shift ;;
-    --with-skills) WITH_SKILLS=1; shift ;;
+    --with-skills) shift ;;  # deprecated no-op — see the flag's help text above
     --dry-run)     DRY_RUN=1; shift ;;
     --scope)       FORCED_SCOPE="$2"; shift 2 ;;
     --js-runtime)  FORCED_RUNTIME="$2"; shift 2 ;;
@@ -199,7 +198,7 @@ SKILLS_ONLY_LIST="$CC_SKILL_SET"   # narrowed by the 's' picker below, or --yes 
 
 # ── Skills subset picker: numbered multi-select scoped to CC_SKILL_SET ─────
 _pick_skills_subset() {
-  local list_output names=() descs=() reply idx name
+  local list_output names=() reply idx name desc
   list_output="$(bash "$SHARED_DIR/install-vendored-skills.sh" --list)"
   IFS=',' read -ra _cc_set <<< "$CC_SKILL_SET"
   printf '\n  Available skills:\n' >&2
@@ -251,7 +250,7 @@ if [[ "$ASSUME_YES" -ne 1 && "$MINIMAL" -ne 1 ]]; then
   select_component INSTALL_AGENTS    "Core agents (hanko--git-seal, kamaitachi--scout)"
 
   while true; do
-    read -rp "  Core skills ($CC_SKILL_SET) [Y/n/s/b]: " __skills_reply </dev/tty
+    read -rp "  Skills: $CC_SKILL_SET + research + canonical external set (superpowers/mattpocock/ponytail) [Y/n/s/b]: " __skills_reply </dev/tty
     case "$__skills_reply" in
       b|B) pick_scope ;;
       n|N) INSTALL_SKILLS=0; break ;;
@@ -310,18 +309,16 @@ if [[ "$INSTALL_SKILLS" -eq 1 && -n "$SKILLS_ONLY_LIST" ]]; then
   done < "$VENDORED_OUT"
   rm -f "$VENDORED_OUT"
 
-  # config/skills/research/ — CC-bundled skill (analogous to config/agents/),
-  # not part of the shared skills/ pool. Copy directly, skip if user already
-  # customized it. Supersedes the generic external `research` stub at the same
-  # ~/.claude/skills/research path if that symlink isn't present yet; if a
-  # real (non-our) dir already sits there, we skip and warn rather than clobber.
+  # config/skills/research/ — CC-bundled skill (analogous to config/agents/).
+  # Always a plain repo copy (never a symlink), matching the config/agents/*.md
+  # skip-if-exists convention elsewhere in this file: re-installs are idempotent
+  # (no clobber, no misfiring "foreign file" warning), and refreshing it after
+  # an update means deleting it first, same as any other bundled file here.
   if [[ -d "$REPO/config/skills/research" ]]; then
     mkdir -p "$TARGET_DIR/skills"
     research_dest="$TARGET_DIR/skills/research"
-    if [[ -e "$research_dest" && ! -L "$research_dest" ]]; then
-      warn "  research: $research_dest already exists (not our symlink) — skipping, review manually"
-    elif [[ -e "$research_dest" ]]; then
-      ok "  research: skip (already installed)"
+    if [[ -e "$research_dest" ]]; then
+      ok "  research: skip (already exists — delete to reinstall)"
     else
       cp -r "$REPO/config/skills/research" "$research_dest"
       ok "  research → $research_dest"
@@ -329,28 +326,40 @@ if [[ "$INSTALL_SKILLS" -eq 1 && -n "$SKILLS_ONLY_LIST" ]]; then
     SKILL_NAMES+=("research")
   fi
 
-  # Canonical external skills (superpowers + mattpocock subset, notebooklm,
-  # ponytail) are part of CC's standard ship-set per the config-restructure
-  # spec — no longer a rare --with-skills opt-in. Dedup variants (diagnosing-bugs,
-  # grilling/grill-me, test-driven-development, write-a-skill/writing-great-skills,
-  # readme-blueprint-generator) are excluded at the manifest level, not here.
+  # Canonical external skills (superpowers + mattpocock subset, ponytail) are
+  # part of CC's standard ship-set per the config-restructure spec — no longer
+  # a rare --with-skills opt-in. Dedup variants (diagnosing-bugs, grilling/
+  # grill-me, test-driven-development, write-a-skill/writing-great-skills,
+  # readme-blueprint-generator) and "manual"-tagged sets (hanko/github — already
+  # covered by install-vendored-skills.sh above; notebooklm — genuinely
+  # hand-install-only per its own manifest description) are excluded at the
+  # manifest level (install-external-skills.sh skips install_target=="manual"
+  # entirely), not here.
   #
-  # install-external-skills.sh has no --custom concept of its own — it only
-  # knows "global" (~/.agents/, ~/.claude/skills/) or --project (./.claude/skills/).
-  # For SCOPE=custom, redirect it via its env-var overrides so a custom-scope
-  # install stays fully inside TARGET_DIR instead of touching the real
-  # ~/.agents/skill-repos, ~/.agents/skills, ~/.claude/skills on the host machine.
-  if [[ "$SCOPE" == "project" ]]; then
-    bash "$SHARED_DIR/install-external-skills.sh" --ecosystem claude-code --all --project
-  elif [[ "$SCOPE" == "custom" ]]; then
+  # install-external-skills.sh has no --custom/--scope concept of its own — it
+  # only knows "global" (~/.agents/, ~/.claude/skills/) or --project (relative
+  # ./.claude/skills/, no path parameter). For any non-global CC scope,
+  # redirect via its env-var overrides so the sweep stays fully inside
+  # TARGET_DIR instead of touching the real ~/.agents/skill-repos,
+  # ~/.agents/skills, ~/.claude/skills on the host machine — matches how
+  # install-vendored-skills.sh already isolates project/custom scope.
+  #
+  # Non-fatal: this step reaches the network (git clone/pull); a transient
+  # failure here must not abort the rest of the install (CLAUDE.md/rules/
+  # agents/settings, none of which depend on it) — set -e is active, so guard
+  # explicitly rather than let it propagate.
+  if [[ "$SCOPE" == "global" ]]; then
+    bash "$SHARED_DIR/install-external-skills.sh" --ecosystem claude-code --all \
+      && ok "canonical external skills installed (superpowers/mattpocock/ponytail)" \
+      || warn "canonical external skills install failed (network?) — re-run 'bash $SHARED_DIR/install-external-skills.sh --ecosystem claude-code --all' later"
+  else
     AGENTS_SKILL_REPOS="$TARGET_DIR/.agents/skill-repos" \
     AGENTS_SKILLS="$TARGET_DIR/.agents/skills" \
     CLAUDE_SKILLS="$TARGET_DIR/skills" \
-      bash "$SHARED_DIR/install-external-skills.sh" --ecosystem claude-code --all
-  else
-    bash "$SHARED_DIR/install-external-skills.sh" --ecosystem claude-code --all
+      bash "$SHARED_DIR/install-external-skills.sh" --ecosystem claude-code --all \
+      && ok "canonical external skills installed (superpowers/mattpocock/ponytail)" \
+      || warn "canonical external skills install failed (network?) — re-run manually with the same AGENTS_SKILL_REPOS/AGENTS_SKILLS/CLAUDE_SKILLS overrides targeting $TARGET_DIR"
   fi
-  ok "canonical external skills installed (superpowers/mattpocock/notebooklm/ponytail)"
 fi
 
 # ── Execute: Agents ───────────────────────────────────────────────────────────

@@ -324,7 +324,10 @@ fi
 # part of the per-skill subset picker — this is a "clean up the default
 # external set" companion pass, not a user-selectable target.
 if [[ "$DO_SKILLS" -eq 1 && -z "$SKILLS_REMOVE_LIST" && "$TARGET_DIR" == "$GLOBAL_TARGET" ]]; then
-  CANONICAL_EXTERNAL_SKILLS="brainstorming writing-plans subagent-driven-development verification-before-completion requesting-code-review finishing-a-development-branch using-git-worktrees caveman diagnose systematic-debugging tdd skill-creator writing-skills humanizer receiving-code-review create-readme improve-codebase-architecture grill-with-docs impeccable prototype to-prd to-issues triage html-preview find-docs dispatching-parallel-agents handoff executing-plans notebooklm ponytail"
+  # Matches exactly what install-external-skills.sh's --all sweep installs by
+  # default (install_target != "manual" sets) — notebooklm stays excluded
+  # there (manual/hand-install), so it's excluded here too.
+  CANONICAL_EXTERNAL_SKILLS="brainstorming writing-plans subagent-driven-development verification-before-completion requesting-code-review finishing-a-development-branch using-git-worktrees caveman diagnose systematic-debugging tdd skill-creator writing-skills humanizer receiving-code-review create-readme improve-codebase-architecture grill-with-docs impeccable prototype to-prd to-issues triage html-preview find-docs dispatching-parallel-agents handoff executing-plans ponytail"
   for skill_name in $CANONICAL_EXTERNAL_SKILLS; do
     skill_link="$HOME/.claude/skills/$skill_name"
     [[ -L "$skill_link" ]] || continue
