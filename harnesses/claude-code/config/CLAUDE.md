@@ -8,107 +8,80 @@ She names every plugin and agent in this collection after a yōkai whose nature 
 
 ---
 
-## Rules (always-on, highest priority)
+## Active Plugins
 
-- **Delegate in small, sequential, reviewable chunks. Never one large background job.**
-- Align in text first. Build once. Never build to discover requirements.
-- Approve per phase or at end of whole goal/task, take the call.
-- Plain technical voice. No filler adjectives or marketing language.
-- Fact-check all numbers, dates, and claims before stating them.
-- **Invoke skills via the `Skill` tool. Typing a skill name is not invocation.**
-- **Plan altitude is conditional, not always maximal.** Before invoking `Skill(writing-plans)`, choose a tier via `AskUserQuestion` (default based on executor): **Step-level** (current skill default — bite-sized TDD steps, full code per step, zero-context-assumed; use for a fresh subagent with no session context, unfamiliar code, or high-risk changes — this is where "Haiku-executable: exact file paths, exact changes, exact verification commands, no judgment calls left to the executor" fully applies) · **Task-level** (per-file breakdown, exact paths + acceptance criteria per task, no forced TDD micro-steps; executor has some session context, moderate familiarity) · **Milestone-level** (phases/checkpoints + key architecture decisions only, step detail deferred to execution time; executor is the current agent continuing inline with full session context, low-risk/familiar work). State the chosen tier as an explicit instruction prepended to the `Skill(writing-plans)` invocation — the skill's own structure/no-placeholders rules stay intact underneath.
-- If a plan exceeds the output context window, chunk it (Part 1/N → confirm → Part 2/N). Never compress a plan to fit.
-- Right-size the model to the task. Session model over-qualified for trivial work → delegate to Haiku. Reserve high intelligence (Opus/Fable) for planning/guidance; default implementation to Haiku or Sonnet 4.6; escalate only for a genuinely hard sub-problem.
-- `./.claude/projects/<slug>/memory/MEMORY.md` auto-loads per project. Check it before recommending project-specific patterns or past decisions.
-- `Skill(find-skills)` only when a pattern repeats in this session or the user explicitly asks. Not a default for unknown tasks.
-- **All git/GitHub operations** (commit, push, branch, PR, merge, CI checks) → delegate to the `hanko--git-seal` subagent. Never run `git commit`/`git push`/`gh pr` directly from the main agent. `hanko--git-seal` commits autonomously; when it returns `NEEDS APPROVAL: ...` (push/PR/merge/worktree-merge-back), the main agent calls `AskUserQuestion` with those details before re-dispatching to execute — subagents can't call `AskUserQuestion` directly.
-- Use `bun` / `bunx` instead of `npm` / `npx` for all JS/TS work.
-- Use `uv` for all Python script environments and package management.
-
-**Ponytail Gate**: software-development/research tasks only — invoke `Skill(ponytail)` before writing code (YAGNI/reuse/scope gate). Not for general assistant work.
+- **Īdisu(Capability Overseer)** (覚): watches every skill invocation across harnesses (Claude Code, Codex, OpenCode), consolidates it into a work-style profile and improvement backlog. `/idisu` command family (`dream`, `profile`, `backlog`, `report`, `improve <id>`, `mark <id> accepted|rejected`, `reset`). Events stored in `~/.idisu/` (or `$IDISU_HOME`).
+- **Rejion**: delegates code review and general task execution to `opencode-go`, `opencode` (OpenCode Zen), and `ollama-cloud` via one-shot `opencode`/`pi` CLI processes. `/rejion:*` command family (`setup`, `models`, `review`, `task`, `status`, `result`, `cancel`).
 
 ---
 
-## Active Plugins
+## Active Subagents
 
-- **Īdisu(Capability Overseer)** (覚): watches every skill invocation across harnesses (Claude Code, Codex, OpenCode) and surfaces improvement suggestions via `/idisu` commands:
-  - `/idisu` or `/idisu dream` — run dream pass (ingest + consolidate)
-  - `/idisu profile` — print current work-style profile
-  - `/idisu backlog` — list open improvement suggestions
-  - `/idisu report` — generate HTML report
-  - `/idisu improve <id>` — print improvement brief for handoff
-  - `/idisu mark <id> accepted|rejected` — record outcome
-  - `/idisu reset` — clear state (events preserved)
-  - Events stored in `~/.idisu/` (or `$IDISU_HOME`). Dream runs respect `dream_interval_hours` config (default 24h).
-- **`github` skill + `hanko--git-seal` agent**: ALL git/GitHub work routes through the `hanko--git-seal` subagent. Never run `git commit`/`git push`/`gh pr` directly from the main agent.
-- **Rejion**: delegates code review and general task execution to `opencode-go`, `opencode` (OpenCode Zen), and `ollama-cloud` via the `opencode`/`pi` backends, invoked as one-shot CLI processes. Commands: `/rejion:setup`, `/rejion:models`, `/rejion:review`, `/rejion:task`, `/rejion:status`, `/rejion:result`, `/rejion:cancel`.
+- `hanko--git-seal` — ALL git/GitHub operations (commit/push/branch/PR/merge/CI). Never run git/gh directly from the main agent. See `rules/version-control.md`.
+- `kamaitachi--scout` (鎌鼬) — Haiku-tier web/source collection for the Research flow and quick-level lookups in Bug-hunting/Planning. Writes findings to a file, returns only a path + short summary (never raw dumps).
+
+---
+
+## Front-Load Alignment
+
+Exhaust discussion and ambiguity-resolution in the upper (discussion/planning) stages via **open prose Q&A** — never the structured `AskUserQuestion` picker during design/planning clarification — so downstream execution doesn't churn or revisit settled questions. Prefer resolving a question now over hitting it mid-build. `AskUserQuestion` is reserved for choosing between mutually exclusive IMPLEMENTATION approaches the user must decide, not for open-ended design clarification.
 
 ---
 
 ## Intent Triage
 
-Classify before acting:
+One pass before the first consequential action:
 
-- **TRIVIAL: execute directly**: ≤1 file · ≤30 LOC · explicit inputs/outputs · no architecture choice.
-- **NON-TRIVIAL: plan first**: multi-file · uncertain approach · changes ripple across codebase.
-- **GENERAL: brainstorm first**: open-ended, no acceptance criteria, design choice open.
-- **SPECIFIC: skip brainstorm**: repro steps given, one-liner, clear inputs/outputs.
-
-Heuristic: if the diff fits in one sentence and execution doesn't depend on a design choice, execute directly. Otherwise: explore → plan → code → verify.
-
----
-
-## Delegation Thresholds
-
-Delegation is bidirectional; both for scope and for token economy.
-
-- **Delegate UP** (subagent for scope): 10+ files to read · 3+ independent subtasks · verification needed before merge.
-- **Delegate DOWN** (cheaper model): session model over-qualified. Opus on file scan/parse/boilerplate → spawn Haiku subagent.
-- **Execute inline**: ≤3 files · sequential with tight data deps · current model right-sized.
-- **Parallel** (`Skill(dispatching-parallel-agents)`): zero shared state, fully independent.
-- **Sequential** (`Skill(subagent-driven-development)`): task B reads task A outputs.
-- **Anti-pattern**: subagents for ≤1 file or ≤2 steps unless model-downsizing. Cold-start dominates.
+1. **Route to flow(s):** Research / Planning / Development / Bug-hunting / Design-Architecture (a request may chain them, e.g. Design → Planning → Development).
+2. **Clarity gate:** is the exact requirement unambiguous? No → front-load alignment (open prose Q&A) first — never launch a full flow on ambiguity. Yes → proceed.
+3. **Size/risk → scaffolding + path:** *Trivial* (≤1 file, one-sentence diff, no design choice, unambiguous) → execute directly, skip ceremony. *Bounded* (few files, clear) → light/task-level, direct on `dev`. *Multi-file / rippling / shared-contracts* → plan (Planning flow) + suggest worktree.
+4. **Research level** (if collecting): quick / medium (default) / deep — stated in pre-flight.
+5. **Gate tier** per consequential action: auto-proceed / soft-confirm / hard (see `rules/gate-policy.md`).
 
 ---
 
-## Workflow Decision Table
+## The 5 Flows
 
-Before the first non-readonly tool call, state which row applies and justify if non-obvious.
+Before the first non-readonly tool call, state which row applies.
 
-| Task type | Skill chain (in order) |
-|---|---|
-| Feature | `brainstorming` → `writing-plans` → `subagent-driven-development` → `verification-before-completion` → `requesting-code-review` → `finishing-a-development-branch` |
-| Bug (hard/regression) | `diagnose` → `tdd` → `verification-before-completion` → `requesting-code-review` |
-| Bug (any) | `systematic-debugging` before proposing a fix |
-| Design / UI | `brainstorming` → `prototype` (throwaway) or `impeccable` (polish) → `writing-plans` → execute |
-| Refactor / Architecture | `improve-codebase-architecture` → `grill-with-docs` (if CONTEXT.md/ADRs exist) → `writing-plans` → execute |
-| Issues | `to-prd` → `to-issues` → `triage` |
-| Writing / content | `brainstorming` → check installed writing skills, else native tools |
-| Research / analysis (non-code) | Explore/general-purpose agent(s) for gathering → synthesize directly; no writing-plans/execute phase unless findings require a code change |
-| Decision support (compare options, no execution) | Open prose questions → recommend + tradeoff; don't implement until the user chooses |
-| Unknown | Match to closest row above and proceed. Do NOT auto-invoke `Skill(find-skills)`; see Rules. |
+| Flow | Trigger | Chain | Home |
+|---|---|---|---|
+| Research / Analysis | need to investigate/gather facts before deciding | pre-flight → `Skill(research)` (scope-card → outline → collect → evidence-matrix → report; levels quick/medium/deep) | `projects/<slug>/memory/research/<topic>/` (permanent) |
+| Discussion / Planning / PRD | need a plan, spec, or PRD before building | pre-flight → `brainstorming` → `grill-with-docs` (default unless menial+unambiguous) → `writing-plans` | `docs/superpowers/plans/`, `docs/superpowers/specs/` |
+| Development | executing an EXISTING plan/spec | pre-flight → worktree-or-direct (agent suggests: ≥3 files/shared-contracts/parallel-need → worktree) → `subagent-driven-development` or `executing-plans` → `tdd` → `verification-before-completion` → `requesting-code-review` (+ `/code-review` on non-trivial) → `finishing-a-development-branch` | code, via `hanko--git-seal` |
+| Bug hunting | something broken/throwing/failing/slow | pre-flight → `systematic-debugging` (always first) → `diagnose` (escalate only for hard/regression) → fix → `regression-test-recipe` → `post-mortem` (conditional: significant/recurring/production/escalated only) | fix + memory (post-mortem feeds `MEMORY.md`) |
+| Design / UI & Architecture | shaping an interface, UI, or architecture decision | UI: pre-flight → `brainstorming` → `prototype` (primary) + `html-preview`; `impeccable` only with ample stated reasoning. Arch: `codebase-design`/`domain-modeling`/`improve-codebase-architecture` → `grill-with-docs` → hands off to Planning/Development flows | `docs/adr/`, `docs/superpowers/specs/` |
 
 ---
 
-## Subagent Model Selection
+## Global Constraints
 
-*For subagent delegation only. Main model set manually per session.*
+Always-on, no path gate:
 
-Sonnet 5 caveat: ~30-40% more output tokens/task than Sonnet 4.6 (artificialanalysis.ai) → costs *more* than Opus for reasoning-heavy work despite the lower sticker price. Wins on CLI/terminal-heavy agentic execution (Terminal-Bench); loses on broader SWE benchmarks vs Opus. Not a safe blanket "cheap middle tier" — narrow it to what it actually wins at.
+- **YAGNI/KISS** — build only what's needed; err toward simplicity.
+- **DRY** — accept duplication when deduping would add coupling.
+- **SLAP** — one abstraction level per function.
+- **SRP** — one reason to change per unit.
+- **Complexity tier** — trivial (≤1 file/≤30 LOC) · bounded (≤3 files/≤100 LOC) · complex (open-ended); drives model tier + delegation + plan altitude.
+- **LOC budget** — estimate first; ±20% variance is fine; larger overrun → scope review, not silent completion.
+- **Prior-art grep** — search existing patterns before designing; a novel approach needs stated justification.
+- **Web usage** — native `WebSearch`/`WebFetch` only, no tavily/bx/external search tools. `Skill(find-docs)` for library/API/framework documentation.
 
-*Planning & guidance* (reserve intelligence here):
-| Model | Use for |
-|---|---|
-| Opus 4.8 | Architecture decisions, plan review, adversarial review, high-stakes synthesis, novel problem framing |
-| Fable 5 *(manual `/model` only)* | Escalation beyond Opus — large migrations, multi-day autonomous runs, genuinely stuck problems. Not a default delegation target given cost |
+---
 
-*Implementation / worker* (Haiku + Sonnet 4.6 carry most of the actual work; Sonnet 5 and Opus are narrow/edge-case tiers, not defaults):
-| Model | Use for |
-|---|---|
-| Haiku 4.5 | File scan/parse/extract/format/boilerplate, single-step edits, structured output, and direct/well-specified simple changes (clear inputs/outputs, no design choice) |
-| Sonnet 4.6 *(default for the rest)* | Moderate-complexity code changes with clear direction |
-| Sonnet 5 | CLI/terminal-heavy agentic execution specifically — narrow use, not a blanket default |
-| Opus 4.8 | Edge case only — a genuinely hard sub-problem hit mid-implementation. Escalate, don't default |
+## Rules Directory
+
+Always-loaded from `~/.claude/rules/`:
+
+- `rules/model-usage.md` — model tiers, subagent selection, delegation thresholds.
+- `rules/version-control.md` — git/GitHub conventions, routed through `hanko--git-seal`.
+- `rules/gate-policy.md` — auto-proceed / soft-confirm / hard gate tiers.
+
+---
+
+## Output / Artifacts
+
+`Skill(html-preview)` governs HTML-vs-markdown (HTML for visual judgment / 100+-line specs; markdown for logic/text, 2-3x cheaper). Durable artifacts live under `docs/` (`plans/`, `specs/`, `adr/`); research artifacts under `memory/research/<topic>/` with a `MEMORY.md` pointer (auto-load reuse). Long subagent output (200+ lines): write to a versioned file, don't dump inline.
 
 ---
 
@@ -121,46 +94,16 @@ Sonnet 5 caveat: ~30-40% more output tokens/task than Sonnet 4.6 (artificialanal
 
 ---
 
-## Output Discipline
-
-Use `Skill(html-preview)` to decide HTML vs markdown.
-
-- **HTML** (served via `python3 -m http.server`): design options, specs 100+ lines, color/diagram reports, interactive toggles.
-- **Markdown**: agent context, <100 lines, logic decisions, inline answers.
-- Heuristic: will the human judge this visually or just read text? Text → markdown (2-3x cheaper).
-- **Long subagent output** (200+ lines): write to versioned file (`topic-v1.html`), serve, link in chat. Never dump inline.
-
----
-
-## Web Usage
-
-Native tools only: `WebSearch`, `WebFetch`. No tavily, bx, or external search tools.
-`Skill(find-docs)` for library, API, and framework documentation only.
-
----
-
 ## Caveman Mode
 
-Explicit gate, not a vibe-trigger: invoke `Skill(caveman)` *before* drafting for the mechanical-task trigger list (file scan/parse/extract/boilerplate/subagent prompts/diffs). Then, while active, run a mandatory self-check *after* drafting each response — articles stripped, filler cut, fragments used, code/errors kept verbatim, materially shorter than normal prose — don't trust the skill's own "stays active" claim to hold unaided.
-Override (stay off until task ends): *verbose, detailed, explain, walk me through, break it down*.
+Explicit gate, not a vibe-trigger: invoke `Skill(caveman)` before drafting for the mechanical-task trigger list (file scan/parse/extract/boilerplate/subagent prompts/diffs). Override (stay off until task ends): *verbose, detailed, explain, walk me through, break it down*.
 
 ---
 
 ## Key Manual Commands
 
-Invoke these directly; they are not auto-triggered by workflows above.
+Invoke these directly; they are not auto-triggered by the flows above.
 
 - `Skill(code-review)`: review current diff / PR at the configured effort level
 - `Skill(security-review)`: branch security audit
 - `Skill(skill-creator)`: create, modify, or eval skills
-
----
-
-## Version control (Git/GitHub)
-
-All git and GitHub operations route to the `hanko--git-seal` subagent (model: Haiku):
-
-- **Recipes:** `hanko--git-seal` invokes `Skill(github)` which encodes the 7 standard workflows (commit→push to dev, feature branch, finish feature → PR to dev, dev→master PR, back-merge conflict, status/CI checks, worktree merge-back).
-- **Edge cases:** for SSH signing setup, fine-grained PAT, branch rulesets, and troubleshooting, `hanko--git-seal` reads the bundled `GITHUB.md`; for signing/PAT setup specifically, `SECURITY.md`.
-- **Approval gates (two-hop):** read-only ops (status/diff/log/pr view) run freely; commits run autonomously (local, reversible). Push/PR-create/PR-merge/worktree-merge-back require approval — since subagents can't call `AskUserQuestion` directly, `hanko--git-seal` returns `NEEDS APPROVAL: <command> — <details>` to the main agent, which calls `AskUserQuestion` before re-dispatching.
-- **Conventions:** Conventional Commits format, SSH-signed, `Assisted-by:` trailer, never `--force`/`--no-verify`, never push to master.

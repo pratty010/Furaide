@@ -228,6 +228,11 @@ export interface ResolvedInstallOptions {
   /** Advanced mode: bypasses workflow-closure resolution. */
   advancedAgents?: string[];
   webTools: boolean;
+  /** Opt-in "extras" (E4): repo-bundled skill names the user explicitly
+   * selected beyond each agent's auto-required set. Installed the same way
+   * as required bundled skills (copySkillTree), recorded separately on the
+   * receipt under selectedExtraSkills. */
+  extraSkills?: string[];
   harnessRoot: string;
   repoRoot: string;
   installTimestamp: string;
@@ -292,6 +297,14 @@ export async function performInstall(opts: ResolvedInstallOptions): Promise<Inst
 
   const skills = resolveAgentSkills(agents, opts.harnessRoot);
   for (const skillName of skills.bundled) copySkillTree(opts.repoRoot, skillName, opts.targetDir, opts.installTimestamp, backupState, componentFiles);
+
+  // Opt-in extras (E4): user-selected repo skills beyond the auto-required
+  // set. Dedup against skills.bundled -- a skill can't be both required and
+  // "extra" in the receipt, though copySkillTree's own alreadyCopied guard
+  // would no-op the second copy anyway.
+  const extraSkills = (opts.extraSkills ?? []).filter((name) => !skills.bundled.includes(name));
+  for (const skillName of extraSkills) copySkillTree(opts.repoRoot, skillName, opts.targetDir, opts.installTimestamp, backupState, componentFiles);
+
   if (skills.external.length > 0) {
     process.stderr.write(
       `[furaide] Manual follow-up: run 'bun ${opts.harnessRoot}/scripts/pull-external-skills.mjs --pull' to pull/update pinned external skills: ${skills.external.join(", ")}\n`
@@ -316,6 +329,7 @@ export async function performInstall(opts: ResolvedInstallOptions): Promise<Inst
     installedFilesByComponent: Object.fromEntries(Array.from(componentFiles.entries()).map(([c, files]) => [c, Array.from(files).sort()])),
     backup: { root: backupRoot, created: backupCreated },
     requiredSkills: skills,
+    selectedExtraSkills: extraSkills,
   };
 
   writeReceipt(opts.targetDir, receipt);
@@ -350,6 +364,9 @@ function parseFlags(argv: string[]): NonInteractiveFlags {
       case "--agents":
         flags.agents = argv[++i];
         break;
+      case "--extras":
+        flags.extras = argv[++i];
+        break;
       case "--web-tools":
         flags.webTools = true;
         break;
@@ -381,6 +398,7 @@ function printHelp(): void {
       "  --custom-dir <path>                Absolute path, required when --scope custom",
       "  --workflows <wf1,wf2,...|all>      Workflows to install (default: all)",
       "  --agents <name,name,...>           Advanced mode: install exactly these agents (ignores --workflows)",
+      "  --extras <name,name,...>           Opt-in extra repo skills beyond each agent's auto-required set (default: none)",
       "  --web-tools / --no-web-tools       Force Web Tools on/off (default: auto-probe env)",
       "  --yes                              Required to confirm a non-interactive run",
       "  --dry-run                          Print what would be installed, make no changes",

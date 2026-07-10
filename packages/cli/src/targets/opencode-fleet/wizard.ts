@@ -8,7 +8,7 @@ import { spawnSync } from "node:child_process";
 import { accessSync, constants as fsConstants, existsSync } from "node:fs";
 import { dirname, isAbsolute } from "node:path";
 import { WORKFLOW_IDS, WORKFLOW_CATALOG, type WorkflowId, type Scope, type InstallReceiptV2 } from "./manifest-schema.ts";
-import { resolveWorkflowClosure, resolveAgentScripts, resolveAgentSkills } from "./resolve.ts";
+import { resolveWorkflowClosure, resolveAgentScripts, resolveAgentSkills, listBundledSkillNames } from "./resolve.ts";
 import { readReceipt } from "./receipt.ts";
 import { BACKUP_DIR_NAME } from "./backup.ts";
 import { performInstall, resolveScopeDir, GLOBAL_SCOPE, projectScope, makeInstallTimestamp, HARNESS_ROOT, REPO_ROOT } from "./install.ts";
@@ -83,9 +83,10 @@ export async function runInteractiveWizard(): Promise<void> {
   let targetDir = "";
   let selectedWorkflows: WorkflowId[] = [];
   let webTools = credentials.anyFound;
+  let selectedExtras: string[] = [];
 
-  let step: 1 | 2 | 3 = 1;
-  while (step <= 3) {
+  let step: 1 | 2 | 3 | 4 = 1;
+  while (step <= 4) {
     if (step === 1) {
       const scopeChoice = await select({
         message: "Where should Furaide's Fleet be installed?",
@@ -166,6 +167,44 @@ export async function runInteractiveWizard(): Promise<void> {
 
     if (step === 3) {
       const { agents } = resolveWorkflowClosure(selectedWorkflows);
+      const requiredSkills = resolveAgentSkills(agents, HARNESS_ROOT);
+      const requiredBundled = new Set(requiredSkills.bundled);
+      const extrasAvailable = Array.from(listBundledSkillNames(REPO_ROOT))
+        .filter((name) => !requiredBundled.has(name))
+        .sort();
+
+      if (extrasAvailable.length === 0) {
+        selectedExtras = [];
+        step = 4;
+        continue;
+      }
+
+      note(
+        [
+          "Every skill each selected agent needs is already included automatically -- this step is purely opt-in.",
+          "Includes the relocated finance/security skills (dcf-valuation-model, earnings-10k-extraction, mcp-supply-chain-scan)",
+          "that were excluded from Claude Code's default ship-set in this restructure; they're OpenCode-only opt-ins now.",
+          "(notebooklm is similarly CC-excluded but ships as an external pull, not a repo-bundled skill -- not listed here;",
+          "install it separately via install-external-skills.sh.)",
+        ].join("\n"),
+        "Optional extra skills"
+      );
+
+      const extrasChoice = await multiselect({
+        message: "Select any optional extra skills to bundle (none selected by default -- press Enter to skip).",
+        options: extrasAvailable.map((name) => ({ value: name, label: name })),
+        initialValues: [],
+        required: false,
+      });
+      if (isCancel(extrasChoice)) bail();
+      selectedExtras = extrasChoice as string[];
+
+      step = 4;
+      continue;
+    }
+
+    if (step === 4) {
+      const { agents } = resolveWorkflowClosure(selectedWorkflows);
       const scripts = resolveAgentScripts(agents, HARNESS_ROOT);
       const skills = resolveAgentSkills(agents, HARNESS_ROOT);
       const existingReceipt = readReceipt(targetDir);
@@ -177,6 +216,7 @@ export async function runInteractiveWizard(): Promise<void> {
           `Agents (${agents.length}): ${agents.join(", ")}`,
           `Scripts (${scripts.length}): ${scripts.join(", ") || "(none)"}`,
           `Bundled skills (${skills.bundled.length}): ${skills.bundled.join(", ") || "(none)"}`,
+          `Extra skills opted in (${selectedExtras.length}): ${selectedExtras.join(", ") || "(none)"}`,
           `External skills referenced (${skills.external.length}, not auto-pulled): ${skills.external.join(", ") || "(none)"}`,
           `Web Tools: ${webTools ? "yes" : "no"}`,
           `Backups: any file this run overwrites is copied first to ${targetDir}/${BACKUP_DIR_NAME}/<timestamp-or-reused-root>`,
@@ -207,6 +247,7 @@ export async function runInteractiveWizard(): Promise<void> {
           targetDir,
           selectedWorkflows,
           webTools,
+          extraSkills: selectedExtras,
           harnessRoot: HARNESS_ROOT,
           repoRoot: REPO_ROOT,
           installTimestamp: makeInstallTimestamp(),
@@ -221,7 +262,7 @@ export async function runInteractiveWizard(): Promise<void> {
       outro(
         [
           `Furaide's Fleet installed to ${targetDir}.`,
-          `${receipt.selectedAgents.length} agent(s), ${receipt.requiredSkills.bundled.length} bundled skill(s).`,
+          `${receipt.selectedAgents.length} agent(s), ${receipt.requiredSkills.bundled.length} bundled skill(s), ${receipt.selectedExtraSkills.length} extra skill(s).`,
           ``,
           `To uninstall later, run:`,
           `  furaide uninstall opencode-fleet --scope custom --custom-dir ${targetDir} --yes`,
@@ -237,6 +278,9 @@ export interface NonInteractiveFlags {
   customDir?: string;
   workflows?: string;
   agents?: string;
+  /** Opt-in extra repo skills beyond each agent's auto-required set,
+   * comma-separated (default: none). Consistent with how --workflows works. */
+  extras?: string;
   webTools?: boolean;
   yes?: boolean;
   dryRun?: boolean;
@@ -280,6 +324,9 @@ export async function runNonInteractive(flags: NonInteractiveFlags): Promise<voi
 
   const credentials = probeWebToolsCredentials();
   const webTools = flags.webTools ?? credentials.anyFound;
+  const extraSkills = flags.extras
+    ? flags.extras.split(",").map((s) => s.trim()).filter(Boolean)
+    : [];
 
   const { agents: previewAgents } = advancedAgents && advancedAgents.length > 0
     ? { agents: advancedAgents }
@@ -289,6 +336,7 @@ export async function runNonInteractive(flags: NonInteractiveFlags): Promise<voi
     process.stdout.write(
       `[dry-run] would install opencode-fleet to ${targetDir} (scope=${scope})\n` +
         `[dry-run] agents (${previewAgents.length}): ${previewAgents.join(", ")}\n` +
+        `[dry-run] extra skills (${extraSkills.length}): ${extraSkills.join(", ") || "(none)"}\n` +
         `[dry-run] web tools: ${webTools ? "yes" : "no"}\n` +
         `[dry-run] no changes made.\n`
     );
@@ -303,13 +351,14 @@ export async function runNonInteractive(flags: NonInteractiveFlags): Promise<voi
     selectedWorkflows,
     advancedAgents,
     webTools,
+    extraSkills,
     harnessRoot: HARNESS_ROOT,
     repoRoot: REPO_ROOT,
     installTimestamp: makeInstallTimestamp(),
   });
 
   process.stdout.write(
-    `[furaide] Install complete. ${receipt.selectedAgents.length} agent(s) installed to ${targetDir}.\n` +
+    `[furaide] Install complete. ${receipt.selectedAgents.length} agent(s), ${receipt.selectedExtraSkills.length} extra skill(s) installed to ${targetDir}.\n` +
       `[furaide] To uninstall: furaide uninstall opencode-fleet --scope custom --custom-dir ${targetDir} --yes\n`
   );
 }

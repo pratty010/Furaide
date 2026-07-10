@@ -11,7 +11,9 @@
 #   --scope <s>       global | project | custom:<path>  (skips scope prompt)
 #   --minimal         Only install the Idisu CLI engine (steps 0-1), skip the rest
 #   --no-config       Skip the config bundle (CLAUDE.md/settings/statusline)
-#   --with-skills     Also offer the extended skill manifest (heavier, git-clones)
+#   --with-skills     Also offer the extended skill manifest (deprecated no-op:
+#                     the canonical external set now installs by default — see
+#                     the "Core skills" component step)
 #   --js-runtime <r>  bun | npm  (force runtime instead of auto-detecting)
 #   --dry-run         Print what would happen; make no changes
 #   -h, --help        Print this usage and exit
@@ -178,14 +180,58 @@ fi
 INSTALL_TIMESTAMP="$(date -u +%Y%m%dT%H%M%SZ)"
 
 # ── Step 4: Component selection ─────────────────────────────────────────────
+# CC's repo-vendored skill boundary (per docs/superpowers/specs/2026-07-10-claude-code-config-restructure.md
+# "CC installer ship-set"): the 5 skills CC's 5 flows actually reference. The
+# retired addenda/research-scaffolds are folded into CLAUDE.md's Global
+# Constraints and the new research skill respectively (not shipped as files);
+# finance/security skills (dcf-valuation-model, earnings-10k-extraction,
+# mcp-supply-chain-scan) and brave-search/bx stay in the shared pool for other
+# harnesses but are NOT part of CC's default set.
+CC_SKILL_SET="github,html-preview,handoff-furaide-addendum,post-mortem,regression-test-recipe"
+
 INSTALL_CLAUDE_MD=1
 INSTALL_SETTINGS=1
 INSTALL_AGENTS=1
 INSTALL_SKILLS=1
 INSTALL_IDISU=1
 INSTALL_REJION=1
-INSTALL_EXTENDED_SKILLS=0
-[[ "$WITH_SKILLS" -eq 1 ]] && INSTALL_EXTENDED_SKILLS=1
+SKILLS_ONLY_LIST="$CC_SKILL_SET"   # narrowed by the 's' picker below, or --yes default
+
+# ── Skills subset picker: numbered multi-select scoped to CC_SKILL_SET ─────
+_pick_skills_subset() {
+  local list_output names=() descs=() reply idx name
+  list_output="$(bash "$SHARED_DIR/install-vendored-skills.sh" --list)"
+  IFS=',' read -ra _cc_set <<< "$CC_SKILL_SET"
+  printf '\n  Available skills:\n' >&2
+  idx=0
+  for name in "${_cc_set[@]}"; do
+    idx=$((idx + 1))
+    names+=("$name")
+    desc="$(printf '%s\n' "$list_output" | awk -F'\t' -v n="$name" '$1==n{print $2}')"
+    printf '    %d) %-32s %s\n' "$idx" "$name" "$desc" >&2
+  done
+  while true; do
+    read -rp "  Select (space-separated numbers, 'all', or 'none'): " reply </dev/tty
+    case "$reply" in
+      all|ALL) SKILLS_ONLY_LIST="$CC_SKILL_SET"; return 0 ;;
+      none|NONE) SKILLS_ONLY_LIST=""; return 0 ;;
+      *)
+        local picked=() ok=1 n
+        for n in $reply; do
+          if [[ "$n" =~ ^[0-9]+$ ]] && (( n >= 1 && n <= idx )); then
+            picked+=("${names[$((n-1))]}")
+          else
+            ok=0; break
+          fi
+        done
+        if [[ "$ok" -eq 1 && "${#picked[@]}" -gt 0 ]]; then
+          SKILLS_ONLY_LIST="$(IFS=,; echo "${picked[*]}")"
+          return 0
+        fi
+        warn "  invalid selection, try again (e.g. '1 3 5', 'all', 'none')" ;;
+    esac
+  done
+}
 
 if [[ "$ASSUME_YES" -ne 1 && "$MINIMAL" -ne 1 ]]; then
   printf '\nComponents to install (Enter=yes, n=no, b=back to scope selection):\n\n' >&2
@@ -202,8 +248,18 @@ if [[ "$ASSUME_YES" -ne 1 && "$MINIMAL" -ne 1 ]]; then
   }
   select_component INSTALL_CLAUDE_MD "CLAUDE.md"
   select_component INSTALL_SETTINGS  "Settings (statusline + prefs)"
-  select_component INSTALL_AGENTS    "Core agents (hanko--git-seal)"
-  select_component INSTALL_SKILLS    "Core skills (github, bx, ...)"
+  select_component INSTALL_AGENTS    "Core agents (hanko--git-seal, kamaitachi--scout)"
+
+  while true; do
+    read -rp "  Core skills ($CC_SKILL_SET) [Y/n/s/b]: " __skills_reply </dev/tty
+    case "$__skills_reply" in
+      b|B) pick_scope ;;
+      n|N) INSTALL_SKILLS=0; break ;;
+      s|S) INSTALL_SKILLS=1; _pick_skills_subset; break ;;
+      *)   INSTALL_SKILLS=1; SKILLS_ONLY_LIST="$CC_SKILL_SET"; break ;;
+    esac
+  done
+
   select_component INSTALL_IDISU     "Idisu plugin"
   select_component INSTALL_REJION    "Rejion plugin"
 fi
@@ -213,10 +269,10 @@ fi
 # ── Step 5: Confirm ──────────────────────────────────────────────────────────
 if [[ "$ASSUME_YES" -ne 1 ]]; then
   printf '\nAbout to install to %s:\n' "$TARGET_DIR" >&2
-  [[ "$INSTALL_CLAUDE_MD" -eq 1 ]] && printf '  - CLAUDE.md\n' >&2
+  [[ "$INSTALL_CLAUDE_MD" -eq 1 ]] && printf '  - CLAUDE.md + rules/\n' >&2
   [[ "$INSTALL_SETTINGS" -eq 1 ]]  && printf '  - settings.json (merged)\n' >&2
   [[ "$INSTALL_AGENTS" -eq 1 ]]    && printf '  - agents/\n' >&2
-  [[ "$INSTALL_SKILLS" -eq 1 ]]    && printf '  - skills/\n' >&2
+  [[ "$INSTALL_SKILLS" -eq 1 ]]    && printf '  - skills/ (%s) + research skill + canonical external set\n' "${SKILLS_ONLY_LIST:-none selected}" >&2
   [[ "$INSTALL_IDISU" -eq 1 ]]     && printf '  - Idisu plugin\n' >&2
   [[ "$INSTALL_REJION" -eq 1 ]]    && printf '  - Rejion plugin\n' >&2
   printf 'Backup dir (if needed): %s/.furaide-backup/%s\n' "$TARGET_DIR" "$INSTALL_TIMESTAMP" >&2
@@ -238,22 +294,63 @@ if [[ "$SCOPE" == "global" ]]; then
 fi
 
 # ── Execute: Skills ──────────────────────────────────────────────────────────
+# Receipt-drift fix: SKILL_NAMES comes from install-vendored-skills.sh's own
+# INSTALLED: lines (what it actually put on disk), not a re-glob of skills/*
+# — the old re-glob recorded every repo skill regardless of --only filtering.
 SKILL_NAMES=()
-if [[ "$INSTALL_SKILLS" -eq 1 ]]; then
+if [[ "$INSTALL_SKILLS" -eq 1 && -n "$SKILLS_ONLY_LIST" ]]; then
+  VENDORED_OUT="$(mktemp)"
   if [[ "$SCOPE" == "global" ]]; then
-    bash "$SHARED_DIR/install-vendored-skills.sh" --global
+    bash "$SHARED_DIR/install-vendored-skills.sh" --global --only "$SKILLS_ONLY_LIST" | tee "$VENDORED_OUT"
   else
-    bash "$SHARED_DIR/install-vendored-skills.sh" --custom "$TARGET_DIR"
+    bash "$SHARED_DIR/install-vendored-skills.sh" --custom "$TARGET_DIR" --only "$SKILLS_ONLY_LIST" | tee "$VENDORED_OUT"
   fi
-  for d in "$REPO"/../../skills/*/; do
-    [[ -d "$d" ]] && SKILL_NAMES+=("$(basename "$d")")
-  done
-fi
-if [[ "$INSTALL_EXTENDED_SKILLS" -eq 1 ]]; then
-  if confirm "Install extended skill manifest (heavier, git-clones repos)?"; then
-    bash "$SHARED_DIR/install-external-skills.sh" --ecosystem claude-code
-    ok "extended skill manifest installed"
+  while IFS= read -r line; do
+    [[ "$line" == INSTALLED:\ * ]] && SKILL_NAMES+=("${line#INSTALLED: }")
+  done < "$VENDORED_OUT"
+  rm -f "$VENDORED_OUT"
+
+  # config/skills/research/ — CC-bundled skill (analogous to config/agents/),
+  # not part of the shared skills/ pool. Copy directly, skip if user already
+  # customized it. Supersedes the generic external `research` stub at the same
+  # ~/.claude/skills/research path if that symlink isn't present yet; if a
+  # real (non-our) dir already sits there, we skip and warn rather than clobber.
+  if [[ -d "$REPO/config/skills/research" ]]; then
+    mkdir -p "$TARGET_DIR/skills"
+    research_dest="$TARGET_DIR/skills/research"
+    if [[ -e "$research_dest" && ! -L "$research_dest" ]]; then
+      warn "  research: $research_dest already exists (not our symlink) — skipping, review manually"
+    elif [[ -e "$research_dest" ]]; then
+      ok "  research: skip (already installed)"
+    else
+      cp -r "$REPO/config/skills/research" "$research_dest"
+      ok "  research → $research_dest"
+    fi
+    SKILL_NAMES+=("research")
   fi
+
+  # Canonical external skills (superpowers + mattpocock subset, notebooklm,
+  # ponytail) are part of CC's standard ship-set per the config-restructure
+  # spec — no longer a rare --with-skills opt-in. Dedup variants (diagnosing-bugs,
+  # grilling/grill-me, test-driven-development, write-a-skill/writing-great-skills,
+  # readme-blueprint-generator) are excluded at the manifest level, not here.
+  #
+  # install-external-skills.sh has no --custom concept of its own — it only
+  # knows "global" (~/.agents/, ~/.claude/skills/) or --project (./.claude/skills/).
+  # For SCOPE=custom, redirect it via its env-var overrides so a custom-scope
+  # install stays fully inside TARGET_DIR instead of touching the real
+  # ~/.agents/skill-repos, ~/.agents/skills, ~/.claude/skills on the host machine.
+  if [[ "$SCOPE" == "project" ]]; then
+    bash "$SHARED_DIR/install-external-skills.sh" --ecosystem claude-code --all --project
+  elif [[ "$SCOPE" == "custom" ]]; then
+    AGENTS_SKILL_REPOS="$TARGET_DIR/.agents/skill-repos" \
+    AGENTS_SKILLS="$TARGET_DIR/.agents/skills" \
+    CLAUDE_SKILLS="$TARGET_DIR/skills" \
+      bash "$SHARED_DIR/install-external-skills.sh" --ecosystem claude-code --all
+  else
+    bash "$SHARED_DIR/install-external-skills.sh" --ecosystem claude-code --all
+  fi
+  ok "canonical external skills installed (superpowers/mattpocock/notebooklm/ponytail)"
 fi
 
 # ── Execute: Agents ───────────────────────────────────────────────────────────
@@ -274,12 +371,26 @@ if [[ "$INSTALL_AGENTS" -eq 1 ]]; then
   done
 fi
 
-# ── Execute: Config bundle (CLAUDE.md, settings.json, statusline) ───────────
+# ── Execute: Config bundle (CLAUDE.md, rules/, settings.json, statusline) ───
+RULE_FILES=()
 if [[ "$INSTALL_CLAUDE_MD" -eq 1 ]]; then
   dest="$TARGET_DIR/CLAUDE.md"
   furaide_backup_file "$dest" "$TARGET_DIR" "$INSTALL_TIMESTAMP"
   cp "$REPO/config/CLAUDE.md" "$dest"
   ok "copied CLAUDE.md → $TARGET_DIR/"
+
+  if [[ -d "$REPO/config/rules" ]]; then
+    mkdir -p "$TARGET_DIR/rules"
+    for rule_src in "$REPO/config/rules/"*.md; do
+      [[ -e "$rule_src" ]] || continue
+      fname="$(basename "$rule_src")"
+      rule_dest="$TARGET_DIR/rules/$fname"
+      furaide_backup_file "$rule_dest" "$TARGET_DIR" "$INSTALL_TIMESTAMP"
+      cp "$rule_src" "$rule_dest"
+      ok "copied rules/$fname → $TARGET_DIR/rules/"
+      RULE_FILES+=("$rule_dest")
+    done
+  fi
 fi
 
 if [[ "$INSTALL_SETTINGS" -eq 1 ]]; then
@@ -329,6 +440,7 @@ fi
 _agent_args=("${AGENT_FILES[@]+"${AGENT_FILES[@]}"}")
 _skill_args=("${SKILL_NAMES[@]+"${SKILL_NAMES[@]}"}")
 _plugin_args=("${PLUGINS_INSTALLED[@]+"${PLUGINS_INSTALLED[@]}"}")
+_rule_args=("${RULE_FILES[@]+"${RULE_FILES[@]}"}")
 
 python3 - \
   "$RECEIPT_PATH" \
@@ -344,6 +456,8 @@ python3 - \
   "${_skill_args[@]+"${_skill_args[@]}"}" \
   -- \
   "${_plugin_args[@]+"${_plugin_args[@]}"}" \
+  -- \
+  "${_rule_args[@]+"${_rule_args[@]}"}" \
 <<'PYEOF' 2>/dev/null || warn "could not write receipt to $RECEIPT_PATH (python3 unavailable) — uninstall will need --scope to target this install manually"
 import json,sys
 args = sys.argv[1:]
@@ -354,7 +468,10 @@ agent_files = rest[:sep]
 rest2 = rest[sep+1:] if sep < len(rest) else []
 sep2 = rest2.index('--') if '--' in rest2 else len(rest2)
 skill_names = rest2[:sep2]
-plugin_names = rest2[sep2+1:] if sep2 < len(rest2) else []
+rest3 = rest2[sep2+1:] if sep2 < len(rest2) else []
+sep3 = rest3.index('--') if '--' in rest3 else len(rest3)
+plugin_names = rest3[:sep3]
+rule_files = rest3[sep3+1:] if sep3 < len(rest3) else []
 receipt = {
     'version': 1,
     'jsRuntime': js_runtime,
@@ -368,6 +485,7 @@ receipt = {
         'agents': agent_files,
         'skillNames': skill_names,
         'plugins': plugin_names,
+        'ruleFiles': rule_files,
     },
 }
 json.dump(receipt, open(receipt_path, 'w'), indent=2)

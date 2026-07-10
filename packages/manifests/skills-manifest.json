@@ -1,8 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "version": "2.0",
-  "description": "F.R.I.D.A.Y. workflow skills — sources, categories, ecosystem tags, and install targets.",
-
+  "description": "F.R.I.D.A.Y. workflow skills \u2014 sources, categories, ecosystem tags, and install targets.",
   "sources": {
     "superpowers": {
       "type": "git",
@@ -10,47 +9,59 @@
       "clone_to": "~/.agents/skill-repos/superpowers",
       "skills_dir": "skills",
       "notes": "Primary Claude Code skill collection by @obra. Most F.R.I.D.A.Y. workflow skills live here.",
-      "ecosystem": ["claude-code", "opencode"]
+      "ecosystem": [
+        "claude-code",
+        "opencode"
+      ]
     },
     "friday": {
       "type": "git",
       "url": "https://github.com/pratty010/Furaide.git",
       "clone_to": "~/.agents/skill-repos/friday",
       "skills_dir": "skills",
-      "notes": "F.R.I.D.A.Y. native skills vendored in skills/. scripts/install-vendored-skills.sh handles these directly — no clone needed.",
-      "ecosystem": ["claude-code", "opencode", "pi-agent"]
+      "notes": "F.R.I.D.A.Y. native skills vendored in skills/. scripts/install-vendored-skills.sh handles these directly \u2014 no clone needed.",
+      "ecosystem": [
+        "claude-code",
+        "opencode",
+        "pi-agent"
+      ]
     },
     "builtin": {
       "type": "builtin",
-      "notes": "Provided by Claude Code itself or an installed plugin. No clone needed — present when Claude Code or the relevant plugin is installed.",
-      "ecosystem": ["claude-code"]
+      "notes": "Provided by Claude Code itself or an installed plugin. No clone needed \u2014 present when Claude Code or the relevant plugin is installed.",
+      "ecosystem": [
+        "claude-code"
+      ]
     },
     "ponytail": {
       "type": "git",
       "url": "https://github.com/DietrichGebert/ponytail.git",
       "clone_to": "~/.agents/skill-repos/ponytail",
       "skills_dir": "skills",
-      "notes": "YAGNI/scope-gating decision ladder — software-development and research tasks only, not general-purpose.",
-      "ecosystem": ["claude-code"]
+      "notes": "YAGNI/scope-gating decision ladder \u2014 software-development and research tasks only, not general-purpose.",
+      "ecosystem": [
+        "claude-code"
+      ]
     }
   },
-
   "skill_sets": {
     "core-workflow": {
       "label": "Core workflow",
       "description": "The skills wired into the CLAUDE.md Workflow Decision Table. Install these first.",
       "install_target": "global",
-      "ecosystem": ["claude-code"],
+      "ecosystem": [
+        "claude-code"
+      ],
       "skills": [
         {
           "name": "brainstorming",
           "source": "superpowers",
-          "description": "Required before any creative or feature work — explores intent and design before implementation."
+          "description": "Required before any creative or feature work \u2014 explores intent and design before implementation."
         },
         {
           "name": "writing-plans",
           "source": "superpowers",
-          "description": "Multi-step implementation planning — exact file paths, changes, and verification commands."
+          "description": "Multi-step implementation planning \u2014 exact file paths, changes, and verification commands."
         },
         {
           "name": "subagent-driven-development",
@@ -70,7 +81,7 @@
         {
           "name": "finishing-a-development-branch",
           "source": "superpowers",
-          "description": "Guides branch completion — merge, PR, or cleanup decision."
+          "description": "Guides branch completion \u2014 merge, PR, or cleanup decision."
         },
         {
           "name": "using-git-worktrees",
@@ -80,21 +91,22 @@
         {
           "name": "caveman",
           "source": "superpowers",
-          "description": "Ultra-compressed output mode — reduces token usage ~75% for scan/parse/boilerplate tasks."
+          "description": "Ultra-compressed output mode \u2014 reduces token usage ~75% for scan/parse/boilerplate tasks."
         }
       ]
     },
-
     "debugging": {
       "label": "Debugging and testing",
       "description": "Bug diagnosis, test-driven development, and systematic fix loops.",
       "install_target": "global",
-      "ecosystem": ["claude-code"],
+      "ecosystem": [
+        "claude-code"
+      ],
       "skills": [
         {
           "name": "diagnose",
           "source": "superpowers",
-          "description": "Disciplined diagnosis loop: reproduce → minimise → hypothesise → instrument → fix → regression-test."
+          "description": "Disciplined diagnosis loop: reproduce \u2192 minimise \u2192 hypothesise \u2192 instrument \u2192 fix \u2192 regression-test."
         },
         {
           "name": "systematic-debugging",
@@ -108,17 +120,18 @@
         }
       ]
     },
-
     "quality": {
       "label": "Code and content quality",
       "description": "Review, skill authoring, humanisation, and README writing.",
       "install_target": "global",
-      "ecosystem": ["claude-code"],
+      "ecosystem": [
+        "claude-code"
+      ],
       "skills": [
         {
           "name": "skill-creator",
           "source": "superpowers",
-          "description": "Creates, modifies, and evals Claude Code skills. Required for the Īdisu improvement workflow."
+          "description": "Creates, modifies, and evals Claude Code skills. Required for the \u012adisu improvement workflow."
         },
         {
           "name": "writing-skills",
@@ -142,22 +155,18 @@
         }
       ]
     },
-
     "architecture": {
       "label": "Architecture and design",
       "description": "Codebase improvement, design review, and adversarial planning.",
       "install_target": "global",
-      "ecosystem": ["claude-code"],
+      "ecosystem": [
+        "claude-code"
+      ],
       "skills": [
         {
           "name": "improve-codebase-architecture",
           "source": "superpowers",
           "description": "Finds refactoring opportunities informed by domain language and ADRs."
-        },
-        {
-          "name": "grill-me",
-          "source": "superpowers",
-          "description": "Relentless interviewing to stress-test plans and designs."
         },
         {
           "name": "grill-with-docs",
@@ -176,12 +185,13 @@
         }
       ]
     },
-
     "planning": {
       "label": "Planning and issues",
       "description": "PRD creation, issue breakdown, and triage.",
       "install_target": "global",
-      "ecosystem": ["claude-code"],
+      "ecosystem": [
+        "claude-code"
+      ],
       "skills": [
         {
           "name": "to-prd",
@@ -196,16 +206,17 @@
         {
           "name": "triage",
           "source": "superpowers",
-          "description": "Triages issues through a state machine: incoming → reviewed → ready → in-progress."
+          "description": "Triages issues through a state machine: incoming \u2192 reviewed \u2192 ready \u2192 in-progress."
         }
       ]
     },
-
     "utility": {
       "label": "Utility",
       "description": "Output discipline, research, parallel dispatch, and context management.",
       "install_target": "global",
-      "ecosystem": ["claude-code"],
+      "ecosystem": [
+        "claude-code"
+      ],
       "skills": [
         {
           "name": "html-preview",
@@ -234,26 +245,28 @@
         }
       ]
     },
-
     "superpowers-opencode": {
       "label": "Superpowers (OpenCode, opt-in)",
-      "description": "The @obra superpowers collection for OpenCode. Removed from opencode.jsonc auto-load — opt in here.",
+      "description": "The @obra superpowers collection for OpenCode. Removed from opencode.jsonc auto-load \u2014 opt in here.",
       "install_target": "global",
-      "ecosystem": ["opencode"],
+      "ecosystem": [
+        "opencode"
+      ],
       "skills": [
         {
           "name": "superpowers",
           "source": "superpowers",
-          "description": "Full @obra superpowers collection — install directly into opencode skills dir. See harnesses/opencode/README.md for opt-in instructions."
+          "description": "Full @obra superpowers collection \u2014 install directly into opencode skills dir. See harnesses/opencode/README.md for opt-in instructions."
         }
       ]
     },
-
     "notebooklm": {
       "label": "NotebookLM (custom)",
-      "description": "User's own customized NotebookLM skill. NOT a bare clone — contains custom auth flow, references/ and data/ layout, local patches. Install by hand using the source below.",
+      "description": "User's own customized NotebookLM skill. NOT a bare clone \u2014 contains custom auth flow, references/ and data/ layout, local patches. Install by hand using the source below.",
       "install_target": "manual",
-      "ecosystem": ["claude-code"],
+      "ecosystem": [
+        "claude-code"
+      ],
       "customizations": [
         "Custom auth flow integrated (see skill header for details)",
         "references/ directory for source PDFs and notes",
@@ -268,48 +281,79 @@
         }
       ]
     },
-
     "hanko": {
       "label": "Hanko (common/vendor)",
       "description": "Installed via scripts/install-vendored-skills.sh --global. Executed by the hanko--git-seal subagent.",
       "install_target": "common",
-      "ecosystem": ["claude-code"],
+      "ecosystem": [
+        "claude-code"
+      ],
       "skills": [
         {
           "name": "github",
           "source": "friday",
-          "description": "GitHub workflow recipes — the six standard F.R.I.D.A.Y. git/GitHub workflows. Installed via scripts/install-vendored-skills.sh; executed by the hanko--git-seal subagent."
+          "description": "GitHub workflow recipes \u2014 the six standard F.R.I.D.A.Y. git/GitHub workflows. Installed via scripts/install-vendored-skills.sh; executed by the hanko--git-seal subagent."
         }
       ]
     },
-
     "dev-research": {
       "label": "Dev/research (scoped, opt-in)",
-      "description": "Narrow-scope skills for software-development and research tasks specifically — not part of the always-on global set. Install by hand when working in this mode.",
-      "install_target": "manual",
-      "ecosystem": ["claude-code"],
+      "description": "Narrow-scope skills for software-development and research tasks specifically \u2014 not part of the always-on global set. Install by hand when working in this mode.",
+      "install_target": "global",
+      "ecosystem": [
+        "claude-code"
+      ],
       "skills": [
         {
           "name": "ponytail",
           "source": "ponytail",
-          "description": "YAGNI/reuse/scope gate for software-dev and research tasks — invoke before writing code. Measured gains are largely a verbosity-suppression effect, not proof of deeper gating value; worth having for the explicit YAGNI ladder, not a magic quality multiplier."
+          "description": "YAGNI/reuse/scope gate for software-dev and research tasks \u2014 invoke before writing code. Measured gains are largely a verbosity-suppression effect, not proof of deeper gating value; worth having for the explicit YAGNI ladder, not a magic quality multiplier."
         }
       ]
     },
-
     "builtin": {
       "label": "Built-in (Claude Code / plugins)",
       "description": "Present when Claude Code or the relevant plugin is installed. Listed here for reference only.",
       "install_target": "none",
-      "ecosystem": ["claude-code"],
+      "ecosystem": [
+        "claude-code"
+      ],
       "skills": [
-        { "name": "code-review",      "source": "builtin", "description": "Review current diff at configured effort level." },
-        { "name": "security-review",  "source": "builtin", "description": "Branch security audit." },
-        { "name": "run",              "source": "builtin", "description": "Launch and observe the project app." },
-        { "name": "verify",           "source": "builtin", "description": "Confirm a change works in the real app." },
-        { "name": "init",             "source": "builtin", "description": "Initialise a CLAUDE.md for the current codebase." },
-        { "name": "update-config",    "source": "builtin", "description": "Configure Claude Code settings and hooks." },
-        { "name": "fewer-permission-prompts", "source": "builtin", "description": "Scan transcripts and add allowlist to reduce prompts." }
+        {
+          "name": "code-review",
+          "source": "builtin",
+          "description": "Review current diff at configured effort level."
+        },
+        {
+          "name": "security-review",
+          "source": "builtin",
+          "description": "Branch security audit."
+        },
+        {
+          "name": "run",
+          "source": "builtin",
+          "description": "Launch and observe the project app."
+        },
+        {
+          "name": "verify",
+          "source": "builtin",
+          "description": "Confirm a change works in the real app."
+        },
+        {
+          "name": "init",
+          "source": "builtin",
+          "description": "Initialise a CLAUDE.md for the current codebase."
+        },
+        {
+          "name": "update-config",
+          "source": "builtin",
+          "description": "Configure Claude Code settings and hooks."
+        },
+        {
+          "name": "fewer-permission-prompts",
+          "source": "builtin",
+          "description": "Scan transcripts and add allowlist to reduce prompts."
+        }
       ]
     }
   }

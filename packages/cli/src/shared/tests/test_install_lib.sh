@@ -178,6 +178,56 @@ else
   FAIL=$((FAIL+1)); echo "FAIL: B3 receipt file was not written"
 fi
 
+echo "== E1: install-vendored-skills.sh --list =="
+VENDORED_SH="$HERE/../install-vendored-skills.sh"
+LIST_OUT="$(bash "$VENDORED_SH" --list)"
+LIST_LINES="$(printf '%s\n' "$LIST_OUT" | grep -c .)"
+if [[ "$LIST_LINES" -ge 10 ]]; then
+  PASS=$((PASS+1)); echo "PASS: --list emits at least 10 rows ($LIST_LINES)"
+else
+  FAIL=$((FAIL+1)); echo "FAIL: --list emitted only $LIST_LINES rows, expected >= 10"
+fi
+if printf '%s\n' "$LIST_OUT" | grep -qP '^github\t'; then
+  PASS=$((PASS+1)); echo "PASS: --list includes a tab-separated 'github' row"
+else
+  FAIL=$((FAIL+1)); echo "FAIL: --list missing expected 'github<TAB>...' row"
+fi
+BAD_COLS="$(printf '%s\n' "$LIST_OUT" | awk -F'\t' 'NF!=2{c++} END{print c+0}')"
+_assert_eq "--list: every row has exactly 2 tab-separated fields" "$BAD_COLS" "0"
+
+echo "== E1: install-vendored-skills.sh --only + INSTALLED: lines =="
+ONLY_TARGET="$SCRATCH/only_target"
+mkdir -p "$ONLY_TARGET"
+ONLY_OUT="$(bash "$VENDORED_SH" --custom "$ONLY_TARGET" --only github,html-preview 2>&1)"
+INSTALLED_NAMES="$(printf '%s\n' "$ONLY_OUT" | sed -n 's/^INSTALLED: //p' | sort)"
+_assert_eq "--only: INSTALLED: lines are exactly the requested subset" "$INSTALLED_NAMES" "$(printf 'github\nhtml-preview')"
+if [[ -d "$ONLY_TARGET/skills/github" && -d "$ONLY_TARGET/skills/html-preview" ]]; then
+  PASS=$((PASS+1)); echo "PASS: --only installed exactly the requested skill dirs"
+else
+  FAIL=$((FAIL+1)); echo "FAIL: --only did not install the expected skill dirs at $ONLY_TARGET/skills/"
+fi
+OTHER_DIRS="$(find "$ONLY_TARGET/skills" -mindepth 1 -maxdepth 1 -type d ! -name github ! -name html-preview 2>/dev/null | wc -l | tr -d ' ')"
+_assert_eq "--only: no extra skill dirs installed beyond the requested subset" "$OTHER_DIRS" "0"
+
+echo "== E1: install-vendored-skills.sh --only unknown name warns, does not fail =="
+UNKNOWN_TARGET="$SCRATCH/unknown_target"
+mkdir -p "$UNKNOWN_TARGET"
+if UNKNOWN_OUT="$(bash "$VENDORED_SH" --custom "$UNKNOWN_TARGET" --only github,totally-not-a-real-skill 2>&1)"; then
+  PASS=$((PASS+1)); echo "PASS: --only with one unknown name still exits 0"
+else
+  FAIL=$((FAIL+1)); echo "FAIL: --only with one unknown name exited nonzero"
+fi
+if printf '%s\n' "$UNKNOWN_OUT" | grep -q "unknown skill 'totally-not-a-real-skill'"; then
+  PASS=$((PASS+1)); echo "PASS: --only warns on the unknown skill name"
+else
+  FAIL=$((FAIL+1)); echo "FAIL: expected an 'unknown skill' warning in output"
+fi
+if [[ -d "$UNKNOWN_TARGET/skills/github" ]]; then
+  PASS=$((PASS+1)); echo "PASS: the known name in the same --only list still installs"
+else
+  FAIL=$((FAIL+1)); echo "FAIL: github should have installed despite the unknown sibling name"
+fi
+
 echo
 echo "=== Results: $PASS passed, $FAIL failed ==="
 [ "$FAIL" -eq 0 ]

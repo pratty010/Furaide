@@ -7,6 +7,10 @@
 # Prerequisites: bun or node+npm, and the pi CLI (https://pi.dev)
 #   --skip-checks     N/A here — pi-agent has no non-fatal pre-checks to skip
 #                     (bun/npm and pi CLI absence are both hard errors)
+#   --dry-run         Print what would happen; make no changes
+#   --yes, -y         Run unattended: skip the shared-skill-pool prompt and
+#                     leave ~/.agents/skills untouched if it's empty (pi's
+#                     no-copy design stays opt-in, never force-populated)
 
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -20,9 +24,11 @@ warn() { printf "${YELLOW}[warn]${NC} %s\n" "$*" >&2; }
 err()  { printf "${RED}[error]${NC} %s\n" "$*" >&2; }
 
 DRY_RUN=0
+ASSUME_YES=0
 for arg in "$@"; do
   case "$arg" in
     --dry-run) DRY_RUN=1 ;;
+    --yes|-y) ASSUME_YES=1 ;;
     -h|--help)
       sed -n '2,/^set -euo/{ /^set -euo/d; s/^# \{0,1\}//; p }' "${BASH_SOURCE[0]}"
       exit 0 ;;
@@ -38,6 +44,38 @@ if ! command -v pi >/dev/null 2>&1; then
   exit 1
 fi
 ok "pi CLI found"
+
+# ── Shared skill pool ─────────────────────────────────────────────────────────
+# Pi reads skills live from ~/.agents/skills (no copy step). If that pool is
+# empty (e.g. Pi is the first harness installed on this machine), Pi has zero
+# skills available with no hint why -- offer to populate it now.
+POOL_DIR="$HOME/.agents/skills"
+POOL_EMPTY=0
+if [[ ! -d "$POOL_DIR" ]] || [[ -z "$(ls -A "$POOL_DIR" 2>/dev/null)" ]]; then
+  POOL_EMPTY=1
+fi
+
+if [[ "$POOL_EMPTY" -eq 1 ]]; then
+  if [[ "$DRY_RUN" -eq 1 ]]; then
+    echo "[dry-run] would prompt to populate ~/.agents/skills"
+  elif [[ "$ASSUME_YES" -eq 1 ]]; then
+    warn "shared skill pool ($POOL_DIR) is empty -- skipping unattended (--yes); run 'bash $SHARED_DIR/install-vendored-skills.sh --global' manually to populate it"
+  else
+    printf "Shared skill pool (~/.agents/skills) is empty. Install shared skills now? [y/N] "
+    reply=""
+    read -r reply </dev/tty || reply="n"
+    case "$reply" in
+      y|Y|yes|YES)
+        bash "$SHARED_DIR/install-vendored-skills.sh" --global
+        ok "shared skill pool populated -> $POOL_DIR"
+        printf '%s\n' "Tip: run it again later with --only <names> to install just a subset (see: bash $SHARED_DIR/install-vendored-skills.sh --list)."
+        ;;
+      *)
+        warn "skipping shared skill pool population -- run 'bash $SHARED_DIR/install-vendored-skills.sh --global' later"
+        ;;
+    esac
+  fi
+fi
 
 if [[ "$DRY_RUN" -eq 1 ]]; then
   if [[ "$JS_RUNTIME" == "bun" ]]; then

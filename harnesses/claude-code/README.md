@@ -89,14 +89,14 @@ git clone https://github.com/pratty010/Furaide.git ~/Furaidē
 bash ~/Furaidē/packages/cli/src/targets/claude-code/install.sh
 ```
 
-The bootstrap script is interactive by default (Y/n prompt per step). Pass `--yes`/`-y` to run unattended:
+The bootstrap script is interactive by default (Y/n prompt per step; the skills step also offers `s` to pick a subset individually). Pass `--yes`/`-y` to run unattended:
 1. Creates `~/.idisu`
 2. Installs the `idisu` CLI engine via `bun install`
-3. Installs shared common skills (`github`, `bx`, `html-preview`, `brave-search`, `plan`): copies to `~/.agents/skills/`, symlinks `~/.claude/skills/` → `~/.agents/skills/`
-4. Copies `config/agents/hanko--git-seal.md` → `~/.claude/agents/`
-5. Backs up and copies `config/CLAUDE.md` + `config/statusline-command.sh` → `~/.claude/`
+3. Installs CC's skill boundary: `github`, `html-preview`, `handoff-furaide-addendum`, `post-mortem`, `regression-test-recipe` (repo-vendored, copied to `~/.agents/skills/` + symlinked into `~/.claude/skills/`) plus the bundled `research` skill (`config/skills/research/` → `~/.claude/skills/research/`, a direct copy) plus the canonical external set (superpowers/mattpocock subset, `notebooklm`, `ponytail` — via `install-external-skills.sh --ecosystem claude-code`)
+4. Copies `config/agents/*.md` (`hanko--git-seal`, `kamaitachi--scout`) → `~/.claude/agents/`
+5. Backs up and copies `config/CLAUDE.md` + `config/rules/*.md` + `config/statusline-command.sh` → `~/.claude/`
 
-Flags: `--yes`/`-y` (non-interactive), `--minimal` (steps 1-2 only), `--no-config` (skip step 5), `--with-skills` (also install manifest skills), `-h`.
+Flags: `--yes`/`-y` (non-interactive), `--minimal` (steps 1-2 only), `--no-config` (skip step 5), `--with-skills` (deprecated no-op — the canonical external set installs by default now), `-h`.
 
 ### Phase 2: Register and install plugins in Claude Code
 
@@ -235,9 +235,11 @@ IDISU_CAPTURE_HOOK_PAYLOADS=1 claude
 Īdisu observes skills, so you need skills installed for it to observe anything. Bootstrap offers to run the common installer. You can also run it separately:
 
 ```bash
-bash ~/Furaidē/packages/cli/src/shared/install-vendored-skills.sh --global      # bx, html-preview, brave-search, plan
-bash ~/Furaidē/packages/cli/src/shared/install-external-skills.sh --ecosystem claude-code  # superpowers, notebooklm, …
+bash ~/Furaidē/packages/cli/src/shared/install-vendored-skills.sh --global --only github,html-preview,handoff-furaide-addendum,post-mortem,regression-test-recipe
+bash ~/Furaidē/packages/cli/src/shared/install-external-skills.sh --ecosystem claude-code --all  # superpowers, mattpocock, notebooklm, ponytail
 ```
+
+Run `install-vendored-skills.sh --list` to see every repo-vendored skill with its description (used internally by the `s` picker in `install.sh`); drop `--only` to install the full shared pool instead of just CC's boundary set.
 
 ### Config bundle
 
@@ -253,6 +255,27 @@ cp ~/Furaidē/harnesses/claude-code/config/statusline-command.sh ~/.claude/statu
 See [`config/README.md`](config/README.md) for per-file notes, including the statusline's per-session sidecar (`~/.claude/statusline-state/`).
 
 > The `hooks` block is intentionally absent from `config/settings.json`. Īdisu's plugin ships its own hook scripts using `${CLAUDE_PLUGIN_ROOT}`, so no manual hook wiring is required.
+
+### Optional: NotebookLM research grounding
+
+The `research` skill (see `config/skills/research/SKILL.md`) can optionally use [NotebookLM](https://notebooklm.google.com) via the `notebooklm` skill (wraps [`notebooklm-py`](https://github.com/teng-lin/notebooklm-py)) for source-grounded, cited synthesis over document-heavy corpora — PDFs, papers, long YouTube, filings. It's never required: the research flow silently falls back to native `WebSearch`/`WebFetch` if NotebookLM isn't set up or its availability gate fails.
+
+Quick path:
+
+```bash
+uv tool install "notebooklm-py[browser]"   # pulls Playwright + Chromium, ~170MB first run
+notebooklm login                            # interactive browser auth (Google account)
+notebooklm auth check --test --json         # verify — must show status:"ok" AND checks.token_fetch:true
+```
+
+Gotchas:
+- **Use `uv`/`pipx`, not system `pip`** — PEP 668 blocks it on most distros.
+- First `notebooklm login` triggers the Playwright/Chromium download; budget a few minutes and ~170MB.
+- The `[cookies]` extra (rookiepy-based cookie import) doesn't work on Python 3.13+ — use interactive `notebooklm login` instead.
+- This wraps an **unofficial, undocumented Google API** — it can break without notice. Treat it as a nice-to-have, not a dependency.
+- Rate limits and per-source-tier caps apply; heavy corpora may hit them.
+
+Full command reference and troubleshooting: the `notebooklm` skill's own `SKILL.md`, and the upstream [`notebooklm-py` docs](https://github.com/teng-lin/notebooklm-py). This same setup also applies to `harnesses/opencode/` — NotebookLM is a one-time per-machine setup shared across harnesses.
 
 ### Why `.claude-plugin/` is at the repo root
 
@@ -356,7 +379,14 @@ plugins/
 config/
   agents/
     hanko--git-seal.md           # git/GitHub subagent (installed → ~/.claude/agents/)
-  CLAUDE.md                       # global config (installed → ~/.claude/)
+    kamaitachi--scout.md          # Haiku research-collection subagent (installed → ~/.claude/agents/)
+  rules/
+    model-usage.md                # model tiers + delegation (installed → ~/.claude/rules/)
+    version-control.md            # git/GitHub conventions (installed → ~/.claude/rules/)
+    gate-policy.md                # auto-proceed/soft-confirm/hard-gate tiers (installed → ~/.claude/rules/)
+  skills/
+    research/                     # bundled research-flow skill (installed → ~/.claude/skills/research/, direct copy)
+  CLAUDE.md                       # global config, lean entry/routing (installed → ~/.claude/)
   statusline-command.sh           # statusline helper (installed → ~/.claude/)
 
 **Adding a new skill:** add to `skills/`, then update `packages/manifests/skills-manifest.json`.
@@ -398,6 +428,14 @@ Shipped vs. upcoming, grouped by offering. Everything is pre-1.0.
 
 - [x] ~~v0.1.0 — global CLAUDE.md, settings.json, statusline, hanko agent definition~~
 - [x] ~~v0.2.0 — ponytail skill wiring~~
+- [x] ~~v0.3.0 — 5-flow restructure (Research/Planning/Development/Bug-hunting/Design-Architecture), lean CLAUDE.md + `rules/` (model-usage, version-control, gate-policy), bundled `research` skill + `kamaitachi--scout` subagent, per-skill installer/uninstaller selection~~
+
+### Workflow flows
+
+- [x] ~~v0.1.0 — Research/Analysis, Discussion-Planning-PRD, Development, Bug-hunting, Design/UI & Architecture~~
+- [ ] future — **law workflow** (net-new domain)
+- [ ] future — **financial workflow** (seeded by `dcf-valuation-model`/`earnings-10k-extraction`, currently shipped to OpenCode's `daikoku` agent only)
+- [ ] future — OC-parity gated multi-subagent `workflows/` (JS `Workflow()` scripts, e.g. a saved deep-research + NotebookLM pipeline)
 
 ---
 

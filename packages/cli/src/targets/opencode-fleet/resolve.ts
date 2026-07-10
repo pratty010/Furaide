@@ -144,7 +144,12 @@ export function resolveAgentScripts(agentNames: string[], harnessRoot: string): 
   return Array.from(scripts).sort();
 }
 
-function listBundledSkillNames(repoRoot: string): Set<string> {
+/** Lists every skill directory name under `<repoRoot>/skills` -- the full
+ * repo-bundled skill pool, independent of any agent's requirements. Exported
+ * for callers (e.g. the wizard's opt-in "extras" step) that need the full
+ * pool to diff against an agent-required subset; resolveAgentSkills() below
+ * uses it internally for the same purpose. */
+export function listBundledSkillNames(repoRoot: string): Set<string> {
   const skillsDir = join(repoRoot, "skills");
   if (!existsSync(skillsDir)) return new Set();
   return new Set(

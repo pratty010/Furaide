@@ -161,6 +161,20 @@ The new fleet installer supports installing the web-tools bucket as a standalone
 
 ---
 
+## Optional: NotebookLM research grounding
+
+The `notebooklm` skill (wraps [`notebooklm-py`](https://github.com/teng-lin/notebooklm-py)) is available as an opt-in "extras" pick in the fleet installer wizard, for agents doing source-grounded, cited synthesis over document-heavy corpora (PDFs, papers, long YouTube, filings). It's a one-time per-machine setup, shared across harnesses:
+
+```bash
+uv tool install "notebooklm-py[browser]"   # pulls Playwright + Chromium, ~170MB first run
+notebooklm login                            # interactive browser auth (Google account)
+notebooklm auth check --test --json         # verify — must show status:"ok" AND checks.token_fetch:true
+```
+
+Use `uv`/`pipx`, not system `pip` (PEP 668). The `[cookies]` extra doesn't work on Python 3.13+ — use `notebooklm login` instead. It wraps an unofficial, undocumented Google API; treat it as optional, never a dependency. Full reference: the skill's own `SKILL.md` and the upstream `notebooklm-py` docs. Same setup as `harnesses/claude-code/`'s README — see there for the fuller gotcha list.
+
+---
+
 ## Verification
 
 Run from `harnesses/opencode/`:

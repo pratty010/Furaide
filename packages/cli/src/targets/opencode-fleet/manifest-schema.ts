@@ -119,5 +119,11 @@ export const InstallReceiptV2Schema = z.object({
     external: z.array(z.string()),
     bundled: z.array(z.string()),
   }),
+  /** Opt-in "extras" the user explicitly selected in the wizard's extras
+   * step (E4) -- repo-bundled skills NOT required by any selected agent
+   * (e.g. the relocated finance/security skills). Distinct from
+   * requiredSkills.bundled, which is auto-resolved from agent frontmatter,
+   * never user-chosen. `.default([])` keeps pre-E4 receipts valid on read. */
+  selectedExtraSkills: z.array(z.string()).default([]),
 });
 export type InstallReceiptV2 = z.infer<typeof InstallReceiptV2Schema>;

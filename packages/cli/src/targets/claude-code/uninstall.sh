@@ -134,11 +134,52 @@ restore_or_remove() {  # dst backup_rel_path label
 
 # ── Step 2: Select what to remove (delete/skip only) ────────────────────────
 DO_CLAUDE_MD=1
+DO_RULES=1
 DO_SETTINGS=1
 DO_AGENTS=1
 DO_SKILLS=1
 DO_IDISU=1
 DO_REJION=1
+SKILLS_REMOVE_LIST=""   # empty + DO_SKILLS=1 = remove every receipt skillName (default)
+SKILLS_SUBSET_MODE=0    # 1 if the user picked a numbered subset (not all/none)
+
+_pick_uninstall_skills_subset() {  # $1 = space-separated receipt skill names
+  local all_names=("$@") names=() idx=0 name desc reply
+  local desc_lookup=""
+  if [[ -x "$(command -v bash)" && -d "$SHARED_DIR" ]] && command -v python3 >/dev/null 2>&1; then
+    desc_lookup="$(bash "$SHARED_DIR/install-vendored-skills.sh" --list 2>/dev/null || true)"
+  fi
+  printf '\n  Installed skills:\n' >&2
+  for name in "${all_names[@]}"; do
+    [[ -z "$name" ]] && continue
+    idx=$((idx + 1))
+    names+=("$name")
+    desc="$(printf '%s\n' "$desc_lookup" | awk -F'\t' -v n="$name" '$1==n{print $2}')"
+    printf '    %d) %-32s %s\n' "$idx" "$name" "$desc" >&2
+  done
+  while true; do
+    read -rp "  Remove which (space-separated numbers, 'all', or 'none'): " reply </dev/tty
+    case "$reply" in
+      all|ALL) SKILLS_REMOVE_LIST=""; SKILLS_SUBSET_MODE=0; return 0 ;;
+      none|NONE) DO_SKILLS=0; return 0 ;;
+      *)
+        local picked=() ok=1 n
+        for n in $reply; do
+          if [[ "$n" =~ ^[0-9]+$ ]] && (( n >= 1 && n <= idx )); then
+            picked+=("${names[$((n-1))]}")
+          else
+            ok=0; break
+          fi
+        done
+        if [[ "$ok" -eq 1 && "${#picked[@]}" -gt 0 ]]; then
+          SKILLS_REMOVE_LIST="$(IFS=,; echo "${picked[*]}")"
+          SKILLS_SUBSET_MODE=1
+          return 0
+        fi
+        warn "  invalid selection, try again (e.g. '1 3', 'all', 'none')" ;;
+    esac
+  done
+}
 
 if [[ "$ASSUME_YES" -ne 1 && "$DRY_RUN" -ne 1 ]]; then
   printf '\nWhat to remove from %s (Enter=delete, s=skip):\n\n' "$TARGET_DIR" >&2
@@ -148,15 +189,48 @@ if [[ "$ASSUME_YES" -ne 1 && "$DRY_RUN" -ne 1 ]]; then
     case "$__reply" in s|S) printf -v "$__var" '0' ;; *) printf -v "$__var" '1' ;; esac
   }
   ask DO_CLAUDE_MD "CLAUDE.md"
+  ask DO_RULES     "rules/ (model-usage, version-control, gate-policy)"
   ask DO_SETTINGS  "settings.json keys"
-  ask DO_AGENTS    "agents/"
-  ask DO_SKILLS    "skills/ symlinks (content in ~/.agents/skills/ preserved unless --purge)"
+  ask DO_AGENTS    "agents/ (hanko--git-seal, kamaitachi--scout)"
+
+  read -rp "  skills/ symlinks (content in ~/.agents/skills/ preserved unless --purge) [delete/s/subset]: " __skills_reply </dev/tty
+  case "$__skills_reply" in
+    s|S) DO_SKILLS=0 ;;
+    subset)
+      DO_SKILLS=1
+      mapfile -t _all_receipt_skills < <(_receipt_field components.skillNames | python3 -c "
+import json,sys
+try: names = json.load(sys.stdin)
+except Exception: names = []
+for n in names: print(n)
+" 2>/dev/null)
+      _pick_uninstall_skills_subset "${_all_receipt_skills[@]}" ;;
+    *) DO_SKILLS=1 ;;
+  esac
+
   ask DO_IDISU     "Idisu plugin"
   ask DO_REJION    "Rejion plugin"
 fi
 
 # ── Step 3: Execute ──────────────────────────────────────────────────────────
 [[ "$DO_CLAUDE_MD" -eq 1 ]] && restore_or_remove "$TARGET_DIR/CLAUDE.md" "CLAUDE.md" "CLAUDE.md"
+
+if [[ "$DO_RULES" -eq 1 ]]; then
+  rule_files="$(_receipt_field components.ruleFiles)"
+  printf '%s' "$rule_files" | python3 -c "
+import json,sys
+try: paths = json.load(sys.stdin)
+except Exception: paths = []
+for p in paths: print(p)
+" 2>/dev/null | while IFS= read -r rule_path; do
+    [[ -n "$rule_path" ]] && remove "$rule_path" "rules/$(basename "$rule_path")"
+  done
+  # Legacy receipts predate ruleFiles — fall back to a directory sweep so
+  # older installs still get cleaned up.
+  if [[ -z "$rule_files" || "$rule_files" == "null" ]] && [[ -d "$TARGET_DIR/rules" ]]; then
+    remove "$TARGET_DIR/rules" "rules/ (legacy receipt, swept whole dir)"
+  fi
+fi
 
 _remove_settings_keys() {  # src_settings dst_settings
   local src_settings="$1" dst_settings="$2"
@@ -196,6 +270,9 @@ for p in paths: print(p)
   done
 fi
 
+REMOVED_SKILLS_TMP="$(mktemp)"
+trap 'rm -f "$RECEIPT_TMP" "$REMOVED_SKILLS_TMP"' EXIT
+
 if [[ "$DO_SKILLS" -eq 1 ]]; then
   skill_names="$(_receipt_field components.skillNames)"
   printf '%s' "$skill_names" | python3 -c "
@@ -205,6 +282,18 @@ except: names = []
 for n in names: print(n)
 " 2>/dev/null | while IFS= read -r skill_name; do
     [[ -z "$skill_name" ]] && continue
+    if [[ -n "$SKILLS_REMOVE_LIST" ]]; then
+      case ",$SKILLS_REMOVE_LIST," in *",$skill_name,"*) ;; *) continue ;; esac
+    fi
+
+    # research is a direct CC-bundled copy (like agents/), not a vendored-pool
+    # symlink — handle it separately from the generic symlink logic below.
+    if [[ "$skill_name" == "research" ]]; then
+      remove "$TARGET_DIR/skills/research" "$TARGET_DIR/skills/research (bundled research skill)"
+      echo "$skill_name" >> "$REMOVED_SKILLS_TMP"
+      continue
+    fi
+
     if [[ "$TARGET_DIR" == "$GLOBAL_TARGET" ]]; then
       skill_link="$HOME/.claude/skills/$skill_name"
       if [[ -L "$skill_link" ]] && [[ "$(readlink "$skill_link")" == "$HOME/.agents/skills/"* ]]; then
@@ -219,6 +308,30 @@ for n in names: print(n)
       fi
     else
       remove "$TARGET_DIR/skills/$skill_name" "$TARGET_DIR/skills/$skill_name"
+    fi
+    echo "$skill_name" >> "$REMOVED_SKILLS_TMP"
+  done
+fi
+
+# Canonical external skills (superpowers/mattpocock subset + notebooklm +
+# ponytail) install by DEFAULT as of this restructure (see claude-code/install.sh's
+# CC_SKILL_SET comment) but come from install-external-skills.sh, a separate
+# script that doesn't feed the receipt's skillNames. They're not covered by
+# the receipt-driven loop above, so a full uninstall would otherwise silently
+# leave them behind. Best-effort: only touch our own symlink pattern (same
+# guard as the vendored-skills loop), silently skip anything not present
+# (older installs, or a subset uninstall that never had them). Not offered as
+# part of the per-skill subset picker — this is a "clean up the default
+# external set" companion pass, not a user-selectable target.
+if [[ "$DO_SKILLS" -eq 1 && -z "$SKILLS_REMOVE_LIST" && "$TARGET_DIR" == "$GLOBAL_TARGET" ]]; then
+  CANONICAL_EXTERNAL_SKILLS="brainstorming writing-plans subagent-driven-development verification-before-completion requesting-code-review finishing-a-development-branch using-git-worktrees caveman diagnose systematic-debugging tdd skill-creator writing-skills humanizer receiving-code-review create-readme improve-codebase-architecture grill-with-docs impeccable prototype to-prd to-issues triage html-preview find-docs dispatching-parallel-agents handoff executing-plans notebooklm ponytail"
+  for skill_name in $CANONICAL_EXTERNAL_SKILLS; do
+    skill_link="$HOME/.claude/skills/$skill_name"
+    [[ -L "$skill_link" ]] || continue
+    [[ "$(readlink "$skill_link")" == "$HOME/.agents/skills/"* ]] || continue
+    remove "$skill_link" "~/.claude/skills/$skill_name (external, symlink → ~/.agents/skills/)"
+    if [[ "$PURGE" -eq 1 ]]; then
+      remove "$HOME/.agents/skills/$skill_name" "~/.agents/skills/$skill_name (--purge: shared pool content)"
     fi
   done
 fi
@@ -260,9 +373,42 @@ if [[ "$DRY_RUN" -ne 1 ]]; then
   if [[ -n "$BACKUP_DIR" && -d "$BACKUP_DIR" ]]; then
     rmdir "$BACKUP_DIR" 2>/dev/null && ok "removed now-empty backup dir $BACKUP_DIR" || true
   fi
-  rm -f "$RECEIPT_PATH"
-  ok "removed receipt $RECEIPT_PATH"
+  # rmdir is a no-op (silently fails, caught) if anything is left inside —
+  # only clears the dir when every file it held was actually removed above.
+  rmdir "$TARGET_DIR/rules" 2>/dev/null || true
+  rmdir "$TARGET_DIR/agents" 2>/dev/null || true
+
+  if [[ "$SKILLS_SUBSET_MODE" -eq 1 ]]; then
+    # Partial skill removal: rewrite the receipt's skillNames minus what was
+    # actually removed, rather than deleting the whole receipt — the install
+    # is still partially present (other skills, agents, config all untouched).
+    removed_json="$(python3 -c "
+import json,sys
+with open(sys.argv[1]) as f:
+    print(json.dumps([l.strip() for l in f if l.strip()]))
+" "$REMOVED_SKILLS_TMP" 2>/dev/null || echo '[]')"
+    python3 -c "
+import json,sys
+receipt_path, removed_json = sys.argv[1], sys.argv[2]
+with open(receipt_path) as f:
+    r = json.load(f)
+removed = set(json.loads(removed_json))
+r.setdefault('components', {})['skillNames'] = [
+    n for n in r.get('components', {}).get('skillNames', []) if n not in removed
+]
+with open(receipt_path, 'w') as f:
+    json.dump(r, f, indent=2)
+" "$RECEIPT_PATH" "$removed_json" 2>/dev/null \
+      && ok "receipt updated: skillNames minus removed subset" \
+      || warn "could not rewrite receipt skillNames — edit $RECEIPT_PATH manually if needed"
+  else
+    rm -f "$RECEIPT_PATH"
+    ok "removed receipt $RECEIPT_PATH"
+  fi
 fi
 
 printf "\n${GREEN}[done]${NC} Uninstall complete for %s.\n" "$TARGET_DIR"
-[[ "$DRY_RUN" -eq 1 ]] && printf '%s\n' "[dry-run] No changes were made."
+if [[ "$DRY_RUN" -eq 1 ]]; then
+  printf '%s\n' "[dry-run] No changes were made."
+fi
+exit 0
