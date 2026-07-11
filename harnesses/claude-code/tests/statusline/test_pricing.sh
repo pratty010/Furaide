@@ -99,7 +99,7 @@ _bcost() {  # model input_tokens output_tokens cache_read cc_5m cc_1h [today] [g
 
 # Helper: run a full script invocation with geo/speed fields in the transcript
 _run_with_geo_speed() {  # transcript_jsonl payload_json state_dir -> stdout
-  local transcript="$1" payload="$2" state_dir="$3"
+  local _transcript="$1" payload="$2" state_dir="$3"
   COLUMNS=120 STATUSLINE_STATE_DIR="$state_dir" bash "$SCRIPT" <<<"$payload" 2>&1
 }
 

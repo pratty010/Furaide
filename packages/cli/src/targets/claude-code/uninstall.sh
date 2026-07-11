@@ -109,7 +109,8 @@ BACKUP_DIR="${BACKUP_DIR//\"/}"
 ok "found receipt: installed $INSTALLED_AT, target $TARGET_DIR"
 
 remove() {  # path label
-  local path="$1" label="${2:-$path}"
+  local path="$1"
+  local label="${2:-$path}"
   if [[ -e "$path" || -L "$path" ]]; then
     if [[ "$DRY_RUN" -eq 1 ]]; then
       printf "[dry-run] would remove %s\n" "$label"
@@ -332,14 +333,14 @@ for n in names: print(n)
     if [[ "$TARGET_DIR" == "$GLOBAL_TARGET" ]]; then
       skill_link="$HOME/.claude/skills/$skill_name"
       if [[ -L "$skill_link" ]] && [[ "$(readlink "$skill_link")" == "$HOME/.agents/skills/"* ]]; then
-        remove "$skill_link" "~/.claude/skills/$skill_name (symlink → ~/.agents/skills/)"
+        remove "$skill_link" "$HOME/.claude/skills/$skill_name (symlink → $HOME/.agents/skills/)"
       elif [[ -e "$skill_link" ]]; then
-        warn "~/.claude/skills/$skill_name is a real directory, not our symlink — skipped (remove manually if needed)"
+        warn "$HOME/.claude/skills/$skill_name is a real directory, not our symlink — skipped (remove manually if needed)"
       fi
       if [[ "$PURGE" -eq 1 ]]; then
-        remove "$HOME/.agents/skills/$skill_name" "~/.agents/skills/$skill_name (--purge: shared pool content)"
+        remove "$HOME/.agents/skills/$skill_name" "$HOME/.agents/skills/$skill_name (--purge: shared pool content)"
       else
-        info "~/.agents/skills/$skill_name content preserved (shared pool — pass --purge to remove)"
+        info "$HOME/.agents/skills/$skill_name content preserved (shared pool — pass --purge to remove)"
       fi
     else
       remove "$TARGET_DIR/skills/$skill_name" "$TARGET_DIR/skills/$skill_name"
@@ -367,9 +368,9 @@ if [[ "$DO_SKILLS" -eq 1 && -z "$SKILLS_REMOVE_LIST" && "$TARGET_DIR" == "$GLOBA
     skill_link="$HOME/.claude/skills/$skill_name"
     [[ -L "$skill_link" ]] || continue
     [[ "$(readlink "$skill_link")" == "$HOME/.agents/skills/"* ]] || continue
-    remove "$skill_link" "~/.claude/skills/$skill_name (external, symlink → ~/.agents/skills/)"
+    remove "$skill_link" "$HOME/.claude/skills/$skill_name (external, symlink → $HOME/.agents/skills/)"
     if [[ "$PURGE" -eq 1 ]]; then
-      remove "$HOME/.agents/skills/$skill_name" "~/.agents/skills/$skill_name (--purge: shared pool content)"
+      remove "$HOME/.agents/skills/$skill_name" "$HOME/.agents/skills/$skill_name (--purge: shared pool content)"
     fi
   done
 fi
@@ -399,12 +400,12 @@ if [[ "$PURGE" -eq 1 && "$TARGET_DIR" == "$GLOBAL_TARGET" ]]; then
       printf "[dry-run] would remove ~/.idisu (--purge)\n"
     else
       SIZE=$(du -sh "$HOME/.idisu" 2>/dev/null | cut -f1 || echo "?")
-      remove "$HOME/.idisu" "~/.idisu ($SIZE, --purge)"
+      remove "$HOME/.idisu" "$HOME/.idisu ($SIZE, --purge)"
     fi
   fi
 fi
 
-remove "$HOME/.github-setup-state-friday" "~/.github-setup-state-friday"
+remove "$HOME/.github-setup-state-friday" "$HOME/.github-setup-state-friday"
 
 # ── Clean up backup dir and receipt ──────────────────────────────────────────
 if [[ "$DRY_RUN" -ne 1 ]]; then

@@ -340,7 +340,7 @@ TRANSCRIPT7="$SCRATCH/transcript7.jsonl"
   _assistant_line 50 100 0 0 "msg_dup2"
   printf '\n'
 } > "$TRANSCRIPT7"
-OUT7=$(_run "$(_mk_payload "$SID7" "$TRANSCRIPT7")" "$STATE7")
+_run "$(_mk_payload "$SID7" "$TRANSCRIPT7")" "$STATE7" >/dev/null
 SIDECAR7="$STATE7/$SID7.json"
 _assert_json_field "test7: in_total dedups to 150 (last-per-id: 100+50, NOT naive 350)" "$SIDECAR7" '.in_total' "150"
 _assert_json_field "test7: out_total dedups to 641 (last-per-id: 541+100, NOT naive 647)" "$SIDECAR7" '.out_total' "641"
