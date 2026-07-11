@@ -176,7 +176,15 @@ _pick_uninstall_skills_subset() {  # $1 = space-separated receipt skill names
           fi
         done
         if [[ "$ok" -eq 1 && "${#picked[@]}" -gt 0 ]]; then
-          SKILLS_REMOVE_LIST="$(IFS=,; echo "${picked[*]}")"
+          local joined="" item
+          for item in "${picked[@]}"; do
+            if [ -z "$joined" ]; then
+              joined="$item"
+            else
+              joined="$joined,$item"
+            fi
+          done
+          SKILLS_REMOVE_LIST="$joined"
           SKILLS_SUBSET_MODE=1
           return 0
         fi

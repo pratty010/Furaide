@@ -235,7 +235,15 @@ _pick_skills_subset() {
           fi
         done
         if [[ "$ok" -eq 1 && "${#picked[@]}" -gt 0 ]]; then
-          SKILLS_ONLY_LIST="$(IFS=,; echo "${picked[*]}")"
+          local joined="" item
+          for item in "${picked[@]}"; do
+            if [ -z "$joined" ]; then
+              joined="$item"
+            else
+              joined="$joined,$item"
+            fi
+          done
+          SKILLS_ONLY_LIST="$joined"
           return 0
         fi
         warn "  invalid selection, try again (e.g. '1 3 5', 'all', 'none', 'back')" ;;

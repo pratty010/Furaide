@@ -35,7 +35,7 @@ _lr() {  # left right [pre-ll] [pre-rl] -> outer-pinned line with truncation
     local maxleft=$(( USABLE - rl - 1 )); [ "$maxleft" -lt 4 ] && maxleft=4
     left=$(_trunc "$left" "$maxleft"); ll=$(_vlen "$left")
     if [ $(( ll + rl + 1 )) -gt "$USABLE" ]; then
-      right=$(_trunc "$right" $(( USABLE - ll - 1 ))); rl=$(_vlen "$right")
+      right=$(_trunc "$right" "$(( USABLE - ll - 1 ))"); rl=$(_vlen "$right")
     fi
   fi
   local pad=$(( USABLE - ll - rl )); [ "$pad" -lt 1 ] && pad=1
