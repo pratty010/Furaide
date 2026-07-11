@@ -1,11 +1,11 @@
 import { test, expect } from 'bun:test';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync, existsSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import { spawnSync } from 'node:child_process';
 import { missingArtifactNames } from '../lib/finance-store.mjs';
 
-const HARNESS_ROOT = '/d/Everything/Furaidē/.worktrees/opencode-harness-v2/harnesses/opencode';
+const HARNESS_ROOT = resolve(__dirname, '../../');
 const SUBJECT = 'acme';
 
 function makeRepoRoot() {

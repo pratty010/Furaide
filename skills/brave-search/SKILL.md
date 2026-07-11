@@ -2,7 +2,7 @@
 name: brave-search
 description: |
   Use for Brave-powered web or news search when the user wants ranked search results, current articles, latest information, domain-filtered results, freshness/date-range filtering, Goggles, pagination, locale-aware search, or Tavily-style JSON output. Use this skill whenever the task is to return search/news results, not a synthesized answer. Run the bundled wrapper script, not `bx` directly, so cleanup and token reduction happen before results enter the model context.
-allowed-tools: Bash(python3 /home/ace/.agents/skills/brave-search/scripts/brave_search.py *)
+allowed-tools: Bash(python3 *brave_search.py *)
 ---
 
 # brave-search
@@ -12,7 +12,7 @@ Run the bundled wrapper script. It calls `bx web` or `bx news`, strips Brave-onl
 ## Core rules
 
 - Never call `bx` directly from the model when this skill is active.
-- Always use `python3 /home/ace/.agents/skills/brave-search/scripts/brave_search.py ...`.
+- Always use `python3 ~/.agents/skills/brave-search/scripts/brave_search.py ...`.
 - The wrapper may call only `bx web` or `bx news`.
 - Default to 10 results and structured indented JSON output:
 
@@ -56,7 +56,7 @@ Run the bundled wrapper script. It calls `bx web` or `bx news`, strips Brave-onl
 Use:
 
 ```bash
-python3 /home/ace/.agents/skills/brave-search/scripts/brave_search.py "<query>"
+python3 ~/.agents/skills/brave-search/scripts/brave_search.py "<query>"
 ```
 
 The wrapper chooses `news` only for explicit news-like queries when `--source auto` is used. Prefer setting `--source news` or `--source web` explicitly when intent is clear.
@@ -158,7 +158,7 @@ Pass these options to `brave_search.py`. The script forwards them to `bx` and ha
 ### Official docs only
 
 ```bash
-python3 /home/ace/.agents/skills/brave-search/scripts/brave_search.py \
+python3 ~/.agents/skills/brave-search/scripts/brave_search.py \
   "rust async" \
   --source web \
   --include-site rust-lang.github.io
@@ -167,7 +167,7 @@ python3 /home/ace/.agents/skills/brave-search/scripts/brave_search.py \
 ### Recent news
 
 ```bash
-python3 /home/ace/.agents/skills/brave-search/scripts/brave_search.py \
+python3 ~/.agents/skills/brave-search/scripts/brave_search.py \
   "AI news" \
   --source news \
   --freshness pd
@@ -176,7 +176,7 @@ python3 /home/ace/.agents/skills/brave-search/scripts/brave_search.py \
 ### Historical news window
 
 ```bash
-python3 /home/ace/.agents/skills/brave-search/scripts/brave_search.py \
+python3 ~/.agents/skills/brave-search/scripts/brave_search.py \
   "climate summit" \
   --source news \
   --freshness 2026-04-01to2026-04-14
@@ -185,7 +185,7 @@ python3 /home/ace/.agents/skills/brave-search/scripts/brave_search.py \
 ### Exclude a noisy source
 
 ```bash
-python3 /home/ace/.agents/skills/brave-search/scripts/brave_search.py \
+python3 ~/.agents/skills/brave-search/scripts/brave_search.py \
   "python dependency injection tutorial" \
   --source web \
   --exclude-site medium.com
@@ -194,7 +194,7 @@ python3 /home/ace/.agents/skills/brave-search/scripts/brave_search.py \
 ### Discussion-heavy search
 
 ```bash
-python3 /home/ace/.agents/skills/brave-search/scripts/brave_search.py \
+python3 ~/.agents/skills/brave-search/scripts/brave_search.py \
   "python TypeError cannot unpack non-iterable NoneType" \
   --source web \
   --result-filter discussions
@@ -203,7 +203,7 @@ python3 /home/ace/.agents/skills/brave-search/scripts/brave_search.py \
 ### Goggles reranking
 
 ```bash
-python3 /home/ace/.agents/skills/brave-search/scripts/brave_search.py \
+python3 ~/.agents/skills/brave-search/scripts/brave_search.py \
   "python dependency injection" \
   --source web \
   --goggles '$boost=5,site=docs.python.org
@@ -213,7 +213,7 @@ $downrank=3,site=medium.com'
 ### Location-aware web search
 
 ```bash
-python3 /home/ace/.agents/skills/brave-search/scripts/brave_search.py \
+python3 ~/.agents/skills/brave-search/scripts/brave_search.py \
   "coffee shops open now" \
   --source web \
   --lat 37.7749 \
@@ -224,7 +224,7 @@ python3 /home/ace/.agents/skills/brave-search/scripts/brave_search.py \
 ### Raw Brave output
 
 ```bash
-python3 /home/ace/.agents/skills/brave-search/scripts/brave_search.py \
+python3 ~/.agents/skills/brave-search/scripts/brave_search.py \
   "shrinking" \
   --source web \
   --output raw \

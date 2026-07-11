@@ -6,7 +6,7 @@
  * Usage: bun state-path.mjs --cwd <path> --workflow <workflow-id>
  *
  * Slug rule: identical to memory-path.mjs — replace every "/" and "." with "-"
- *   e.g. /home/ace/proj → -home-ace-proj
+ *   e.g. /home/user/proj → -home-user-proj
  *
  * State location: $HOME/.local/share/opencode/state/<slug>/<workflow-id>/
  *   statePath   = <stateDir>/state.json

@@ -18,8 +18,8 @@ Replace every `/` in the absolute cwd with `-`, then prefix with `-`.
 
 ```bash
 echo "-$(pwd | tr '/' '-')"
-# /home/ace/.config/opencode → -home-ace--config-opencode
-# /home/ace/projects/foo     → -home-ace-projects-foo
+# /home/user/.config/opencode → -home-user--config-opencode
+# /home/user/projects/foo     → -home-user-projects-foo
 ```
 </section>
 
