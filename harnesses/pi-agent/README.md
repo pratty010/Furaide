@@ -52,6 +52,8 @@ bash ~/Furaidē/packages/cli/src/targets/pi-agent/install.sh
 
 Prerequisites: [bun](https://bun.sh) + [Pi CLI](https://pi.dev) v0.72.1+.
 
+If the shared skill pool (`~/.agents/skills`) is empty, the installer offers to populate it (`install-vendored-skills.sh --global`). Decline and run it later with `--only <names>` (see `--list` for the full menu) to install just a subset. `--yes` skips the prompt and leaves the pool untouched.
+
 ### Or from git (once published to npm)
 
 ```bash
@@ -166,12 +168,15 @@ Or delete the extension directory from Pi's extensions path manually.
 
 ---
 
-## 🗺️ Future Work (archived, not shipped)
+## 📅 Timeline
 
-- **Native task management**: Todo system (surgically removed; see `knowledge/future_work/friday_archive/` in Experimental repo if needed)
-- **Chimu orchestration**: Parallel subagent orchestration layer (archived; see `knowledge/future_work/pi_chimu_archive/`)
-- **Expanded knowledge providers**: Local document ingestion, additional enterprise search
-- **TUI enhancements**: Live session telemetry widgets
+- [x] ~~v0.1.0 — **Initial extension**: 4 web tools, semantic cache, /usage tracking~~
+- [x] ~~v0.2.0 — **TUI + themes**: animated header, friday/chimu themes, GSD skills~~
+- [x] ~~v0.3.0 — **pi-subagents-cc**: 12 agents, teams.yaml~~
+- [ ] Native task management
+- [ ] Chimu parallel subagent orchestration
+- [ ] Expanded knowledge providers
+- [ ] TUI telemetry widgets
 
 ---
 

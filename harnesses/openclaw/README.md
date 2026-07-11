@@ -186,6 +186,13 @@ Remove the `agentDir` reference from your OpenCLAW config (`openclaw.json` → `
 
 ---
 
+## 📅 Timeline
+
+- [x] ~~v0.1.0 — **Initial workspaces**: kinyo, koda, kagakusha, tengan~~
+- [x] ~~v0.2.0 — **GOSHIN v2**: behavioral security protocol for workspace-kinyo~~
+
+---
+
 ## 📚 Reference
 
 - Full OpenCLAW documentation: [docs.openclaw.ai](https://docs.openclaw.ai)

@@ -94,7 +94,7 @@ The bootstrap script is interactive by default (Y/n prompt per step; the skills 
 2. Installs the `idisu` CLI engine via `bun install`
 3. Installs CC's skill boundary: `github`, `html-preview`, `handoff-furaide-addendum`, `post-mortem`, `regression-test-recipe` (repo-vendored, copied to `~/.agents/skills/` + symlinked into `~/.claude/skills/`) plus the bundled `research` skill (`config/skills/research/` → `~/.claude/skills/research/`, a direct copy) plus the canonical external set (superpowers/mattpocock subset, `ponytail` — via `install-external-skills.sh --ecosystem claude-code --all`; `notebooklm` stays manual/hand-install, see below)
 4. Copies `config/agents/*.md` (`hanko--git-seal`, `kamaitachi--scout`) → `~/.claude/agents/`
-5. Backs up and copies `config/CLAUDE.md` + `config/rules/*.md` + `config/statusline-command.sh` → `~/.claude/`
+5. Backs up and copies `config/CLAUDE.md` + `config/rules/*.md` + `config/statusline-command.sh` + `config/statusline-lib/` → `~/.claude/`, and merges `config/settings.json` (including its `SubagentStop`/`SessionEnd`/`SessionStart` statusline hooks) into `~/.claude/settings.json`
 
 Flags: `--yes`/`-y` (non-interactive), `--minimal` (steps 1-2 only), `--no-config` (skip step 5), `--with-skills` (deprecated no-op — the canonical external set installs by default now), `-h`.
 
@@ -249,12 +249,13 @@ Run `install-vendored-skills.sh --list` to see every repo-vendored skill with it
 # Manually:
 cp ~/Furaidē/harnesses/claude-code/config/CLAUDE.md ~/.claude/CLAUDE.md
 cp ~/Furaidē/harnesses/claude-code/config/statusline-command.sh ~/.claude/statusline-command.sh
+cp -r ~/Furaidē/harnesses/claude-code/config/statusline-lib ~/.claude/statusline-lib
 # Then merge relevant keys from config/settings.json manually
 ```
 
-See [`config/README.md`](config/README.md) for per-file notes, including the statusline's per-session sidecar (`~/.claude/statusline-state/`).
+See [`config/README.md`](config/README.md) for per-file notes, including the statusline's per-session sidecar (`~/.claude/statusline-state/`) and its `SubagentStop`/`SessionEnd`/`SessionStart` hooks.
 
-> The `hooks` block is intentionally absent from `config/settings.json`. Īdisu's plugin ships its own hook scripts using `${CLAUDE_PLUGIN_ROOT}`, so no manual hook wiring is required.
+> `config/settings.json`'s `hooks` block wires the statusline's live subagent-tracking hooks (`SubagentStop`/`SessionEnd`/`SessionStart`), not Īdisu's — Īdisu's plugin ships its own separate hook scripts using `${CLAUDE_PLUGIN_ROOT}` and needs no manual wiring here. If you're merging `settings.json` by hand into a file that already has its own `hooks` key, merge the event arrays rather than overwriting the whole key.
 
 ### Optional: NotebookLM research grounding
 
@@ -387,7 +388,8 @@ config/
   skills/
     research/                     # bundled research-flow skill (installed → ~/.claude/skills/research/, direct copy)
   CLAUDE.md                       # global config, lean entry/routing (installed → ~/.claude/)
-  statusline-command.sh           # statusline helper (installed → ~/.claude/)
+  statusline-command.sh           # statusline entry point (installed → ~/.claude/)
+  statusline-lib/                 # statusline logic, 8 files (installed → ~/.claude/statusline-lib/)
 
 **Adding a new skill:** add to `skills/`, then update `packages/manifests/skills-manifest.json`.
 
@@ -397,47 +399,20 @@ config/
 
 ## 📅 Timeline
 
-Shipped vs. upcoming, grouped by offering. Everything is pre-1.0.
-
-### Īdisu (capability analytics)
-
-- [x] ~~v0.1.0 — skills-only capture, 4-phase dream loop, dead backlog/findings writers~~
-- [x] ~~v0.2.0 — full 8-stage pipeline (capture → ingest → measure → judge → mine → stage → approve/promote → track/curate), `/idisu learn` command surface~~
-- [ ] v0.3.0 — memory mining, judge expansion (correction classification, gap detection)
-- [ ] v0.4.0 — instruction-edit candidates, deep Codex/OpenCode adapters
-- [ ] future — paired A/B lift measurement, cross-harness skill sync
-
-### Rejion (review & task delegation)
-
-- [x] ~~v0.1.0 — one-shot `opencode`/`pi` CLI delegation, seven slash commands, per-workspace state~~
-- [ ] v0.2.0 — smart backend routing, `llm-council`
-- [ ] future — cross-workspace job visibility, more providers
-
-### Statusline
-
-- [x] ~~v0.1.0 — two-line layout, glyph modes, path/branch truncation~~
-- [x] ~~v0.2.0 — per-session sidecar, duration fold across resume, transcript tail-cursor totals, subagent share, window-aware ramps~~
-- [x] ~~v0.3.0 — dedup token accounting by `message.id` (was overcounting 2-4x), subagent pending-retry (no undercounted lump estimates), per-model cost buckets, cost folds across session resume, cache-hit % as average of per-turn rates~~
-- [x] ~~v0.4.0 — externalized pricing table (`claude-pricing.json`, env/global/shipped/fallback lookup chain), session-level geo/fast pricing modifiers, sidecar space collapse (per-subagent map → cumulative totals, ~15x smaller on large sessions), estimated-cost fallback for sessions with no live cost payload, web-search cost tracking~~
-
-### Git tooling / hanko-git-seal
-
-- [x] ~~v0.1.0 — baseline hanko--git-seal + github skill~~
-- [x] ~~v0.2.0 — two-hop approval model, Assisted-by trailer, commit/PR templates, worktree merge-back recipe, SECURITY.md~~
-- [ ] future — root installer entry-point fix (deferred, separate repo-level effort)
-
-### Config bundle
-
-- [x] ~~v0.1.0 — global CLAUDE.md, settings.json, statusline, hanko agent definition~~
-- [x] ~~v0.2.0 — ponytail skill wiring~~
-- [x] ~~v0.3.0 — 5-flow restructure (Research/Planning/Development/Bug-hunting/Design-Architecture), lean CLAUDE.md + `rules/` (model-usage, version-control, gate-policy), bundled `research` skill + `kamaitachi--scout` subagent, per-skill installer/uninstaller selection~~
-
-### Workflow flows
-
-- [x] ~~v0.1.0 — Research/Analysis, Discussion-Planning-PRD, Development, Bug-hunting, Design/UI & Architecture~~
-- [ ] future — **law workflow** (net-new domain)
-- [ ] future — **financial workflow** (seeded by `dcf-valuation-model`/`earnings-10k-extraction`, currently shipped to OpenCode's `daikoku` agent only)
-- [ ] future — OC-parity gated multi-subagent `workflows/` (JS `Workflow()` scripts, e.g. a saved deep-research + NotebookLM pipeline)
+- [x] ~~v0.1.0 — **Īdisu initial**: skills-only capture, 4-phase dream loop~~
+- [x] ~~v0.2.0 — **Īdisu v2**: 8-stage pipeline, /idisu learn~~
+- [x] ~~v0.3.0 — **Rejion v1**: seven slash commands, opencode/pi delegation~~
+- [x] ~~v0.4.0 — **Statusline v1–v4**: sidecar, token dedup, externalized pricing~~
+- [x] ~~v0.5.0 — **Security + git tooling**: lefthook, gitleaks, trivy, semgrep, SECURITY.md; hanko--git-seal, github skill, two-hop approval, SSH-signed commits~~
+- [x] ~~v0.6.0 — **Config bundle v1–v3**: 5-flow restructure, rules/, research skill~~
+- [x] ~~v0.7.0 — **Workflow flows v1**: Research, Planning, Dev, Bug-hunting, Design~~
+- [ ] Īdisu: memory mining, judge expansion, instruction-edit candidates
+- [ ] Īdisu: deep Codex/OpenCode adapters, cross-harness skill sync
+- [ ] Rejion: smart backend routing, llm-council, cross-workspace job visibility
+- [ ] Statusline: cost-per-subscription-window view
+- [ ] Workflows: law, financial, OC-parity multi-subagent
+- [ ] Security: Trivy-full CI integration, supply-chain audit
+- [ ] Git tooling: root installer entry-point fix
 
 ---
 

@@ -46,6 +46,7 @@ Omit all flags (`bash ../../scripts/install.sh opencode-fleet`) to launch the in
 | `--custom-dir <path>` | Absolute path; required when `--scope custom` |
 | `--workflows <wf1,wf2,...\|all>` | Workflows to install (default: `all`) |
 | `--agents <name,name,...>` | Advanced mode: install exactly these agents (ignores `--workflows`) |
+| `--extras <name,name,...>` | Opt-in extra repo-bundled skills beyond each agent's auto-required set (default: none). Omit all flags to pick these interactively via the wizard's multiselect step instead. |
 | `--web-tools` / `--no-web-tools` | Force Web Tools on/off (default: auto-probe env for credentials) |
 | `--yes` | Required to confirm a non-interactive run (omit all flags for the interactive wizard instead) |
 | `-h`, `--help` | Show this help |
@@ -72,6 +73,7 @@ Your OpenCode session receives:
 - **6 runtime plugins** — gates (`nio`, `komainu`), failover/model-error visibility logging (`migawari`), web tools (`web-tools`), and hooks (`audit-logger`, `compaction-injector`). The delivery gate is enforced in `scripts/workflow-state.mjs` instead of as a plugin; `nurikabe.js` is retired/superseded and no longer registered in `config/opencode.jsonc`. The web-tools plugin exposes `web_search`, `fetch_content`, `maps_search`.
 - **Shared rules and reference docs** — workflows, routing manifests, model budgets, operator guidance
 - **Skills pipeline** — synced external skills (`superpowers`, `mattpocock`, `addyosmani`) plus bundled addenda, idempotent via a version-stamped receipt
+- **Opt-in extras** — repo-bundled skills beyond each agent's auto-required set (finance/security natives, `notebooklm`), unchecked by default; pick via `--extras` or the wizard's multiselect step, tracked under the receipt's `skills-bundled`
 
 ### File backup and restore
 
@@ -95,7 +97,7 @@ See `tools/opencode-all/README.md` for dashboard-specific setup.
 
 ### Future offering: npm distribution
 
-npm package distribution is deferred — see `future-work/npm-package/NOTES.md`.
+npm package distribution is deferred. A parked scaffold (`package.json`, `src/`, `tests/`) lives under `future-work/npm-package/`, not yet wired into the shipped installer.
 
 ### Uninstall
 
@@ -172,6 +174,20 @@ notebooklm auth check --test --json         # verify — must show status:"ok" A
 ```
 
 Use `uv`/`pipx`, not system `pip` (PEP 668). The `[cookies]` extra doesn't work on Python 3.13+ — use `notebooklm login` instead. It wraps an unofficial, undocumented Google API; treat it as optional, never a dependency. Full reference: the skill's own `SKILL.md` and the upstream `notebooklm-py` docs. Same setup as `harnesses/claude-code/`'s README — see there for the fuller gotcha list.
+
+---
+
+## 📅 Timeline
+
+- [x] ~~v0.1.0 — **Monorepo scaffold**: superpowers, 6-agent seed fleet, initial skills~~
+- [x] ~~v0.2.0 — **Fleet v2**: 15 agents incl. fudo--security-guardian, web-tools plugin, fleet installer v1, komainu security gate~~
+- [x] ~~v0.3.0 — **Installer phase 2**: unified receipt, zod-v2 schema, --dry-run / --skip-checks~~
+- [x] ~~v0.4.0 — **Finance suite**: daikoku agent, routing manifest, model-resolver~~
+- [ ] npm package distribution
+- [ ] Brand Builder / Kitsune opt-in domain
+- [ ] NotebookLM research extras
+- [ ] fudo--security-guardian: supply-chain scanning, MCP audit
+- [ ] Unified installer receipt schemas
 
 ---
 
