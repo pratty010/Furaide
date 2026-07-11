@@ -885,13 +885,10 @@ test("e2e: check 9 — repo is clean of 'mekiki' references outside historical a
   //   - `.git/`: object store (git history retains old names).
   //   - `.worktrees/`: other worktrees.
   //
-  // GAP (known, not blocking):
-  //   `harnesses/claude-code/CLAUDE.md` still contains `mekiki`
-  //   references. Phase 9 (2026-07-08, user decision) rewrote
-  //   README.md but deferred CLAUDE.md's rewrite to a later,
-  //   separate pass — so only CLAUDE.md is excluded here now.
-  //   When that pass lands, this remaining `-g` exclusion can be
-  //   removed and the test will automatically tighten further.
+  // `harnesses/claude-code/CLAUDE.md` was rewritten (2026-07-11) to
+  // drop its mekiki references, so that carve-out is gone — this
+  // check is now a real "always clean" assertion with no permanent
+  // exception left.
   // The test file lives at
   // `<worktree>/harnesses/claude-code/cli/src/idisu/tests/integration/`,
   // so the worktree root is 6 levels up from `import.meta.dir`.
@@ -919,10 +916,6 @@ test("e2e: check 9 — repo is clean of 'mekiki' references outside historical a
     "!.worktrees",
     "-g",
     "!harnesses/claude-code/cli/.venv",
-    // CLAUDE.md rewrite deferred (2026-07-08) — still mentions mekiki.
-    // Drop this exclude once that separate pass lands.
-    "-g",
-    "!harnesses/claude-code/CLAUDE.md",
     // Exclude the test file itself — it mentions "mekiki" in its
     // own header comment, test names, and the rg invocation.
     "-g",

@@ -43,6 +43,17 @@ _run() {  # payload_json state_dir -> stdout captured
   COLUMNS=120 STATUSLINE_STATE_DIR="$state_dir" bash "$SCRIPT" <<<"$payload" 2>&1
 }
 
+_strip_ansi() {  # stdin -> plain text
+  sed 's/\x1b\[[0-9;]*m//g'
+}
+
+_subdir_for() {  # main_transcript_path -> stdout: that session's subagents/ dir
+  # Mirrors _subagent_dir (statusline-lib/subagent-tracking.sh): the correct
+  # nesting is <transcript-dir>/<transcript-basename-without-.jsonl>/subagents,
+  # NOT a flat <transcript-dir>/subagents sibling (that was the Task 2 bug).
+  printf '%s/%s/subagents' "$(dirname "$1")" "$(basename "$1" .jsonl)"
+}
+
 _mk_payload() {  # session_id transcript_path [total_cost_usd]
   local cost="${3:-1.23}"
   cat <<EOF
@@ -129,7 +140,7 @@ STATE="$SCRATCH/state"
 mkdir -p "$STATE"
 SID="sess-tail"
 TRANSCRIPT="$SCRATCH/transcript.jsonl"
-SUBDIR="$SCRATCH/subagents"
+SUBDIR="$(_subdir_for "$TRANSCRIPT")"
 mkdir -p "$SUBDIR"
 SUB1_FILE="$SUBDIR/agent-a11111111111111a1.jsonl"
 
@@ -198,7 +209,13 @@ OUT3=$(_run "$(_mk_payload "$SID" "$TRANSCRIPT")" "$STATE")
 _assert_contains "run3: grand-total out advanced (350+150=500)" "$OUT3" "↓500"
 _assert_contains "run3: cache-hit% advanced ((55+20)*100/2086 -> 3%)" "$OUT3" "⚡3%"
 _assert_contains "run3: confirmed subagent bracket still just sub1 (320/150)" "$OUT3" "[⫂ 320/150]"
-_assert_contains "run3: pending marker renders (~777(1))" "$OUT3" "~777(1)"
+# Pending marker is now a dim "~" prefix on the token composite AND the cost
+# composite (both gated on PENDING_COUNT > 0) — not a per-agent "~<n>(count)"
+# suffix. ANSI-strip first since the "~" and the glyph it prefixes are
+# separated by color-reset/color-start escape codes.
+OUT3_PLAIN=$(printf '%s' "$OUT3" | _strip_ansi)
+_assert_contains "run3: pending marker renders on token composite (~↑)" "$OUT3_PLAIN" "~↑"
+_assert_contains "run3: pending marker renders on cost composite (~\$:)" "$OUT3_PLAIN" '~$:'
 
 _assert_json_field "run3: sidecar in_total advanced" "$SIDECAR" '.in_total' "1700"
 _assert_json_field "run3: sidecar out_total advanced" "$SIDECAR" '.out_total' "350"
@@ -219,8 +236,13 @@ _assert_json_field "run3b: sidecar pending_subagents[sub2] resets (removed)" "$S
 _assert_json_field "run3b: sidecar subagent_in_total (300 sub1 + 400 sub2)" "$SIDECAR" '.subagent_in_total' "700"
 _assert_json_field "run3b: sidecar subagent_out_total (150 sub1 + 250 sub2)" "$SIDECAR" '.subagent_out_total' "400"
 _assert_contains "run3b: confirmed subagent bracket now includes sub2 (320+400+10+5=735 / 150+250=400)" "$OUT3B" "[⫂ 735/400]"
-if printf '%s' "$OUT3B" | grep -qF -- '~777(1)'; then
+# Pending marker must disappear entirely once PENDING_COUNT is back to 0 —
+# plain absence-of-"~" check on the ANSI-stripped output (no other glyph in
+# this display uses a bare tilde).
+OUT3B_PLAIN=$(printf '%s' "$OUT3B" | _strip_ansi)
+if printf '%s' "$OUT3B_PLAIN" | grep -qF -- '~'; then
   FAIL=$((FAIL+1)); echo "FAIL: run3b: pending marker must disappear once resolved"
+  printf '%s\n' "$OUT3B_PLAIN" | sed 's/^/    /'
 else
   PASS=$((PASS+1)); echo "PASS: run3b: pending marker correctly absent once resolved"
 fi
@@ -296,7 +318,8 @@ if printf '%s' "$OUT6" | grep -qF -- '[⫂'; then
 else
   PASS=$((PASS+1)); echo "PASS: neither-source case correctly renders no confirmed subagent bracket"
 fi
-_assert_contains "neither-source: pending marker renders with a 0 estimate (~0(1))" "$OUT6" "~0(1)"
+OUT6_PLAIN=$(printf '%s' "$OUT6" | _strip_ansi)
+_assert_contains "neither-source: pending marker renders on token composite even with a 0 estimate (~↑)" "$OUT6_PLAIN" "~↑"
 
 echo "== Test 7: dedup regression (message.id dedup — last-per-id wins, not naive per-line sum) =="
 STATE7="$SCRATCH/state7"
@@ -360,9 +383,13 @@ TRANSCRIPT9="$SCRATCH/transcript9.jsonl"
   _completion_line "c33333333333333c3" 1
   printf '\n'
 } > "$TRANSCRIPT9"
-# Subagent transcript lives under the MAIN transcript's dir/subagents/ (same
-# layout as Test 1 — $SUBDIR is already $SCRATCH/subagents).
-_subagent_transcript_line 2000000 1000000 0 0 "" "claude-haiku-4-5-20251001" > "$SUBDIR/agent-c33333333333333c3.jsonl"
+# Subagent transcript lives under THIS transcript's own dir/subagents/ (each
+# main transcript gets its own nested subagents/ dir, keyed by its own
+# basename — TRANSCRIPT9 != TRANSCRIPT, so this is NOT the same $SUBDIR as
+# Test 1).
+SUBDIR9="$(_subdir_for "$TRANSCRIPT9")"
+mkdir -p "$SUBDIR9"
+_subagent_transcript_line 2000000 1000000 0 0 "" "claude-haiku-4-5-20251001" > "$SUBDIR9/agent-c33333333333333c3.jsonl"
 OUT9=$(_run "$(_mk_payload "$SID9" "$TRANSCRIPT9" 14.00)" "$STATE9")
 _assert_contains "test9: subagent cost shown as % of total (7.00/14.00 = 50%)" "$OUT9" "[50%]"
 echo "== Test 10: cache-hit% is average of per-turn rates, not cumulative token-weighted =="

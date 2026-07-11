@@ -6,18 +6,18 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Two independent Claude Code plugins, plus install-target config, bundled under `harnesses/claude-code/` in the Furaidē monorepo:
 
-- **Īdisu** (`plugins/idisu/`): capability-analytics shikigami. Hooks capture skill invocations; a Bun/TypeScript CLI (`cli/src/idisu/`) plus a Python package (`cli/src/mekiki/`) run a "dream loop" that consolidates events into a work-style profile and improvement backlog.
+- **Īdisu** (`plugins/idisu/`): capability-analytics shikigami. Hooks capture skill invocations; a Bun/TypeScript CLI (`cli/src/idisu/`) runs a "dream loop" that consolidates events into a work-style profile and improvement backlog.
 - **Rejion** (`plugins/rejion/`): delegates code review and task execution to `opencode-go`, `opencode` (OpenCode Zen), and `ollama-cloud`, invoked as one-shot `opencode`/`pi` CLI processes (no server, no RPC daemon).
-- **`config/`**: install-target material copied into `~/.claude/` by the installer (global `CLAUDE.md`, `settings.json`, statusline, the `hanko--git-seal` subagent definition).
+- **`config/`**: install-target material copied into `~/.claude/` by the installer (global `CLAUDE.md`, `settings.json`, statusline entry script + `statusline-lib/`, the `hanko--git-seal` subagent definition).
 
 Both plugins are registered in the repo-root `.claude-plugin/marketplace.json` (source paths `./harnesses/claude-code/plugins/idisu` and `./harnesses/claude-code/plugins/rejion`). That file must stay at the repo root: `/plugin marketplace add owner/repo` only resolves a marketplace there.
 
 ## Directory map
 
-- `cli/`: Īdisu engine. `src/idisu/` is the TypeScript code area; `pyproject.toml` and `uv.lock` define the `mekiki` Python package
+- `cli/`: Īdisu engine. `src/idisu/` is the TypeScript code area; `pyproject.toml` and `uv.lock` at `cli/` are a placeholder Python scaffold (no active package, kept ready for future Python components)
 - `plugins/idisu/`: Claude Code plugin. Hooks, commands, and manifest, all resolved via `${CLAUDE_PLUGIN_ROOT}`
 - `plugins/rejion/`: Claude Code plugin. One-shot `opencode`/`pi` CLI backend adapters, per-workspace state, seven slash commands
-- `config/`: install-target material. `CLAUDE.md`, `settings.json`, `statusline-command.sh`, `agents/hanko--git-seal.md`
+- `config/`: install-target material. `CLAUDE.md`, `settings.json`, `statusline-command.sh` + `statusline-lib/`, `agents/hanko--git-seal.md`
 - Installer scripts: `packages/cli/src/targets/claude-code/install.sh`, `uninstall.sh`
 
 ## Commands
@@ -33,7 +33,9 @@ bun run lint              # biome check . (biome pinned via devDependencies, ^1.
 bun run fmt               # biome format --write .
 ```
 
-### Mekiki (Python), run from `cli/`
+### Python scaffold (placeholder), run from `cli/`
+
+No active package yet — just an empty scaffold with a smoke test, kept ready for future Python components under this harness. Gated by the `pytest` pre-commit job.
 
 ```bash
 uv sync --frozen                              # install the dev env
@@ -102,12 +104,12 @@ Every backend call is a fresh spawned process; there is no long-lived server or 
 - `config/statusline-sidecar.json` is written by hooks at runtime; don't commit it (root `.gitignore` excludes it).
 - `cli/.idisu/` is Īdisu runtime scratch; gitignored.
 - Rejion's `biome.json` targets schema `1.8.3` to match its pinned `@biomejs/biome` devDependency. Always run `bun run lint`/`bunx biome check .` from inside `plugins/rejion/` (or `cli/src/idisu/`) so the pinned version resolves, not a global/newer `bunx biome`.
-- CI (`.github/workflows/ci.yml`) triggers on `harnesses/claude-code/**` and runs `uv sync --frozen` + `uv run pytest` for the mekiki package.
+- CI (`.github/workflows/ci.yml`) triggers on `harnesses/claude-code/**` and runs Īdisu's `bun test` + `bun run typecheck` and Rejion's `bun test`. The `pytest` scaffold at `cli/` is gated by the repo-root `pytest` pre-commit job, not CI.
 - Repo-root pre-push hooks (shellcheck, semgrep-diff, trivy-quick) run sequentially, ~8 minutes.
 
 ## Always / Ask first / Never
 
-**Always**: run Īdisu's `bun test` + `bun run typecheck` when touching `cli/src/idisu/` or `plugins/idisu/`. Run `uv run pytest` when touching `cli/src/mekiki/`. Run Rejion's `bun test` + `bun run lint` (from `plugins/rejion/`) when touching `plugins/rejion/`.
+**Always**: run Īdisu's `bun test` + `bun run typecheck` when touching `cli/src/idisu/` or `plugins/idisu/`. Run `uv run pytest` when touching the Python scaffold at `cli/`. Run Rejion's `bun test` + `bun run lint` (from `plugins/rejion/`) when touching `plugins/rejion/`.
 
 **Ask first**: before changing marketplace registration, plugin manifest paths, or either plugin's on-disk state-directory layout (breaks existing users' persisted state).
 

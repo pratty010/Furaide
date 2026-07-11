@@ -15,6 +15,10 @@ pre-commit:
       glob: "*.{yml,yaml}"
       run: python3 -c "import yaml, sys; [yaml.safe_load(open(f)) for f in sys.argv[1:]]" {staged_files}
 
+    - name: pytest
+      glob: "harnesses/claude-code/**"
+      run: cd harnesses/claude-code/cli && uv sync --frozen && uv run pytest -x -q --tb=short
+
 
 commit-msg:
   commands:

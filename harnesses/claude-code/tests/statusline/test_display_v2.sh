@@ -205,6 +205,43 @@ _assert_contains "onerate: 1wk percentage renders (92%)" "$OUT4" "92%"
 RATE_LINE=$(printf '%s' "$OUT4" | grep "1wk:")
 _assert_contains "onerate: 92% uses RED ramp color (>=90 threshold)" "$RATE_LINE" $'\033[31m'
 
+echo "== Scenario 5: both rate-limit windows present (merged 5hr/1wk composite) =="
+STATE5="$SCRATCH/bothrate"
+mkdir -p "$STATE5"
+PAYLOAD5='{
+  "session_id": "sess-bothrate",
+  "model": {"display_name": "Sonnet"},
+  "cost": {"total_duration_ms": 60000, "total_api_duration_ms": 30000, "total_cost_usd": 0.5,
+           "total_lines_added": 0, "total_lines_removed": 0},
+  "context_window": {"used_percentage": 5, "total_input_tokens": 500, "total_output_tokens": 100,
+                      "context_window_size": 200000,
+                      "current_usage": {"input_tokens": 500, "output_tokens": 100,
+                                         "cache_read_input_tokens": 0, "cache_creation_input_tokens": 0}},
+  "workspace": {"current_dir": "/tmp", "git_worktree": ""},
+  "rate_limits": {"five_hour": {"used_percentage": 55, "resets_at": "2026-07-08T10:00:00Z"},
+                   "seven_day": {"used_percentage": 20, "resets_at": "2026-07-10T00:00:00Z"}}
+}'
+OUT5=$(_run "$PAYLOAD5" "$STATE5")
+RC5=$?
+if [ "$RC5" -eq 0 ]; then
+  PASS=$((PASS+1)); echo "PASS: both-windows-present payload does not crash (exit 0)"
+else
+  FAIL=$((FAIL+1)); echo "FAIL: both-windows-present payload caused nonzero exit ($RC5)"
+fi
+_assert_contains "bothrate: merged '5hr/1wk:' label renders" "$OUT5" "5hr/1wk:"
+_assert_contains "bothrate: both percentages render (55%.../.../20%)" "$OUT5" "55%"
+_assert_contains "bothrate: 20% renders too" "$OUT5" "20%"
+_assert_not_contains "bothrate: no old two-segment '5hr: ' form" "$OUT5" "5hr: "
+_assert_not_contains "bothrate: no old two-segment '1wk: ' form" "$OUT5" "1wk: "
+# The old two-segment form joined 5hr and 1wk with a "│" divider between
+# them; the merged composite must not carry that divider inside the
+# 5hr/1wk...cost span (a "│" still legitimately separates unrelated segments
+# elsewhere on the line, e.g. before "$:", so scope the check to strictly
+# BETWEEN the two percentages, not the whole line).
+OUT5_PLAIN=$(printf '%s' "$OUT5" | _strip_ansi)
+BETWEEN_PCTS=$(printf '%s' "$OUT5_PLAIN" | grep -o '5hr/1wk: 55%([^)]*)/20%' | head -1)
+_assert_not_contains "bothrate: no '│' divider between the merged 5hr/1wk percentages" "$BETWEEN_PCTS" '│'
+
 echo
 echo "=== Results: $PASS passed, $FAIL failed ==="
 [ "$FAIL" -eq 0 ]

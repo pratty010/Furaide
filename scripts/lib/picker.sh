@@ -5,6 +5,9 @@
 #   action: "install" or "uninstall" (determines help text)
 
 pick_target() {
+  # This is the very first prompt of the whole install/uninstall flow (called
+  # before any component-specific script runs) — nothing precedes it to go
+  # "back" to, so no back option is offered here (entry-prompt exception).
   local action="${1:-install}"
   printf 'Which harness would you like to %s?\n\n' "$action" >&2
 

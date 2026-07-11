@@ -45,6 +45,11 @@ if [[ -d "$CONFIG_DIR" ]]; then
     rm -rf "$CONFIG_DIR"
     ok "removed $CONFIG_DIR"
   else
+    # Sole interactive prompt in this script (pi CLI check and `pi uninstall`
+    # above are non-interactive) — nothing precedes it to go "back" to, so no
+    # back option is offered here (entry-prompt exception). The [y/N] wording
+    # is already self-explanatory, matching this repo's other
+    # already-sufficient inline prompts.
     printf 'Remove leftover config at %s? [y/N] ' "$CONFIG_DIR"
     read -r reply </dev/tty || reply="n"
     case "$reply" in

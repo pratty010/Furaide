@@ -89,12 +89,16 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-confirm() {  # confirm "message" — returns 0 (yes) / 1 (no); default yes
+confirm() {  # confirm "message" — returns 0 (yes) / 1 (no) / 2 (back); default yes
   [[ "$ASSUME_YES" -eq 1 ]] && return 0
   local reply
-  printf "${YELLOW}?${NC} %s [Y/n] " "$1" >&2
+  printf "${YELLOW}?${NC} %s [Y/n/b] " "$1" >&2
   read -r reply </dev/tty || { printf '\n' >&2; return 1; }
-  case "$reply" in n|N|no|NO) return 1 ;; *) return 0 ;; esac
+  case "$reply" in
+    n|N|no|NO) return 1 ;;
+    b|B) return 2 ;;
+    *) return 0 ;;
+  esac
 }
 
 # ── Step 0: JS runtime detection ────────────────────────────────────────────
@@ -126,7 +130,13 @@ _install_idisu_cli() {
   exit 0
 }
 
-# ── Step 1: Scope selection (back-navigable) ────────────────────────────────
+# ── Step 1: Scope selection ─────────────────────────────────────────────────
+# This is the first interactive prompt of this script's own flow (Step 0 is
+# non-interactive JS-runtime detection) — nothing precedes it to go "back" to,
+# so no back option is offered here (per this task's entry-prompt exception).
+# It IS re-entered as the back-target from later steps (see select_component
+# and the skills prompt below), which is where "b=back to scope selection"
+# actually lands.
 GLOBAL_TARGET="$HOME/.claude"
 PROJECT_TARGET="$(furaide_find_project_dir ".claude")"
 
@@ -210,10 +220,11 @@ _pick_skills_subset() {
     printf '    %d) %-32s %s\n' "$idx" "$name" "$desc" >&2
   done
   while true; do
-    read -rp "  Select (space-separated numbers, 'all', or 'none'): " reply </dev/tty
+    read -rp "  Select (space-separated numbers, 'all', 'none', or 'back' to return): " reply </dev/tty
     case "$reply" in
       all|ALL) SKILLS_ONLY_LIST="$CC_SKILL_SET"; return 0 ;;
       none|NONE) SKILLS_ONLY_LIST=""; return 0 ;;
+      back|BACK) return 1 ;;
       *)
         local picked=() ok=1 n
         for n in $reply; do
@@ -227,55 +238,72 @@ _pick_skills_subset() {
           SKILLS_ONLY_LIST="$(IFS=,; echo "${picked[*]}")"
           return 0
         fi
-        warn "  invalid selection, try again (e.g. '1 3 5', 'all', 'none')" ;;
+        warn "  invalid selection, try again (e.g. '1 3 5', 'all', 'none', 'back')" ;;
     esac
   done
 }
 
-if [[ "$ASSUME_YES" -ne 1 && "$MINIMAL" -ne 1 ]]; then
-  printf '\nComponents to install (Enter=yes, n=no, b=back to scope selection):\n\n' >&2
-  select_component() {  # var_name prompt
+# run_component_selection is re-invocable: the final "Proceed?" confirm (Step
+# 5) can send the user back here (b=back to component selection) rather than
+# restarting the whole install from scratch. select_component's own 'b'
+# (back to scope selection) and the skills prompt's 'b' keep their existing
+# behavior unchanged — they redo pick_scope, then resume at the same question.
+run_component_selection() {
+  if [[ "$ASSUME_YES" -ne 1 && "$MINIMAL" -ne 1 ]]; then
+    printf '\nComponents to install (Enter=yes, n=no, b=back to scope selection):\n\n' >&2
+    select_component() {  # var_name prompt
+      while true; do
+        local __var="$1" __prompt="$2" __reply
+        read -rp "  $__prompt [Y/n/b]: " __reply </dev/tty
+        case "$__reply" in
+          b|B) pick_scope ;;
+          n|N) printf -v "$__var" '0'; return 0 ;;
+          *)   printf -v "$__var" '1'; return 0 ;;
+        esac
+      done
+    }
+    select_component INSTALL_CLAUDE_MD "CLAUDE.md"
+    select_component INSTALL_SETTINGS  "Settings (statusline + prefs)"
+    select_component INSTALL_AGENTS    "Core agents (hanko--git-seal, kamaitachi--scout)"
+
+    printf '  Skills selection (Enter=yes, n=no, s=choose subset, b=back to scope selection):\n' >&2
     while true; do
-      local __var="$1" __prompt="$2" __reply
-      read -rp "  $__prompt [Y/n/b]: " __reply </dev/tty
-      case "$__reply" in
+      read -rp "  Skills: $CC_SKILL_SET + research + canonical external set (superpowers/mattpocock/ponytail) [Y/n/s/b]: " __skills_reply </dev/tty
+      case "$__skills_reply" in
         b|B) pick_scope ;;
-        n|N) printf -v "$__var" '0'; return 0 ;;
-        *)   printf -v "$__var" '1'; return 0 ;;
+        n|N) INSTALL_SKILLS=0; break ;;
+        s|S) INSTALL_SKILLS=1; if _pick_skills_subset; then break; fi ;;
+        *)   INSTALL_SKILLS=1; SKILLS_ONLY_LIST="$CC_SKILL_SET"; break ;;
       esac
     done
-  }
-  select_component INSTALL_CLAUDE_MD "CLAUDE.md"
-  select_component INSTALL_SETTINGS  "Settings (statusline + prefs)"
-  select_component INSTALL_AGENTS    "Core agents (hanko--git-seal, kamaitachi--scout)"
 
-  while true; do
-    read -rp "  Skills: $CC_SKILL_SET + research + canonical external set (superpowers/mattpocock/ponytail) [Y/n/s/b]: " __skills_reply </dev/tty
-    case "$__skills_reply" in
-      b|B) pick_scope ;;
-      n|N) INSTALL_SKILLS=0; break ;;
-      s|S) INSTALL_SKILLS=1; _pick_skills_subset; break ;;
-      *)   INSTALL_SKILLS=1; SKILLS_ONLY_LIST="$CC_SKILL_SET"; break ;;
-    esac
-  done
-
-  select_component INSTALL_IDISU     "Idisu plugin"
-  select_component INSTALL_REJION    "Rejion plugin"
-fi
+    select_component INSTALL_IDISU     "Idisu plugin"
+    select_component INSTALL_REJION    "Rejion plugin"
+  fi
+}
+run_component_selection
 
 [[ "$NO_CONFIG" -eq 1 ]] && { INSTALL_CLAUDE_MD=0; INSTALL_SETTINGS=0; }
 
 # ── Step 5: Confirm ──────────────────────────────────────────────────────────
 if [[ "$ASSUME_YES" -ne 1 ]]; then
-  printf '\nAbout to install to %s:\n' "$TARGET_DIR" >&2
-  [[ "$INSTALL_CLAUDE_MD" -eq 1 ]] && printf '  - CLAUDE.md + rules/\n' >&2
-  [[ "$INSTALL_SETTINGS" -eq 1 ]]  && printf '  - settings.json (merged)\n' >&2
-  [[ "$INSTALL_AGENTS" -eq 1 ]]    && printf '  - agents/\n' >&2
-  [[ "$INSTALL_SKILLS" -eq 1 ]]    && printf '  - skills/ (%s) + research skill + canonical external set\n' "${SKILLS_ONLY_LIST:-none selected}" >&2
-  [[ "$INSTALL_IDISU" -eq 1 ]]     && printf '  - Idisu plugin\n' >&2
-  [[ "$INSTALL_REJION" -eq 1 ]]    && printf '  - Rejion plugin\n' >&2
-  printf 'Backup dir (if needed): %s/.furaide-backup/%s\n' "$TARGET_DIR" "$INSTALL_TIMESTAMP" >&2
-  confirm "Proceed?" || { err "cancelled"; exit 1; }
+  while true; do
+    printf '\nAbout to install to %s (Enter=proceed, n=cancel, b=back to component selection):\n' "$TARGET_DIR" >&2
+    [[ "$INSTALL_CLAUDE_MD" -eq 1 ]] && printf '  - CLAUDE.md + rules/\n' >&2
+    [[ "$INSTALL_SETTINGS" -eq 1 ]]  && printf '  - settings.json (merged)\n' >&2
+    [[ "$INSTALL_AGENTS" -eq 1 ]]    && printf '  - agents/\n' >&2
+    [[ "$INSTALL_SKILLS" -eq 1 ]]    && printf '  - skills/ (%s) + research skill + canonical external set\n' "${SKILLS_ONLY_LIST:-none selected}" >&2
+    [[ "$INSTALL_IDISU" -eq 1 ]]     && printf '  - Idisu plugin\n' >&2
+    [[ "$INSTALL_REJION" -eq 1 ]]    && printf '  - Rejion plugin\n' >&2
+    printf 'Backup dir (if needed): %s/.furaide-backup/%s\n' "$TARGET_DIR" "$INSTALL_TIMESTAMP" >&2
+    _confirm_rc=0
+    confirm "Proceed?" || _confirm_rc=$?
+    case "$_confirm_rc" in
+      0) break ;;
+      2) run_component_selection; [[ "$NO_CONFIG" -eq 1 ]] && { INSTALL_CLAUDE_MD=0; INSTALL_SETTINGS=0; }; continue ;;
+      *) err "cancelled"; exit 1 ;;
+    esac
+  done
 fi
 
 if [[ "$DRY_RUN" -eq 1 ]]; then

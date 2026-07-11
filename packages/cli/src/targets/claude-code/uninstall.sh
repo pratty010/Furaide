@@ -49,6 +49,9 @@ HAVE_GLOBAL=0; [[ -f "$GLOBAL_RECEIPT" ]] && HAVE_GLOBAL=1
 HAVE_PROJECT=0; [[ -f "$PROJECT_RECEIPT" ]] && HAVE_PROJECT=1
 
 # ── Step 1: Find receipt(s), pick scope if ambiguous ────────────────────────
+# When both receipts exist, this is the first interactive prompt of this
+# script's flow — nothing precedes it to go "back" to, so no back option is
+# offered here (per this task's entry-prompt exception).
 if [[ -n "$FORCED_SCOPE" ]]; then
   case "$FORCED_SCOPE" in
     global)  TARGET_DIR="$GLOBAL_TARGET" ;;
@@ -158,10 +161,11 @@ _pick_uninstall_skills_subset() {  # $1 = space-separated receipt skill names
     printf '    %d) %-32s %s\n' "$idx" "$name" "$desc" >&2
   done
   while true; do
-    read -rp "  Remove which (space-separated numbers, 'all', or 'none'): " reply </dev/tty
+    read -rp "  Remove which (space-separated numbers, 'all', 'none', or 'back' to return): " reply </dev/tty
     case "$reply" in
       all|ALL) SKILLS_REMOVE_LIST=""; SKILLS_SUBSET_MODE=0; return 0 ;;
       none|NONE) DO_SKILLS=0; return 0 ;;
+      back|BACK) return 1 ;;
       *)
         local picked=() ok=1 n
         for n in $reply; do
@@ -176,40 +180,63 @@ _pick_uninstall_skills_subset() {  # $1 = space-separated receipt skill names
           SKILLS_SUBSET_MODE=1
           return 0
         fi
-        warn "  invalid selection, try again (e.g. '1 3', 'all', 'none')" ;;
+        warn "  invalid selection, try again (e.g. '1 3', 'all', 'none', 'back')" ;;
     esac
   done
 }
 
 if [[ "$ASSUME_YES" -ne 1 && "$DRY_RUN" -ne 1 ]]; then
-  printf '\nWhat to remove from %s (Enter=delete, s=skip):\n\n' "$TARGET_DIR" >&2
-  ask() {  # var_name label
-    local __var="$1" __label="$2" __reply
-    read -rp "  $__label [delete/s]: " __reply </dev/tty
-    case "$__reply" in s|S) printf -v "$__var" '0' ;; *) printf -v "$__var" '1' ;; esac
-  }
-  ask DO_CLAUDE_MD "CLAUDE.md"
-  ask DO_RULES     "rules/ (model-usage, version-control, gate-policy)"
-  ask DO_SETTINGS  "settings.json keys"
-  ask DO_AGENTS    "agents/ (hanko--git-seal, kamaitachi--scout)"
+  printf '\nWhat to remove from %s (Enter=delete, s=skip, back=previous item):\n\n' "$TARGET_DIR" >&2
 
-  read -rp "  skills/ symlinks (content in ~/.agents/skills/ preserved unless --purge) [delete/s/subset]: " __skills_reply </dev/tty
-  case "$__skills_reply" in
-    s|S) DO_SKILLS=0 ;;
-    subset)
-      DO_SKILLS=1
-      mapfile -t _all_receipt_skills < <(_receipt_field components.skillNames | python3 -c "
+  # Flat sequential toggles have no upstream re-pickable step analogous to
+  # install.sh's pick_scope (scope here comes from receipt discovery, not a
+  # repeatable prompt) — so "back" steps to the immediately preceding item in
+  # this list instead, rather than jumping to a coarse prior stage.
+  _uninstall_step_names=(CLAUDE_MD RULES SETTINGS AGENTS SKILLS IDISU REJION)
+  _uninstall_step_labels=(
+    "CLAUDE.md"
+    "rules/ (model-usage, version-control, gate-policy)"
+    "settings.json keys"
+    "agents/ (hanko--git-seal, kamaitachi--scout)"
+    "skills/ symlinks (content in ~/.agents/skills/ preserved unless --purge)"
+    "Idisu plugin"
+    "Rejion plugin"
+  )
+  _step=0
+  _total=${#_uninstall_step_names[@]}
+  while (( _step < _total )); do
+    _name="${_uninstall_step_names[$_step]}"
+    _label="${_uninstall_step_labels[$_step]}"
+    if [[ "$_name" == "SKILLS" ]]; then
+      read -rp "  $_label [delete/s/subset/back]: " __skills_reply </dev/tty
+      case "$__skills_reply" in
+        back|BACK)
+          if (( _step > 0 )); then _step=$((_step - 1)); continue; else warn "  already at first item"; continue; fi ;;
+        s|S) DO_SKILLS=0 ;;
+        subset)
+          DO_SKILLS=1
+          mapfile -t _all_receipt_skills < <(_receipt_field components.skillNames | python3 -c "
 import json,sys
 try: names = json.load(sys.stdin)
 except Exception: names = []
 for n in names: print(n)
 " 2>/dev/null)
-      _pick_uninstall_skills_subset "${_all_receipt_skills[@]}" ;;
-    *) DO_SKILLS=1 ;;
-  esac
-
-  ask DO_IDISU     "Idisu plugin"
-  ask DO_REJION    "Rejion plugin"
+          if ! _pick_uninstall_skills_subset "${_all_receipt_skills[@]}"; then
+            continue  # user chose 'back' inside the subset picker — reprompt this same item
+          fi ;;
+        *) DO_SKILLS=1 ;;
+      esac
+    else
+      read -rp "  $_label [delete/s/back]: " __reply </dev/tty
+      case "$__reply" in
+        back|BACK)
+          if (( _step > 0 )); then _step=$((_step - 1)); continue; else warn "  already at first item"; continue; fi ;;
+        s|S) printf -v "DO_${_name}" '0' ;;
+        *)   printf -v "DO_${_name}" '1' ;;
+      esac
+    fi
+    _step=$((_step + 1))
+  done
 fi
 
 # ── Step 3: Execute ──────────────────────────────────────────────────────────

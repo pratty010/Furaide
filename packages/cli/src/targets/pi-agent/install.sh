@@ -61,6 +61,11 @@ if [[ "$POOL_EMPTY" -eq 1 ]]; then
   elif [[ "$ASSUME_YES" -eq 1 ]]; then
     warn "shared skill pool ($POOL_DIR) is empty -- skipping unattended (--yes); run 'bash $SHARED_DIR/install-vendored-skills.sh --global' manually to populate it"
   else
+    # Sole interactive prompt in this script (js-runtime/pi-CLI checks above
+    # are non-interactive hard errors) — nothing precedes it to go "back" to,
+    # so no back option is offered here (entry-prompt exception). The [y/N]
+    # wording is already self-explanatory, matching this repo's other
+    # already-sufficient inline prompts.
     printf "Shared skill pool (~/.agents/skills) is empty. Install shared skills now? [y/N] "
     reply=""
     read -r reply </dev/tty || reply="n"

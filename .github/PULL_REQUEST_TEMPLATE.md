@@ -18,7 +18,6 @@ Closes #
 ## Checklist
 
 - [ ] bun test passes (opencode)
-- [ ] pytest passes (claude-code/cli)
 - [ ] No secrets or credentials committed
 - [ ] Commit messages follow Conventional Commits format
 

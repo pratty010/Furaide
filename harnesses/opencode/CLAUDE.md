@@ -23,7 +23,7 @@ Run from this directory (`harnesses/opencode/`):
 
 - `bun test scripts/tests/` for harness installer, config, and agent-integration tests
 - `bash ../../scripts/install.sh opencode-fleet` (no flags) to launch the interactive wizard, which shows the resolved agent/plugin closure before writing anything
-- `bash ../../scripts/install.sh opencode-fleet --scope <global|project|custom> [--custom-dir <path>] [--workflows <wf1,wf2,...|all>] [--agents <name,name,...>] [--web-tools|--no-web-tools] --yes` to install non-interactively
+- `bash ../../scripts/install.sh opencode-fleet --scope <global|project|custom> [--custom-dir <path>] [--workflows <wf1,wf2,...|all>] [--agents <name,name,...>] [--extras <name,name,...>] [--web-tools|--no-web-tools] --yes` to install non-interactively
 
 Run from `tools/opencode-all/` (separate package, own test suite):
 

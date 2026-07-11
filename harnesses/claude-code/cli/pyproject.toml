@@ -1,0 +1,17 @@
+[project]
+name = "claude-code-cli-scaffold"
+version = "0.1.0"
+description = "Placeholder Python scaffold for harnesses/claude-code/cli — no active package yet, kept ready for future Python components in this harness."
+requires-python = ">=3.11"
+dependencies = []
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.uv]
+package = false
