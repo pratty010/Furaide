@@ -19,45 +19,28 @@ This repo is those retainers, wired into every major AI coding harness: Claude C
 
 ---
 
-## For agents: codebase map
+## 🗺️ Codebase Map (Local Setup)
 
-If you are an AI coding agent, this is your fastest orientation path. Start here before reading source files. This repo ships a pre-built knowledge graph in `graphify-out/`, covering 2,459 nodes and 3,791 edges across all harnesses (AST structure plus semantic relationships between agents, skills, configs, and docs).
+To navigate this codebase efficiently, you can build your own local knowledge graph using **Graphify**. This builds an AST structure and semantic relationship map across all agents, skills, configs, and docs:
 
-Three files worth reading:
+1. **Install Graphify**:
+   ```bash
+   uv tool install graphifyy
+   ```
 
-| File | What it tells you |
-|------|-------------------|
-| `graphify-out/GRAPH_REPORT.md` | God nodes, surprising cross-component connections, community map. Start here. |
-| `graphify-out/graph.json` | Full queryable graph, used by `graphify query` |
-| `graphify-out/graph.html` | Interactive visual, open in any browser |
+2. **Generate the Map**:
+   ```bash
+   graphify .
+   ```
 
-**Note:** `graphify-out/` may lag behind the active branch. For the most up-to-date architecture,
-verify claims against the real source tree first.
-
-Copy any of these into your Claude Code or OpenCode session:
-
-```
-# Architecture overview
-graphify query "what is the overall architecture and how do the five components relate?"
-
-# Per-component deep dives
-graphify query "how does the idisu learning pipeline work end to end?"
-graphify query "how does the opencode fleet route tasks between specialist agents?"
-graphify query "what does the pi-agent extension register and how does web search work?"
-
-# Trace a path between two nodes
-graphify path "TemplateRender" "KnowledgeDB"
-graphify path "tsuchigumo" "yamabiko"
-
-# Explain a specific node
-graphify explain "workflow-state"
-graphify explain "KnowledgeDB"
-
-# Rebuild after large changes
-graphify . --update
-```
-
-To install graphify: `uv tool install graphifyy`
+3. **Query/Explore**:
+   - Interactive Visual (Open in browser): `graphify-out/graph.html`
+   - God nodes/Community map report: `graphify-out/GRAPH_REPORT.md`
+   - Querying the graph:
+     ```bash
+     graphify query "what is the overall architecture and how do the five components relate?"
+     graphify query "how does the idisu learning pipeline work end to end?"
+     ```
 
 ---
 
@@ -72,7 +55,7 @@ Harness integrations and shared resources that wire Furaidē into AI coding harn
 | `harnesses/claude-code/` | [Claude Code](https://claude.ai/code) | Īdisu plugin (session learning platform), Rejion plugin (delegates review/task to opencode-go, opencode, ollama-cloud) + `github` skill / `hanko--git-seal` agent (git workflow) |
 | `harnesses/pi-agent/` | [pi.dev](https://pi.dev) | Extension package: web-RAG tools, `/usage` cost tracking, animated TUI, friday and chimu themes, GSD skills |
 | `harnesses/openclaw/` | [OpenCLAW](https://docs.openclaw.ai) | Persona workspace configs for four pre-built identities: kinyo, koda, kagakusha, tengan |
-| `docs/` | All of the above | Shared cross-harness docs: GITHUB.md |
+| `docs/` | All of the above | Shared cross-harness docs: research notes, superpowers plans/specs, `installation.md` (agent-facing setup reference) |
 
 ---
 
@@ -191,11 +174,33 @@ Installs `bx`, `html-preview`, `brave-search`, and `plan` across all ecosystems.
 
 ---
 
-## 🗺️ Roadmap
+## 🚀 Usage
 
-- **`harnesses/opencode/tools/opencode-all/`**: shipped standalone session dashboard companion tool
-- **`web-tools v0.1`**: shipped native OpenCode plugin exposing web_search, fetch_content, and maps_search (see harnesses/opencode/README.md)
-- **Brand Builder / Kitsune**: opt-in profile/portfolio optimization domain, still in development and intentionally excluded from the default fleet install; assets parked at `harnesses/opencode/future-work/`
+Once a harness is installed, day-to-day interaction stays inside that harness's own command surface:
+
+- **Claude Code**: slash commands after installing the plugins (`/idisu`, `/idisu dream`, `/idisu report`, `/rejion:review`, `/rejion:task "..."`). Git and GitHub work (commit/push/branch/PR/CI) routes automatically through the `hanko--git-seal` subagent, so you don't run `git`/`gh` directly once it's wired in. Full command reference: [harnesses/claude-code/README.md](harnesses/claude-code/README.md).
+- **OpenCode**: the fleet's agents become available under their shikigami names (`kantoku--workflow-director`, `tsuchigumo--research-weaver`, `hanko--git-seal`, and so on); OpenCode's own routing dispatches between them. `/tools-config` edits web-tools defaults. Full agent roster and workflow map: [harnesses/opencode/README.md](harnesses/opencode/README.md).
+- **pi.dev**: native tools (`web_search`, `fetch_content`, `code_search`, `video_search`) plus `/usage` for session cost and quota tracking, and `/theme friday` / `/theme chimu` to switch themes. Full reference: [harnesses/pi-agent/README.md](harnesses/pi-agent/README.md).
+- **OpenCLAW**: point `agentDir` in `openclaw.json` at one of the four persona workspaces (`workspace-kinyo`, `workspace-koda`, `workspace-kagakusha`, `workspace-tengan`); the persona's `SOUL.md`/`IDENTITY.md`/`MEMORY.md` drive its behavior from there. Full reference: [harnesses/openclaw/README.md](harnesses/openclaw/README.md).
+
+For architecture or "where does X live" questions, run a `graphify query` (see "For agents" above) before reading source directly.
+
+---
+
+## 📅 Timeline
+
+- [x] ~~v0.1.0 — **Monorepo scaffold**: superpowers, docs, graphify-out, initial skills~~
+- [x] ~~v0.2.0 — **Fleet v2**: 15-agent OpenCode fleet, web-tools plugin, fleet installer v1~~
+- [x] ~~v0.3.0 — **pi-agent + web-tools**: friday-furaidee extension, OpenCode web-tools plugin~~
+- [x] ~~v0.4.0 — **Claude Code overhaul**: Īdisu v1 + Rejion plugins, statusline, OpenCLAW personas~~
+- [x] ~~v0.5.0 — **Īdisu v2 + security + git tooling**: 8-stage dream pipeline; lefthook, gitleaks, trivy, semgrep, CI security; hanko--git-seal, two-hop approval, GOSHIN v2~~
+- [x] ~~v0.6.0 — **Shared installer + committing standards**: unified receipt, zod-v2 schema, --dry-run / --skip-checks, Conventional Commits hook~~
+- [ ] v0.7.0 — **Install UX**: statusline install flow, unified bootstrap, --yes across all harnesses
+- [ ] npm package distribution
+- [ ] Brand Builder / Kitsune opt-in domain
+- [ ] Workflow flows: law, financial, OC-parity multi-subagent
+- [ ] Unified installer receipt schemas (flat v1 ↔ zod v2)
+- [ ] Security: supply-chain audit, expanded CI scanning, fudo--security-guardian enhancement
 
 ---
 
@@ -225,7 +230,7 @@ git push origin dev
 gh pr create
 ```
 
-See [docs/GITHUB.md](docs/GITHUB.md) for the full workflow.
+See [skills/github/GITHUB.md](skills/github/GITHUB.md) for branch strategy and troubleshooting, and [skills/github/SECURITY.md](skills/github/SECURITY.md) for signing/PAT setup.
 
 ---
 
