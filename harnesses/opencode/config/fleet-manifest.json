@@ -177,9 +177,7 @@
       "atomic": false,
       "coupling": {
         "usedBy": [
-          "agents/fudo--security-guardian.md",
-          "agents/hanko--git-seal.md",
-          "skills/github/SKILL.md"
+          "agents/fudo--security-guardian.md"
         ],
         "safeToRemove": true,
         "fallbackBehavior": "agents lose the OPERATOR/manifest-schema/GITHUB.md reference docs; no functional runtime fallback needed since these are reference-only"
@@ -193,16 +191,7 @@
       "files": [
         "docs/manifest-schema.md"
       ],
-      "common_files": [
-        {
-          "src": "../../../docs/GITHUB.md",
-          "dst": "docs/GITHUB.md"
-        },
-        {
-          "src": "../../../packages/cli/src/shared/github-setup-check.sh",
-          "dst": "scripts/github-setup-check.sh"
-        }
-      ],
+      "common_files": [],
       "globs": []
     },
     {
